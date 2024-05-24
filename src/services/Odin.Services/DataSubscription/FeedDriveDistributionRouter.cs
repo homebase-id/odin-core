@@ -109,13 +109,6 @@ namespace Odin.Services.DataSubscription
                 }
                 else
                 {
-                    // If this is the reaction preview being updated due to an incoming comment or reaction
-                    if (notification is ReactionPreviewUpdatedNotification)
-                    {
-                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
-                        return;
-                    }
-
                     try
                     {
                         var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
@@ -124,6 +117,7 @@ namespace Odin.Services.DataSubscription
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
+                            return;
                         }
                     }
                     catch (Exception e)
@@ -132,7 +126,17 @@ namespace Odin.Services.DataSubscription
 #if DEBUG
                         throw;
 #endif
+
                     }
+                    
+                    // If this is the reaction preview being updated due to an incoming comment or reaction
+                    if (notification is ReactionPreviewUpdatedNotification)
+                    {
+                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
+                        return;
+                    }
+
+                    
                 }
             }
         }

@@ -40,7 +40,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-
             if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
                 return await RouteToInbox(request, odinContext, cn);
@@ -119,9 +118,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             }
         }
 
-
         /// <summary>
-        /// Looks up a file by a global transit identifier
+        /// Looks up a file by a global transit identifier or uniqueId as a fallback
         /// </summary>
         private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, Guid? uid, IOdinContext odinContext, DatabaseConnection cn)
         {

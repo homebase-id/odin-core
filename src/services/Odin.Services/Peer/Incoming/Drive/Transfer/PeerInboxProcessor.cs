@@ -1,12 +1,10 @@
 using System;
-using System.Data.SQLite;
 using System.Threading;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;

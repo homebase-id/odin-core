@@ -423,8 +423,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+                
+                //Update the reaction preview first since the overwrite method; uses what's on disk
+                // we call both of these here because this 'special' feed item hack method for collabgroups
+                await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
+
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
+                
                 return;
             }
 
