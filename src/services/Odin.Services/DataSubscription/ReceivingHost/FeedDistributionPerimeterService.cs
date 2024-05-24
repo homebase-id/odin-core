@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -32,7 +31,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext, cn);
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -40,7 +40,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            
+
             if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
                 return await RouteToInbox(request, odinContext, cn);
@@ -54,8 +54,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
                 }
-                
-                var fileId = await this.ResolveInternalFile(request.FileId, newContext, cn);
+
+                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, cn);
 
                 if (null == fileId)
                 {
@@ -100,7 +100,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             await followerService.AssertTenantFollowsTheCaller(odinContext, cn);
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var fileId = await this.ResolveInternalFile(request.FileId, newContext, cn);
+                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, cn);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -119,12 +119,35 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             }
         }
 
+
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, Guid? uid, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn, tryCommentDrive: false);
+            var (fs, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn, tryCommentDrive: false);
+
+            if (fileId == null && uid.HasValue)
+            {
+                //look it up by uniqueId
+                Log.Debug("FeedDistributionPerimeterService - failed to lookup file by globalTransitId; now trying the uid");
+
+                var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+                var fileByClientUniqueId = await fs.Query.GetFileByClientUniqueId(driveId, uid.GetValueOrDefault(), odinContext, cn);
+
+                if (fileByClientUniqueId == null)
+                {
+                    Log.Debug("FeedDistributionPerimeterService - file not found by uniqueId [{uid}]", uid);
+                    return null;
+                }
+
+                return new InternalDriveFileId()
+                {
+                    FileId = fileByClientUniqueId.FileId,
+                    DriveId = driveId
+                };
+            }
+
             return fileId;
         }
 
@@ -154,7 +177,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 Priority = 0,
                 Marker = default,
                 TransferFileType = TransferFileType.EncryptedFileForFeed,
-                
+
                 TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
                 {
                     FileSystemType = FileSystemType.Standard,
@@ -165,7 +188,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 //Feed stuff
                 EncryptedFeedPayload = request.EncryptedPayload
             };
-            
+
             //write the file to disk
             await inboxBoxStorage.Add(item, cn);
 
