@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -110,7 +111,70 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task b0_domain_AuthorizeEndpointMust400IfMissingClientId()
+        public async Task b0_AuthorizeEndpointMust400IfYouAuthingToSelf()
+        {
+            const string hobbit = "frodo.dotyou.cloud";
+            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
+
+            //
+            // [010] Generate key pair
+            //
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
+
+            //
+            // [030] Request authorization code
+            //
+            {
+                //
+                // Arrange
+                //
+
+                const string thirdParty = "frodo.dotyou.cloud";
+                var payload = new YouAuthAuthorizeRequest
+                {
+                    ClientId = thirdParty,
+                    ClientType = ClientType.domain,
+                    ClientInfo = "",
+                    PermissionRequest = "",
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
+                    State = "somestate",
+                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                };
+
+                var uri =
+                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    {
+                        Query = payload.ToQueryString()
+                    }.ToString();
+
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                //
+                // Act
+                //
+                var response = await apiClient.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+                var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+
+                //
+                // Assert
+                //
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+                Assert.That(problemDetails!.Title, Does.Contain("Cannot YouAuth to self"));
+            }
+        }
+
+        //
+
+        [Test]
+        public async Task b1_domain_AuthorizeEndpointMust400IfMissingClientId()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -170,7 +234,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task b1_domain_AuthorizeEndpointMustRedirectToConsentPageIfConsentIsNeeded()
+        public async Task b2_domain_AuthorizeEndpointMustRedirectToConsentPageIfConsentIsNeeded()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -216,7 +280,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 };
 
                 //
-                // Act 
+                // Act
                 //
                 var response = await apiClient.SendAsync(request);
 
@@ -252,7 +316,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task b2_domain_ConsentNotRequiredWhenPreviousConsentDidNotExpire()
+        public async Task b4_domain_ConsentNotRequiredWhenPreviousConsentDidNotExpire()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -630,7 +694,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task b4_domain_WithExplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
+        public async Task b5_domain_WithExplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -830,7 +894,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task b5_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
+        public async Task b6_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();

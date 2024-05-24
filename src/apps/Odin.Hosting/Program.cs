@@ -48,6 +48,7 @@ namespace Odin.Hosting
                 try
                 {
                     Log.Information("Starting web host");
+                    Log.Information("Identity-host version: {Version}", Extensions.Version.VersionText);
                     CreateHostBuilder(args).Build().Run();
                     Log.Information("Stopped web host");
                 }

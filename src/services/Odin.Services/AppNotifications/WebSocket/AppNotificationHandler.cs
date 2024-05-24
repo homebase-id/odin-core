@@ -290,11 +290,18 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
+            if (deviceSocket.DeviceOdinContext == null)
+            {
+                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                _logger.LogInformation("Invalid/Stale Device found; removing from list");
+                return;
+            }
+
             try
             {
                 if (encrypt)
                 {
-                    if (deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
+                    if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
                     }
@@ -370,25 +377,25 @@ namespace Odin.Services.AppNotifications.WebSocket
                     break;
 
                 case SocketCommandType.ProcessTransitInstructions:
+                {
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
+                    if (d != null)
                     {
-                        using var cn = _tenantSystemStorage.CreateConnection();
-                        var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                        if (d != null)
-                        {
-                            await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
-                        }
+                        await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
                     }
+                }
                     break;
 
                 case SocketCommandType.ProcessInbox:
+                {
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
+                    if (request != null)
                     {
-                        using var cn = _tenantSystemStorage.CreateConnection();
-                        var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                        if (request != null)
-                        {
-                            await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
-                        }
+                        await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
                     }
+                }
                     break;
 
                 case SocketCommandType.Ping:
