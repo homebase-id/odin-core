@@ -1,12 +1,10 @@
 ﻿using Microsoft.Data.Sqlite;
-using Odin.Core.Util;
 using System;
 using System.Data;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using Odin.Core.Tasks;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
@@ -23,6 +21,7 @@ namespace Odin.Core.Storage.SQLite
         private int _transactionCount = 0;
         public object _lock = new ();
         internal int _nestedCounter = 0;
+        private IsolationLevel _nestedIsolationLevel;
 
         public SqliteConnection Connection { get { return _connection; } }
 
@@ -55,19 +54,12 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
-        private void BeginTransaction()
+        private void BeginTransaction(IsolationLevel isolationLevel)
         {
             Debug.Assert(_transaction == null);
             Debug.Assert(_connection != null);
-            _transaction = _connection.BeginTransaction();
+            _transaction = _connection.BeginTransaction(isolationLevel);
         }
-
-
-        //
-        // TODO MS.
-        // private Commit & BeginTransaction
-        // Commit -> CommitTransaction
-        //
 
         /// <summary>
         /// Don't call this function directly, use using (CreateCommitUnitOfWork()) instead
@@ -82,7 +74,7 @@ namespace Odin.Core.Storage.SQLite
                     return false;
                 }
 
-                Interlocked.Increment(ref _transactionCount);
+                _transactionCount++;
 
                 if (commit)
                 {
@@ -119,7 +111,14 @@ namespace Odin.Core.Storage.SQLite
 
         public void CreateCommitUnitOfWork(Action actions)
         {
-            CreateCommitUnitOfWorkAsync(() =>
+            CreateCommitUnitOfWork(IsolationLevel.Unspecified, actions);
+        }
+
+        //
+
+        public void CreateCommitUnitOfWork(IsolationLevel isolationLevel, Action actions)
+        {
+            CreateCommitUnitOfWorkAsync(isolationLevel, () =>
             {
                 actions();
                 return Task.CompletedTask;
@@ -128,7 +127,14 @@ namespace Odin.Core.Storage.SQLite
 
         //
 
-        public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
+        public Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
+        {
+            return CreateCommitUnitOfWorkAsync(IsolationLevel.Unspecified, actions);
+        }
+
+        //
+
+        public async Task CreateCommitUnitOfWorkAsync(IsolationLevel isolationLevel, Func<Task> actions)
         {
             var commit = false;
 
@@ -138,7 +144,12 @@ namespace Odin.Core.Storage.SQLite
                 {
                     if (++_nestedCounter == 1)
                     {
-                        BeginTransaction();
+                        _nestedIsolationLevel = isolationLevel;
+                        BeginTransaction(isolationLevel);
+                    }
+                    else if (_nestedIsolationLevel != isolationLevel)
+                    {
+                        throw new OdinSystemException("Nested transactions must have the same isolation level");
                     }
                 }
 

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -427,6 +429,27 @@ namespace Odin.Core.Storage.Tests
             Assert.That(await CountAsync(cn), Is.EqualTo(5));
         }
 
+        //
+
+        [Test]
+        public Task NestedTransactionsMustHaveTheSameIsolationLevel()
+        {
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var cn = db.CreateDisposableConnection();
+            db.CreateDatabase(cn, true);
+
+            var exception = Assert.ThrowsAsync<OdinSystemException>(async () =>
+            {
+                await cn.CreateCommitUnitOfWorkAsync(IsolationLevel.Serializable, async () =>
+                {
+                    await cn.CreateCommitUnitOfWorkAsync(() => Task.CompletedTask);
+                });
+            });
+            Assert.That(exception!.Message, Is.EqualTo("Nested transactions must have the same isolation level"));
+            return Task.CompletedTask;
+        }
+
+        //
 
         [Test]
         public void Test4()
