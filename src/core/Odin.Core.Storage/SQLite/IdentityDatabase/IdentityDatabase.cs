@@ -69,6 +69,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
+        private object _dbLock = new object();
 
         /// <summary>
         /// 
@@ -229,40 +230,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
-            conn.CreateCommitUnitOfWork(() =>
+            lock (_dbLock)
             {
-                tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    driveId = driveId,
-                    fileId = fileId,
-                    globalTransitId = globalTransitId,
-                    fileState = fileState,
-                    userDate = userDate,
-                    fileType = fileType,
-                    dataType = dataType,
-                    senderId = senderId.ToString(),
-                    groupId = groupId,
-                    uniqueId = uniqueId,
-                    archivalStatus = archivalStatus,
-                    historyStatus = 0,
-                    requiredSecurityGroup = requiredSecurityGroup,
-                    fileSystemType = fileSystemType,
-                    byteCount = byteCount
+                    tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
+                    {
+                        driveId = driveId,
+                        fileId = fileId,
+                        globalTransitId = globalTransitId,
+                        fileState = fileState,
+                        userDate = userDate,
+                        fileType = fileType,
+                        dataType = dataType,
+                        senderId = senderId.ToString(),
+                        groupId = groupId,
+                        uniqueId = uniqueId,
+                        archivalStatus = archivalStatus,
+                        historyStatus = 0,
+                        requiredSecurityGroup = requiredSecurityGroup,
+                        fileSystemType = fileSystemType,
+                        byteCount = byteCount
+                    });
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
                 });
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
-            });
+            }
         }
 
         public void DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
-            conn.CreateCommitUnitOfWork(() =>
+            lock (_dbLock)
             {
-                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveMainIndex.Delete(conn, driveId, fileId);
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveMainIndex.Delete(conn, driveId, fileId);
 
-            });
+                });
+            }
         }
 
         // We do not allow updating the fileId, globalTransitId
@@ -286,21 +293,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            conn.CreateCommitUnitOfWork(() =>
+            lock (_dbLock)
             {
-                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                    senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                        senderId: senderId,
+                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
-                tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
-                tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
+                    tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
+                    tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
 
-                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                //
-            });
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                });
+            }
         }
 
         // We do not allow updating the fileId, globalTransitId
@@ -323,25 +333,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            conn.CreateCommitUnitOfWork(() =>
+            lock (_dbLock)
             {
-                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                    senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                        senderId: senderId,
+                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
 
-                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                //
-            });
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                });
+            }
         }
 
 
-        private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf, 
+        private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,
             List<byte[]> senderidAnyOf,
