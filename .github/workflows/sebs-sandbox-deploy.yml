@@ -1,15 +1,21 @@
 name: Sebs Sandbox Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [windows-build]
+  pull_request:
+    branches: [windows-build]
+  workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
-  build_and_deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4 
-        with:
-          path: dotyoucore
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Build and test backend
+        uses: ./.github/actions/host/build-and-test-backend
+        with:
+          configuration: Debug
