@@ -13,19 +13,16 @@ runs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Set folder permissions (RW required for SqLite)
-      shell: bash
-      run: |
-        chmod -R +rw ./
+    # - name: Set folder permissions (RW required for SqLite)
+    #   shell: bash
+    #   run: |
+    #     chmod -R +rw ./
 
     - name: Restore dependencies
-      shell: bash
       run: dotnet restore ./dotyoucore.sln
 
     - name: Build
-      shell: bash
       run: dotnet build --no-restore --configuration ${{ inputs.configuration }} --warnaserror ./dotyoucore.sln
 
     - name: Test
-      shell: bash
       run: sudo dotnet test --no-build --configuration ${{ inputs.configuration }} --verbosity normal ./dotyoucore.sln
