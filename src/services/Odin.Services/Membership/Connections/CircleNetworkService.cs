@@ -551,7 +551,7 @@ namespace Odin.Services.Membership.Connections
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
             var odinContext = notification.OdinContext;
-            await this.ReconcileAuthorizedCircles(notification.OldAppRegistration.Redacted(), notification.NewAppRegistration.Redacted(), odinContext,
+            await this.ReconcileAuthorizedCircles(notification.OldAppRegistration?.Redacted(), notification.NewAppRegistration.Redacted(), odinContext,
                 notification.DatabaseConnection);
         }
 
