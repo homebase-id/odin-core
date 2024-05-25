@@ -138,7 +138,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     Log.Debug("FeedDistributionPerimeterService - file not found by uniqueId [{uid}]", uid);
                     return null;
                 }
-
+                                
+                Log.Debug("FeedDistributionPerimeterService - file found by uniqueId");
                 return new InternalDriveFileId()
                 {
                     FileId = fileByClientUniqueId.FileId,
