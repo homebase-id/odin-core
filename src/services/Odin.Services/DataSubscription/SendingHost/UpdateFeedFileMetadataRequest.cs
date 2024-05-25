@@ -1,3 +1,4 @@
+using System;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.EncryptionKeyService;
@@ -12,4 +13,5 @@ public class UpdateFeedFileMetadataRequest
     
     public EccEncryptedPayload EncryptedPayload { get; set; }
     public FeedDistroType FeedDistroType { get; set; }
+    public Guid? UniqueId { get; set; }
 }

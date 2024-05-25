@@ -109,13 +109,6 @@ namespace Odin.Services.DataSubscription
                 }
                 else
                 {
-                    // If this is the reaction preview being updated due to an incoming comment or reaction
-                    if (notification is ReactionPreviewUpdatedNotification)
-                    {
-                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
-                        return;
-                    }
-
                     try
                     {
                         var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
@@ -124,6 +117,7 @@ namespace Odin.Services.DataSubscription
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
+                            return;
                         }
                     }
                     catch (Exception e)
@@ -131,7 +125,16 @@ namespace Odin.Services.DataSubscription
                         _logger.LogError(e, "[Experimental support] Failed while DistributeToCollaborativeChannelMembers.");
 #if DEBUG
                         throw;
+#else
+                        return;
 #endif
+                    }
+
+                    // If this is the reaction preview being updated due to an incoming comment or reaction
+                    if (notification is ReactionPreviewUpdatedNotification)
+                    {
+                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
+                        return;
                     }
                 }
             }
@@ -252,7 +255,7 @@ namespace Odin.Services.DataSubscription
             var header = notification.ServerFileHeader;
 
             var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, cn);
-            
+
             // var author = odinContext.GetCallerOdinIdOrFail();
             // connectedFollowers = connectedFollowers.Where(f => (OdinId)f.AsciiDomain != author).ToList();
 

@@ -23,7 +23,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
+    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+        : DriveUploadControllerBase
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -61,11 +62,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
 
             using var cn = tenantSystemStorage.CreateConnection();
-            await fileSystemWriter.StartUpload(uploadInstructionSet,WebOdinContext, cn);
+            await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext, cn);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await fileSystemWriter.AddMetadata(section!.Body,WebOdinContext, cn);
+            await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext, cn);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -74,13 +75,13 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream,WebOdinContext, cn);
+                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream,WebOdinContext, cn);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -125,7 +126,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     FileSystemType = request.FileSystemType,
                     TransferFileType = TransferFileType.Normal
                 },
-                request.Recipients,WebOdinContext, cn);
+                request.Recipients, WebOdinContext, cn);
 
             return new JsonResult(map);
         }
@@ -155,7 +156,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     SendContents = SendContents.All,
 
                     //TODO: OMG HACK
-                    OverrideRemoteGlobalTransitId = transitInstructionSet.GlobalTransitFileId,
+                    OverrideRemoteGlobalTransitId = transitInstructionSet.OverwriteGlobalTransitFileId,
 
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,

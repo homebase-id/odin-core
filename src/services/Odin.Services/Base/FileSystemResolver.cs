@@ -69,7 +69,7 @@ namespace Odin.Services.Base
 
             if (null == file)
             {
-                return (null, null);
+                return (fs, null);
             }
 
             return (await this.ResolveFileSystem(file.Value, odinContext, cn), file.Value);
