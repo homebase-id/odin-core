@@ -32,4 +32,4 @@ jobs:
         run: dotnet build --no-restore --configuration Debug --warnaserror ./dotyoucore.sln
 
       - name: Test
-        run: sudo dotnet test --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        run: dotnet test --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
