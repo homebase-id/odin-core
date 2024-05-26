@@ -212,6 +212,8 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
@@ -222,7 +224,7 @@ namespace Odin.Hosting
 
             var registry = scope.Resolve<IIdentityRegistry>();
             var tenantContext = scope.Resolve<TenantContext>();
-            
+
             var tc = registry.CreateTenantContext(tenant.Name);
             tenantContext.Update(tc);
         }

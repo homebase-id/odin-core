@@ -47,7 +47,7 @@ public class AppTransitSenderApiClient : AppApiClientBase
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
-            GlobalTransitFileId = overwriteGlobalTransitFileId,
+            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
             Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,

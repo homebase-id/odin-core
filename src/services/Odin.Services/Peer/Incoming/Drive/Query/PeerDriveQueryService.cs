@@ -129,6 +129,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             return readableDrives.Select(drive => new PerimeterDriveData()
             {
                 TargetDrive = drive.TargetDriveInfo,
+                Attributes = drive.Attributes
             });
         }
     }

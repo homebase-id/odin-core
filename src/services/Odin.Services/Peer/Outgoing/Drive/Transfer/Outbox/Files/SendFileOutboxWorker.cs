@@ -135,6 +135,10 @@ public class SendFileOutboxWorker(
             transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
         }
 
+        var redactedAcl = header.ServerMetadata.AccessControlList;
+        redactedAcl?.OdinIdList?.Clear();
+        transferInstructionSet.OriginalAcl = redactedAcl;
+
         var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
         var transferKeyHeaderStream = new StreamPart(
             new MemoryStream(transferInstructionSetBytes),
