@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Odin.Core;
@@ -197,6 +198,8 @@ namespace Odin.Hosting.Tests
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+
+            SqliteConnection.ClearAllPools(); // Needed on Windows to avoid file locking issues
 
             this.DeleteData();
             this.DeleteLogs();
