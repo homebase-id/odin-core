@@ -269,8 +269,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -324,8 +324,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedBadRequest);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -389,8 +389,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedBadRequest);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -452,8 +452,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedBadRequest);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -519,8 +519,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }

@@ -155,7 +155,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-            Assert.IsNull(recipientStatus.LatestProblemStatus);
+            Assert.IsNull(recipientStatus.LatestStatus);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
             //TODO: revisit when michael's outbox code is present
@@ -243,7 +243,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId,
                 out var statusFromGetModifiedResults));
             Assert.IsNotNull(statusFromGetModifiedResults, "There should be a status update for the recipient");
-            Assert.IsNull(statusFromGetModifiedResults.LatestProblemStatus);
+            Assert.IsNull(statusFromGetModifiedResults.LatestStatus);
             Assert.IsTrue(statusFromGetModifiedResults.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
             //TODO: revisit when michael's outbox code is present
@@ -316,7 +316,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-            Assert.IsNull(recipientStatus.LatestProblemStatus);
+            Assert.IsNull(recipientStatus.LatestStatus);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
             //TODO: revisit when michael's outbox code is present

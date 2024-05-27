@@ -254,7 +254,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         FileId = notification.File.FileId,
                         TargetDrive = context.PermissionsContext.GetTargetDrive(notification.File.DriveId)
                     },
-                    notification.ProblemStatus,
+                    ProblemStatus = notification.Status,
                     notification.Recipient,
                     notification.FileSystemType
                 }));

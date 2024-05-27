@@ -20,7 +20,7 @@ public class OdinOutboxProcessingException : OdinException
 
     public OdinId Recipient { get; set; }
     
-    public LatestProblemStatus ProblemStatus { get; set; }
+    public LatestStatus Status { get; set; }
         
     /// <summary>
     /// Indicates the version of the file that was sent

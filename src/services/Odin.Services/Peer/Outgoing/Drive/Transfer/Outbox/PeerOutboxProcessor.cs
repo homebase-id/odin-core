@@ -145,7 +145,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             try
             {
                 var versionTag = await SendOutboxFileItemAsync(item, storage);
-                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, null);
+                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, LatestStatus.Processing);
 
                 await peerOutbox.MarkComplete(item.Marker);
                 await mediator.Publish(new OutboxFileItemDeliverySuccessNotification(contextAccessor.GetCurrent())
@@ -158,21 +158,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag: null, e.ProblemStatus);
+                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag: null, e.Status);
 
-                switch (e.ProblemStatus)
+                switch (e.Status)
                 {
-                    case LatestProblemStatus.RecipientIdentityReturnedAccessDenied:
-                    case LatestProblemStatus.UnknownServerError:
-                    case LatestProblemStatus.RecipientIdentityReturnedBadRequest:
+                    case LatestStatus.RecipientIdentityReturnedAccessDenied:
+                    case LatestStatus.UnknownServerError:
+                    case LatestStatus.RecipientIdentityReturnedBadRequest:
                         await peerOutbox.MarkComplete(item.Marker);
                         break;
 
-                    case LatestProblemStatus.RecipientIdentityReturnedServerError:
-                    case LatestProblemStatus.RecipientServerNotResponding:
-                    case LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile:
-                    case LatestProblemStatus.SourceFileDoesNotAllowDistribution:
-                        var nextRunTime = CalculateNextRunTime(e.ProblemStatus);
+                    case LatestStatus.RecipientIdentityReturnedServerError:
+                    case LatestStatus.RecipientServerNotResponding:
+                    case LatestStatus.RecipientDoesNotHavePermissionToSourceFile:
+                    case LatestStatus.SourceFileDoesNotAllowDistribution:
+                        var nextRunTime = CalculateNextRunTime(e.Status);
                         await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
                         await peerOutbox.MarkFailure(item.Marker, nextRunTime);
                         break;
@@ -186,7 +186,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     Recipient = item.Recipient,
                     File = item.File,
                     FileSystemType = item.TransferInstructionSet.FileSystemType,
-                    ProblemStatus = e.ProblemStatus
+                    Status = e.Status
                 });
             }
             catch
@@ -197,7 +197,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     Recipient = item.Recipient,
                     File = item.File,
                     FileSystemType = item.TransferInstructionSet.FileSystemType,
-                    ProblemStatus = LatestProblemStatus.UnknownServerError
+                    Status = LatestStatus.UnknownServerError
                 });
             }
         }
@@ -217,18 +217,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinConfiguration, driveFileReaderWriter, concurrentFileManager);
         }
 
-        private UnixTimeUtc CalculateNextRunTime(LatestProblemStatus problemStatus)
+        private UnixTimeUtc CalculateNextRunTime(LatestStatus status)
         {
             if (item.Type == OutboxItemType.File)
             {
-                switch (problemStatus)
+                switch (status)
                 {
-                    case LatestProblemStatus.RecipientIdentityReturnedServerError:
-                    case LatestProblemStatus.RecipientServerNotResponding:
+                    case LatestStatus.RecipientIdentityReturnedServerError:
+                    case LatestStatus.RecipientServerNotResponding:
                         return UnixTimeUtc.Now().AddSeconds(60);
 
-                    case LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile:
-                    case LatestProblemStatus.SourceFileDoesNotAllowDistribution:
+                    case LatestStatus.RecipientDoesNotHavePermissionToSourceFile:
+                    case LatestStatus.SourceFileDoesNotAllowDistribution:
                         return UnixTimeUtc.Now().AddMinutes(2);
                 }
             }
@@ -272,7 +272,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 throw new OdinOutboxProcessingException("File does not allow distribution")
                 {
-                    ProblemStatus = LatestProblemStatus.SourceFileDoesNotAllowDistribution,
+                    Status = LatestStatus.SourceFileDoesNotAllowDistribution,
                     VersionTag = versionTag,
                     Recipient = recipient,
                     File = file
@@ -382,7 +382,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 throw new OdinOutboxProcessingException("Failed while sending the request")
                 {
-                    ProblemStatus = MapPeerResponseHttpStatus(response),
+                    Status = MapPeerResponseHttpStatus(response),
                     VersionTag = versionTag,
                     Recipient = recipient,
                     File = file
@@ -392,12 +392,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 var e = ex.InnerException;
                 var problemStatus = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
-                    ? LatestProblemStatus.RecipientServerNotResponding
-                    : LatestProblemStatus.UnknownServerError;
+                    ? LatestStatus.RecipientServerNotResponding
+                    : LatestStatus.UnknownServerError;
 
                 throw new OdinOutboxProcessingException("Failed sending to recipient")
                 {
-                    ProblemStatus = problemStatus,
+                    Status = problemStatus,
                     VersionTag = versionTag,
                     Recipient = recipient,
                     File = file
@@ -405,21 +405,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private LatestProblemStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
+        private LatestStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
         {
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return LatestProblemStatus.RecipientIdentityReturnedAccessDenied;
+                return LatestStatus.RecipientIdentityReturnedAccessDenied;
             }
 
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
-                return LatestProblemStatus.RecipientIdentityReturnedBadRequest;
+                return LatestStatus.RecipientIdentityReturnedBadRequest;
             }
 
             // if (response.StatusCode == HttpStatusCode.InternalServerError) // or HttpStatusCode.ServiceUnavailable
             {
-                return LatestProblemStatus.RecipientIdentityReturnedServerError;
+                return LatestStatus.RecipientIdentityReturnedServerError;
             }
         }
     }

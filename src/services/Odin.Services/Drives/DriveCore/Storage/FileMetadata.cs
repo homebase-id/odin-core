@@ -90,8 +90,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class RecipientTransferHistory
     {
-        public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } = 
-            new (StringComparer.InvariantCultureIgnoreCase);
+        public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } =
+            new(StringComparer.InvariantCultureIgnoreCase);
     }
 
     public class RecipientTransferHistoryItem
@@ -101,16 +101,28 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Indicates the latest known status of a transfer as of the LastUpdated timestmp.  If null
         /// </summary>
-        public LatestProblemStatus? LatestProblemStatus { get; set; }
+        public LatestStatus LatestStatus { get; set; }
+        
+        /// <summary>
+        /// Indicates if the item is still in the outbox and attempting to be sent
+        /// </summary>
+        public bool IsInOutbox { get; set; }
 
         /// <summary>
         /// If set, indicates the last version tag of this file that was sent to this recipient
         /// </summary>
         public Guid? LatestSuccessfullyDeliveredVersionTag { get; set; }
+        
+        /// <summary>
+        /// Indicates the recipient replied that the file was read (as called by the app)
+        /// </summary>
+        public bool IsReadByRecipient { get; set; }
     }
 
-    public enum LatestProblemStatus
+    public enum LatestStatus
     {
+        Processing = 10,
+
         /// <summary>
         /// Caller does not have access to the recipient server
         /// </summary>
@@ -120,12 +132,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// The local file cannot be sent due to it's settings or recipient's permissions
         /// </summary>
         SourceFileDoesNotAllowDistribution = 50,
-        
+
         /// <summary>
         /// Indicates the target recipient does not match the ACL requirements on the file 
         /// </summary>
         RecipientDoesNotHavePermissionToSourceFile = 60,
-        
+
         /// <summary>
         /// The recipient server did not respond
         /// </summary>

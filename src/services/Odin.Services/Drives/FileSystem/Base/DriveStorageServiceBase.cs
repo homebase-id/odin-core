@@ -144,7 +144,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// Updates the transfer history for this file for the given recipient
         /// </summary>
-        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestProblemStatus? problemStatus)
+        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestStatus problemStatus)
         {
             await concurrentFileManager.WriteFile(file.ToString(), async _ =>
             {
@@ -160,7 +160,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 recipientItem.LastUpdated = UnixTimeUtc.Now();
-                recipientItem.LatestProblemStatus = problemStatus;
+                recipientItem.LatestStatus = problemStatus;
                 if (problemStatus == null)
                 {
                     recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();

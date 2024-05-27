@@ -17,5 +17,5 @@ public class OutboxFileItemDeliveryFailedNotification(OdinContext context) : Med
 
     public FileSystemType FileSystemType { get; set; }
 
-    public LatestProblemStatus ProblemStatus { get; set; }
+    public LatestStatus Status { get; set; }
 }

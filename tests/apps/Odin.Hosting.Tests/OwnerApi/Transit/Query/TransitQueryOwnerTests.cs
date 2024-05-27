@@ -826,8 +826,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
                 Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestProblemStatus ==
-                              LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
+                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestStatus ==
+                              LatestStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
             }
         }
 
@@ -1608,8 +1608,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
                 Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestProblemStatus ==
-                              LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
+                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestStatus ==
+                              LatestStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
             }
 
 
@@ -1779,8 +1779,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
                 Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestProblemStatus ==
-                              LatestProblemStatus.RecipientIdentityReturnedBadRequest);
+                Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[r].LatestStatus ==
+                              LatestStatus.RecipientIdentityReturnedBadRequest);
             }
 
             keyHeader.AesKey.Wipe();

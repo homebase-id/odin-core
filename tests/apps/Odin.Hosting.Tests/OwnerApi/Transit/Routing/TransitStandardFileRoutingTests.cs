@@ -195,8 +195,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
-                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestStatus ==
+                          LatestStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
             // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
