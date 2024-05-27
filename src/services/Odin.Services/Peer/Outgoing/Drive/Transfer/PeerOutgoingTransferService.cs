@@ -222,6 +222,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
             await peerOutbox.Add(outboxItems, cn);
+            
+            //TODO: need to update the IsInOutbox Flag
 
             _ = outboxProcessor.StartOutboxProcessingAsync(odinContext, cn);
 

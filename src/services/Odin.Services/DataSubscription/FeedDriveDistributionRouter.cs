@@ -86,9 +86,8 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var serverFileHeader = notification.ServerFileHeader;
             var odinContext = notification.OdinContext;
-            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection))
+            if (await ShouldDistribute(notification, notification.DatabaseConnection))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -162,9 +161,15 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn)
+        private async Task<bool> ShouldDistribute(IDriveNotification notification, DatabaseConnection cn)
         {
+            if (notification.IgnoreFeedDistribution)
+            {
+                return false;
+            }
+            
             //if the file was received from another identity, do not redistribute
+            var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity)

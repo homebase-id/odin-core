@@ -98,7 +98,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
             IOdinContext odinContext, DatabaseConnection cn,
-            bool raiseEvent = false)
+            bool raiseEvent = false, bool ignoreFeedDistribution = false)
         {
             if (!header.IsValid())
             {
@@ -147,7 +147,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         File = targetFile,
                         ServerFileHeader = header,
                         OdinContext = odinContext,
-                        DatabaseConnection = cn
+                        DatabaseConnection = cn,
+                        IgnoreFeedDistribution = ignoreFeedDistribution
                     });
                 }
             }
@@ -886,7 +887,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, cn, raiseEvent);
         }
 
-        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestTransferStatus transferStatus, IOdinContext odinContext,
+        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestTransferStatus transferStatus,
+            IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var header = await this.GetServerFileHeader(file, odinContext, cn);
@@ -908,9 +910,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             header.ServerMetadata.TransferHistory = history;
-            await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true);
+            await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true, ignoreFeedDistribution: true);
         }
-        
+
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
@@ -1053,6 +1055,5 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return header;
         }
-        
     }
 }
