@@ -77,7 +77,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var httpClient = _httpClientFactory.CreateClient<IdentityRegistrationService>();
         try
         {
-            await httpClient.GetAsync($"https://{_configuration.HttpsHostAndPort(domain)}");
+            await httpClient.GetAsync($"https://{domain}:{_configuration.Host.DefaultHttpsPort}");
             return true;
         }
         catch (Exception)

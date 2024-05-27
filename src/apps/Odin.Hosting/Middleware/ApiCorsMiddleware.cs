@@ -35,12 +35,12 @@ namespace Odin.Hosting.Middleware
 
             if (odinContext.AuthContext == YouAuthConstants.AppSchemeName)
             {
-                var appHostName = odinContext.Caller.OdinClientContext.CorsHostName;
-                var hostAndPort = _config.HttpHostAndPort(appHostName);
+                string appHostName = odinContext.Caller.OdinClientContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;
-                    context.Response.Headers.Append("Access-Control-Allow-Origin", $"https://{hostAndPort}");
+                    context.Response.Headers.Append(
+                        "Access-Control-Allow-Origin", $"https://{appHostName}:{_config.Host.DefaultHttpsPort}");
                     allowHeaders.Add(YouAuthConstants.AppCookieName);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }

@@ -282,18 +282,6 @@ namespace Odin.Services.Configuration
             }
         }
 
-        public string HttpHostAndPort(string hostWithoutPort)
-        {
-            var port = Host.DefaultHttpPort;
-            return port == 80 ? hostWithoutPort : hostWithoutPort + ":" + port;
-        }
-
-        public string HttpsHostAndPort(string hostWithoutPort)
-        {
-            var port = Host.DefaultHttpPort;
-            return port == 443 ? hostWithoutPort : hostWithoutPort + ":" + port;
-        }
-
         //
 
         public class JobSection
