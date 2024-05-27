@@ -33,4 +33,5 @@ jobs:
 
       - name: Test
         # run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest.ItShouldGetAllTenants --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
-        run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        # run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        run: dotnet test --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
