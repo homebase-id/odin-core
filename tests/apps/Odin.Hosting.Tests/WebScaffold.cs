@@ -199,8 +199,6 @@ namespace Odin.Hosting.Tests
                 _webserver.Dispose();
             }
 
-            SqliteConnection.ClearAllPools(); // Needed on Windows to avoid file locking issues
-
             this.DeleteData();
             this.DeleteLogs();
 
