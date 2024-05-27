@@ -42,7 +42,7 @@ public class HttpsPortRedirectMiddleware
             return _next(context);
         }
 
-        HostString host;
+        var host = context.Request.Host;
         if (_httpsPort != 443)
         {
             host = new HostString(host.Host, _httpsPort);
