@@ -1,10 +1,10 @@
-name: "Host: Build and test main (release)"
+name: "Host: Build and test main (release/ubuntu)"
 
 on:
   push:
-    branches: [main]
+    branches: [main, windows-build]
   pull_request:
-    branches: [main]
+    branches: [main, windows-build]
   workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
@@ -15,8 +15,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and test backend
-        uses: ./.github/actions/host/build-and-test-backend
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.0.0
         with:
-          configuration: Release
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ./dotyoucore.sln
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release --warnaserror ./dotyoucore.sln
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal ./dotyoucore.sln
 
