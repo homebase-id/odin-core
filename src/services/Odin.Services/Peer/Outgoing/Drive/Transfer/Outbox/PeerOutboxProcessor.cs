@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
@@ -21,6 +23,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         PushNotificationService pushNotificationService,
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
+        IMediator mediator,
+        IJobManager jobManager,
         TenantSystemStorage tenantSystemStorage)
     {
         public async Task StartOutboxProcessing(IOdinContext odinContext, DatabaseConnection cn)
@@ -84,7 +88,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
 
             using var connection = tenantSystemStorage.CreateConnection();
-            
+
             OutboxProcessingResult result;
             switch (item.Type)
             {
@@ -114,7 +118,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 logger,
                 peerOutbox,
                 odinConfiguration,
-                odinHttpClientFactory);
+                odinHttpClientFactory,
+                mediator,
+                jobManager);
 
             var result = await worker.Send(odinContext, tryDeleteTransient, cn);
 

@@ -22,5 +22,8 @@ public enum ClientNotificationType
     AllReactionsByFileDeleted = 2005,
     AppNotificationAdded = 3001,
 
+    OutboxFileItemDeliverySuccess = 5005,
+    OutboxFileItemDeliveryFailed = 5008,
+    
     Error = 0xBADBEEF,
 }

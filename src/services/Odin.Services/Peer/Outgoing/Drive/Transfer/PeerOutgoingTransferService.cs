@@ -262,12 +262,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     // Map to something to tell the client
                     switch (result.TransferResult)
                     {
-                        case TransferResult.EncryptedTransferInstructionSetNotAvailable:
-                            //enqueue the failures into the outbox
-                            await peerOutbox.Add(result.OutboxItem, cn);
-                            transferStatus[result.Recipient.DomainName] = TransferStatus.PendingRetry;
-                            break;
-
                         case TransferResult.RecipientServerError:
                         case TransferResult.RecipientServerNotResponding:
                         case TransferResult.UnknownError:

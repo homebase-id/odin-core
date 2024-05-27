@@ -13,6 +13,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -84,7 +85,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Schedule = ScheduleOptions.SendLater
             };
 
-            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
@@ -101,12 +102,32 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             await driveClient.WaitForEmptyOutbox(targetDrive);
             
-            var getStatusResponse = await driveClient.GetDriveStatus(targetDrive);
-            Assert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode);
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                Assert.Inconclusive("need to implement the transfer history");
-                //TODO: need to query the status from the origin file to see the transfer history was updated correctly
+                // validate recipient got the file
+
+                await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+                var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
+                Assert.IsNotNull(recipientFile);
+                Assert.IsTrue(recipientFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+            
+                //
+                // Validate the transfer history was updated correctly
+                //
+                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+                var uploadedFile1 = uploadedFileResponse1.Content;
+                
+                Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                Assert.IsFalse(recipientStatus.IsInOutbox);
+                Assert.IsFalse(recipientStatus.IsReadByRecipient);
+                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
+                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);

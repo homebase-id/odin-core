@@ -1170,7 +1170,8 @@ public class DataSubscriptionAndDistributionTests1
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-
+        //await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
