@@ -199,7 +199,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             // Sanity #1
-            if (returnUri.Host != Request.Host.Host || returnUri.Port != Request.Host.Port)
+            if (returnUri.Host != Request.Host.Host)
             {
                 throw new BadRequestException("Host mismatch");
             }
