@@ -43,7 +43,7 @@ public class AppApiClientFactory : IApiClientFactory
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
 
-        client.BaseAddress = new Uri($"https://{identity}{AppApiPathConstants.BasePathV1}");
+        client.BaseAddress = new Uri($"https://{identity}:8443{AppApiPathConstants.BasePathV1}");
         return client;
     }
 }

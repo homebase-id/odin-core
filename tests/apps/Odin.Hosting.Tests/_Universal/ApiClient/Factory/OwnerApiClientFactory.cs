@@ -39,7 +39,7 @@ public class OwnerApiClientFactory : IApiClientFactory
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
 
-        client.BaseAddress = new Uri($"https://{identity}{OwnerApiPathConstants.BasePathV1}");
+        client.BaseAddress = new Uri($"https://{identity}:8443{OwnerApiPathConstants.BasePathV1}");
         sharedSecret = _sharedSecret.ToSensitiveByteArray();
         return client;
     }
