@@ -59,7 +59,7 @@ public class RedirectIfNotApexMiddleware
         {
             Scheme = context.Request.Scheme,
             Host = tenant.Name,
-            Port = context.Request.Host.Port == 443 ? -1 : context.Request.Host.Port ?? -1,
+            Port = context.Request.Host.Port == 8443 ? -1 : context.Request.Host.Port ?? -1,
             Path = context.Request.Path,
             Query = context.Request.QueryString.ToString()
         };

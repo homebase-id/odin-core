@@ -56,7 +56,7 @@ namespace Odin.Services.Base
             var httpClientKey = HttpFactoryKey(_tenantContext.HostOdinId.DomainName);
             var httpClient = _httpClientFactory.CreateClient(httpClientKey);
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
-            httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = remoteHost }.Uri;
+            httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = remoteHost, Port = 8443}.Uri;
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
             
             if (fileSystemType.HasValue)
