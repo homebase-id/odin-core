@@ -104,7 +104,7 @@ public abstract class YouAuthIntegrationTestBase
         //
         // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{identity:8443}/api/owner/v1/authentication/verifyToken")
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{identity}:8443/api/owner/v1/authentication/verifyToken")
             {
                 Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } }
             };
