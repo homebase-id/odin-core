@@ -371,7 +371,7 @@ namespace Odin.Services.DataSubscription
             {
                 if (transferStatusMap.TryGetValue(recipient, out var status))
                 {
-                    if (status != TransferStatus.TransferKeyCreated)
+                    if (status != TransferStatus.Enqueued)
                     {
                         _logger.LogError(
                             "Feed Distribution Router result - {recipient} returned status was [{status}] but should have been TransferKeyCreated " +

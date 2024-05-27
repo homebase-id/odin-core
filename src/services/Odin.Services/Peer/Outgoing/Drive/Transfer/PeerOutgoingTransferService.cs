@@ -24,9 +24,8 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
-    public class PeerOutgoingOutgoingTransferService(
+    public class PeerOutgoingTransferService(
         IPeerOutbox peerOutbox,
-        TenantSystemStorage tenantSystemStorage,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantContext tenantContext,
         CircleNetworkService circleNetworkService,
@@ -34,13 +33,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         ServerSystemStorage serverSystemStorage,
-        ILogger<PeerOutgoingOutgoingTransferService> logger,
+        ILogger<PeerOutgoingTransferService> logger,
         PeerOutboxProcessor outboxProcessor)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
             fileSystemResolver), IPeerOutgoingTransferService
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
-        private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService = new(tenantSystemStorage);
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
@@ -61,6 +59,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var tenant = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
+            int priority = 100;
             // var priority = options.Priority switch
             // {
             //     PriorityOptions.High => 1000,
@@ -68,19 +67,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //     _ => 3000
             // };
 
-            // var outboxStatus = await EnqueueOutboxItems(internalFile, options, sfo, priority, OutboxItemType.File);
-            // await outboxProcessor.StartOutboxProcessing();
-            // return await MapOutboxCreationResult(outboxStatus);
-
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
                 //send now
                 return await SendFileNow(internalFile, options, sfo, odinContext, cn);
             }
 
-            return await SendFileLater(internalFile, options, sfo, odinContext, cn);
+            return await SendFileLater(internalFile, options, sfo, priority, odinContext, cn);
         }
-        
+
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
             FileTransferOptions fileTransferOptions, IEnumerable<string> recipients, IOdinContext odinContext, DatabaseConnection cn)
         {
@@ -155,22 +150,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        private void AddToTransferKeyEncryptionQueue(OdinId recipient, InternalDriveFileId file, DatabaseConnection cn)
-        {
-            var now = UnixTimeUtc.Now().milliseconds;
-            var item = new PeerKeyEncryptionQueueItem()
-            {
-                Id = GuidId.NewId(),
-                FileId = file.FileId,
-                Recipient = recipient,
-                FirstAddedTimestampMs = now,
-                Attempts = 1,
-                LastAttemptTimestampMs = now
-            };
-
-            _transferKeyEncryptionQueueService.Enqueue(item, cn);
-        }
-        
         private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<OutboxItem>)> CreateOutboxItems(InternalDriveFileId internalFile,
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
@@ -231,7 +210,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 catch (Exception ex)
                 {
                     logger.LogError("Failed while creating outbox item {msg}", ex.Message);
-                    AddToTransferKeyEncryptionQueue(recipient, internalFile, cn);
                     status.Add(recipient, false);
                 }
             }
@@ -240,15 +218,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
-            TransitOptions options, FileTransferOptions fileTransferOptions, IOdinContext odinContext, DatabaseConnection cn)
+            TransitOptions options, FileTransferOptions fileTransferOptions, int priority, IOdinContext odinContext, DatabaseConnection cn)
         {
-            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
-            //will read the transfer key during the background send process
-
-            const int priority = 100;
-
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
             await peerOutbox.Add(outboxItems, cn);
+
+            // await outboxProcessor.StartOutboxProcessing(odinContext, cn);
 
             return await MapOutboxCreationResult(outboxStatus);
         }
@@ -263,7 +238,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
 
             var sendResults = await outboxProcessor.ProcessItemsSync(outboxItems, odinContext, cn);
-            
+
             foreach (var result in sendResults)
             {
                 if (result.TransferResult == TransferResult.Success)
@@ -326,7 +301,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             foreach (var s in outboxStatus)
             {
-                transferStatus.Add(s.Key, s.Value ? TransferStatus.TransferKeyCreated : TransferStatus.AwaitingTransferKey);
+                transferStatus.Add(s.Key, s.Value ? TransferStatus.Enqueued : TransferStatus.EnqueuedFailed);
             }
 
             return Task.FromResult(transferStatus);
