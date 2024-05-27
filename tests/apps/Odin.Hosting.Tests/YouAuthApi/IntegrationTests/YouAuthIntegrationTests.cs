@@ -662,7 +662,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 };
                 {
                     var uri =
-                        new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                        new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                         {
                             Query = payload.ToQueryString()
                         }.ToString();
@@ -686,7 +686,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     // ... ?returnUrl= ...
                     var qs = YouAuthTestHelper.ParseQueryString(location);
                     returnUrl = new Uri(qs["returnUrl"]);
-                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
                 }
             }
         }
@@ -710,7 +710,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
-            var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
+            var finalRedirectUri = new Uri($"https://{thirdParty}:8443/authorization/code/callback");
 
             //
             // [030] Request authorization code
@@ -723,11 +723,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 PermissionRequest = "",
                 PublicKey = keyPair.PublicKeyJwkBase64Url(),
                 State = "somestate",
-                RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
             };
             {
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -751,7 +751,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
                 returnUrl = new Uri(qs["returnUrl"]);
-                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
             }
 
             //
@@ -766,7 +766,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
                 //
 
-                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+                var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}");
 
                 var consentRequirements = OdinSystemSerializer.Serialize(
                     new ConsentRequirements
@@ -841,7 +841,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, Convert.FromBase64String(remoteSalt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
-                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
+                var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     SecretDigest = exchangeSecretDigest
@@ -878,7 +878,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // Access resource using cat and shared secret
             {
                 var catBase64 = Convert.ToBase64String(clientAuthToken);
-                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", sharedSecret);
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}:8443{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", sharedSecret);
                 var request = new HttpRequestMessage(HttpMethod.Get, uri)
                 {
                     Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }
@@ -909,7 +909,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             const string thirdParty = "frodo.dotyou.cloud";
-            var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
+            var finalRedirectUri = new Uri($"https://{thirdParty}:8443/authorization/code/callback");
 
             //
             // [030] Request authorization code
@@ -924,13 +924,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 PermissionRequest = "",
                 PublicKey = keyPair.PublicKeyJwkBase64Url(),
                 State = "somestate",
-                RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
             };
 
             string remotePublicKey, remoteSalt;
             {
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -976,7 +976,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, Convert.FromBase64String(remoteSalt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
-                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
+                var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     SecretDigest = exchangeSecretDigest
@@ -1051,7 +1051,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.Uri;
@@ -1157,7 +1157,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.Uri;
@@ -1187,7 +1187,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
                 var returnUrl = new Uri(qs["returnUrl"]);
-                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
 
                 // ... returnUrl components:
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
@@ -1259,11 +1259,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{hobbit}/app/authorization/code/callback"
+                    RedirectUri = $"https://{hobbit}:8443/app/authorization/code/callback"
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.Uri;
@@ -1287,7 +1287,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 var redirectUri = new Uri(location);
                 Assert.That(redirectUri.Scheme, Is.EqualTo("https"));
                 Assert.That(redirectUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(redirectUri.AbsoluteUri, Does.StartWith($"https://{hobbit}/app/authorization/code/callback"));
+                Assert.That(redirectUri.AbsoluteUri, Does.StartWith($"https://{hobbit}:8443/app/authorization/code/callback"));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Console.WriteLine("qs = " + string.Join("; ",
@@ -1345,7 +1345,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             Uri returnUrl;
             {
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.Uri;
@@ -1375,7 +1375,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
                 returnUrl = new Uri(qs["returnUrl"]);
-                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
 
                 // ... returnUrl components:
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
@@ -1399,7 +1399,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
                 //
 
-                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+                var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}");
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
@@ -1428,7 +1428,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             string remotePublicKey, remoteSalt;
             {
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -1473,7 +1473,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, Convert.FromBase64String(remoteSalt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
-                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
+                var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     SecretDigest = exchangeSecretDigest

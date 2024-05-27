@@ -58,7 +58,7 @@ public class AdminApiRestrictedAttributeTest
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var response = await apiClient.GetAsync($"https://admin.dotyou.cloud:443/api/admin/v1/ping");
+        var response = await apiClient.GetAsync($"https://admin.dotyou.cloud:8443/api/admin/v1/ping");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 

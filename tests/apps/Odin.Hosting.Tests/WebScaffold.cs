@@ -128,7 +128,10 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
-            Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 8443,\"HttpPort\": 8000 }]");
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", "8080");
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpsPort", "8443");
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__Ip", "*");
+
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
