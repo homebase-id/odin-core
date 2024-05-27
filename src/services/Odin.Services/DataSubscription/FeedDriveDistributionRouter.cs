@@ -276,6 +276,7 @@ namespace Odin.Services.DataSubscription
                             KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
 
+                        //TODO: encryption - need to convert to the online key
                         encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                             PublicPrivateKeyType.OfflineKey,
                             recipient,
