@@ -56,8 +56,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
 
                 var value = values.SingleOrDefault();
                 Assert.IsNotNull(value);
-                Assert.IsTrue(value == $"https://{appCorsHostName}:8443");
-
+                Assert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
                 Assert.IsTrue(response.IsSuccessStatusCode);
             }
         }
@@ -84,8 +83,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
 
                 var value = values.SingleOrDefault();
                 Assert.IsNotNull(value);
-                Assert.IsTrue(value == $"https://{appCorsHostName}:8443");
-
+                Assert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
                 Assert.IsTrue(response.IsSuccessStatusCode);
             }
         }

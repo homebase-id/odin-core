@@ -480,7 +480,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private async Task InitializeCertificate(string domain)
     {
         var httpClient = _httpClientFactory.CreateClient(nameof(RegisterCertificateInitializerHttpClient));
-        var uri = $"https://{domain}:8443/.well-known/acme-challenge/ping";
+        var uri = $"https://{_config.HttpsHostAndPort(domain)}/.well-known/acme-challenge/ping";
         try
         {
             await httpClient.GetAsync(uri);

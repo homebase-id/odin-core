@@ -37,6 +37,10 @@ namespace Odin.Hosting.Tests
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
         public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new();
 
+        public const string HttpPort = "8080";
+        public const string HttpsPort = "8443";
+        public const string AdminPort = "4444";
+
         private readonly string _folder;
 
 
@@ -128,8 +132,8 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
-            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", "8080");
-            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpsPort", "8443");
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", HttpPort);
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpsPort", HttpsPort);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__Ip", "*");
 
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
@@ -165,7 +169,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
             Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");
             Environment.SetEnvironmentVariable("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
-            Environment.SetEnvironmentVariable("Admin__ApiPort", "4444");
+            Environment.SetEnvironmentVariable("Admin__ApiPort", AdminPort);
             Environment.SetEnvironmentVariable("Admin__Domain", "admin.dotyou.cloud");
 
             if (envOverrides != null)
@@ -243,7 +247,7 @@ namespace Odin.Hosting.Tests
             var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{identity}:8443");
+            client.BaseAddress = new Uri($"https://{identity}:{HttpsPort}");
             return client;
         }
 

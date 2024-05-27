@@ -238,6 +238,7 @@ namespace Odin.Services.Configuration
 
             public string ReportContentUrl { get; set; }
 
+            public int DefaultHttpPort => IPAddressListenList.FirstOrDefault()?.HttpPort ?? 80;
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
             public string PushNotificationSubject { get; set; }
@@ -281,6 +282,17 @@ namespace Odin.Services.Configuration
             }
         }
 
+        public string HttpHostAndPort(string hostWithoutPort)
+        {
+            var port = Host.DefaultHttpPort;
+            return port == 80 ? hostWithoutPort : hostWithoutPort + ":" + port;
+        }
+
+        public string HttpsHostAndPort(string hostWithoutPort)
+        {
+            var port = Host.DefaultHttpPort;
+            return port == 443 ? hostWithoutPort : hostWithoutPort + ":" + port;
+        }
 
         //
 

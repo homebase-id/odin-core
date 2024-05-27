@@ -72,7 +72,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}:8443");
+            client.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
             return client;
         }
 
