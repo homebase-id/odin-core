@@ -32,17 +32,17 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
 
             // Build request missing the rsa key
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?returnUrl={WebUtility.UrlEncode(authUrl)}";
             // Simulate the browser redirect here by calling HttpClient(redirectUrl);
             // The response from the server should be an error, missing rsa parameter
 
 
             // Build request missing the returnUrl
-            redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}";
+            redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}";
             // Simulate the browser redirect here by calling HttpClient(redirectUrl);
             // The response from the server should be an error, missing rsa parameter
         }
@@ -60,9 +60,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
 
             // Simulate the browser redirect here by calling HttpClient(redirectUrl);
             // The response from the server should be a redirect to Sam's owner login, step 012
@@ -89,9 +89,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
 
             // 403 Forbidden
         }
@@ -111,9 +111,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
 
             // We should get a browser redirect to Sam's dialogue to OK YouAuth request
         }
@@ -134,9 +134,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
 
             // We should get a browser redirect to Sam's dialogue to OK YouAuth request
             // Here we can extract the token from the QS, decrypt it with this code.
@@ -170,9 +170,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
 
             var rsa = new RsaFullKeyData(key, 1);
 
-            string currentUrl = $"https://{frodo.DomainName}/home?q=1";
-            string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
-            string redirectUrl = $"https://api.{sam.DomainName}/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
+            string currentUrl = $"https://{frodo.DomainName}:8443/home?q=1";
+            string authUrl = $"https://api.{frodo.DomainName}:8443/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
+            string redirectUrl = $"https://api.{sam.DomainName}:8443/YouAuth/step010?rsa={rsa.publicKey.ToBase64()}&returnUrl={WebUtility.UrlEncode(authUrl)}";
 
             // We should move on to step [020], just validate the redirect, but no need to repeat the test from B (decrypt etc).
         }

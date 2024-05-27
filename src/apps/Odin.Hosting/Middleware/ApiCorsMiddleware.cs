@@ -36,7 +36,7 @@ namespace Odin.Hosting.Middleware
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;
-                    context.Response.Headers.Append("Access-Control-Allow-Origin", $"https://{appHostName}");
+                    context.Response.Headers.Append("Access-Control-Allow-Origin", $"https://{appHostName}:8443");
                     allowHeaders.Add(YouAuthConstants.AppCookieName);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }

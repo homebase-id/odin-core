@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Odin.Core;
@@ -127,7 +128,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
-            Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 8443,\"HttpPort\": 8000 }]");
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
@@ -198,6 +199,8 @@ namespace Odin.Hosting.Tests
                 _webserver.Dispose();
             }
 
+            SqliteConnection.ClearAllPools(); // Needed on Windows to avoid file locking issues
+
             this.DeleteData();
             this.DeleteLogs();
 
@@ -239,7 +242,7 @@ namespace Odin.Hosting.Tests
             var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{identity}");
+            client.BaseAddress = new Uri($"https://{identity}:8443");
             return client;
         }
 

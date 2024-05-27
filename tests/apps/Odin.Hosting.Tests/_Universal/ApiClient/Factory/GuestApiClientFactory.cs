@@ -48,7 +48,7 @@ public class GuestApiClientFactory : IApiClientFactory
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
 
-        client.BaseAddress = new Uri($"https://{identity}{GuestApiPathConstants.BasePathV1}");
+        client.BaseAddress = new Uri($"https://{identity}:8443{GuestApiPathConstants.BasePathV1}");
 
         sharedSecret = _sharedSecret == null ? new SensitiveByteArray(Guid.Empty.ToByteArray()) : _sharedSecret.ToSensitiveByteArray();
         return client;

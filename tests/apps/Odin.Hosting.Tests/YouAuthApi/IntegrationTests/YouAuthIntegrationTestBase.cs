@@ -55,7 +55,7 @@ public abstract class YouAuthIntegrationTestBase
         //
         // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
         {
-            var response = await apiClient.GetAsync($"https://{identity}/api/owner/v1/authentication/verifyToken");
+            var response = await apiClient.GetAsync($"https://{identity}:8443/api/owner/v1/authentication/verifyToken");
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             var json = await response.Content.ReadAsStringAsync();
             Assert.That(YouAuthTestHelper.Deserialize<bool>(json), Is.False);
@@ -67,7 +67,7 @@ public abstract class YouAuthIntegrationTestBase
         // https://sam.dotyou.cloud/api/owner/v1/authentication/nonce
         NonceData nonceData;
         {
-            var response = await apiClient.GetAsync($"https://{identity}/api/owner/v1/authentication/nonce");
+            var response = await apiClient.GetAsync($"https://{identity}:8443/api/owner/v1/authentication/nonce");
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             var json = await response.Content.ReadAsStringAsync();
             nonceData = YouAuthTestHelper.Deserialize<NonceData>(json);
@@ -84,7 +84,7 @@ public abstract class YouAuthIntegrationTestBase
             var passwordReply = PasswordDataManager.CalculatePasswordReply(YouAuthTestHelper.Password, nonceData);
             var json = YouAuthTestHelper.Serialize(passwordReply);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await apiClient.PostAsync($"https://{identity}/api/owner/v1/authentication", content);
+            var response = await apiClient.PostAsync($"https://{identity}:8443/api/owner/v1/authentication", content);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             // Shared secret from response
@@ -104,7 +104,7 @@ public abstract class YouAuthIntegrationTestBase
         //
         // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{identity}/api/owner/v1/authentication/verifyToken")
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{identity:8443}/api/owner/v1/authentication/verifyToken")
             {
                 Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } }
             };
@@ -258,7 +258,7 @@ public abstract class YouAuthIntegrationTestBase
         qs["type"] = driveType;
         qs["fileState"] = "1";
 
-        var url = $"https://{domain}/api/apps/v1/drive/query/batch?{qs}";
+        var url = $"https://{domain}:8443/api/apps/v1/drive/query/batch?{qs}";
 
         url = YouAuthTestHelper.UriWithEncryptedQueryString(url, sharedSecret);
         var response = await client.GetAsync(url);

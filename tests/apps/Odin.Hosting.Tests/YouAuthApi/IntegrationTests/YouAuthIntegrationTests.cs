@@ -60,11 +60,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "identity:read identity:write",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.Uri;
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
                 var returnUrl = new Uri(qs["returnUrl"]);
-                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
 
                 // ... returnUrl components:
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
@@ -142,11 +142,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -205,11 +205,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -265,11 +265,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
 
                 var uri =
-                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
                         Query = payload.ToQueryString()
                     }.ToString();
@@ -299,7 +299,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
                 var returnUrl = new Uri(qs["returnUrl"]);
-                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
 
                 // ... returnUrl components:
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
@@ -325,7 +325,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             const string thirdParty = "frodo.dotyou.cloud";
-            var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
+            var finalRedirectUri = new Uri($"https://{thirdParty}:8443/authorization/code/callback");
 
             //
             // FIRST RUN - get consent
@@ -350,11 +350,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
                 {
                     var uri =
-                        new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                        new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                         {
                             Query = payload.ToQueryString()
                         }.ToString();
@@ -378,7 +378,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     // ... ?returnUrl= ...
                     var qs = YouAuthTestHelper.ParseQueryString(location);
                     returnUrl = new Uri(qs["returnUrl"]);
-                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
                 }
 
                 //
@@ -392,7 +392,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
                     //
 
-                    var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+                    var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}");
 
                     var consentRequirements = OdinSystemSerializer.Serialize(
                         new ConsentRequirements
@@ -444,11 +444,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
                 {
                     var uri =
-                        new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                        new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                         {
                             Query = payload.ToQueryString()
                         }.ToString();
@@ -500,7 +500,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             const string thirdParty = "frodo.dotyou.cloud";
-            var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
+            var finalRedirectUri = new Uri($"https://{thirdParty}:8443/authorization/code/callback");
 
             //
             // FIRST RUN - get consent
@@ -525,11 +525,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
                 {
                     var uri =
-                        new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                        new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}")
                         {
                             Query = payload.ToQueryString()
                         }.ToString();
@@ -553,7 +553,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     // ... ?returnUrl= ...
                     var qs = YouAuthTestHelper.ParseQueryString(location);
                     returnUrl = new Uri(qs["returnUrl"]);
-                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+                    Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}"));
                 }
 
                 //
@@ -568,7 +568,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
                     //
 
-                    var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+                    var uri = new UriBuilder($"https://{hobbit}:8443{OwnerApiPathConstants.YouAuthV1Authorize}");
 
                     var consentRequirements = OdinSystemSerializer.Serialize(
                         new ConsentRequirements
@@ -658,7 +658,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     PermissionRequest = "",
                     PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
-                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                    RedirectUri = $"https://{thirdParty}:8443/authorization/code/callback"
                 };
                 {
                     var uri =

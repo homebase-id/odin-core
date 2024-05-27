@@ -44,7 +44,7 @@ namespace Odin.Services.Membership.Connections
             INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
-
+        
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
@@ -432,7 +432,18 @@ namespace Odin.Services.Membership.Connections
 
             this.SaveIcr(icr, odinContext, cn);
         }
-
+        
+        public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(List<GuidId> circleIds,
+            SensitiveByteArray keyStoreKey,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            // Always put identities in the system circle
+            var list = circleIds ?? new List<GuidId>();
+            list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, cn);
+        }
+        
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             List<GuidId> circleIds,
@@ -540,7 +551,7 @@ namespace Odin.Services.Membership.Connections
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
             var odinContext = notification.OdinContext;
-            await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration, odinContext,
+            await this.ReconcileAuthorizedCircles(notification.OldAppRegistration?.Redacted(), notification.NewAppRegistration.Redacted(), odinContext,
                 notification.DatabaseConnection);
         }
 
@@ -622,6 +633,9 @@ namespace Odin.Services.Membership.Connections
                         var dgi = new DriveGrantInfo()
                         {
                             DriveName = driveInfo.Name,
+                            TargetDrive = driveInfo.TargetDriveInfo,
+                            DrivePermissionIsValid = drivePermissionIsValid,
+                            HasValidEncryptionKey = hasValidEncryptionKey,
                             DriveGrantIsValid = isValid,
                             DriveIsGranted = driveIsGranted,
                             ExpectedDrivePermission = expectedDrivePermission,
@@ -638,8 +652,6 @@ namespace Odin.Services.Membership.Connections
 
             return info;
         }
-
-        //
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(
             RedactedAppRegistration appReg,
@@ -887,7 +899,7 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        private async Task ReconcileAuthorizedCircles(AppRegistration oldAppRegistration, AppRegistration newAppRegistration, IOdinContext odinContext,
+        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration, IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -925,7 +937,7 @@ namespace Odin.Services.Membership.Connections
                     var icr = await this.GetIdentityConnectionRegistrationInternal(odinId, cn);
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
 
-                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration.Redacted(), circleId, keyStoreKey, masterKey, cn);
+                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration, circleId, keyStoreKey, masterKey, cn);
 
                     if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
