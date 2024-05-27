@@ -2,9 +2,9 @@ name: "Host: Build and test main (debug/windows)"
 
 on:
   push:
-    branches: [main, windows-build]
+    branches: [main]
   pull_request:
-    branches: [main, windows-build]
+    branches: [main]
   workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
