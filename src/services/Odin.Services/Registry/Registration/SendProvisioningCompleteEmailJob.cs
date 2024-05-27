@@ -66,7 +66,7 @@ public class SendProvisioningCompleteEmailJob(
         }
 
         const string subject = "Your new identity is ready";
-        var firstRunlink = $"https://{domain}/owner/firstrun?frt={firstRunToken}";
+        var firstRunlink = $"https://{domain}:8443/owner/firstrun?frt={firstRunToken}";
 
         var envelope = new Envelope
         {

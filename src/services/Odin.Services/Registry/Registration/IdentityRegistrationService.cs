@@ -77,7 +77,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var httpClient = _httpClientFactory.CreateClient<IdentityRegistrationService>();
         try
         {
-            await httpClient.GetAsync($"https://{domain}");
+            await httpClient.GetAsync($"https://{domain}:8443");
             return true;
         }
         catch (Exception)
@@ -297,7 +297,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             return Task.FromResult(true);
         }
-        
+
         if (string.IsNullOrEmpty(code))
         {
             return Task.FromResult(false);

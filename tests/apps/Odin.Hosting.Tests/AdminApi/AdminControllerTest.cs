@@ -339,8 +339,7 @@ public class AdminControllerTest
             var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud:8443/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-    }
+        } }
 
     //
 
