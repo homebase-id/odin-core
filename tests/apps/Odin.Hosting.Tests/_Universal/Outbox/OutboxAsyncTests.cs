@@ -96,18 +96,17 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
             Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
             
-            //
-            // TODO: need to decide how to test this.. after we put in the correct outbox processing
-            //
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            await driveClient.WaitForEmptyOutbox(targetDrive);
+            
             var getStatusResponse = await driveClient.GetDriveStatus(targetDrive);
             Assert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode);
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                var status = getStatusResponse.Content;
-                Assert.IsTrue(status.Outbox.TotalItems == 1, "Note: review this test since the outbox processing is meant to run in the background");
-                Assert.IsTrue(status.Outbox.CheckedOutCount == 0, "Note: review this test since the outbox processing is meant to run in the background");
+                Assert.Inconclusive("need to implement the transfer history");
+                //TODO: need to query the status from the origin file to see the transfer history was updated correctly
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);

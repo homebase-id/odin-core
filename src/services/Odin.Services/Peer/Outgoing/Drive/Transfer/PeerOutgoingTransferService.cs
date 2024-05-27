@@ -223,7 +223,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
             await peerOutbox.Add(outboxItems, cn);
 
-            // await outboxProcessor.StartOutboxProcessing(odinContext, cn);
+            _ = outboxProcessor.StartOutboxProcessingAsync(odinContext, cn);
 
             return await MapOutboxCreationResult(outboxStatus);
         }

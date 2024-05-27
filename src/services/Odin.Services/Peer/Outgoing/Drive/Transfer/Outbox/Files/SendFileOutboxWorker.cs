@@ -30,7 +30,7 @@ public class SendFileOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)  
     {
         try
         {
@@ -40,7 +40,7 @@ public class SendFileOutboxWorker(
             // Try to clean up the transient file
             if (result.TransferResult == TransferResult.Success)
             {
-                if(tryDeleteTransient)
+                if(tryDeleteTransient) //todo: remove this check when the outbox is fully async
                 {
                     if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
                     {
