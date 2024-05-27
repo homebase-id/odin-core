@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.SQLite
 
             // Needed on Windows to avoid file locking issues.
             // When we get here, it is assumed that all connections are closed.
-            // This last makes sure that the connection pool is cleared and all file handles are closed.
+            // This last bit makes sure that the connection pool is cleared and all file handles are closed.
             using var cn = new SqliteConnection(_connectionString);
             SqliteConnection.ClearPool(cn);
         }
