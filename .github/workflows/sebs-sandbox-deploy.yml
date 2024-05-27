@@ -32,4 +32,5 @@ jobs:
         run: dotnet build --no-restore --configuration Debug --warnaserror ./dotyoucore.sln
 
       - name: Test
-        run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest.ItShouldGetAllTenants --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        # run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest.ItShouldGetAllTenants --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
