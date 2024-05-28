@@ -3,6 +3,7 @@ using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using static NodaTime.TimeZones.ZoneEqualityComparer;
@@ -65,7 +66,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableAppNotifications tblAppNotificationsTable = null;
 
         // Other
-        private readonly Guid _identityId;
+        public readonly Guid _identityId;
         public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
@@ -119,6 +120,82 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (!_wasDisposed)
                Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #endif
+        }
+
+        void Upgrade(DatabaseConnection conn, TableBase table)
+        {
+            using (var cmd = this.CreateCommand())
+            {
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    var columns = table.GetColumnNames();
+                    Debug.Assert(columns[0] == "identityId");
+
+                    // 1. Rename the old table
+                    cmd.CommandText = $"ALTER TABLE {table._tableName} RENAME TO old_{table._tableName};";
+                    conn.ExecuteNonQuery(cmd);
+
+                    // 2. Create the new table
+                    table.EnsureTableExists(conn);
+
+                    // 3. Copy the data
+                    cmd.CommandText = $"INSERT INTO {table._tableName} ({string.Join(",", columns)}) SELECT $identity as identityId, {string.Join(",", columns).Skip(1)} FROM old_appGrants;";
+                    var _insertParam1 = cmd.CreateParameter();
+                    _insertParam1.ParameterName = "$identityId";
+                    cmd.Parameters.Add(_insertParam1);
+                    _insertParam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                    conn.ExecuteNonQuery(cmd);
+
+                    // 4. Validate data copy
+                    cmd.CommandText = $"SELECT COUNT(*) FROM old_{table._tableName};";
+                    var oldTableCount = (long)conn.ExecuteScalar(cmd);
+
+                    cmd.CommandText = $"SELECT COUNT(*) FROM {table._tableName};";
+                    var newTableCount = (long)conn.ExecuteScalar(cmd);
+                    if (oldTableCount != newTableCount)
+                    {
+                        throw new Exception("Data copy validation failed: row counts do not match.");
+                    }
+
+                    // 5. Drop the old table
+                    cmd.CommandText = $"DROP TABLE old_{table._tableName};";
+                    conn.ExecuteNonQuery(cmd);
+                });
+            }
+        }
+
+        void RunUpgradeToIdentityDatabaseTables()
+        {
+            using (var conn = this.CreateDisposableConnection())
+            {
+                Console.Write($"Upgrading identity {_identityId} ... ");
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    // Drive tables
+                    Upgrade(conn, tblDriveMainIndex);
+                    Upgrade(conn, tblDriveAclIndex);
+                    Upgrade(conn, tblDriveTagIndex);
+                    Upgrade(conn, tblDriveCommandMessageQueue);
+                    Upgrade(conn, tblDriveReactions);
+
+
+                    // Identity tables
+                    Upgrade(conn, tblAppGrants);
+                    Upgrade(conn, tblKeyValue);
+                    Upgrade(conn, tblKeyTwoValue);
+                    Upgrade(conn, TblKeyThreeValue);
+                    Upgrade(conn, tblInbox);
+                    Upgrade(conn, tblOutbox);
+                    Upgrade(conn, tblFeedDistributionOutbox);
+                    Upgrade(conn, tblImFollowing);
+                    Upgrade(conn, tblFollowsMe);
+                    Upgrade(conn, tblCircle);
+                    Upgrade(conn, tblCircleMember);
+                    Upgrade(conn, tblConnections);
+                    Upgrade(conn, tblAppNotificationsTable);
+                });
+                Console.WriteLine($"success");
+            }
         }
 
         public override void ClearCache()
@@ -353,6 +430,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             string leftJoin = "";
 
+            listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(_identityId.ToByteArray())}'");
             listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
             listWhere.Add($"(fileSystemType == {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
@@ -365,7 +443,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //
             if (IsSet(aclAnyOf))
             {
-                leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
+                leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.identityId = cir.identityId AND driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
 
 
                 listWhere.Add($"(  (cir.fileId IS NULL) OR cir.aclMemberId IN ({HexList(aclAnyOf)})  )");
@@ -399,7 +477,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(tagsAnyOf))
             {
-                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
+                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(archivalStatusAnyOf))

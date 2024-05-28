@@ -27,7 +27,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _selectCommand = _database.CreateCommand())
             {
-                _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+                _selectCommand.CommandText = $"SELECT identityId,driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+
+                var _selectParam1 = _selectCommand.CreateParameter();
+                _selectParam1.ParameterName = "$identityId";
+                _selectCommand.Parameters.Add(_selectParam1);
+
+                _selectParam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 lock (conn._lock)
                 {
@@ -59,7 +65,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             // Since we are writing multiple rows we do a logic unit here
             conn.CreateCommitUnitOfWork(() =>
             {
-                var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
+                var item = new DriveCommandMessageQueueRecord() { identityId = ((IdentityDatabase)conn.db)._identityId, driveId = driveId, timeStamp = new UnixTimeUtc(0) };
                 for (int i = 0; i < fileId.Count; i++)
                 {
                     item.fileId = fileId[i];
@@ -78,7 +84,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 for (int i = 0; i < fileId.Count; i++)
                 {
-                    Delete(conn, driveId, fileId[i]);
+                    Delete(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId[i]);
                 }
             });
         }

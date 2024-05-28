@@ -21,18 +21,29 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public override int Insert(DatabaseConnection conn, InboxRecord item)
+        public InboxRecord Get(DatabaseConnection conn, Guid fileId)
         {
+            return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, fileId);
+        }
+
+        public new int Insert(DatabaseConnection conn, InboxRecord item)
+        {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
+
             return base.Insert(conn, item);
         }
 
-        public override int Upsert(DatabaseConnection conn, InboxRecord item)
+        public new int Upsert(DatabaseConnection conn, InboxRecord item)
         {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
-            return base.Insert(conn, item);
+
+            return base.Upsert(conn, item);
         }
 
 
@@ -50,23 +61,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _popCommand = _database.CreateCommand())
             {
                 _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxId=$boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
-                                          "SELECT fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE popstamp=$popstamp";
+                                          "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = $identityId AND popstamp=$popstamp";
 
                 var _pparam1 = _popCommand.CreateParameter();
-                _pparam1.ParameterName = "$popstamp";
-                _popCommand.Parameters.Add(_pparam1);
-
                 var _pparam2 = _popCommand.CreateParameter();
-                _pparam2.ParameterName = "$count";
-                _popCommand.Parameters.Add(_pparam2);
-
                 var _pparam3 = _popCommand.CreateParameter();
+                var _pparam4 = _popCommand.CreateParameter();
+
+                _pparam1.ParameterName = "$popstamp";
+                _pparam2.ParameterName = "$count";
                 _pparam3.ParameterName = "$boxId";
+                _pparam4.ParameterName = "$identityId";
+
+                _popCommand.Parameters.Add(_pparam1);
+                _popCommand.Parameters.Add(_pparam2);
                 _popCommand.Parameters.Add(_pparam3);
+                _popCommand.Parameters.Add(_pparam4);
 
                 _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
                 _pparam3.Value = boxId.ToByteArray();
+                _pparam4.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 List<InboxRecord> result = new List<InboxRecord>();
 
@@ -95,9 +110,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _popStatusCommand = _database.CreateCommand())
             {
                 _popStatusCommand.CommandText =
-                    "SELECT count(*) FROM inbox;" +
-                    "SELECT count(*) FROM inbox WHERE popstamp NOT NULL;" +
-                    "SELECT popstamp FROM inbox ORDER BY popstamp DESC LIMIT 1;";
+                    "SELECT count(*) FROM inbox WHERE identityId=$identityId;" +
+                    "SELECT count(*) FROM inbox WHERE identityId=$identityId AND popstamp NOT NULL;" +
+                    "SELECT popstamp FROM inbox WHERE identityId=$identityId ORDER BY popstamp DESC LIMIT 1;";
+
+                var _pparam1 = _popStatusCommand.CreateParameter();
+                _pparam1.ParameterName = "$identityId";
+                _popStatusCommand.Parameters.Add(_pparam1);
+                _pparam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 lock (conn._lock)
                 {
@@ -153,14 +173,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _popStatusSpecificBoxCommand = _database.CreateCommand())
             {
                 _popStatusSpecificBoxCommand.CommandText =
-                    "SELECT count(*) FROM inbox WHERE boxId=$boxId;" +
-                    "SELECT count(*) FROM inbox WHERE boxId=$boxId AND popstamp NOT NULL;" +
-                    "SELECT popstamp FROM inbox WHERE boxId=$boxId ORDER BY popstamp DESC LIMIT 1;";
+                    "SELECT count(*) FROM inbox WHERE identityId=$identityId AND boxId=$boxId;" +
+                    "SELECT count(*) FROM inbox WHERE identityId=$identityId AND boxId=$boxId AND popstamp NOT NULL;" +
+                    "SELECT popstamp FROM inbox WHERE identityId=$identityId AND boxId=$boxId ORDER BY popstamp DESC LIMIT 1;";
                 var _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
+                var _pssbparam2 = _popStatusSpecificBoxCommand.CreateParameter();
+
                 _pssbparam1.ParameterName = "$boxId";
+                _pssbparam2.ParameterName = "$identityId";
+
                 _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
+                _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam2);
 
                 _pssbparam1.Value = boxId.ToByteArray();
+                _pssbparam2.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 lock (conn._lock)
                 {
@@ -210,19 +236,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCancelAll(DatabaseConnection conn, Guid popstamp)
+        public int PopCancelAll(DatabaseConnection conn, Guid popstamp)
         {
             using (var _popCancelCommand = _database.CreateCommand())
             {
-                _popCancelCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE popstamp=$popstamp";
+                _popCancelCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp=$popstamp";
 
                 var _pcancelparam1 = _popCancelCommand.CreateParameter();
+                var _pcancelparam2 = _popCancelCommand.CreateParameter();
+
                 _pcancelparam1.ParameterName = "$popstamp";
+                _pcancelparam2.ParameterName = "$identityId";
+
                 _popCancelCommand.Parameters.Add(_pcancelparam1);
+                _popCancelCommand.Parameters.Add(_pcancelparam2);
 
                 _pcancelparam1.Value = popstamp.ToByteArray();
+                _pcancelparam2.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
-                conn.ExecuteNonQuery(_popCancelCommand);
+                return conn.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -230,21 +262,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _popCancelListCommand = _database.CreateCommand())
             {
-                _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
+                _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
 
                 var _pcancellistparam1 = _popCancelListCommand.CreateParameter();
-                _pcancellistparam1.ParameterName = "$popstamp";
-                _popCancelListCommand.Parameters.Add(_pcancellistparam1);
-
                 var _pcancellistparam2 = _popCancelListCommand.CreateParameter();
+                var _pcancellistparam3 = _popCancelListCommand.CreateParameter();
+
+                _pcancellistparam1.ParameterName = "$popstamp";
                 _pcancellistparam2.ParameterName = "$fileid";
+                _pcancellistparam3.ParameterName = "$identityId";
+
+                _popCancelListCommand.Parameters.Add(_pcancellistparam1);
                 _popCancelListCommand.Parameters.Add(_pcancellistparam2);
+                _popCancelListCommand.Parameters.Add(_pcancellistparam3);
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
+                _pcancellistparam3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 conn.CreateCommitUnitOfWork(() =>
                 {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
                         _pcancellistparam2.Value = listFileId[i].ToByteArray();
@@ -259,19 +295,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommitAll(DatabaseConnection conn, Guid popstamp)
+        public int PopCommitAll(DatabaseConnection conn, Guid popstamp)
         {
             using (var _popCommitCommand = _database.CreateCommand())
             {
-                _popCommitCommand.CommandText = "DELETE FROM inbox WHERE popstamp=$popstamp";
+                _popCommitCommand.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND popstamp=$popstamp";
 
                 var _pcommitparam1 = _popCommitCommand.CreateParameter();
+                var _pcommitparam2 = _popCommitCommand.CreateParameter();
+
                 _pcommitparam1.ParameterName = "$popstamp";
+                _pcommitparam2.ParameterName = "$identityId";
+
                 _popCommitCommand.Parameters.Add(_pcommitparam1);
+                _popCommitCommand.Parameters.Add(_pcommitparam2);
 
                 _pcommitparam1.Value = popstamp.ToByteArray();
+                _pcommitparam2.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
-                conn.ExecuteNonQuery(_popCommitCommand);
+                return conn.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -284,17 +326,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _popCommitListCommand = _database.CreateCommand())
             {
-                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE fileid=$fileid AND popstamp=$popstamp";
+                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
 
                 var _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
-                _pcommitlistparam1.ParameterName = "$popstamp";
-                _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
-
                 var _pcommitlistparam2 = _popCommitListCommand.CreateParameter();
+                var _pcommitlistparam3 = _popCommitListCommand.CreateParameter();
+
+                _pcommitlistparam1.ParameterName = "$popstamp";
                 _pcommitlistparam2.ParameterName = "$fileid";
+                _pcommitlistparam3.ParameterName = "$identityId";
+
+                _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
                 _popCommitListCommand.Parameters.Add(_pcommitlistparam2);
+                _popCommitListCommand.Parameters.Add(_pcommitlistparam3);
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
+                _pcommitlistparam3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 conn.CreateCommitUnitOfWork(() =>
                 {
@@ -314,20 +361,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void PopRecoverDead(DatabaseConnection conn, UnixTimeUtc ut)
+        public int PopRecoverDead(DatabaseConnection conn, UnixTimeUtc ut)
         {
             using (var _popRecoverCommand = _database.CreateCommand())
             {
-                _popRecoverCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE popstamp < $popstamp";
+                _popRecoverCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp < $popstamp";
 
                 var _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
-                _pcrecoverparam1.ParameterName = "$popstamp";
-                _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
+                var _pcrecoverparam2 = _popRecoverCommand.CreateParameter();
 
+                _pcrecoverparam1.ParameterName = "$popstamp";
+                _pcrecoverparam2.ParameterName = "$identityId";
+
+                _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
+                _popRecoverCommand.Parameters.Add(_pcrecoverparam2);
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
+                _pcrecoverparam2.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
-                conn.ExecuteNonQuery(_popRecoverCommand);
+                return conn.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }

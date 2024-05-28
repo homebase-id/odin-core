@@ -43,6 +43,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var md = db.tblDriveCommandMessageQueue.Get(myc, driveId, 1);
                 Debug.Assert(md != null);
                 Debug.Assert(md.Count == 1);
+                Debug.Assert(md[0].driveId == driveId);
+                Debug.Assert(md[0].identityId == ((IdentityDatabase)myc.db)._identityId);
+
                 if (ByteArrayUtil.muidcmp(md[0].fileId, t1) != 0)
                     Assert.Fail();
 
