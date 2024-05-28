@@ -77,3 +77,17 @@ public enum LatestTransferStatus
     /// </summary>
     UnknownServerError = 9999,
 }
+
+/// <summary>
+/// used to update a <see cref="RecipientTransferHistoryItem"/> record.  Null values will leave the field unchanged.
+/// </summary>
+public class UpdateTransferHistoryData
+{
+    public LatestTransferStatus? LatestTransferStatus { get; set; }
+
+    public Guid? VersionTag { get; set; }
+    
+    public bool? IsInOutbox { get; set; }
+
+    public bool? IsReadByRecipient { get; set; }
+}

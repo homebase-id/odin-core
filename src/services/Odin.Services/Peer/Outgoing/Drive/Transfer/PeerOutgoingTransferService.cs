@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -35,11 +36,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
         PeerOutboxProcessor outboxProcessor)
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
-            fileSystemResolver), IPeerOutgoingTransferService
+        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
-        private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
+        private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext,
@@ -158,7 +158,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             DatabaseConnection cn)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
-
             TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDrive(internalFile.DriveId, cn, failIfInvalid: true)).TargetDriveInfo;
 
             var status = new Dictionary<string, bool>();
@@ -221,9 +220,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions options, FileTransferOptions fileTransferOptions, int priority, IOdinContext odinContext, DatabaseConnection cn)
         {
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
-            await peerOutbox.Add(outboxItems, cn);
-            
-            //TODO: need to update the IsInOutbox Flag
+            // await peerOutbox.Add(outboxItems, cn);
+
+            foreach (var item in outboxItems)
+            {
+                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                await peerOutbox.Add(item, cn);
+            }
 
             _ = outboxProcessor.StartOutboxProcessingAsync(odinContext, cn);
 

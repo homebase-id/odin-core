@@ -6,7 +6,6 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -19,7 +18,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.JobManagement;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -27,12 +25,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 public class SendFileOutboxWorker(
     OutboxItem item,
     FileSystemResolver fileSystemResolver,
-    ILogger<PeerOutboxProcessor> logger,
+    // ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
-    IMediator mediator,
-    IJobManager jobManager)
+    IMediator mediator
+    // IJobManager jobManager
+    )
 {
     public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
     {
@@ -50,7 +49,15 @@ public class SendFileOutboxWorker(
                 }
             }
 
-            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, LatestTransferStatus.Delivered, odinContext, cn);
+            var update = new UpdateTransferHistoryData()
+            {
+                IsInOutbox = false,
+                IsReadByRecipient = false,
+                LatestTransferStatus = LatestTransferStatus.Delivered,
+                VersionTag = versionTag
+            };
+
+            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
             await peerOutbox.MarkComplete(item.Marker, cn);
 
             await mediator.Publish(new OutboxFileItemDeliverySuccessNotification()
@@ -65,13 +72,19 @@ public class SendFileOutboxWorker(
         }
         catch (OdinOutboxProcessingException e)
         {
-            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, versionTag: null, e.TransferStatus, odinContext, cn);
+            var update = new UpdateTransferHistoryData()
+            {
+                IsInOutbox = true,
+                LatestTransferStatus = e.TransferStatus,
+                VersionTag = null
+            };
 
             switch (e.TransferStatus)
             {
                 case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
                 case LatestTransferStatus.UnknownServerError:
                 case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
+                    update.IsInOutbox = true;
                     await peerOutbox.MarkComplete(item.Marker, cn);
                     break;
 
@@ -79,6 +92,7 @@ public class SendFileOutboxWorker(
                 case LatestTransferStatus.RecipientServerNotResponding:
                 case LatestTransferStatus.RecipientDoesNotHavePermissionToSourceFile:
                 case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
+                    update.IsInOutbox = false;
                     var nextRunTime = CalculateNextRunTime(e.TransferStatus);
                     // await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
                     await peerOutbox.MarkFailure(item.Marker, nextRunTime, cn);
@@ -88,6 +102,8 @@ public class SendFileOutboxWorker(
                     throw new ArgumentOutOfRangeException();
             }
 
+            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
+            
             await mediator.Publish(new OutboxFileItemDeliveryFailedNotification()
             {
                 Recipient = item.Recipient,

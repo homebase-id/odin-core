@@ -24,7 +24,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
-        IJobManager jobManager,
         TenantSystemStorage tenantSystemStorage)
     {
         public async Task StartOutboxProcessing(IOdinContext odinContext, DatabaseConnection cn)
@@ -115,12 +114,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var worker = new SendFileOutboxWorker(item,
                 fileSystemResolver,
-                logger,
+                // logger,
                 peerOutbox,
                 odinConfiguration,
                 odinHttpClientFactory,
-                mediator,
-                jobManager);
+                mediator
+                //,jobManager
+                );
 
             var result = await worker.Send(odinContext, tryDeleteTransient, cn);
 

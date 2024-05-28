@@ -887,7 +887,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, cn, raiseEvent);
         }
 
-        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestTransferStatus transferStatus,
+        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
@@ -901,12 +901,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 recipientItem = new RecipientTransferHistoryItem();
                 history.Recipients.Add(recipient, recipientItem);
             }
-
+            
+            recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+            recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+            
             recipientItem.LastUpdated = UnixTimeUtc.Now();
-            recipientItem.LatestTransferStatus = transferStatus;
-            if (transferStatus == LatestTransferStatus.Delivered)
+            recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+            if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered)
             {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
+                recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
             }
 
             header.ServerMetadata.TransferHistory = history;
