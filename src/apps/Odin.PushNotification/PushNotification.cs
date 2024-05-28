@@ -45,10 +45,6 @@ public class PushNotification : IPushNotification
             Android = new AndroidConfig // magic stuff to increase reliability on android
             {
                 Priority = Priority.High,
-                Notification = new AndroidNotification
-                {
-                    ImageUrl = String.Format("https://{0}/pub/image", request.FromDomain),
-                },
             },
             Apns = new ApnsConfig // magic stuff to increase reliability on ios
             {
@@ -59,11 +55,8 @@ public class PushNotification : IPushNotification
                 Aps = new Aps
                 {
                     ContentAvailable = true,
+                    MutableContent = true
                 },
-                FcmOptions = new ApnsFcmOptions
-                {
-                    ImageUrl = String.Format("https://{0}/pub/image", request.FromDomain),
-                }
             }
         };
 
