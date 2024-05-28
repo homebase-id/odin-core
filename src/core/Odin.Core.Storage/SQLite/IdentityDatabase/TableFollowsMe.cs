@@ -28,6 +28,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
+        public int Delete(DatabaseConnection conn, string identity, Guid driveId)
+        {
+            return base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, identity, driveId);
+        }
+
+        public new int Insert(DatabaseConnection conn, FollowsMeRecord item)
+        {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+
+            return base.Insert(conn, item);
+        }
+
 
         /// <summary>
         /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
@@ -35,9 +47,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<FollowsMeRecord> Get(DatabaseConnection conn, string identity)
+        public List<FollowsMeRecord> Get(DatabaseConnection conn, string identity)
         {
-            var r = base.Get(conn, identity);
+            var r = base.Get(conn, ((IdentityDatabase)_database)._identityId, identity);
 
             if (r == null)
                 r = new List<FollowsMeRecord>();
@@ -58,7 +70,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 for (int i = 0; i < r.Count; i++)
                 {
-                    n += Delete(conn, identity, r[i].driveId);
+                    n += base.Delete(conn, ((IdentityDatabase)_database)._identityId, identity, r[i].driveId);
                 }
             });
 
@@ -84,18 +96,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _select3Command = _database.CreateCommand())
             {
                 _select3Command.CommandText =
-                    $"SELECT DISTINCT identity FROM followsme WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
+                    $"SELECT DISTINCT identity FROM followsme WHERE identityId = $identityId AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
                 var _s3param1 = _select3Command.CreateParameter();
-                _s3param1.ParameterName = "$cursor";
-                _select3Command.Parameters.Add(_s3param1);
-
                 var _s3param2 = _select3Command.CreateParameter();
+                var _s3param3 = _select3Command.CreateParameter();
+
+                _s3param1.ParameterName = "$cursor";
                 _s3param2.ParameterName = "$count";
+                _s3param3.ParameterName = "$identityId";
+
+                _select3Command.Parameters.Add(_s3param1);
                 _select3Command.Parameters.Add(_s3param2);
+                _select3Command.Parameters.Add(_s3param3);
 
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1;
+                _s3param3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 lock (conn._lock)
                 {
@@ -149,23 +166,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _select2Command = _database.CreateCommand())
             {
                 _select2Command.CommandText =
-                    $"SELECT DISTINCT identity FROM followsme WHERE (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+                    $"SELECT DISTINCT identity FROM followsme WHERE identityId=$identityId AND (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
                 var _s2param1 = _select2Command.CreateParameter();
-                _s2param1.ParameterName = "$driveId";
-                _select2Command.Parameters.Add(_s2param1);
-
                 var _s2param2 = _select2Command.CreateParameter();
-                _s2param2.ParameterName = "$cursor";
-                _select2Command.Parameters.Add(_s2param2);
-
                 var _s2param3 = _select2Command.CreateParameter();
+                var _s2param4 = _select2Command.CreateParameter();
+
+                _s2param1.ParameterName = "$driveId";
+                _s2param2.ParameterName = "$cursor";
                 _s2param3.ParameterName = "$count";
+                _s2param4.ParameterName = "$identityId";
+
+                _select2Command.Parameters.Add(_s2param1);
+                _select2Command.Parameters.Add(_s2param2);
                 _select2Command.Parameters.Add(_s2param3);
+                _select2Command.Parameters.Add(_s2param4);
 
                 _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;
+                _s2param4.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
                 lock (conn._lock)
                 {

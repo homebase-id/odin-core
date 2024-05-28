@@ -14,7 +14,7 @@ public class SingleKeyValueStorageTests
         var finalPath = "";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(myc, true);
         Assert.Throws<OdinSystemException>(() => { new SingleKeyValueStorage(Guid.Empty); });
     }
 
@@ -23,7 +23,7 @@ public class SingleKeyValueStorageTests
     {
         using var db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(myc, true);
 
         var contextKey1 = Guid.NewGuid();
         var singleKvp1 = new SingleKeyValueStorage(contextKey1);

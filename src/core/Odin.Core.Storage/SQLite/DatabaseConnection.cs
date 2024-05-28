@@ -195,6 +195,17 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
+        public object ExecuteScalar(SqliteCommand command)
+        {
+            lock (_lock)
+            {
+                command.Connection = _connection;
+                command.Transaction = _transaction;
+                var result = command.ExecuteScalar();
+                command.Transaction = null;
+                return result;
+            }
+        }
 
         /// <summary>
         /// You must lock connection._lock when using the reader object
