@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -10,6 +9,7 @@ using Odin.Services.AppNotifications.Push;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
@@ -17,7 +17,6 @@ public class SendPushNotificationOutboxWorker(
     OutboxItem item,
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService,
-    ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox)
 {
     public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, DatabaseConnection cn)
@@ -70,7 +69,8 @@ public class SendPushNotificationOutboxWorker(
         }
         else
         {
-            logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
+            //TODO: change to proper logger
+            Log.Warning("No app registered with Id {id}", record.Options.AppId);
         }
 
         await pushNotificationService.Push(pushContent, odinContext, cn);

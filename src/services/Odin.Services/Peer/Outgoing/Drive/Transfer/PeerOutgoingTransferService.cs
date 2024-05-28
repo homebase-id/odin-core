@@ -35,7 +35,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration,
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessor outboxProcessor)
+        PeerOutboxProcessor outboxProcessor,
+        PeerOutboxProcessorAsync outboxProcessorAsync
+    )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
@@ -229,7 +231,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.Add(item, cn);
             }
 
-            _ = outboxProcessor.StartOutboxProcessingAsync(odinContext, cn);
+            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
             return await MapOutboxCreationResult(outboxStatus);
         }
