@@ -69,6 +69,11 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// Sends immediately from the same thread as the caller but spawns a new thread so the caller's request
         /// instantly returns.  For each failed recipient, the file is moved to ScheduleOptions.SendLater 
         /// </summary>
-        SendLater = 2
+        SendLater = 2,
+
+        /// <summary>
+        /// Uses new outbox processing method
+        /// </summary>
+        SendAsync = 3
     }
 }

@@ -71,8 +71,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
-                //send now
                 return await SendFileNow(internalFile, options, sfo, odinContext, cn);
+            }
+
+            if (options.Schedule == ScheduleOptions.SendAsync)
+            {
+                return await SendFileAsync(internalFile, options, sfo, priority, odinContext, cn);
             }
 
             return await SendFileLater(internalFile, options, sfo, priority, odinContext, cn);
@@ -218,7 +222,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return (status, outboxItems);
         }
 
-        private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
+        private async Task<Dictionary<string, TransferStatus>> SendFileAsync(InternalDriveFileId internalFile,
             TransitOptions options, FileTransferOptions fileTransferOptions, int priority, IOdinContext odinContext, DatabaseConnection cn)
         {
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
@@ -233,6 +237,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
+            return await MapOutboxCreationResult(outboxStatus);
+        }
+
+        private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
+            TransitOptions options, FileTransferOptions fileTransferOptions, int priority, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
+
+            foreach (var item in outboxItems)
+            {
+                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                await peerOutbox.Add(item, cn);
+            }
+            
             return await MapOutboxCreationResult(outboxStatus);
         }
 

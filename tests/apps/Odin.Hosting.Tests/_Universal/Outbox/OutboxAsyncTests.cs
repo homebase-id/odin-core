@@ -82,7 +82,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendLater
+                Schedule = ScheduleOptions.SendAsync
             };
 
             var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
