@@ -78,6 +78,14 @@ namespace Odin.Services.Base
             }
         }
 
+        public void AssertCallerIsOwner()
+        {
+            if (!IsOwner)
+            {
+                throw new OdinSecurityException("Caller must be owner");
+            }
+        }
+        
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>

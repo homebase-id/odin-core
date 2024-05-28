@@ -11,4 +11,8 @@ public class DriveGrantInfo
     public DrivePermission ExpectedDrivePermission { get; set; }
     public DrivePermission ActualDrivePermission { get; set; }
     public int EncryptedKeyLength { get; set; }
+    
+    public TargetDrive TargetDrive { get; set; }
+    public bool HasValidEncryptionKey { get; set; }
+    public bool DrivePermissionIsValid { get; set; }
 }

@@ -48,7 +48,8 @@ namespace Odin.Services.DataSubscription.SendingHost
                 {
                     GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = SystemDriveConstants.FeedDrive
-                }
+                },
+                UniqueId = header.FileMetadata.AppData.UniqueId,
             };
 
             var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
@@ -99,6 +100,7 @@ namespace Odin.Services.DataSubscription.SendingHost
                     GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
+                UniqueId = header.FileMetadata.AppData.UniqueId,
                 FileMetadata = header.FileMetadata,
                 FeedDistroType = distroItem.FeedDistroType,
                 EncryptedPayload = distroItem.EncryptedPayload

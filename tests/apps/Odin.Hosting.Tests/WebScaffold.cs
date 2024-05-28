@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Odin.Core;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Incoming.Drive.Query;
@@ -8,4 +9,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Query;
 public class PerimeterDriveData
 {
     public TargetDrive TargetDrive { get; set; }
+    public Dictionary<string,string> Attributes { get; set; }
 }
