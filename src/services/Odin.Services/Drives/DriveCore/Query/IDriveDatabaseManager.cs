@@ -43,6 +43,14 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task UpdateCurrentIndex(ServerFileHeader metadata, DatabaseConnection cn);
 
         /// <summary>
+        /// Todd says it aint soft and it aint hard ... mushy it is
+        /// </summary>
+        /// <param name="metadata"></param>
+        /// <param name="cn"></param>
+        /// <returns></returns>
+        Task MushyDelete(ServerFileHeader metadata, DatabaseConnection cn);
+
+        /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
         /// <param name="file"></param>

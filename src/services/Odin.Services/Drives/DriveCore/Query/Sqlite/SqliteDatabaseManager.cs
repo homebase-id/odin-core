@@ -128,10 +128,8 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
-                _db.tblDriveMainIndex.Delete(cn, Drive.Id, metadata.File.FileId);
+                return RemoveFromCurrentIndex(metadata.File, cn);
             }
-
-            return Task.CompletedTask;
         }
 
         var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
@@ -203,6 +201,77 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Todd says it aint soft and it aint hard - mushy it is
+    /// </summary>
+    /// <param name="header"></param>
+    /// <param name="cn"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="OdinClientException"></exception>
+    public Task MushyDelete(ServerFileHeader header, DatabaseConnection cn)
+    {
+        if (null == header)
+        {
+            logger.LogWarning("SoftDelete called on null server file header");
+            return Task.CompletedTask;
+        }
+
+        if (header.ServerMetadata.DoNotIndex)
+            throw new ArgumentException("SoftDelete called with DoNotIndex (hard-delete)");
+
+        var metadata = header.FileMetadata;
+        int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
+
+        var sender = string.IsNullOrEmpty(metadata.SenderOdinId)  // <--- REVIEW null means it should update, 00000 will overwrite
+            ? Array.Empty<byte>()
+            : ((OdinId)metadata.SenderOdinId).ToByteArray();
+
+        var acl = new List<Guid>();
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
+            ((OdinId)odinId).ToHashId()
+        );
+        acl.AddRange(ids.ToList());
+
+        var tags = metadata.AppData.Tags?.ToList();
+
+        //
+        // What is really the purpose of this update @todd?
+        // Is this function updating some fields? Or is it MushyDeleting an item?
+        // What does it mean to mushy-delete? Which fields are supposed to be zapped?
+        // Shouldn't those fields be set to "null" below rather than arbitrary values from the argument...
+        //
+        int n = _db.UpdateEntryZapZap(
+            cn,
+            Drive.Id,
+            fileId: metadata.File.FileId,
+            fileType: metadata.AppData.FileType,
+            dataType: metadata.AppData.DataType,
+            senderId: sender,
+            groupId: metadata.AppData.GroupId,
+            uniqueId: metadata.AppData.UniqueId,
+            archivalStatus: metadata.AppData.ArchivalStatus,
+            userDate: metadata.AppData.UserDate,
+            requiredSecurityGroup: securityGroup,
+            accessControlList: acl,
+            tagIdList: tags,
+            fileState: (int)metadata.FileState,
+            byteCount: header.ServerMetadata.FileByteCount,
+            fileSystemType: (int)header.ServerMetadata.FileSystemType);
+
+        // _db.tblDriveMainIndex.SoftDelete(cn, Drive.Id, metadata.File.FileId);
+
+
+        if (n < 1)
+            throw new OdinSystemException($"file to MushyDelete does not exist driveId {Drive.Id} fileId {metadata.File.FileId}");
+
+        return Task.CompletedTask;
+    }
+
+
 
     public Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn)
     {
@@ -325,7 +394,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn)
     {
-        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(cn, Drive.Id);
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(cn, Drive.Id);
         return Task.FromResult((count, size));
     }
     
