@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic.FileIO;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -145,21 +146,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-        var r = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
-        bool exists = r != null;
 
+        // This really doesn't belong here IMO, delete should be handled before this is called and never called with this flag
         if (header.ServerMetadata.DoNotIndex)
         {
-            if (exists) // clean up if the flag was changed after it was indexed
-            {
-                return RemoveFromCurrentIndex(metadata.File, cn);
-            }
+            return RemoveFromCurrentIndex(metadata.File, cn);
         }
 
-        var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
-            ? Array.Empty<byte>()
-            : ((OdinId)metadata.SenderOdinId).ToByteArray();
-        
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
@@ -169,63 +162,59 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
-        if (exists)
+        var driveMainIndexRecord = new DriveMainIndexRecord()
         {
-            _db.UpdateEntryZapZap(
-                cn,
-                Drive.Id,
-                fileId: metadata.File.FileId,
-                fileType: metadata.AppData.FileType,
-                dataType: metadata.AppData.DataType,
-                senderId: sender,
-                groupId: metadata.AppData.GroupId,
-                uniqueId: metadata.AppData.UniqueId,
-                archivalStatus: metadata.AppData.ArchivalStatus,
-                userDate: metadata.AppData.UserDate,
-                requiredSecurityGroup: securityGroup,
-                accessControlList: acl,
-                tagIdList: tags,
-                fileState: (int)metadata.FileState,
-                byteCount: header.ServerMetadata.FileByteCount,
-                fileSystemType: (int)header.ServerMetadata.FileSystemType);
-        }
-        else
-        {
-            try
-            {
-                _db.AddEntry(
-                    cn,
-                    Drive.Id,
-                    fileId: metadata.File.FileId,
-                    globalTransitId: metadata.GlobalTransitId,
-                    fileType: metadata.AppData.FileType,
-                    dataType: metadata.AppData.DataType,
-                    senderId: sender,
-                    groupId: metadata.AppData.GroupId,
-                    uniqueId: metadata.AppData.UniqueId,
-                    archivalStatus: metadata.AppData.ArchivalStatus,
-                    userDate: metadata.AppData.UserDate.GetValueOrDefault(),
-                    requiredSecurityGroup: securityGroup,
-                    accessControlList: acl,
-                    tagIdList: tags,
-                    fileState: (int)metadata.FileState,
-                    fileSystemType: (int)header.ServerMetadata.FileSystemType,
-                    byteCount: header.ServerMetadata.FileByteCount
-                );
-            }
-            catch (SqliteException e)
-            {
-                if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
-                {
-                    logger.LogError("SqliteErrorCode:19 (file,index) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}", 
-                        GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
-                        GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
-                        GuidOneOrTwo(Drive.Id, r?.driveId),
-                        IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
-                        IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1));
+            driveId = Drive.Id,
+            fileId = metadata.File.FileId,
+            globalTransitId = metadata.GlobalTransitId,
+            uniqueId = metadata.AppData.UniqueId,
+            groupId = metadata.AppData.GroupId,
 
-                    throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
-                }
+            senderId = metadata.SenderOdinId,
+
+            fileType = metadata.AppData.FileType,
+            dataType = metadata.AppData.DataType,
+
+            archivalStatus = metadata.AppData.ArchivalStatus,
+            historyStatus = 0,
+            userDate = metadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
+            requiredSecurityGroup = securityGroup,
+
+            fileState = (int)metadata.FileState,
+            fileSystemType = (int)header.ServerMetadata.FileSystemType,
+            byteCount = header.ServerMetadata.FileByteCount
+        };
+
+        int n = 0;
+
+        try
+        {
+            n = _db.BaseUpsertEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+            // driveMainIndexRecord created / modified contain the values written to the database
+            // @todd you might consider doing this:
+            // using (CreateCommitUnitOfWork()) {
+            //   r = UpdateCurrentIndex(...);
+            //   header.created = r.created;
+            //   header.modified = r.modified;
+            //   WriteFileToDisk(... header ...);
+            // }
+            // Thus you prepare to commit the data to the index, and unless the file write throws an error it commits the transaction
+        }
+        catch (SqliteException e)
+        {
+            if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+            {
+                var r = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
+
+                logger.LogError("SqliteErrorCode:19 (file,{index}) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}",
+                    r == null ? "NULL" : "index",
+                    GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
+                    GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
+                    GuidOneOrTwo(Drive.Id, r?.driveId),
+                    IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
+                    IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1));
+
+                throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 
@@ -285,13 +274,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             dataType = metadata.AppData.DataType,
 
             archivalStatus = metadata.AppData.ArchivalStatus,
+            historyStatus = 0,
             userDate = metadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
             requiredSecurityGroup = securityGroup,
 
             fileState = (int)metadata.FileState,
             fileSystemType = (int)header.ServerMetadata.FileSystemType,
-            byteCount = header.ServerMetadata.FileByteCount,
-            historyStatus = 0
+            byteCount = header.ServerMetadata.FileByteCount
         };
 
         int n = _db.BaseUpdateEntryZapZap(cn, driveMainIndexRecord, acl, tags);

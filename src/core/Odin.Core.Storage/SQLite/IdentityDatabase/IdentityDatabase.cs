@@ -333,6 +333,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
+        public int BaseUpsertEntryZapZap(DatabaseConnection conn,
+            DriveMainIndexRecord driveMainIndexRecord,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null)
+        {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
+            lock (_dbLock)
+            {
+                int n = 0;
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    n = tblDriveMainIndex.BaseUpsert(conn, driveMainIndexRecord);
+
+                    tblDriveAclIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                });
+
+                return n;
+            }
+        }
+
+
 
         /// <summary>
         /// If a transaction is not already ongoing, then the three tables are updated in a single transaction.

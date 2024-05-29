@@ -215,6 +215,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return base.Update(conn, item);
         }
 
+        public int BaseUpsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        {
+            return base.Upsert(conn, item);
+        }
+
+
         public int UpsertRow(DatabaseConnection conn,
             Guid driveId,
             Guid fileId,
