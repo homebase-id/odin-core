@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -142,7 +143,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
             Console.WriteLine($"Log file Path: [{LogFilePath}]");
-            
+
             Environment.SetEnvironmentVariable("Job__Enabled", "false");
             Environment.SetEnvironmentVariable("Job__ConnectionPooling", "false");
             Environment.SetEnvironmentVariable("Job__EnableJobBackgroundService", "false");

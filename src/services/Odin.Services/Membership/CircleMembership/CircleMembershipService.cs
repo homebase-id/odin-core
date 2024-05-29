@@ -223,7 +223,7 @@ public class CircleMembershipService(
     {
         if (includeSystemCircle)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertCallerIsOwner();
         }
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);

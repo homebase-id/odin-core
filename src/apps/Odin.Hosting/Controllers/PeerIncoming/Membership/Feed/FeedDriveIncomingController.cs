@@ -8,6 +8,7 @@ using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
@@ -25,16 +26,18 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly IMediator _mediator;
         private readonly TransitInboxBoxStorage _transitInboxStorage;
         private readonly TenantSystemStorage _tenantSystemStorage;
+        private readonly DriveManager _driveManager;
 
         /// <summary />
         public FeedDriveIncomingController(
-            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage, TenantSystemStorage tenantSystemStorage)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage, TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
             _transitInboxStorage = transitInboxStorage;
             _tenantSystemStorage = tenantSystemStorage;
+            _driveManager = driveManager;
         }
 
         [HttpPost("filemetadata")]
@@ -61,7 +64,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
                 _fileSystemResolver,
                 _followerService,
                 _mediator,
-                _transitInboxStorage);
+                _transitInboxStorage,
+                _driveManager);
         }
     }
 }

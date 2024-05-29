@@ -360,11 +360,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 reg.Disabled = disabled;
                 await SaveRegistrationInternal(reg);
             }
-
-            if (disabled)
-            {
-                UnloadRegistration(reg);
-            }
         }
 
         return result;

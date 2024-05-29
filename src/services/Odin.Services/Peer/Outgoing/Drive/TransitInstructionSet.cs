@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// Optionally specified if you are overwriting a remote file
         /// </summary>
-        public Guid? GlobalTransitFileId { get; set; }
+        public Guid? OverwriteGlobalTransitFileId { get; set; }
 
         public UploadManifest Manifest { get; set; }
     }

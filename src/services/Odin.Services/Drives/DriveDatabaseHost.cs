@@ -68,7 +68,7 @@ namespace Odin.Services.Drives
             }
             else
             {
-                await manager.UpdateCurrentIndex(notification.ServerFileHeader, notification.DatabaseConnection);
+                await manager.MushyDelete(notification.ServerFileHeader, notification.DatabaseConnection);
             }
         }
 
