@@ -796,9 +796,20 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
             var header = await GetServerFileHeaderInternal(file, odinContext, cn);
-            AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
 
+            if (header == null)
+            {
+                throw new OdinClientException("Trying to update feed metadata for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            if (header.FileMetadata.FileState == FileState.Deleted)
+            {
+                _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file.");
+                return;
+            }
+            AssertValidFileSystemType(header.ServerMetadata);
+            
+            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
             if (file.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Method cannot be used on drive");
