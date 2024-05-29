@@ -210,10 +210,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Update(DatabaseConnection conn, DriveMainIndexRecord item)
+        public int BaseUpdate(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            throw new Exception("can't use");
+            return base.Update(conn, item);
         }
+
+        public int BaseUpsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        {
+            return base.Upsert(conn, item);
+        }
+
 
         public int UpsertRow(DatabaseConnection conn,
             Guid driveId,

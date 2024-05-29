@@ -426,7 +426,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE driveMainIndex " +
                                                  "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,byteCount = $byteCount,modified = $modified "+
-                                                 "WHERE (driveId = $driveId,fileId = $fileId)";
+                                                 "WHERE (driveId = $driveId AND fileId = $fileId)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
                     _updateCommand.Parameters.Add(_updateParam1);
