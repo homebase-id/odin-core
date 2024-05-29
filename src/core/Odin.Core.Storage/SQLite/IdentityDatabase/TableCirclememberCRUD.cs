@@ -144,7 +144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE circleMember " +
                                                  "SET data = $data "+
-                                                 "WHERE (circleId = $circleId,memberId = $memberId)";
+                                                 "WHERE (circleId = $circleId AND memberId = $memberId)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$circleId";
                     _updateCommand.Parameters.Add(_updateParam1);

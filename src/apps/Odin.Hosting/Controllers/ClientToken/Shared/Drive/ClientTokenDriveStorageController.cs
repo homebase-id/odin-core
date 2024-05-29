@@ -25,17 +25,16 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveStorageController(
-        ILogger<ClientTokenDriveStorageController> logger,
+    public class GuestClientTokenDriveStorageController(
+        ILogger<GuestClientTokenDriveStorageController> logger,
         FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
-        private readonly ILogger<ClientTokenDriveStorageController> _logger = logger;
+        private readonly ILogger<GuestClientTokenDriveStorageController> _logger = logger;
 
         /// <summary>
         /// Returns the file header
@@ -174,5 +173,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.DeletePayload(request, cn);
         }
+        
     }
 }
