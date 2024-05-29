@@ -236,7 +236,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 {
                     _updateCommand.CommandText = "UPDATE keyChain " +
                                                  "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,recordHash = $recordHash "+
-                                                 "WHERE (identity = $identity,publicKeyJwkBase64Url = $publicKeyJwkBase64Url)";
+                                                 "WHERE (identity = $identity AND publicKeyJwkBase64Url = $publicKeyJwkBase64Url)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$previousHash";
                     _updateCommand.Parameters.Add(_updateParam1);
