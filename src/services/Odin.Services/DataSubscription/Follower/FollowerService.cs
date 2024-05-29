@@ -80,7 +80,7 @@ namespace Odin.Services.DataSubscription.Follower
             var existingFollow = await this.GetIdentityIFollowInternal(identityToFollow, cn);
             if (null != existingFollow)
             {
-                throw new OdinClientException("You already follow the requested identity");
+                throw new OdinClientException("You already follow the requested identity", OdinClientErrorCode.IdentityAlreadyFollowed);
             }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
