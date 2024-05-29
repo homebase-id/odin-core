@@ -48,7 +48,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <param name="metadata"></param>
         /// <param name="cn"></param>
         /// <returns></returns>
-        Task MushyDelete(ServerFileHeader metadata, DatabaseConnection cn);
+        Task SoftDelete(ServerFileHeader metadata, DatabaseConnection cn);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.

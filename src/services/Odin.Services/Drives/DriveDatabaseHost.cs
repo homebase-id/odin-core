@@ -68,7 +68,7 @@ namespace Odin.Services.Drives
             }
             else
             {
-                await manager.MushyDelete(notification.ServerFileHeader, notification.DatabaseConnection);
+                await manager.SoftDelete(notification.ServerFileHeader, notification.DatabaseConnection);
             }
         }
 
