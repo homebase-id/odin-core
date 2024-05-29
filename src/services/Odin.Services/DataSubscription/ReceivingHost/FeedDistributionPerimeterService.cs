@@ -50,11 +50,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             }
 
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, cn);
-            var driveName = driveManager.GetDrive(driveId2.GetValueOrDefault(), cn);
+            var drive = await driveManager.GetDrive(driveId2.GetValueOrDefault(), cn);
 
             Log.Information(
                 "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Looking up Internal file",
-                odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, driveName, driveId2);
+                odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive.Name, driveId2);
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
@@ -71,7 +71,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     Log.Information(
                         "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Creating a new file",
-                        odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, driveName, driveId2);
+                        odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
                     //new file
                     var internalFile = await fileSystem.Storage.CreateInternalFileId(driveId, cn);
@@ -97,9 +97,21 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 }
                 else
                 {
+                    Log.Information(
+                        "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Updating existing file",
+                        odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
+
                     // perform update
-                    request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
-                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, cn);
+                    try
+                    {
+                        request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
+                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, cn);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Information(e, "AcceptUpdatedFileMetadata - Action: failed while ReplaceFileMetadataOnFeedDrive");
+                        throw;
+                    }
                 }
             }
 
