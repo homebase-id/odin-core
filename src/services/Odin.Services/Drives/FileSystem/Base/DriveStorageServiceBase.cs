@@ -742,7 +742,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.PermissionsContext.AssertHasAtLeastOneDrivePermission(
-                targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
+                targetFile.DriveId, DrivePermission.React, DrivePermission.Comment, DrivePermission.Write);
 
             var lts = await GetLongTermStorageManager(targetFile.DriveId, cn);
             var existingHeader = await lts.GetServerFileHeader(targetFile.FileId);
