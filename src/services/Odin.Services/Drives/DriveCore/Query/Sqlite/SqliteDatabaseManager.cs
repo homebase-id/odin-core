@@ -218,11 +218,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                 if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
                 {
                     logger.LogError("SqliteErrorCode:19 (file,index) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}", 
-                        GuidOneOrTwo(metadata.AppData.UniqueId, r.uniqueId), 
-                        GuidOneOrTwo(metadata.GlobalTransitId, r.globalTransitId),
-                        GuidOneOrTwo(Drive.Id, r.driveId),
-                        IntOneOrTwo((int) metadata.FileState, r.fileState),
-                        IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r.fileSystemType));
+                        GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
+                        GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
+                        GuidOneOrTwo(Drive.Id, r?.driveId),
+                        IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
+                        IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1));
 
                     throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
