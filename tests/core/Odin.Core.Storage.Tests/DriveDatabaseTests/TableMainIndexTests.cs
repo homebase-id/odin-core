@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 db.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
                 db.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSize(myc, driveId);
+                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
                 Assert.AreEqual(count, 5);
                 Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
             }
@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 db.CreateDatabase(myc);
                 var driveId = Guid.NewGuid();
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSize(myc, driveId);
+                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
                 Assert.AreEqual(count, 0);
                 Assert.AreEqual(size, 0);
             }
