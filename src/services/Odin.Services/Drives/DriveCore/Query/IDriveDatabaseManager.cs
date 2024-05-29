@@ -48,14 +48,14 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <param name="metadata"></param>
         /// <param name="cn"></param>
         /// <returns></returns>
-        Task SoftDelete(ServerFileHeader metadata, DatabaseConnection cn);
+        Task SoftDeleteFromIndex(ServerFileHeader metadata, DatabaseConnection cn);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn);
+        Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn);
 
         Task LoadLatestIndex(DatabaseConnection cn);
 

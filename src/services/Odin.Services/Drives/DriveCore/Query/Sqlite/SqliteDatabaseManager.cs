@@ -150,7 +150,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         // This really doesn't belong here IMO, delete should be handled before this is called and never called with this flag
         if (header.ServerMetadata.DoNotIndex)
         {
-            return RemoveFromCurrentIndex(metadata.File, cn);
+            return HardDeleteFromIndex(metadata.File, cn);
         }
 
         var acl = new List<Guid>();
@@ -230,7 +230,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     /// <exception cref="Exception"></exception>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="OdinClientException"></exception>
-    public Task SoftDelete(ServerFileHeader header, DatabaseConnection cn)
+    public Task SoftDeleteFromIndex(ServerFileHeader header, DatabaseConnection cn)
     {
         if (null == header)
         {
@@ -253,13 +253,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
-        //
-        // What is really the purpose of this update @todd?
-        // Is this function updating some fields? Or is it MushyDeleting an item?
-        // What does it mean to mushy-delete? Which fields are supposed to be zapped?
-        // Shouldn't those fields be set to "null" below rather than arbitrary values from the argument...
-        //
-
+        //Note: we set the fields to exactly what is stored in the file from the DriveStorageBase class
         var driveMainIndexRecord = new DriveMainIndexRecord()
         {
             driveId = Drive.Id,
@@ -293,9 +287,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return Task.CompletedTask;
     }
 
-
-
-    public Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn)
+    public Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn)
     {
         _db.DeleteEntry(cn, Drive.Id, file.FileId);
         return Task.CompletedTask;

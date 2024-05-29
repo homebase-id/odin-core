@@ -64,11 +64,11 @@ namespace Odin.Services.Drives
 
             if (notification.IsHardDelete)
             {
-                await manager.RemoveFromCurrentIndex(notification.File, notification.DatabaseConnection);
+                await manager.HardDeleteFromIndex(notification.File, notification.DatabaseConnection);
             }
             else
             {
-                await manager.SoftDelete(notification.ServerFileHeader, notification.DatabaseConnection);
+                await manager.SoftDeleteFromIndex(notification.ServerFileHeader, notification.DatabaseConnection);
             }
         }
 
