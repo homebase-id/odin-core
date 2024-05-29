@@ -170,7 +170,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 catch (Exception e)
                 {
                     Log.Debug(e, "Failed dumping info by global transitId");
-                    throw;
                 }
 
                 if (uid.HasValue)
@@ -185,55 +184,50 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         foreach (var result in dump.Results)
                         {
                             Log.Information("Results for {name}", result.Name);
-                            foreach (var sr in result.SearchResults)
+                            foreach (var f in result.FileIdList)
                             {
-                                Log.Information("FileId:{fileId}\tSender: {sender}\tgtid:{gtid}\tstate:{fs}",
-                                    sr.FileId,
-                                    sr.FileMetadata.SenderOdinId,
-                                    sr.FileMetadata.GlobalTransitId,
-                                    sr.FileState);
+                                Log.Information("FileId:{fileId}", f);
                             }
                         }
                     }
                     catch (Exception e)
                     {
                         Log.Debug(e, "Failed dumping info by uniqueId");
-                        throw;
                     }
 
-                    Guid driveId;
-                    try
-                    {
-                        driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Debug(e, "FeedDistributionPerimeterService - Failed getting driveId for target drive {targetDrive} from permission context",
-                            file.TargetDrive);
-                        throw;
-                    }
+                    // Guid driveId;
+                    // try
+                    // {
+                    //     driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+                    // }
+                    // catch (Exception e)
+                    // {
+                    //     Log.Debug(e, "FeedDistributionPerimeterService - Failed getting driveId for target drive {targetDrive} from permission context",
+                    //         file.TargetDrive);
+                    //     throw;
+                    // }
 
-                    try
-                    {
-                        var fileByClientUniqueId = await fs.Query.GetFileByClientUniqueId(driveId, uid.GetValueOrDefault(), odinContext, cn);
-                        if (fileByClientUniqueId == null)
-                        {
-                            Log.Debug("FeedDistributionPerimeterService - file not found by uniqueId [{uid}]", uid);
-                            return null;
-                        }
-
-                        Log.Debug("FeedDistributionPerimeterService - file found by uniqueId");
-                        return new InternalDriveFileId()
-                        {
-                            FileId = fileByClientUniqueId.FileId,
-                            DriveId = driveId
-                        };
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Debug(e, "FeedDistributionPerimeterService - Failed while looking file by UID");
-                        throw;
-                    }
+                    // try
+                    // {
+                    //     var fileByClientUniqueId = await fs.Query.GetFileByClientUniqueId(driveId, uid.GetValueOrDefault(), odinContext, cn);
+                    //     if (fileByClientUniqueId == null)
+                    //     {
+                    //         Log.Debug("FeedDistributionPerimeterService - file not found by uniqueId [{uid}]", uid);
+                    //         return null;
+                    //     }
+                    //
+                    //     Log.Debug("FeedDistributionPerimeterService - file found by uniqueId");
+                    //     return new InternalDriveFileId()
+                    //     {
+                    //         FileId = fileByClientUniqueId.FileId,
+                    //         DriveId = driveId
+                    //     };
+                    // }
+                    // catch (Exception e)
+                    // {
+                    //     Log.Debug(e, "FeedDistributionPerimeterService - Failed while looking file by UID");
+                    //     throw;
+                    // }
                 }
             }
 
