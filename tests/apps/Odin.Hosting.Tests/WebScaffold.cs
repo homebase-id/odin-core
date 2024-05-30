@@ -388,6 +388,11 @@ namespace Odin.Hosting.Tests
             Services.GetRequiredService<ILogEventMemoryStore>().Clear();
         }
 
+        public void ClearAssertLogEventsAction()
+        {
+            _assertLogEvents = null;
+        }
+
         public void SetAssertLogEventsAction(Action<Dictionary<LogEventLevel, List<LogEvent>>> logEventsAction)
         {
             _assertLogEvents = logEventsAction;
@@ -398,7 +403,6 @@ namespace Odin.Hosting.Tests
             Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents)
         {
             _assertLogEvents ??= assertLogEvents ?? DefaultAssertLogEvents;
-            _assertLogEvents(logEvents);
             _assertLogEvents(logEvents);
         }
 

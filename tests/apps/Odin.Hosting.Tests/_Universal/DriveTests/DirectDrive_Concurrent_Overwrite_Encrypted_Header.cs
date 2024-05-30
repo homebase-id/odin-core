@@ -40,6 +40,20 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {

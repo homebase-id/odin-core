@@ -27,11 +27,18 @@ namespace Odin.Hosting.Tests.AppAPI.Security
             _scaffold.RunAfterAnyTests();
         }
 
+
         [SetUp]
         public void Setup()
         {
-            //runs before each test 
-            //_scaffold.DeleteData(); 
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
         }
 
         [Test]
