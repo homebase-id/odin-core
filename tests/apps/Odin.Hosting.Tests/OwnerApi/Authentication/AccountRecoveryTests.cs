@@ -123,7 +123,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             using HttpClient authClient = new()
             {
-                BaseAddress = new Uri($"https://{identity}")
+                BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}")
             };
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);

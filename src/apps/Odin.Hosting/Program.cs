@@ -342,6 +342,14 @@ namespace Odin.Hosting
             // 
             // Tenant or system found, but no certificate. Create it.
             //
+
+            // Sanity #1
+            if (config.Host.DefaultHttpPort != 80)
+            {
+                Log.Error("Lets-encrypt requires port 80 for HTTP-01 challenge");
+                return (null, false);
+            }
+
             string[] sans = null;
             if (idReg != null)
             {
@@ -350,9 +358,7 @@ namespace Odin.Hosting
 
             certificate = await tc.CreateCertificate(domain, sans);
 
-            //
-            // Sanity
-            //
+            // Sanity #2
             if (null == certificate)
             {
                 Log.Error($"No certificate configured for {hostName}");

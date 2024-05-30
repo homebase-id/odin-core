@@ -71,7 +71,7 @@ public class NotificationsTest
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstants.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //
@@ -102,7 +102,7 @@ public class NotificationsTest
 
             var json = array.ToStringFromUtf8Bytes();
             var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
-            
+
             Assert.IsTrue(n.IsEncrypted);
             var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, deviceSharedSecret.ToSensitiveByteArray());
             var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
@@ -151,7 +151,7 @@ public class NotificationsTest
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstants.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //

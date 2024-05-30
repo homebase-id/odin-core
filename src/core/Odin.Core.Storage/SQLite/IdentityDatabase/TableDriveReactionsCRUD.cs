@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE driveReactions " +
                                                  "SET  "+
-                                                 "WHERE (driveId = $driveId,identity = $identity,postId = $postId,singleReaction = $singleReaction)";
+                                                 "WHERE (driveId = $driveId AND identity = $identity AND postId = $postId AND singleReaction = $singleReaction)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
                     _updateCommand.Parameters.Add(_updateParam1);
