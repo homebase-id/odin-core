@@ -258,59 +258,68 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (md.modified != null)
                     Assert.Fail();
 
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, fileType: 8);
+                md.fileType = 8;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (md.fileType != 8)
                     Assert.Fail();
 
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, dataType: 43);
+                md.dataType = 43;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (md.dataType != 43)
                     Assert.Fail();
 
-                var sid2 = "frodo.baggins".ToUtf8ByteArray();
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, senderId: sid2);
+                var sid2 = "frodo.baggins";
+                md.senderId = sid2;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
-                if (ByteArrayUtil.EquiByteArrayCompare(sid2, md.senderId.ToUtf8ByteArray()) == false)
+                if (sid2 != md.senderId)
                     Assert.Fail();
 
                 var tid2 = Guid.NewGuid();
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, groupId: tid2);
+                md.groupId = tid2;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (ByteArrayUtil.muidcmp(tid2, md.groupId) != 0)
                     Assert.Fail();
 
-                var kludge = new IdentityDatabase.NullableGuid();
-                kludge.uniqueId = Guid.NewGuid();
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, nullableUniqueId: kludge);
+                Guid? uid = Guid.NewGuid();
+                md.uniqueId = uid;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
-                if (ByteArrayUtil.muidcmp(kludge.uniqueId, md.uniqueId) != 0)
+                if (ByteArrayUtil.muidcmp(uid, md.uniqueId) != 0)
                     Assert.Fail();
 
-                kludge.uniqueId = null;
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, nullableUniqueId: kludge);
+                uid = null;
+                md.uniqueId = uid;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (md.uniqueId != null)
                     Assert.Fail();
 
                 var gtid2 = Guid.NewGuid();
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, globalTransitId: gtid2);
+                md.globalTransitId = gtid2;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (ByteArrayUtil.muidcmp(gtid2, md.globalTransitId) != 0)
                     Assert.Fail();
 
 
                 var ud2 = UnixTimeUtc.Now();
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, userDate: ud2);
+                md.userDate = ud2;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 if (ud2 != md.userDate)
                     Assert.Fail();
 
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, requiredSecurityGroup: 55);
+                md.requiredSecurityGroup = 55;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 Assert.True(md.requiredSecurityGroup == 55);
 
-                db.tblDriveMainIndex.UpdateRow(myc, driveId, k1, byteCount: 42);
+                md.byteCount = 42;
+                db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);
                 Assert.True(md.byteCount == 42);
 
