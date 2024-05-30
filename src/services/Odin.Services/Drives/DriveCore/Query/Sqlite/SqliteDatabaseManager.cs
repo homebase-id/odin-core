@@ -204,10 +204,37 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         {
             if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
             {
-                var r = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
+                DriveMainIndexRecord rf = null;
+                DriveMainIndexRecord ru = null;
+                DriveMainIndexRecord rt = null;
 
-                logger.LogError("SqliteErrorCode:19 (file,{index}) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}",
-                    r == null ? "NULL" : "index",
+                rf = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
+                if (metadata.AppData.UniqueId.HasValue && metadata.AppData.UniqueId.HasValue)
+                    ru = _db.tblDriveMainIndex.GetByUniqueId(cn, Drive.Id, metadata.AppData.UniqueId);
+                if (metadata.GlobalTransitId.HasValue && metadata.GlobalTransitId.HasValue)
+                    rt = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, Drive.Id, metadata.GlobalTransitId);
+
+                string s = "";
+                DriveMainIndexRecord r = null;
+
+                if (rf != null)
+                {
+                    s += " FileId";
+                    r = rf;
+                }
+                if (rt != null)
+                {
+                    s += " GlobalTransitId";
+                    r = rt;
+                }
+                if (ru != null)
+                {
+                    s += " UniqueId";
+                    r = ru;
+                }
+
+                logger.LogError("SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}",
+                    s,
                     GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
                     GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
                     GuidOneOrTwo(Drive.Id, r?.driveId),

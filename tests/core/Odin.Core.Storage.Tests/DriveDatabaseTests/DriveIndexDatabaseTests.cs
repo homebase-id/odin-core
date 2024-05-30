@@ -93,11 +93,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
 
@@ -153,11 +153,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
@@ -218,11 +218,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -244,8 +244,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // Add two more items
                 var f6 = SequentialGuid.CreateGuid();
                 var f7 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
                 // But stop at stopAtBoundaryCursor: pagingCursor
@@ -293,11 +293,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 QueryBatchCursor cursor = null;
 
@@ -317,8 +317,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(moreRows == false);
 
                 // Add two more items
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
 
                 // How you'd get the latest items (in chuinks) since your last update
                 c = 0;
@@ -334,11 +334,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(moreRows == false);
 
                 // Add five more items
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
 
                 // How you'd get the latest items (in chuinks) since your last update
                 c = 0;
@@ -377,11 +377,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
                 var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
                 var (result, moreRows) = _testDatabase.QueryBatch(myc, driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
@@ -419,11 +419,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
                 var (result, moreRows) = _testDatabase.QueryBatch(myc, driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -459,11 +459,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
                 var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
 
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
                 var (result, moreRows) = _testDatabase.QueryBatch(myc, driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
@@ -499,11 +499,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
                 var (result, moreRows) = _testDatabase.QueryBatch(myc, driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -515,6 +515,42 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0]) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(f4, result[1]) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+            }
+        }
+
+        [Test]
+        public void TwoGetByTests()
+        {
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
+
+            using (var myc = _testDatabase.CreateDisposableConnection())
+            {
+                _testDatabase.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
+
+                var f1 = SequentialGuid.CreateGuid();
+                var s1 = SequentialGuid.CreateGuid().ToByteArray();
+                var gtid1 = SequentialGuid.CreateGuid();
+                var uid1 = SequentialGuid.CreateGuid();
+
+                var f2 = SequentialGuid.CreateGuid();
+                var f3 = SequentialGuid.CreateGuid();
+                var f4 = SequentialGuid.CreateGuid();
+                var f5 = SequentialGuid.CreateGuid();
+
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, gtid1, 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, null, uid1, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, null, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
+
+                var r = _testDatabase.tblDriveMainIndex.GetByGlobalTransitId(myc, driveId, gtid1);
+                Debug.Assert(r != null);
+                Debug.Assert(r.globalTransitId == gtid1);
+
+                r = _testDatabase.tblDriveMainIndex.GetByUniqueId(myc, driveId, uid1);
+                Debug.Assert(r != null);
+                Debug.Assert(r.uniqueId == uid1);
             }
         }
 
@@ -537,11 +573,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
@@ -565,7 +601,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntry(myc, driveId, f2, fileState: 43);
+                _testDatabase.UpdateEntryZapZap(myc, driveId, f2, fileState: 43);
 
                 cursor = null;
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
@@ -594,12 +630,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -643,7 +679,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntry(myc, driveId, f2, archivalStatus: 7);
+                _testDatabase.UpdateEntryZapZap(myc, driveId, f2, archivalStatus: 7);
 
                 cursor = null;
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -674,11 +710,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -691,8 +727,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // Add two more items
                 var f6 = SequentialGuid.CreateGuid();
                 var f7 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 // Now there should be no more items (recursive call in QueryBatch())
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -745,11 +781,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
 
                 // Add five items to the chat database
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 // Get everything from the chat database
                 QueryBatchCursor cursor = null;
@@ -777,9 +813,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f6 = SequentialGuid.CreateGuid();
                 var f7 = SequentialGuid.CreateGuid();
                 var f8 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 // Now we get two of the three new items, we get the newest first f8 & f7
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
@@ -795,8 +831,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // Now add two more items
                 var f9 = SequentialGuid.CreateGuid();
                 var f10 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
                 // because there is only 1 left in the previous range. A second request will get the
@@ -842,9 +878,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
@@ -878,9 +914,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -914,9 +950,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
@@ -950,9 +986,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -986,9 +1022,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
@@ -1024,9 +1060,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -1065,9 +1101,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
@@ -1103,9 +1139,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, hasRows) = _testDatabase.QueryBatch(myc, driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -1145,9 +1181,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 // Check we get the oldest and newest items
 
@@ -1180,11 +1216,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var f6 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 // Set the start point to f3 (which we didn't put in the DB)
                 var cursor = new QueryBatchCursor();
@@ -1235,11 +1271,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var f6 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 // Set the start point to f3 (which we didn't put in the DB)
                 var cursor = new QueryBatchCursor();
@@ -1291,11 +1327,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var f6 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
 
                 // Set the start point to f3 (which we didn't put in the DB)
                 var cursor = new QueryBatchCursor();
@@ -1343,11 +1379,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var f6 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 // Set the boundary item to f3 (which we didn't put in the DB)
                 var cursor = new QueryBatchCursor(f3.ToByteArray());
@@ -1407,11 +1443,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var f6 = SequentialGuid.CreateGuid(); // Newest
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 // Set the boundary item to f3 (which we didn't put in the DB)
                 var cursor = new QueryBatchCursor(t3, false);
@@ -1470,11 +1506,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
                 var (result, moreRows) = _testDatabase.QueryModified(myc, driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -1512,11 +1548,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
 
                 UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
@@ -1560,11 +1596,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 QueryBatchCursor cursor = null;
 
@@ -1624,11 +1660,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
                 UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
                 var (result, moreRows) = _testDatabase.QueryModified(myc, driveId, 400, ref outCursor, requiredSecurityGroup: allIntRange);
@@ -1697,11 +1733,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var a3 = SequentialGuid.CreateGuid();
                 var a4 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
                 QueryBatchCursor cursor = null;
 
@@ -1776,11 +1812,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var a4 = SequentialGuid.CreateGuid();
                 var a5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
                 QueryBatchCursor cursor = null;
 
@@ -1923,11 +1959,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var a4 = SequentialGuid.CreateGuid();
                 var a5 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-                _testDatabase.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
 
                 _testDatabase.tblDriveMainIndex.TestTouch(myc, driveId, f1);
@@ -2073,7 +2109,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2101,11 +2137,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var g1 = Guid.NewGuid();
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 var f2 = SequentialGuid.CreateGuid();
                 var g2 = Guid.NewGuid();
-                _testDatabase.AddEntry(myc, driveId, f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -2137,12 +2173,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var g1 = Guid.NewGuid();
                 var s1 = SequentialGuid.CreateGuid();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f1, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 try
                 {
                     var f2 = SequentialGuid.CreateGuid();
-                    _testDatabase.AddEntry(myc, driveId, f2, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
                     Assert.Fail();
                 }
                 catch
@@ -2168,7 +2204,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2198,7 +2234,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2240,12 +2276,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 var data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-                _testDatabase.UpdateEntry(myc, driveId, f1, globalTransitId: g2, archivalStatus: 7);
+                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, globalTransitId: g2, archivalStatus: 7);
                 data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
@@ -2273,7 +2309,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2301,11 +2337,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var u1 = Guid.NewGuid();
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 var f2 = SequentialGuid.CreateGuid();
                 var u2 = Guid.NewGuid();
-                _testDatabase.AddEntry(myc, driveId, f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 var (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -2337,12 +2373,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var u1 = Guid.NewGuid();
                 var s1 = SequentialGuid.CreateGuid();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 try
                 {
                     var f2 = SequentialGuid.CreateGuid();
-                    _testDatabase.AddEntry(myc, driveId, f2, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
                     Assert.Fail();
                 }
                 catch
@@ -2368,7 +2404,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2398,7 +2434,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 QueryBatchCursor cursor = null;
                 cursor = null;
@@ -2439,7 +2475,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToByteArray();
                 var t1 = SequentialGuid.CreateGuid();
 
-                _testDatabase.AddEntry(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 var data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
@@ -2507,7 +2543,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void AddEntryTest()
         {
-            var (testDatabase, myc, driveId, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_test.db");
+            var (testDatabase, myc, driveId, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_testx.db");
 
             Stopwatch stopWatch = new Stopwatch();
             Console.WriteLine($"Test built in batch");
@@ -2753,7 +2789,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 tmptaglist.Add(tags[2]);
                 tmptaglist.Add(tags[3]);
 
-                _testDatabase.AddEntry(myc, driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
                 // Insert a lot of random data
                 for (var i = 0 + 1; i < fileId.Count; i++)
@@ -2780,7 +2816,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         countTags++;
                     }
 
-                    _testDatabase.AddEntry(myc, driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
 
                 stopWatch.Stop();
