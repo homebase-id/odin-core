@@ -131,10 +131,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxAsync> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
+        public async Task<OutboxProcessingSingleRecipient> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
         {
             var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(cn, driveId);
-            return await Task.FromResult<OutboxAsync>(new OutboxAsync()
+            return await Task.FromResult<OutboxProcessingSingleRecipient>(new OutboxProcessingSingleRecipient()
             {
                 CheckedOutCount = poppedCount,
                 TotalItems = totalCount,

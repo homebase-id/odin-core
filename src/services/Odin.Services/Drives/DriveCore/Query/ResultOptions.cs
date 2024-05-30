@@ -19,4 +19,9 @@ public class ResultOptions
     /// If true, the ServerMetaData will be excluded from the result, even if the caller is owner or the force flag is true
     /// </summary>
     public bool ExcludeServerMetaData { get; set; }
+
+    /// <summary>
+    /// If true, the transfer history with-in the server metadata will be including (assuming you have set ExcludeServerMetaData = false)
+    /// </summary>
+    public bool IncludeTransferHistory { get; set; }
 }

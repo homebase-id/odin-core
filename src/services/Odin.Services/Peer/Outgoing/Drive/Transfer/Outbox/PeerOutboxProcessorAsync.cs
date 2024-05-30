@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             while (item != null)
             {
-                _ = ProcessItem(item, odinContext, tryDeleteTransient: true);
+                _ = ProcessItem(item, odinContext);
                 item = await peerOutbox.GetNextItem(cn);
             }
         }
@@ -40,7 +40,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient)
+        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext)
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
@@ -55,7 +55,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     break;
 
                 case OutboxItemType.File:
-                    result = await SendFileOutboxItem(item, odinContext, tryDeleteTransient, connection);
+                    result = await SendFileOutboxItem(item, odinContext, connection);
                     break;
 
                 // case OutboxItemType.Reaction:
@@ -69,7 +69,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return result;
         }
 
-        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
+        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var worker = new SendFileOutboxWorkerAsync(item,
                 fileSystemResolver,
@@ -81,7 +81,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 //,jobManager
                 );
 
-            var result = await worker.Send(odinContext, tryDeleteTransient, cn);
+            var result = await worker.Send(odinContext, cn);
             
             return result;
         }

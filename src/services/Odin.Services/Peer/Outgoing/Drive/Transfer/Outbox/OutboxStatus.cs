@@ -2,7 +2,7 @@ using Odin.Core.Time;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-public class OutboxAsync
+public class OutboxProcessingSingleRecipient
 {
     public int TotalItems { get; set; }
     public int CheckedOutCount { get; set; }

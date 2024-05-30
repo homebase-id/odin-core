@@ -225,7 +225,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     query.QueryParams,
                     options,
                     cn);
-                
+
                 d.Results.Add(new DumpResult()
                 {
                     Name = query.Name,
@@ -327,7 +327,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext, cn);
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
-                    var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
+                    var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
@@ -337,6 +337,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                             serverFileHeader,
                             odinContext,
                             forceIncludeServerMetadata);
+
                         if (!options.IncludeHeaderContent)
                         {
                             header.FileMetadata.AppData.Content = string.Empty;
@@ -354,6 +355,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                         if (options.ExcludeServerMetaData)
                         {
                             header.ServerMetadata = null;
+                        }
+                        else
+                        {
+                            if (!options.IncludeTransferHistory && header.ServerMetadata != null)
+                            {
+                                header.ServerMetadata.TransferHistory = null;
+                            }
                         }
 
                         results.Add(header);

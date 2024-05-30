@@ -6,7 +6,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Status;
 
 public class DriveStatus
 {
-    public OutboxAsync Outbox { get; set; }
+    public OutboxProcessingSingleRecipient Outbox { get; set; }
     public InboxStatus Inbox { get; set; }
     public DriveSizeInfo SizeInfo { get; set; }
 }

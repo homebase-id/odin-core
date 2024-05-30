@@ -31,22 +31,20 @@ public class SendFileOutboxWorkerAsync(
     IOdinHttpClientFactory odinHttpClientFactory,
     IMediator mediator
     // IJobManager jobManager
-    )
+)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, DatabaseConnection cn)
     {
         var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
 
         try
         {
             var versionTag = await SendOutboxFileItemAsync(item, odinContext, cn);
+ 
             // Try to clean up the transient file
-            if (tryDeleteTransient) //todo: remove this check when the outbox is fully async
+            if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
             {
-                if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
-                {
-                    await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
-                }
+                await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
             }
 
             var update = new UpdateTransferHistoryData()
@@ -103,7 +101,7 @@ public class SendFileOutboxWorkerAsync(
             }
 
             await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
-            
+
             await mediator.Publish(new OutboxFileItemDeliveryFailedNotification()
             {
                 Recipient = item.Recipient,
@@ -139,19 +137,6 @@ public class SendFileOutboxWorkerAsync(
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
-
-        // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-        // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
-        // {
-        //     return new OutboxProcessingResult()
-        //     {
-        //         File = file,
-        //         Recipient = recipient,
-        //         Timestamp = UnixTimeUtc.Now().milliseconds,
-        //         TransferResult = TransferResult.RecipientDoesNotHavePermissionToFileAcl,
-        //         OutboxItem = outboxItem
-        //     };
-        // }
 
         if (header.ServerMetadata.AllowDistribution == false)
         {
