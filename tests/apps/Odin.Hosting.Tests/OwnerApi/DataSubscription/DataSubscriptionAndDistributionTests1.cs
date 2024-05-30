@@ -40,6 +40,20 @@ public class DataSubscriptionAndDistributionTests1
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     public async Task CanUpdateStandardFileAndDistributeChangesForAllNotifications()
     {

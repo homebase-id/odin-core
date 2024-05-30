@@ -43,6 +43,19 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
         [Test(Description = "Test Upload only; no expire, no drive; no transfer")]
         public async Task UploadOnly()
         {

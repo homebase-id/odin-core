@@ -64,6 +64,20 @@ public class ConnectionRequestTests
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     [Description("Merry: None, Pippin: None")]
     public async Task CanConnectWhenState_Merry_NotConnected_Pippin_NotConnected()

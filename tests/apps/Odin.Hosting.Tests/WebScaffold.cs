@@ -5,11 +5,13 @@ using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -23,6 +25,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
+using Serilog.Events;
 
 namespace Odin.Hosting.Tests
 {
@@ -54,6 +57,7 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
+        private Action<Dictionary<LogEventLevel, List<LogEvent>>> _assertLogEvents;
 
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
@@ -104,7 +108,10 @@ namespace Odin.Hosting.Tests
             return HttpClientFactory.CreateClient("no-cookies-no-redirects");
         }
 
-        public void RunBeforeAnyTests(bool initializeIdentity = true, bool setupOwnerAccounts = true, Dictionary<string, string> envOverrides = null)
+        public void RunBeforeAnyTests(
+            bool initializeIdentity = true,
+            bool setupOwnerAccounts = true,
+            Dictionary<string, string> envOverrides = null)
         {
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
@@ -112,6 +119,7 @@ namespace Odin.Hosting.Tests
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
+            _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -139,10 +147,10 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
-            Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
+            Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
             Console.WriteLine($"Log file Path: [{LogFilePath}]");
-            
+
             Environment.SetEnvironmentVariable("Job__Enabled", "false");
             Environment.SetEnvironmentVariable("Job__ConnectionPooling", "false");
             Environment.SetEnvironmentVariable("Job__EnableJobBackgroundService", "false");
@@ -198,8 +206,10 @@ namespace Odin.Hosting.Tests
             _scenarios = new ScenarioBootstrapper(_oldOwnerApi, _appApi);
         }
 
-        public void RunAfterAnyTests()
+        public void RunAfterAnyTests(Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
         {
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
             if (null != _webserver)
             {
                 _webserver.StopAsync().GetAwaiter().GetResult();
@@ -214,6 +224,9 @@ namespace Odin.Hosting.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+
+            // Make sure this is last so it doesnt mess up the rest of the cleanup
+            AssertLogEvents(logEvents, assertLogEvents);
         }
 
         public OwnerApiTestUtils OldOwnerApi =>
@@ -361,5 +374,43 @@ namespace Odin.Hosting.Tests
                 Thumbnails = thumbList
             };
         }
+
+        //
+
+        public void AssertLogEvents(Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
+        {
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+            AssertLogEvents(logEvents, assertLogEvents);
+        }
+
+        public void ClearLogEvents()
+        {
+            Services.GetRequiredService<ILogEventMemoryStore>().Clear();
+        }
+
+        public void ClearAssertLogEventsAction()
+        {
+            _assertLogEvents = null;
+        }
+
+        public void SetAssertLogEventsAction(Action<Dictionary<LogEventLevel, List<LogEvent>>> logEventsAction)
+        {
+            _assertLogEvents = logEventsAction;
+        }
+
+        private void AssertLogEvents(
+            Dictionary<LogEventLevel, List<LogEvent>> logEvents,
+            Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents)
+        {
+            _assertLogEvents ??= assertLogEvents ?? DefaultAssertLogEvents;
+            _assertLogEvents(logEvents);
+        }
+
+        private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
+        {
+            Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
+            Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
+        }
+
     }
 }

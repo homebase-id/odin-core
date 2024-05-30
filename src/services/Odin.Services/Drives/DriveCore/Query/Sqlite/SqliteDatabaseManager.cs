@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualBasic.FileIO;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -185,11 +183,9 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             byteCount = header.ServerMetadata.FileByteCount
         };
 
-        int n = 0;
-
         try
         {
-            n = _db.BaseUpsertEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+            _db.BaseUpsertEntryZapZap(cn, driveMainIndexRecord, acl, tags);
             // driveMainIndexRecord created / modified contain the values written to the database
             // @todd you might consider doing this:
             // using (CreateCommitUnitOfWork()) {
@@ -202,16 +198,16 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         }
         catch (SqliteException e)
         {
-            if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+            if (e.SqliteErrorCode == 19)
             {
                 DriveMainIndexRecord rf = null;
                 DriveMainIndexRecord ru = null;
                 DriveMainIndexRecord rt = null;
 
                 rf = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
-                if (metadata.AppData.UniqueId.HasValue && metadata.AppData.UniqueId.HasValue)
+                if (metadata.AppData.UniqueId.HasValue)
                     ru = _db.tblDriveMainIndex.GetByUniqueId(cn, Drive.Id, metadata.AppData.UniqueId);
-                if (metadata.GlobalTransitId.HasValue && metadata.GlobalTransitId.HasValue)
+                if (metadata.GlobalTransitId.HasValue)
                     rt = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, Drive.Id, metadata.GlobalTransitId);
 
                 string s = "";
@@ -233,13 +229,14 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     r = ru;
                 }
 
-                logger.LogError("SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}",
+                logger.LogError("SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
                     s,
                     GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
                     GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
                     GuidOneOrTwo(Drive.Id, r?.driveId),
                     IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
-                    IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1));
+                    IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
+                    GuidOneOrTwo(metadata.File.FileId, r.fileId));
 
                 throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }

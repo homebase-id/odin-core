@@ -578,9 +578,15 @@ namespace Odin.Services.Membership.Connections
             var circleDefinitions = (await circleDefinitionService.GetCircles(true, cn)).ToList();
             var icr = await GetIdentityConnectionRegistrationInternal(odinId, cn);
 
+            ArgumentNullException.ThrowIfNull(icr);
+            ArgumentNullException.ThrowIfNull(icr.AccessGrant);
+            ArgumentNullException.ThrowIfNull(icr.AccessGrant.CircleGrants);
+
             // Get all circles on identity
             foreach (var definition in circleDefinitions)
             {
+                ArgumentNullException.ThrowIfNull(definition);
+
                 var isCircleMember = icr.AccessGrant.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
                 var hasCircleGrant = circleGrant != null;
 
