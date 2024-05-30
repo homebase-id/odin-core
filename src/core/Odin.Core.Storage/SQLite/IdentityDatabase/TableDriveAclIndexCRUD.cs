@@ -138,7 +138,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE driveAclIndex " +
                                                  "SET  "+
-                                                 "WHERE (driveId = $driveId,fileId = $fileId,aclMemberId = $aclMemberId)";
+                                                 "WHERE (driveId = $driveId AND fileId = $fileId AND aclMemberId = $aclMemberId)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
                     _updateCommand.Parameters.Add(_updateParam1);

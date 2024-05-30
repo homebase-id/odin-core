@@ -137,7 +137,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE driveCommandMessageQueue " +
                                                  "SET timeStamp = $timeStamp "+
-                                                 "WHERE (driveId = $driveId,fileId = $fileId)";
+                                                 "WHERE (driveId = $driveId AND fileId = $fileId)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
                     _updateCommand.Parameters.Add(_updateParam1);

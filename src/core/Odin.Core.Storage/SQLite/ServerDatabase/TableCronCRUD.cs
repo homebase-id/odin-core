@@ -273,7 +273,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 {
                     _updateCommand.CommandText = "UPDATE cron " +
                                                  "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified "+
-                                                 "WHERE (identityId = $identityId,type = $type)";
+                                                 "WHERE (identityId = $identityId AND type = $type)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$identityId";
                     _updateCommand.Parameters.Add(_updateParam1);
