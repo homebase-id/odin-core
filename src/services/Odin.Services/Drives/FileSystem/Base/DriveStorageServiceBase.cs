@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -37,6 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -811,8 +813,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file.");
                 return;
             }
+
             AssertValidFileSystemType(header.ServerMetadata);
-            
+
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
             if (file.DriveId != feedDriveId)
             {
@@ -906,29 +909,33 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var header = await this.GetServerFileHeader(file, odinContext, cn);
-
-            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+            using (await _updateTransferHistoryLock.LockAsync())
             {
-                recipientItem = new RecipientTransferHistoryItem();
-                history.Recipients.Add(recipient, recipientItem);
-            }
-            
-            recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-            recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-            
-            recipientItem.LastUpdated = UnixTimeUtc.Now();
-            recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-            if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered)
-            {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-            }
+                var header = await this.GetServerFileHeader(file, odinContext, cn);
 
-            header.ServerMetadata.TransferHistory = history;
-            await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true, ignoreFeedDistribution: true);
+                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
+
+                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                {
+                    recipientItem = new RecipientTransferHistoryItem();
+                    history.Recipients.Add(recipient, recipientItem);
+                }
+
+                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+
+                recipientItem.LastUpdated = UnixTimeUtc.Now();
+                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered)
+                {
+                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
+                }
+
+                header.ServerMetadata.TransferHistory = history;
+                await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true,
+                    ignoreFeedDistribution: true);
+            }
         }
 
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
