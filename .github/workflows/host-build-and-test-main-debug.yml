@@ -1,4 +1,4 @@
-name: "Host: Build and test main (debug)"
+name: "Host: Build and test main (debug/windows)"
 
 on:
   push:
@@ -9,14 +9,22 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and test backend
-        uses: ./.github/actions/host/build-and-test-backend
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.0.0
         with:
-          configuration: Debug
+          dotnet-version: '8.0.x'
 
+      - name: Restore dependencies
+        run: dotnet restore ./dotyoucore.sln
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Debug --warnaserror ./dotyoucore.sln
+
+      - name: Test
+        run: dotnet test --no-build --configuration Debug --verbosity normal ./dotyoucore.sln

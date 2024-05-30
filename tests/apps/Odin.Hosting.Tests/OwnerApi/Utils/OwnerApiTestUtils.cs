@@ -122,7 +122,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -189,7 +189,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateAnonymousClient(string identity)
         {
             HttpClient authClient = new();
-            authClient.BaseAddress = new Uri($"https://{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
             return authClient;
         }
 
@@ -238,10 +238,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{identity}");
+            var uri = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
 
             Console.WriteLine($"authenticating to {uri}");
             // var nonceResponse = await svc.GenerateAuthenticationNonce();
@@ -344,7 +344,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}");
+            client.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
             return client;
         }
 
@@ -784,7 +784,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
                 MemoryStream payloadCipher = new MemoryStream(payloadData.ToUtf8ByteArray());
-                MemoryStream payloadCipher2= new MemoryStream(payloadData.ToUtf8ByteArray());
+                MemoryStream payloadCipher2 = new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 KeyHeader payloadKeyHeader = null;
                 if (encryptPayload)
@@ -815,7 +815,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     var thumbnailCipherBytes = payloadKeyHeader == null
                         ? new MemoryStream(thumbnail.Content)
                         : payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content);
-                    
+
                     response = await transitSvc.Upload(
                         new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                         new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -832,7 +832,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
                 //keyHeader.AesKey.Wipe();
-                
+
                 return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,

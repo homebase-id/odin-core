@@ -192,7 +192,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<QueryBatchCollectionResponse> DumpUniqueId(List<StorageDrive> drives, Guid uniqueId, IOdinContext odinContext,
+        public async Task<UniqueIdDump> DumpUniqueId(List<StorageDrive> drives, Guid uniqueId, IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var request = new QueryBatchCollectionRequest
@@ -209,7 +209,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }).ToList()
             };
 
-            var collection = new QueryBatchCollectionResponse();
+            var d = new UniqueIdDump();
             foreach (var query in request.Queries)
             {
                 var drive = drives.SingleOrDefault(d => d.TargetDriveInfo == query.QueryParams.TargetDrive);
@@ -219,14 +219,21 @@ namespace Odin.Services.Drives.FileSystem.Base
                     ExcludePreviewThumbnail = false
                 };
 
-                var result = await this.GetBatchInternal(drive!.Id, query.QueryParams, options, odinContext, cn, true);
-
-                var response = QueryBatchResponse.FromResult(result);
-                response.Name = query.Name;
-                collection.Results.Add(response);
+                var queryManager = await TryGetOrLoadQueryManager(drive!.Id, cn);
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(odinContext,
+                    GetFileSystemType(),
+                    query.QueryParams,
+                    options,
+                    cn);
+                
+                d.Results.Add(new DumpResult()
+                {
+                    Name = query.Name,
+                    FileIdList = fileIdList.ToList()
+                });
             }
 
-            return collection;
+            return d;
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, IOdinContext odinContext,
@@ -409,5 +416,16 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             throw new NoValidIndexClientException(driveId);
         }
+    }
+
+    public class UniqueIdDump
+    {
+        public List<DumpResult> Results { get; set; } = new List<DumpResult>();
+    }
+
+    public class DumpResult
+    {
+        public List<Guid> FileIdList { get; set; }
+        public string Name { get; set; }
     }
 }
