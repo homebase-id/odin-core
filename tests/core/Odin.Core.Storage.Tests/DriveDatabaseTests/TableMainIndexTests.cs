@@ -25,11 +25,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-                db.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                db.AddEntry(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
-                db.AddEntry(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
-                db.AddEntry(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
-                db.AddEntry(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
+                db.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                db.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
+                db.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
+                db.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
+                db.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
                 var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
                 Assert.AreEqual(count, 5);
@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 try
                 {
-                    db.AddEntry(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
+                    db.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
                 }
                 catch (Exception ex)
                 {
