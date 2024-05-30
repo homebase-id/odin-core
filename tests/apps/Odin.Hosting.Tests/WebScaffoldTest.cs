@@ -43,7 +43,7 @@ public class WebScaffoldTest
     [Test]
     public void T02_IndividualTestShouldOverrideDefaultLogEventAsserts()
     {
-        Scaffold.SetAssertLogEvents(logEvents =>
+        Scaffold.SetAssertLogEventsAction(logEvents =>
         {
             Assert.That(logEvents[Serilog.Events.LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
             Assert.That(logEvents[Serilog.Events.LogEventLevel.Fatal].Count, Is.EqualTo(2), "Unexpected number of Fatal log events");

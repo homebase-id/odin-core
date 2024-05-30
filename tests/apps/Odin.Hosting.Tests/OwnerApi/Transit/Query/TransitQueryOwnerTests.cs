@@ -65,6 +65,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
         [Test]
         public async Task CanTransferStandardFileAndRecipientCanQueryFilesByTag()
         {

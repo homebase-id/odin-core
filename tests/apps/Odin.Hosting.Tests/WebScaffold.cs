@@ -219,8 +219,7 @@ namespace Odin.Hosting.Tests
             GC.Collect();
 
             // Make sure this is last so it doesnt mess up the rest of the cleanup
-            _assertLogEvents ??= assertLogEvents ?? DefaultAssertLogEvents;
-            _assertLogEvents(logEvents);
+            AssertLogEvents(logEvents, assertLogEvents);
         }
 
         public OwnerApiTestUtils OldOwnerApi =>
@@ -371,9 +370,29 @@ namespace Odin.Hosting.Tests
 
         //
 
-        public void SetAssertLogEvents(Action<Dictionary<LogEventLevel, List<LogEvent>>> logEventsAction)
+        public void AssertLogEvents(Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
+        {
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+            AssertLogEvents(logEvents, assertLogEvents);
+        }
+
+        public void ClearLogEvents()
+        {
+            Services.GetRequiredService<ILogEventMemoryStore>().Clear();
+        }
+
+        public void SetAssertLogEventsAction(Action<Dictionary<LogEventLevel, List<LogEvent>>> logEventsAction)
         {
             _assertLogEvents = logEventsAction;
+        }
+
+        private void AssertLogEvents(
+            Dictionary<LogEventLevel, List<LogEvent>> logEvents,
+            Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents)
+        {
+            _assertLogEvents ??= assertLogEvents ?? DefaultAssertLogEvents;
+            _assertLogEvents(logEvents);
+            _assertLogEvents(logEvents);
         }
 
         private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)

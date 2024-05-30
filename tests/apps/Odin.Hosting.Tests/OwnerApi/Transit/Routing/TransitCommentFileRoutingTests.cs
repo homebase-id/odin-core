@@ -40,6 +40,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
 
         [Test]
         public async Task CanTransfer_Unencrypted_Comment_S2110()
