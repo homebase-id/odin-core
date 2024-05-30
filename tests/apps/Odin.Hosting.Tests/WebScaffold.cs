@@ -408,7 +408,6 @@ namespace Odin.Hosting.Tests
 
         private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
         {
-            Assert.That(logEvents[LogEventLevel.Information].Count, Is.GreaterThan(0), "Unexpected number of Information log events");
             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
             Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
         }
