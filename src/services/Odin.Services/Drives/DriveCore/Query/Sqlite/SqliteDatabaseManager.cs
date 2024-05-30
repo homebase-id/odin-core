@@ -236,7 +236,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     GuidOneOrTwo(Drive.Id, r?.driveId),
                     IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
                     IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                    metadata.File.FileId);
+                    GuidOneOrTwo(metadata.File.FileId, r.fileId));
 
                 throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }
