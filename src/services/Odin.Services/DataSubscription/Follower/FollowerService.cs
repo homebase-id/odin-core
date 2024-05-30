@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -32,6 +33,7 @@ namespace Odin.Services.DataSubscription.Follower
     {
         private readonly TenantSystemStorage _tenantStorage;
         private readonly DriveManager _driveManager;
+        private readonly ILogger<FollowerService> _logger;
         private readonly IOdinHttpClientFactory _httpClientFactory;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
@@ -45,6 +47,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         public FollowerService(TenantSystemStorage tenantStorage,
             DriveManager driveManager,
+            ILogger<FollowerService> logger,
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
@@ -53,6 +56,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
+            _logger = logger;
             _httpClientFactory = httpClientFactory;
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
@@ -454,23 +458,40 @@ namespace Odin.Services.DataSubscription.Follower
                     };
 
                     SharedSecretEncryptedFileHeader existingFile = null;
-                    if (dsr.FileMetadata.AppData.UniqueId.HasValue)
+                    if (dsr.FileMetadata.GlobalTransitId.HasValue)
                     {
                         existingFile = await _standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
                             dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault(), odinContext, cn);
+
+                        if (null != existingFile)
+                        {
+                            _logger.LogDebug("SynchronizeChannelFiles - Found file by GTID:{gtid}", dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                        }
                     }
-                    else if (dsr.FileMetadata.GlobalTransitId.HasValue)
+                    else if (dsr.FileMetadata.AppData.UniqueId.HasValue)
                     {
                         existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
                             dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
+                        if (null != existingFile)
+                        {
+                            _logger.LogDebug("SynchronizeChannelFiles - Found file by uid:{uid}", dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault());
+                        }
                     }
 
                     if (null == existingFile)
                     {
+                        _logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
+                            newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                            newFileMetadata.AppData.UniqueId.GetValueOrDefault());
                         await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata, odinContext, cn);
                     }
                     else
                     {
+                        _logger.LogDebug("SynchronizeChannelFiles - updating existing file gtid:{gtid} and uid:{uid}",
+                            newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                            newFileMetadata.AppData.UniqueId.GetValueOrDefault());
+                        
                         var file = new InternalDriveFileId()
                         {
                             FileId = existingFile.FileId,
