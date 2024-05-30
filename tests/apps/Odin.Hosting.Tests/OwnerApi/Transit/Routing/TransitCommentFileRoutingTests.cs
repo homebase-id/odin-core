@@ -40,6 +40,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
 
         [Test]
         public async Task CanTransfer_Unencrypted_Comment_S2110()
@@ -281,6 +293,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 throws Bad Request - S2030
              */
 
+            _scaffold.SetAssertLogEventsAction(logEvents =>
+            {
+                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
+                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
+                Assert.That(errorLogs[0].Exception!.Message, Is.EqualTo("Remote identity host failed: Referenced file missing or caller does not have access"));
+            });
+
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
@@ -332,6 +351,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 Should fail
                 Bad Request (S2100)
              */
+
+            _scaffold.SetAssertLogEventsAction(logEvents =>
+            {
+                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
+                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
+                Assert.That(errorLogs[0].Exception!.Message, Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+            });
 
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
@@ -392,6 +418,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 Should fail
                 Bad Request (S2100)
              */
+
+            _scaffold.SetAssertLogEventsAction(logEvents =>
+            {
+                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
+                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
+                Assert.That(errorLogs[0].Exception!.Message, Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+            });
 
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;

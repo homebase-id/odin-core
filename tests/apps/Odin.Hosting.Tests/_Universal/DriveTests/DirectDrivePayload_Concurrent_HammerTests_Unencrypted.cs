@@ -43,6 +43,20 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     /// <summary>
     /// This test will throw multiple threads at uploading a payload to a single-existing file.
     /// Since it's hard to predict the natural flow of so many threads, the test will perform

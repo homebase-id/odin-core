@@ -40,6 +40,20 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test(Description = "Test sending and receiving a command message")]
         public async Task CanSendAndReceiveCommand()
         {
