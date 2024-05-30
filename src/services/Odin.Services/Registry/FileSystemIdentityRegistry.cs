@@ -376,7 +376,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var markedDate = UnixTimeUtc.Now();
         reg.MarkedForDeletionDate = UnixTimeUtc.Now();
         await SaveRegistrationInternal(reg);
-        
+
         return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
     }
 
@@ -480,7 +480,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private async Task InitializeCertificate(string domain)
     {
         var httpClient = _httpClientFactory.CreateClient(nameof(RegisterCertificateInitializerHttpClient));
-        var uri = $"https://{domain}/.well-known/acme-challenge/ping";
+        var uri = $"https://{domain}:{_config.Host.DefaultHttpsPort}/.well-known/acme-challenge/ping";
         try
         {
             await httpClient.GetAsync(uri);

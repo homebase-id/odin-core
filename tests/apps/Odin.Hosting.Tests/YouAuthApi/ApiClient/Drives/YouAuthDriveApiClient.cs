@@ -107,7 +107,7 @@ public class YouAuthDriveApiClient
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
             
-        client.BaseAddress = new Uri($"https://{this._identity.OdinId}");
+        client.BaseAddress = new Uri($"https://{_identity.OdinId}:{WebScaffold.HttpsPort}");
         return client;    }
 
     private IRefitGuestDriveQuery CreateDriveService(HttpClient client)
