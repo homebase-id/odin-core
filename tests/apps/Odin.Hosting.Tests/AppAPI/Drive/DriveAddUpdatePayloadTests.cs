@@ -37,7 +37,20 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         {
             _scaffold.RunAfterAnyTests();
         }
-        
+
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
         // 
 
         private async Task<(AppApiClient appApiClient, TargetDrive drive)> CreateApp(TestIdentity identity)

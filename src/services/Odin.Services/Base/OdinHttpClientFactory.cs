@@ -4,6 +4,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Certificate;
+using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Refit;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
@@ -20,6 +21,7 @@ namespace Odin.Services.Base
         private readonly ICertificateServiceFactory _certificateServiceFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICorrelationContext _correlationContext;
+        private readonly OdinConfiguration _config;
 
         public static string HttpFactoryKey(string domain) => $"{nameof(OdinHttpClientFactory)}.{domain}"; 
         
@@ -27,12 +29,14 @@ namespace Odin.Services.Base
             IHttpClientFactory httpClientFactory,
             ICertificateServiceFactory certificateServiceFactory, 
             TenantContext tenantContext, 
-            ICorrelationContext correlationContext)
+            ICorrelationContext correlationContext,
+            OdinConfiguration config)
         {
             _httpClientFactory = httpClientFactory;
             _certificateServiceFactory = certificateServiceFactory;
             _tenantContext = tenantContext;
             _correlationContext = correlationContext;
+            _config = config;
         }
         
         //
@@ -56,7 +60,12 @@ namespace Odin.Services.Base
             var httpClientKey = HttpFactoryKey(_tenantContext.HostOdinId.DomainName);
             var httpClient = _httpClientFactory.CreateClient(httpClientKey);
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
-            httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = remoteHost }.Uri;
+            httpClient.BaseAddress = new UriBuilder
+            {
+                Scheme = "https",
+                Host = remoteHost,
+                Port = _config.Host.DefaultHttpsPort
+            }.Uri;
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
             
             if (fileSystemType.HasValue)

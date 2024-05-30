@@ -21,6 +21,20 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         [Ignore("Need api to login via youauth in unit tests")]
         public void CanUploadCommentFromYouAuth()

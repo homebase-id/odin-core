@@ -129,7 +129,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext, cn);
 
-            if (null == referencedFs)
+            if (null == referencedFs || !fileId.HasValue)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
                 throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");

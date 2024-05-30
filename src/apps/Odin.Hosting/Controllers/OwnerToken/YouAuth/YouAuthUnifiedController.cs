@@ -60,7 +60,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
 
-            var thisHost = Request.Host.ToString().ToLower();
+            var thisHost = Request.Host.Host.ToLower();
 
             authorize.Validate(redirectUri.Host);
 
@@ -199,7 +199,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             // Sanity #1
-            if (returnUri.Host != Request.Host.ToString())
+            if (returnUri.Host != Request.Host.Host)
             {
                 throw new BadRequestException("Host mismatch");
             }
@@ -218,7 +218,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             authorize.Validate(redirectUri.Host);
 
             // Sanity #3
-            if (authorize.ClientId.Equals(Request.Host.ToString(), StringComparison.CurrentCultureIgnoreCase))
+            if (authorize.ClientId.Equals(Request.Host.Host, StringComparison.CurrentCultureIgnoreCase))
             {
                 throw new BadRequestException("Cannot YouAuth to self");
             }

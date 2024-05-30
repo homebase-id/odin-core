@@ -32,8 +32,14 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
         [SetUp]
         public void Setup()
         {
-            //runs before each test 
-            //_scaffold.DeleteData(); 
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
         }
 
         [Test]

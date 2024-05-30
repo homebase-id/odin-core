@@ -40,6 +40,20 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         public static IEnumerable TestCases()
         {
             yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };

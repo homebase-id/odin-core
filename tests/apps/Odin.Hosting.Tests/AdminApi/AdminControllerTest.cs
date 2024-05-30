@@ -283,7 +283,7 @@ public class AdminControllerTest
 
         // Verify enabled
         {
-            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
@@ -297,7 +297,7 @@ public class AdminControllerTest
 
         // Verify still enabled
         {
-            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
@@ -311,7 +311,7 @@ public class AdminControllerTest
 
         // Verify disabled
         {
-            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         }
@@ -336,11 +336,10 @@ public class AdminControllerTest
 
         // Verify enabled
         {
-            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-    }
+        } }
 
     //
 

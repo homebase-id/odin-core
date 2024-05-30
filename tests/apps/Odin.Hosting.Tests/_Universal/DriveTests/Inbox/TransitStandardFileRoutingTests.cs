@@ -45,6 +45,20 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         public async Task TransferEncryptedContent_AndProcessInbox()
         {
