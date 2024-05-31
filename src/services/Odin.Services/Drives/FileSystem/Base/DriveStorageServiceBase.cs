@@ -804,9 +804,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (header.FileMetadata.FileState == FileState.Deleted)
             {
-                _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file.");
+                // _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file; this will be ignored.");
                 return;
             }
+            
             AssertValidFileSystemType(header.ServerMetadata);
             
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
