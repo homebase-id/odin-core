@@ -225,7 +225,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     query.QueryParams,
                     options,
                     cn);
-                
+
                 d.Results.Add(new DumpResult()
                 {
                     Name = query.Name,
@@ -326,6 +326,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 else
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext, cn);
+
+                    if (null == serverFileHeader)
+                    {
+                        _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk", file.FileId, file.DriveId);
+                        continue;
+                    }
+
+                    if (serverFileHeader.FileMetadata.FileState == FileState.Deleted)
+                    {
+                        _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId, file.DriveId);
+                    }
+
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
 
@@ -337,18 +349,26 @@ namespace Odin.Services.Drives.FileSystem.Base
                             serverFileHeader,
                             odinContext,
                             forceIncludeServerMetadata);
-                        if (!options.IncludeHeaderContent)
+                        
+                        if (header?.FileMetadata?.AppData != null)
                         {
-                            header.FileMetadata.AppData.Content = string.Empty;
-                        }
-
-                        if (options.ExcludePreviewThumbnail)
-                        {
-                            header.FileMetadata.AppData.PreviewThumbnail = null;
-                            foreach (var pd in header.FileMetadata.Payloads)
+                            if (!options.IncludeHeaderContent)
                             {
-                                pd.PreviewThumbnail = null;
+                                header.FileMetadata.AppData.Content = string.Empty;
                             }
+
+                            if (options.ExcludePreviewThumbnail)
+                            {
+                                header.FileMetadata.AppData.PreviewThumbnail = null;
+                                foreach (var pd in header.FileMetadata.Payloads)
+                                {
+                                    pd.PreviewThumbnail = null;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogDebug("AppData in File {file} on drive {drive} is null.  FileState: {fs}", file.FileId, file.DriveId, header.FileState);
                         }
 
                         if (options.ExcludeServerMetaData)
