@@ -87,7 +87,13 @@ namespace Odin.Services.DataSubscription
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             var odinContext = notification.OdinContext;
-            if (await ShouldDistribute(notification, notification.DatabaseConnection))
+
+            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
+            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) &&
+                                  bool.TryParse(value, out bool collabChannelFlagValue) &&
+                                  collabChannelFlagValue;
+
+            if (await ShouldDistribute(notification, isCollabChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -110,9 +116,7 @@ namespace Odin.Services.DataSubscription
                 {
                     try
                     {
-                        var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) &&
-                            isCollabChannel)
+                        if (isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -161,18 +165,18 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(IDriveNotification notification, DatabaseConnection cn)
+        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollabChannel)
         {
             if (notification.IgnoreFeedDistribution)
             {
                 return false;
             }
-            
+
             //if the file was received from another identity, do not redistribute
             var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
-            if (!uploadedByThisIdentity)
+            if (!uploadedByThisIdentity && !isCollabChannel)
             {
                 return false;
             }
@@ -193,7 +197,7 @@ namespace Odin.Services.DataSubscription
                 return false;
             }
 
-            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId, cn))
+            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId, notification.DatabaseConnection))
             {
                 return false;
             }
