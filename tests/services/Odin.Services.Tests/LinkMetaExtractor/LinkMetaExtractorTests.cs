@@ -7,14 +7,7 @@ namespace Odin.Services.Tests.LinkMetaExtractor;
 
 public class LinkMetaExtractorTests
 {
-    private Services.LinkMetaExtractor.LinkMetaExtractor _linkMetaExtractor;
-
-    [SetUp]
-    public void Setup()
-    {
-        _linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor();
-        
-    }
+    private readonly Services.LinkMetaExtractor.LinkMetaExtractor _linkMetaExtractor = new();
     
         [Test]
         public async Task TestGithubUrl()
@@ -81,5 +74,7 @@ public class LinkMetaExtractorTests
             Assert.ThrowsAsync<InvalidOperationException>(async () => await  _linkMetaExtractor.ExtractAsync(""));
             Assert.ThrowsAsync<HttpRequestException>(async () => await  _linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
         }
+        
+    
     
 }
