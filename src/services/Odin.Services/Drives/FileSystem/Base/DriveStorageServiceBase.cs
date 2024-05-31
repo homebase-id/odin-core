@@ -829,6 +829,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             header.FileMetadata = fileMetadata;
+            
+            // Clearing the UID for any files that go into the feed drive because the feed drive 
+            // comes from multiple channel drives from many different identities so there could be a clash
+            header.FileMetadata.AppData.UniqueId = null;
 
             await this.UpdateActiveFileHeader(file, header, odinContext, cn, raiseEvent: true);
         }
