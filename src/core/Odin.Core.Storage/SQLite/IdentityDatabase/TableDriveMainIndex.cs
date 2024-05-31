@@ -54,40 +54,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return (-1, -1);
         }
 
-        /// <summary>
-        /// Uncertain what this should do ....
-        /// </summary>
-        /// <param name="conn"></param>
-        /// <param name="driveId"></param>
-        /// <param name="fileId"></param>
-        /// <returns></returns>
-        public int SoftDelete(DatabaseConnection conn, Guid driveId, Guid fileId)
-        {
-            using (var _softDeleteCommand = _database.CreateCommand())
-            {
-                _softDeleteCommand.CommandText =
-                    $"UPDATE driveMainIndex SET uniqueId = NULL WHERE driveId = $driveId AND fileId = $fileId;";
-
-                var _sparam1 = _softDeleteCommand.CreateParameter();
-                var _sparam2 = _softDeleteCommand.CreateParameter();
-
-                _sparam1.ParameterName = "$driveId";
-                _sparam2.ParameterName = "$fileId";
-
-                _softDeleteCommand.Parameters.Add(_sparam1);
-                _softDeleteCommand.Parameters.Add(_sparam2);
-
-                _sparam1.Value = driveId.ToByteArray();
-                _sparam2.Value = fileId.ToByteArray();
-
-
-                lock (conn._lock)
-                {
-                    int n = conn.ExecuteNonQuery(_softDeleteCommand);
-                    return n;
-                }
-            }
-        }
 
         /// <summary>
         /// For testing only. Updates the updatedTimestamp for the supplied item.
@@ -210,139 +176,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int BaseUpdate(DatabaseConnection conn, DriveMainIndexRecord item)
+        public override int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             return base.Update(conn, item);
         }
 
-        public int BaseUpsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        public override int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             return base.Upsert(conn, item);
-        }
-
-
-
-        // It is not allowed to update the GlobalTransitId
-        public int UpdateRow(DatabaseConnection conn, Guid driveId,
-            Guid fileId,
-            Guid? globalTransitId = null,
-            Int32? fileState = null,
-            Int32? fileType = null,
-            Int32? dataType = null,
-            byte[] senderId = null,
-            Guid? groupId = null,
-            IdentityDatabase.NullableGuid nullableUniqueId = null,
-            Int32? archivalStatus = null,
-            UnixTimeUtc? userDate = null,
-            Int32? requiredSecurityGroup = null,
-            Int64? byteCount = null)
-        {
-            // Make sure we only prep once 
-            using (var _updateCommand = _database.CreateCommand())
-            {
-                var _uparam1 = _updateCommand.CreateParameter();
-                var _uparam2 = _updateCommand.CreateParameter();
-                var _uparam3 = _updateCommand.CreateParameter();
-                var _uparam4 = _updateCommand.CreateParameter();
-                var _uparam5 = _updateCommand.CreateParameter();
-                var _uparam6 = _updateCommand.CreateParameter();
-                var _uparam7 = _updateCommand.CreateParameter();
-                var _uparam8 = _updateCommand.CreateParameter();
-                var _uparam9 = _updateCommand.CreateParameter();
-                var _uparam10 = _updateCommand.CreateParameter();
-                var _uparam11 = _updateCommand.CreateParameter();
-                var _uparam12 = _updateCommand.CreateParameter();
-
-                _uparam1.ParameterName = "$modified";
-                _uparam2.ParameterName = "$filetype";
-                _uparam3.ParameterName = "$datatype";
-                _uparam4.ParameterName = "$senderid";
-                _uparam5.ParameterName = "$groupid";
-                _uparam6.ParameterName = "$uniqueid";
-                _uparam7.ParameterName = "$userdate";
-                _uparam8.ParameterName = "$requiredSecurityGroup";
-                _uparam9.ParameterName = "$globaltransitid";
-                _uparam10.ParameterName = "$archivalStatus";
-                _uparam11.ParameterName = "$fileState";
-                _uparam12.ParameterName = "$byteCount";
-
-                _updateCommand.Parameters.Add(_uparam1);
-                _updateCommand.Parameters.Add(_uparam2);
-                _updateCommand.Parameters.Add(_uparam3);
-                _updateCommand.Parameters.Add(_uparam4);
-                _updateCommand.Parameters.Add(_uparam5);
-                _updateCommand.Parameters.Add(_uparam6);
-                _updateCommand.Parameters.Add(_uparam7);
-                _updateCommand.Parameters.Add(_uparam8);
-                _updateCommand.Parameters.Add(_uparam9);
-                _updateCommand.Parameters.Add(_uparam10);
-                _updateCommand.Parameters.Add(_uparam11);
-                _updateCommand.Parameters.Add(_uparam12);
-
-                string stm;
-
-                stm = "modified = $modified";
-
-
-                if (fileType != null)
-                    stm += ", filetype = $filetype ";
-
-                if (dataType != null)
-                    stm += ", datatype = $datatype ";
-
-                if (senderId != null)
-                    stm += ", senderid = $senderid ";
-
-                if (groupId != null)
-                    stm += ", groupid = $groupid ";
-
-                // Note: Todd removed this null check since we must be able to set the uniqueId to null when a file is deleted
-                if (nullableUniqueId != null)
-                    stm += ", uniqueid = $uniqueid ";
-
-                if (globalTransitId != null)
-                    stm += ", globaltransitid = $globaltransitid ";
-
-                if (userDate != null)
-                    stm += ", userdate = $userdate ";
-
-                if (requiredSecurityGroup != null)
-                    stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
-
-                if (archivalStatus != null)
-                    stm += ", archivalStatus = $archivalStatus";
-
-                if (fileState != null)
-                    stm += ", fileState = $fileState";
-
-                if (byteCount != null)
-                {
-                    if (byteCount < 1)
-                        throw new ArgumentException("byteCount must be at least 1");
-                    stm += ", byteCount = $byteCount";
-                }
-
-                _updateCommand.CommandText =
-                    $"UPDATE drivemainindex SET " + stm + $" WHERE driveid = x'{Convert.ToHexString(driveId.ToByteArray())}' AND fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
-
-                _uparam1.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
-                _uparam2.Value = fileType ?? (object)DBNull.Value;
-                _uparam3.Value = dataType ?? (object)DBNull.Value;
-                _uparam4.Value = senderId ?? (object)DBNull.Value;
-                _uparam5.Value = groupId?.ToByteArray() ?? (object)DBNull.Value;
-                if (nullableUniqueId == null)
-                    _uparam6.Value = (object)DBNull.Value;
-                else
-                    _uparam6.Value = nullableUniqueId.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _uparam7.Value = userDate?.milliseconds ?? (object)DBNull.Value;
-                _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
-                _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _uparam10.Value = archivalStatus ?? (object)DBNull.Value;
-                _uparam11.Value = fileState ?? (object)DBNull.Value;
-                _uparam12.Value = byteCount ?? (object)DBNull.Value;
-
-                return conn.ExecuteNonQuery(_updateCommand);
-            }
         }
     }
 }
