@@ -1,20 +1,37 @@
+#nullable enable
+using System;
 using System.Collections.Generic;
 
 namespace Odin.Services.LinkMetaExtractor;
 
+
 public class LinkMeta
 {
     
-    public string Title { get; init; }
-    public string  Description { get; init; }
-    public string ImageUrl { get; set; }
-    public int ? ImageWidth { get; set; }
-    public int ? ImageHeight { get; set; }
-    public string Url { get; set; }
+    public required string Title { get; set; }
+    public string?  Description { get; set; }
+    public string? ImageUrl { get; set; }
+    public int? ImageWidth { get; set; }
+    public int? ImageHeight { get; set; }
+    public required string Url { get; set; }
     
-    public string Type { get; set; }
+    public string? Type { get; set; }
+    
+    public static LinkMeta fromMetaData(Dictionary<string, object> meta, string url)
+    {
+        return new LinkMeta
+        {
+            Title = GetTitle(meta),
+            Description = GetDescription(meta),
+            ImageUrl = GetImageUrl(meta),
+            ImageWidth = meta.ContainsKey("og:image:width") ? int.Parse(meta["og:image:width"].ToString()!) : null,
+            ImageHeight = meta.ContainsKey("og:image:height") ? int.Parse(meta["og:image:height"].ToString()!) : null,
+            Url = url,
+            Type = meta.ContainsKey("og:type") ? meta["og:type"].ToString() : null
+        };
+    }
 
-    public static string GetTitle(Dictionary<string, object> meta)
+    private static string GetTitle(Dictionary<string, object> meta)
     {
         if (meta.TryGetValue("title", out object value))
         {
@@ -28,10 +45,11 @@ public class LinkMeta
         {
             return value2.ToString();
         }
-        throw new System.Exception("Title not found");
+        throw new Exception("Title not found");
     }
+    
 
-    public static string GetDescription(Dictionary<string, object> meta)
+    private static string? GetDescription(Dictionary<string, object> meta)
     {
 
         if (meta.TryGetValue("description", out object value))
@@ -50,7 +68,7 @@ public class LinkMeta
         return null;
     }
     
-    public static string GetImageUrl(Dictionary<string, object> meta)
+    private static string? GetImageUrl(Dictionary<string, object> meta)
     {
         if (meta.TryGetValue("og:image", out object value))
         {

@@ -45,6 +45,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -227,6 +228,7 @@ namespace Odin.Hosting
                 config.Admin.Domain));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
+            services.AddSingleton<ILinkMetaExtractor>(sp => new LinkMetaExtractor(sp.GetRequiredService<IHttpClientFactory>()));
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         }
