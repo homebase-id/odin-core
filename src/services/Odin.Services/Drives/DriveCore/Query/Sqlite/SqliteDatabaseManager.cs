@@ -111,7 +111,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return aclList.Any() ? aclList : null;
     }
 
-    string GuidOneOrTwo(Guid? v1,  Guid? v2)
+    string GuidOneOrTwo(Guid? v1, Guid? v2)
     {
         string v1Str = v1.HasValue ? v1.ToString() : "NULL";
         string v2Str = v2.HasValue ? v2.ToString() : "NULL";
@@ -218,24 +218,27 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     s += " FileId";
                     r = rf;
                 }
+
                 if (rt != null)
                 {
                     s += " GlobalTransitId";
                     r = rt;
                 }
+
                 if (ru != null)
                 {
                     s += " UniqueId";
                     r = ru;
                 }
 
-                logger.LogError("SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
+                logger.LogError(
+                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
                     s,
-                    GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId), 
+                    GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
                     GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
                     GuidOneOrTwo(Drive.Id, r?.driveId),
-                    IntOneOrTwo((int) metadata.FileState, r?.fileState ?? -1),
-                    IntOneOrTwo((int) header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
+                    IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
+                    IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
                     GuidOneOrTwo(metadata.File.FileId, r.fileId));
 
                 throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
@@ -435,7 +438,40 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(cn, Drive.Id);
         return Task.FromResult((count, size));
     }
+
+    public Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn)
+    {
+        var record = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, driveId, globalTransitId);
+        if (null == record)
+        {
+            return Task.FromResult((Guid?)null);
+        }
+
+        if (record.fileSystemType == (int)fileSystemType)
+        {
+            return Task.FromResult((Guid?)record.fileId);
+        }
+
+        return Task.FromResult((Guid?)null);
+    }
     
+    public Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn)
+    {
+        var record = _db.tblDriveMainIndex.GetByUniqueId(cn, driveId, uniqueId);
+        
+        if (null == record)
+        {
+            return Task.FromResult((Guid?)null);
+        }
+
+        if (record.fileSystemType == (int)fileSystemType)
+        {
+            return Task.FromResult((Guid?)record.fileId);
+        }
+
+        return Task.FromResult((Guid?)null);
+    }
+
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, DatabaseConnection cn)
     {

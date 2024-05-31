@@ -80,7 +80,11 @@ namespace Odin.Services.Drives.DriveCore.Query
         int GetReactionCountByIdentity(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
         (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, DatabaseConnection cn);
-        
+
         Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn);
+
+        Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn);
+
+        Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn);
     }
 }
