@@ -538,13 +538,13 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return thumbnailResponse;
     }
 
-    public async Task<ApiResponse<DeleteFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
+    public async Task<ApiResponse<DeleteFileResult>> SoftDeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
+        var apiResponse = await svc.SoftDeleteFile(new DeleteFileRequest()
         {
             File = file,
             Recipients = recipients
