@@ -14,6 +14,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Drives.DriveCore.Query;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -87,7 +88,7 @@ public class DirectDriveGeneralFileTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
-        
+
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
@@ -100,7 +101,7 @@ public class DirectDriveGeneralFileTests
         {
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
-        
+
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
@@ -191,7 +192,7 @@ public class DirectDriveGeneralFileTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
-        var deleteFileResponse = await callerDriveClient.DeleteFile(uploadResult.File);
+        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
         Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can
@@ -397,6 +398,65 @@ public class DirectDriveGeneralFileTests
             Assert.IsTrue(getHeader.Content.FileState == FileState.Active);
         }
     }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanGetDeletedFileByGlobalTransitId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        // upload metadata
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+
+        var response = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, useGlobalTransitId: true);
+        Assert.IsTrue(response.IsSuccessStatusCode);
+        var uploadResult = response.Content;
+        Assert.IsNotNull(uploadResult);
+
+        // Now that we know all are there, let's delete stuff
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
+        Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
+
+        // Test more if we can
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            var result = deleteFileResponse.Content;
+            Assert.IsNotNull(result);
+
+            Assert.IsTrue(result.LocalFileDeleted);
+            Assert.IsFalse(result.RecipientStatus.Any());
+
+            var queryBatchResponse = await callerDriveClient.QueryBatch(new QueryBatchRequest()
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = targetDrive,
+                    GlobalTransitId = []
+                },
+                ResultOptionsRequest = new()
+                {
+                    CursorState = null,
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                }
+            });
+            
+            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            var results = queryBatchResponse.Content.SearchResults;
+            var theFile = results.SingleOrDefault();
+            Assert.IsNotNull(theFile);
+            Assert.IsTrue(theFile.FileState == FileState.Deleted);
+            
+        }
+    }
+
 
     private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)
     {
