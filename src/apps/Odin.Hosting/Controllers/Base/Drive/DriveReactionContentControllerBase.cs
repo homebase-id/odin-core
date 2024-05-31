@@ -8,7 +8,7 @@ namespace Odin.Hosting.Controllers.Base.Drive;
 /// <summary>
 /// Handles reactions for files
 /// </summary>
-public class DriveReactionContentControllerBase : OdinControllerBase
+public abstract class DriveReactionContentControllerBase : OdinControllerBase
 {
     private readonly ReactionContentService _reactionContentService;
 
