@@ -11,7 +11,7 @@ using Refit;
 namespace Odin.Hosting.Controllers.Base.Follow
 {
     /// <summary />
-    public class FollowerControllerBase : OdinControllerBase
+    public abstract class FollowerControllerBase : OdinControllerBase
     {
         private readonly FollowerService _followerService;
         private readonly TenantSystemStorage _tenantSystemStorage;
