@@ -351,6 +351,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                             {
                                 header.FileMetadata.AppData.Content = string.Empty;
                             }
+                            
 
                             if (options.ExcludePreviewThumbnail)
                             {

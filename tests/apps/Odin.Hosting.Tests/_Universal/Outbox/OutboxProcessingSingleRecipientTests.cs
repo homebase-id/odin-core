@@ -201,7 +201,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 },
                 ResultOptions = new QueryModifiedResultOptions()
                 {
-                    MaxDate = UnixTimeUtc.Now().AddSeconds(-100).milliseconds
+                    MaxDate = UnixTimeUtc.Now().AddSeconds(-100).milliseconds,
+                    IncludeTransferHistory = false
                 }
             });
 
@@ -210,13 +211,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
             Assert.IsNotNull(fileInResults);
 
-            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId,
-                out var statusFromGetModifiedResults));
-            Assert.IsNotNull(statusFromGetModifiedResults, "There should be a status update for the recipient");
-            Assert.IsTrue(statusFromGetModifiedResults.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
-            Assert.IsTrue(statusFromGetModifiedResults.LatestTransferStatus == LatestTransferStatus.Delivered);
-            Assert.IsFalse(statusFromGetModifiedResults.IsInOutbox);
-            Assert.IsFalse(statusFromGetModifiedResults.IsReadByRecipient);
+            Assert.IsNull(fileInResults.ServerMetadata.TransferHistory);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
