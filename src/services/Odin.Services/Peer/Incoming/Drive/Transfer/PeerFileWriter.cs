@@ -74,6 +74,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
+            var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
+            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) 
+                                  && bool.TryParse(value, out bool collabChannelFlagValue) 
+                                  && collabChannelFlagValue;
+            
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
@@ -84,10 +89,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 //
                 // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
                 //
-                var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-                if (drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) &&
-                    bool.TryParse(value, out bool isCollabChannel) &&
-                    isCollabChannel)
+                if (isCollabChannel)
                 {
                     targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
                     {
@@ -99,7 +101,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = false,
+                AllowDistribution = isCollabChannel ? true : false, 
                 AccessControlList = targetAcl
             };
 
@@ -423,14 +425,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                
+
                 //Update the reaction preview first since the overwrite method; uses what's on disk
                 // we call both of these here because this 'special' feed item hack method for collabgroups
                 await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
 
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
-                
+
                 return;
             }
 
