@@ -468,16 +468,6 @@ namespace Odin.Services.DataSubscription.Follower
                             _logger.LogDebug("SynchronizeChannelFiles - Found file by GTID:{gtid}", dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
                         }
                     }
-                    else if (dsr.FileMetadata.AppData.UniqueId.HasValue)
-                    {
-                        existingFile = await _standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
-                            dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault(), odinContext, cn);
-
-                        if (null != existingFile)
-                        {
-                            _logger.LogDebug("SynchronizeChannelFiles - Found file by uid:{uid}", dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault());
-                        }
-                    }
 
                     if (null == existingFile)
                     {
