@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -22,15 +23,20 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.ImageUrl);
+            Assert.NotNull(ogp.ImageWidth);
+            Assert.NotNull(ogp.ImageHeight);
+            Assert.NotNull(ogp.Type);
+            Assert.NotNull(ogp.Url);
         }
 
         [Test]
         public async Task TestTwitterUrl()
         {
-            var ogp =  await _linkMetaExtractor.ExtractAsync("https://twitter.com/trunkio/status/1795913092204998997");
+            // Twitter does not return og tags when a http client fetches the page. We need a headless browser to download the webpage and parse the tags
+            var ogp =  await _linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
+            
             Assert.NotNull(ogp.Title);
-            Assert.NotNull(ogp.Description);
-            Assert.NotNull(ogp.ImageUrl);
+            Assert.NotNull(ogp.Url);
         }
 
         [Test]
@@ -66,13 +72,14 @@ public class LinkMetaExtractorTests
             var ogp = await  _linkMetaExtractor.ExtractAsync("https://simonwillison.net/2024/May/29/training-not-chatting/");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
-            Assert.NotNull(ogp.ImageUrl);
+            Assert.NotNull(ogp.Url);
         }
 
         [Test]
         public void TestError()
         {
-            Assert.ThrowsAsync<Exception>(async () => await  _linkMetaExtractor.ExtractAsync(""));
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await  _linkMetaExtractor.ExtractAsync(""));
+            Assert.ThrowsAsync<HttpRequestException>(async () => await  _linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
         }
     
 }

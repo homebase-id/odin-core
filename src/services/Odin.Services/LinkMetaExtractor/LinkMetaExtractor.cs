@@ -12,23 +12,28 @@ public class LinkMetaExtractor
     {
         _client = new HttpClient();
         _client.DefaultRequestHeaders.Add("Accept", "text/html");
-        _client.Timeout = TimeSpan.FromSeconds(30);
+        _client.DefaultRequestHeaders.Add("User-Agent", "Chrome/114.0.5735.134");
+        _client.Timeout = TimeSpan.FromSeconds(15);
     }
 
     public async Task<LinkMeta> ExtractAsync(string url)
     {
-        
         var response = await _client.GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
         var meta = Parser.Parse(content);
-        
+        if(meta.Count == 0)
+            throw new Exception("No meta tags found");
         return new LinkMeta
         {
-            Title = meta.ContainsKey("og:title") ? meta["og:title"].ToString() : meta.ContainsKey("twitter:title") ? meta["twitter:title"].ToString() : null,
-            Description = meta.ContainsKey("og:description") ? meta["og:description"].ToString() : meta.ContainsKey("twitter:description") ? meta["twitter:description"].ToString() : null,
-            ImageUrl = meta.ContainsKey("og:image") ? meta["og:image"].ToString() : meta.ContainsKey("twitter:image") ? meta["twitter:image"].ToString() : null,
-            Url = url
+            Title = LinkMeta.GetTitle(meta),
+            Description = LinkMeta.GetDescription(meta),
+            ImageUrl = LinkMeta.GetImageUrl(meta),
+            ImageWidth = meta.ContainsKey("og:image:width") ? int.Parse(meta["og:image:width"].ToString()!) : null,
+            ImageHeight = meta.ContainsKey("og:image:height") ? int.Parse(meta["og:image:height"].ToString()!) : null,
+            Url = url,
+            Type = meta.ContainsKey("og:type") ? meta["og:type"].ToString() : null
+            
         };
     }
     
