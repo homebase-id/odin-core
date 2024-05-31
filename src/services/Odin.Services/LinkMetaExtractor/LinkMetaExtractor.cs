@@ -20,7 +20,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory) : ILinkMetaExtr
         var meta = Parser.Parse(content);
         if(meta.Count == 0)
             throw new Exception("No meta tags found");
-        return LinkMeta.fromMetaData(meta, url);
+        return LinkMeta.FromMetaData(meta, url);
     }
     
 }

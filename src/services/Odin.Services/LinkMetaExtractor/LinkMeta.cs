@@ -17,7 +17,7 @@ public class LinkMeta
     
     public string? Type { get; set; }
     
-    public static LinkMeta fromMetaData(Dictionary<string, object> meta, string url)
+    public static LinkMeta FromMetaData(Dictionary<string, object> meta, string url)
     {
         return new LinkMeta
         {
