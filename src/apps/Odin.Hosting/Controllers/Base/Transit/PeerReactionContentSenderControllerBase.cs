@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes reaction requests from the owner app to a target identity
     /// </summary>
-    public class PeerReactionContentSenderControllerBase(
+    public abstract class PeerReactionContentSenderControllerBase(
         PeerReactionSenderService peerReactionSenderService,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
