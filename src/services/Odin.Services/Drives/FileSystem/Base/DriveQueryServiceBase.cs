@@ -92,25 +92,30 @@ namespace Odin.Services.Drives.FileSystem.Base
             DatabaseConnection cn,
             bool excludePreviewThumbnail = true)
         {
-            // await AssertCanReadDrive(driveId, odinContext, cn);
             await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
 
-            var qp = new FileQueryParams()
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
+            if (queryManager != null)
             {
-                ClientUniqueIdAtLeastOne = new List<Guid>() { clientUniqueId }
-            };
+                var fileId = await queryManager.GetByClientUniqueId(driveId, clientUniqueId, GetFileSystemType(), cn);
 
-            var options = new QueryBatchResultOptions()
-            {
-                Cursor = null,
-                MaxRecords = 10,
-                IncludeHeaderContent = !excludePreviewThumbnail,
-                ExcludePreviewThumbnail = excludePreviewThumbnail
-            };
+                if (null == fileId)
+                {
+                    return null;
+                }
+                
+                var options = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludeHeaderContent = !excludePreviewThumbnail,
+                    ExcludePreviewThumbnail = excludePreviewThumbnail
+                };
 
-            var results = await this.GetBatchInternal(driveId, qp, options, odinContext, cn);
+                var headers = await CreateClientFileHeaders(driveId, [fileId.GetValueOrDefault()], options, odinContext, cn);
+                return headers.SingleOrDefault();
+            }
 
-            return results.SearchResults.SingleOrDefault();
+            throw new NoValidIndexClientException(driveId);
         }
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext, DatabaseConnection cn,
@@ -212,7 +217,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var d = new UniqueIdDump();
             foreach (var query in request.Queries)
             {
-                var drive = drives.SingleOrDefault(d => d.TargetDriveInfo == query.QueryParams.TargetDrive);
+                var drive = drives.SingleOrDefault(storageDrive => storageDrive.TargetDriveInfo == query.QueryParams.TargetDrive);
                 var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
                 {
                     IncludeHeaderContent = true,
@@ -220,7 +225,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 };
 
                 var queryManager = await TryGetOrLoadQueryManager(drive!.Id, cn);
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(odinContext,
+                var (_, fileIdList, _) = await queryManager.GetBatchCore(odinContext,
                     GetFileSystemType(),
                     query.QueryParams,
                     options,
@@ -242,21 +247,29 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool excludePreviewThumbnail = true)
         {
             await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
-            var qp = new FileQueryParams()
+
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
+            if (queryManager != null)
             {
-                GlobalTransitId = new List<Guid>() { globalTransitId }
-            };
+                var fileId = await queryManager.GetByGlobalTransitId(driveId, globalTransitId, GetFileSystemType(), cn);
 
-            var options = new QueryBatchResultOptions()
-            {
-                Cursor = null,
-                MaxRecords = 10,
-                ExcludePreviewThumbnail = excludePreviewThumbnail
-            };
+                if (null == fileId)
+                {
+                    return null;
+                }
 
-            var results = await this.GetBatchInternal(driveId, qp, options, odinContext, cn, forceIncludeServerMetadata);
+                var options = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    ExcludePreviewThumbnail = excludePreviewThumbnail,
+                    IncludeHeaderContent = true
+                };
 
-            return results.SearchResults.SingleOrDefault();
+                var headers = await CreateClientFileHeaders(driveId, [fileId.GetValueOrDefault()], options, odinContext, cn, forceIncludeServerMetadata);
+                return headers.SingleOrDefault();
+            }
+
+            throw new NoValidIndexClientException(driveId);
         }
 
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, DatabaseConnection cn)
@@ -264,41 +277,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
             await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
 
-            var qp = new FileQueryParams()
-            {
-                GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
-            };
-
-            var options = new QueryBatchResultOptions()
-            {
-                Cursor = null,
-                MaxRecords = 10,
-                ExcludePreviewThumbnail = true
-            };
-
             var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
             if (queryManager != null)
             {
-                var (_, fileIdList, _) = await queryManager.GetBatchCore(odinContext,
-                    GetFileSystemType(),
-                    qp,
-                    options,
-                    cn);
+                var fileId = await queryManager.GetByGlobalTransitId(driveId, file.GlobalTransitId, GetFileSystemType(), cn);
 
-                var fileId = fileIdList.FirstOrDefault();
-
-                if (fileId == Guid.Empty)
+                if (null == fileId)
                 {
                     return null;
                 }
-
+                
                 return new InternalDriveFileId()
                 {
-                    FileId = fileId,
+                    FileId = fileId.GetValueOrDefault(),
                     DriveId = driveId
                 };
             }
-
+            
             throw new NoValidIndexClientException(driveId);
         }
 
