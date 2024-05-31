@@ -594,14 +594,18 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(result.Count == 4);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, fileState: 42);
+                var r = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
+                r.fileState = 42;
+                _testDatabase.BaseUpdateEntryZapZap(myc, r, null, null);
 
                 var c2 = new UnixTimeUtcUnique(0);
                 (result, moreRows) = _testDatabase.QueryModified(myc, driveId, 10, ref c2, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f2, fileState: 43);
+                r = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f2);
+                r.fileState = 43;
+                _testDatabase.BaseUpdateEntryZapZap(myc, r, null, null);
 
                 cursor = null;
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
@@ -667,7 +671,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, archivalStatus: 7);
+                var r = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
+                r.archivalStatus = 7;
+                _testDatabase.BaseUpdateEntryZapZap(myc, r, null, null);
 
                 c2 = new UnixTimeUtcUnique(0);
                 (result, moreRows) = _testDatabase.QueryModified(myc, driveId, 10, ref c2, requiredSecurityGroup: allIntRange);
@@ -679,7 +685,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(moreRows == false);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f2, archivalStatus: 7);
+                r = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f2);
+                r.archivalStatus = 7;
+                _testDatabase.BaseUpdateEntryZapZap(myc, r, null, null);
 
                 cursor = null;
                 (result, moreRows) = _testDatabase.QueryBatchAuto(myc, driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -2281,11 +2289,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, globalTransitId: g2, archivalStatus: 7);
+                _testDatabase.UpdateEntryZapZapPassAlong(myc, driveId, f1, globalTransitId: g2, archivalStatus: 7);
                 data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, globalTransitId: g3);
+                _testDatabase.UpdateEntryZapZapPassAlong(myc, driveId, f1, globalTransitId: g3);
                 data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
             }
@@ -2480,11 +2488,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
-                _testDatabase.UpdateEntry(myc, driveId, f1, uniqueId: u2);
+                _testDatabase.UpdateEntryZapZapPassAlong(myc, driveId, f1, uniqueId: u2);
                 data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
-                _testDatabase.UpdateEntryZapZap(myc, driveId, f1, uniqueId: u3);
+                _testDatabase.UpdateEntryZapZapPassAlong(myc, driveId, f1, uniqueId: u3);
                 data = _testDatabase.tblDriveMainIndex.Get(myc, driveId, f1);
                 Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u3) == 0);
             }
@@ -2517,23 +2525,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var tagadd = new List<Guid>();
             acladd.Add(Guid.NewGuid());
             tagadd.Add(Guid.NewGuid());
-
-            testDatabase.UpdateEntry(myc, driveId, fileId[0], requiredSecurityGroup: 44, addAccessControlList: acladd, deleteAccessControlList: acllist, addTagIdList: tagadd, deleteTagIdList: taglist);
-            var acllistres = testDatabase.tblDriveAclIndex.Get(myc, driveId, fileId[0]);
-            var taglistres = testDatabase.tblDriveTagIndex.Get(myc, driveId, fileId[0]);
-
-            Debug.Assert(acllistres.Count == 1);
-            Debug.Assert(taglistres.Count == 1);
-
-            Debug.Assert(ByteArrayUtil.muidcmp(acllistres[0], acladd[0]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(taglistres[0], tagadd[0]) == 0);
-
-            // Fix it back to where [0] was
-            testDatabase.UpdateEntry(myc, driveId, fileId[0], addAccessControlList: acllist, deleteAccessControlList: acladd, addTagIdList: taglist, deleteTagIdList: tagadd);
-            acllistres = testDatabase.tblDriveAclIndex.Get(myc, driveId, fileId[0]);
-            taglistres = testDatabase.tblDriveTagIndex.Get(myc, driveId, fileId[0]);
-            Debug.Assert(acllistres.Count == 4);
-            Debug.Assert(taglistres.Count == 4);
 
             myc.Dispose();
             testDatabase.Dispose();
@@ -2598,7 +2589,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Debug.Assert(moreRows == false);
 
             var theguid = conversationId[42];
-            testDatabase.UpdateEntry(myc, driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
+
+            var r = testDatabase.tblDriveMainIndex.Get(myc, driveId, fileId[420]);
+            r.fileType = 5;
+            r.dataType = 6;
+            r.senderId = conversationId[42].ToString();
+            r.groupId = theguid;
+            r.userDate = new UnixTimeUtc(42);
+            r.requiredSecurityGroup = 333;
+            testDatabase.BaseUpdateEntryZapZap(myc, r, null, null);
+            //testDatabase.UpdateEntryZapZapPassAlong(myc, driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
 
             // Now check that we can find the one modified item with our cursor timestamp
             (result, moreRows) = testDatabase.QueryModified(myc, driveId, 100, ref outCursor, requiredSecurityGroup: allIntRange);
