@@ -82,7 +82,7 @@ public class SendFileOutboxWorkerAsync(
                 case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
                 case LatestTransferStatus.UnknownServerError:
                 case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
-                    update.IsInOutbox = true;
+                    update.IsInOutbox = false;
                     await peerOutbox.MarkComplete(item.Marker, cn);
                     break;
 
@@ -90,7 +90,7 @@ public class SendFileOutboxWorkerAsync(
                 case LatestTransferStatus.RecipientServerNotResponding:
                 case LatestTransferStatus.RecipientDoesNotHavePermissionToSourceFile:
                 case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
-                    update.IsInOutbox = false;
+                    update.IsInOutbox = true;
                     var nextRunTime = CalculateNextRunTime(e.TransferStatus);
                     // await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
                     await peerOutbox.MarkFailure(item.Marker, nextRunTime, cn);
@@ -255,7 +255,7 @@ public class SendFileOutboxWorkerAsync(
 
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
-                TransferStatus = MapPeerResponseHttpStatus(response),
+                TransferStatus = MapPeerErrorResponseHttpStatus(response),
                 VersionTag = versionTag,
                 Recipient = recipient,
                 File = file
@@ -278,7 +278,7 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    private LatestTransferStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
+    private LatestTransferStatus MapPeerErrorResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {

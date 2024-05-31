@@ -43,7 +43,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             _scaffold.RunAfterAnyTests();
         }
-        
 
         [Test]
         public async Task RecipientTransferHistoryOnSenderIsUpdatedWhenTransferringFile()
@@ -119,7 +118,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             await this.DeleteScenario(senderOwnerClient, recipients);
         }
-
+        
         [Test]
         public async Task GetModifiedOfSenderFilesIncludesFilesWithUpdatedPeerTransferStatusAndCanExcludeRecipientTransferHistory()
         {
@@ -168,7 +167,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 storageOptions,
                 transitOptions
             );
-            
+
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             foreach (var recipient in recipients)
@@ -207,7 +206,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             await this.DeleteScenario(senderOwnerClient, recipients);
         }
-        
+
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, List<OwnerApiClientRedux> recipients, TargetDrive targetDrive,
             DrivePermission drivePermissions)
         {
