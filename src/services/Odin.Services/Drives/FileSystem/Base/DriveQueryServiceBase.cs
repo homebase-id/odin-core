@@ -331,6 +331,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     if (serverFileHeader.FileMetadata.FileState == FileState.Deleted)
                     {
                         _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId, file.DriveId);
+                        // var header = DriveFileUtility.CreateDeletedClientFileHeader(serverFileHeader, odinContext);
+                        // results.Add(header);
+                        // continue;
                     }
 
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
@@ -345,7 +348,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                             odinContext,
                             forceIncludeServerMetadata);
 
-                        if (header.FileMetadata?.AppData != null)
+                        if (header?.FileMetadata?.AppData != null)
                         {
                             if (!options.IncludeHeaderContent)
                             {
@@ -356,19 +359,21 @@ namespace Odin.Services.Drives.FileSystem.Base
                             if (options.ExcludePreviewThumbnail)
                             {
                                 header.FileMetadata.AppData.PreviewThumbnail = null;
-                                foreach (var pd in header.FileMetadata.Payloads)
+                                if (null != header.FileMetadata.Payloads)
                                 {
-                                    pd.PreviewThumbnail = null;
+                                    foreach (var pd in header.FileMetadata.Payloads)
+                                    {
+                                        pd.PreviewThumbnail = null;
+                                    }
                                 }
                             }
                         }
                         else
                         {
-                            _logger.LogDebug("AppData in File {file} on drive {drive} is null.  FileState: {fs}", file.FileId, file.DriveId,
-                                header.FileState);
+                            _logger.LogDebug("AppData in File {file} on drive {drive} is null.  FileState: {fs}", file.FileId, file.DriveId, header?.FileState);
                         }
 
-                        if (options.ExcludeServerMetaData)
+                        if (options.ExcludeServerMetaData && null != header)
                         {
                             header.ServerMetadata = null;
                         }

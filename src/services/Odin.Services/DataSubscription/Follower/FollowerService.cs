@@ -457,6 +457,7 @@ namespace Odin.Services.DataSubscription.Follower
                         Payloads = fm.Payloads
                     };
 
+                    
                     SharedSecretEncryptedFileHeader existingFile = null;
                     if (dsr.FileMetadata.GlobalTransitId.HasValue)
                     {

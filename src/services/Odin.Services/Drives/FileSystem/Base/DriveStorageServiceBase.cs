@@ -791,7 +791,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AccessControlList = AccessControlList.OwnerOnly,
                 AllowDistribution = false
             };
-
+            
+            //we don't accept uniqueIds into the feed
+            fileMetadata.AppData.UniqueId = null;
+            
             var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext, cn);
             await this.WriteNewFileHeader(file, serverFileHeader, odinContext, cn, raiseEvent: true);
         }
