@@ -23,6 +23,40 @@ public static class DriveFileUtility
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
 
+    public static SharedSecretEncryptedFileHeader CreateDeletedClientFileHeader(ServerFileHeader serverFileHeader, IOdinContext odinContext)
+    {
+        var fileMetadata = serverFileHeader.FileMetadata;
+        var deletedClientFileHeader = new SharedSecretEncryptedFileHeader()
+        {
+            FileId = serverFileHeader.FileMetadata.File.FileId,
+            TargetDrive = odinContext.PermissionsContext.GetTargetDrive(serverFileHeader.FileMetadata.File.DriveId),
+            FileState = serverFileHeader.FileMetadata.FileState,
+            FileSystemType = serverFileHeader.ServerMetadata.FileSystemType,
+            SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty(),
+            FileMetadata = new ClientFileMetadata
+            {
+                Created = fileMetadata.Created,
+                Updated = fileMetadata.Updated,
+
+                TransitCreated = fileMetadata.TransitCreated,
+                TransitUpdated = fileMetadata.TransitUpdated,
+
+                AppData = fileMetadata.AppData,
+                GlobalTransitId = fileMetadata.GlobalTransitId,
+                IsEncrypted = fileMetadata.IsEncrypted,
+                SenderOdinId = fileMetadata.SenderOdinId,
+                ReferencedFile = fileMetadata.ReferencedFile,
+                ReactionPreview = fileMetadata.ReactionPreview,
+                Payloads = fileMetadata.Payloads,
+                VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
+            },
+            Priority = 0,
+            FileByteCount = serverFileHeader.ServerMetadata.FileByteCount,
+        };
+
+        return deletedClientFileHeader;
+    }
+
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
