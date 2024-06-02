@@ -87,7 +87,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             conn.CreateCommitUnitOfWork(() =>
             {
                 for (int i = 0; i < members.Count; i++)
-                    Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, members[i]);
+                    base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, members[i]);
             });
         }
 
@@ -109,7 +109,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     var circles = GetMemberCirclesAndData(conn, members[i]);
 
                     for (int j = 0; j < circles.Count; j++)
-                        Delete(conn, ((IdentityDatabase)_database)._identityId, circles[j].circleId, members[i]);
+                        base.Delete(conn, ((IdentityDatabase)_database)._identityId, circles[j].circleId, members[i]);
                 }
             });
         }

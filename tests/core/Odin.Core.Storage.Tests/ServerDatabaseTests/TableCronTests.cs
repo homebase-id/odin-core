@@ -56,6 +56,34 @@ namespace Odin.Core.Storage.Tests.ServerDatabaseTests
 
 
         [Test]
+        public void CountTest()
+        {
+            using var db = new ServerDatabase("");
+
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+
+                var n = db.tblCron.GetCountDirty(myc);
+                Debug.Assert(n == 0);
+
+                var c1 = Guid.NewGuid();
+                var d1 = Guid.NewGuid().ToByteArray();
+
+                db.tblCron.Upsert(myc, new CronRecord() { identityId = c1, type = 1, data = d1 });
+                n = db.tblCron.GetCountDirty(myc);
+                Debug.Assert(n == 1);
+
+                c1 = Guid.NewGuid();
+                d1 = Guid.NewGuid().ToByteArray();
+                db.tblCron.Upsert(myc, new CronRecord() { identityId = c1, type = 1, data = d1 });
+                n = db.tblCron.GetCountDirty(myc);
+                Debug.Assert(n == 2);
+            }
+        }
+
+
+        [Test]
         public void InsertCron01Test()
         {
             using var db = new ServerDatabase("");

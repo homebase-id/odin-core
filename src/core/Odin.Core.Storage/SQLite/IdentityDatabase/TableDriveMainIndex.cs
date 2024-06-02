@@ -57,7 +57,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _sizeCommand = _database.CreateCommand())
             {
                 _sizeCommand.CommandText =
-                    $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=$identityId AND driveid = $driveId; PRAGMA read_uncommitted = 0;";
+                    $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=$identityId AND driveid=$driveId; PRAGMA read_uncommitted = 0;";
 
                 var _sparam1 = _sizeCommand.CreateParameter();
                 _sparam1.ParameterName = "$driveId";
@@ -76,7 +76,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         if (rdr.Read())
                         {
-                            long count = rdr.GetInt64(0);
+                            long count = rdr.IsDBNull(0) ? 0 : rdr.GetInt64(0);
                             long size = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
                             return (count, size);
                         }

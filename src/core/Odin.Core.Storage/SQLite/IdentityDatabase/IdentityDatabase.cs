@@ -287,6 +287,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
+            driveMainIndexRecord.identityId = _identityId;
+
             lock (_dbLock)
             {
                 int n = 0;
@@ -332,6 +334,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
+
+            driveMainIndexRecord.identityId = _identityId;
 
             lock (_dbLock)
             {

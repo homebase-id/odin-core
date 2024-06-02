@@ -325,8 +325,11 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM cron; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
+                    var count = conn.ExecuteScalar(_getCountCommand);
+                    if (count == null || count == DBNull.Value || !(count is int || count is long))
+                        return -1;
+                    else
+                        return Convert.ToInt32(count);
                 }
         }
 

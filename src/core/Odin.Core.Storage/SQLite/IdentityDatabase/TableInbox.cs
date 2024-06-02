@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _popCommand = _database.CreateCommand())
             {
-                _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxId=$boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
+                _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=$identityId AND boxId=$boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
                                           "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = $identityId AND popstamp=$popstamp";
 
                 var _pparam1 = _popCommand.CreateParameter();
@@ -126,35 +126,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         // Read the total count
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
-
-                        int totalCount = rdr.GetInt32(0);
+                        int totalCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            totalCount = rdr.GetInt32(0);
 
                         // Read the popped count
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int poppedCount = rdr.GetInt32(0);
+                        int poppedCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            poppedCount = rdr.GetInt32(0);
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-                        // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
 
-                        var _guid = new byte[16];
-                        var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                        if (n != 16)
-                            throw new Exception("Invalid stamp");
+                        var utc = UnixTimeUtc.ZeroTime;
+                        if (!rdr.IsDBNull(0))
+                        {
+                            var _guid = new byte[16];
+                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (n != 16)
+                                throw new Exception("Invalid stamp");
 
-                        var guid = new Guid(_guid);
-                        var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                            var guid = new Guid(_guid);
+                            utc = SequentialGuid.ToUnixTimeUtc(guid);
+                        }
+
                         return (totalCount, poppedCount, utc);
                     }
 
@@ -195,35 +197,38 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         // Read the total count
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int totalCount = rdr.GetInt32(0);
+                        int totalCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            totalCount = rdr.GetInt32(0);
 
                         // Read the popped count
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int poppedCount = rdr.GetInt32(0);
+                        int poppedCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            poppedCount = rdr.GetInt32(0);
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
                         // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
 
-                        var _guid = new byte[16];
-                        var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                        if (n != 16)
-                            throw new Exception("Invalid stamp");
+                        var utc = UnixTimeUtc.ZeroTime;
+                        if (!rdr.IsDBNull(0))
+                        {
+                            var _guid = new byte[16];
+                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (n != 16)
+                                throw new Exception("Invalid stamp");
 
-                        var guid = new Guid(_guid);
-                        var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                            var guid = new Guid(_guid);
+                            utc = SequentialGuid.ToUnixTimeUtc(guid);
+                        }
                         return (totalCount, poppedCount, utc);
                     }
                 }

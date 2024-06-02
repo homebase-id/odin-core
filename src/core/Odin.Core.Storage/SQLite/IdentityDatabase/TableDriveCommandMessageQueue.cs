@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _selectCommand = _database.CreateCommand())
             {
-                _selectCommand.CommandText = $"SELECT identityId,driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+                _selectCommand.CommandText = $"SELECT identityId,driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE identityId = $identityId AND driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
 
                 var _selectParam1 = _selectCommand.CreateParameter();
                 _selectParam1.ParameterName = "$identityId";
