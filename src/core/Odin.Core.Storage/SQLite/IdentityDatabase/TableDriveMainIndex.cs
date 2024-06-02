@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
+using Org.BouncyCastle.Crypto.Engines;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -21,6 +22,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             base.Dispose();
             GC.SuppressFinalize(this);
         }
+
+        public DriveMainIndexRecord GetByUniqueId(DatabaseConnection conn, Guid driveId, Guid? uniqueId)
+        {
+            return base.GetByUniqueId(conn, ((IdentityDatabase)conn.db)._identityId, driveId, uniqueId);
+        }
+
+        public DriveMainIndexRecord GetByGlobalTransitId(DatabaseConnection conn, Guid driveId, Guid? globalTransitId)
+        {
+            return base.GetByGlobalTransitId(conn, ((IdentityDatabase)conn.db)._identityId, driveId, globalTransitId);
+        }
+
+
 
         public DriveMainIndexRecord Get(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
