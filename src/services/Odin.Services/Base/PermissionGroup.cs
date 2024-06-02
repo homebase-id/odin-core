@@ -118,7 +118,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
             {
                 var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
 
-                Log.Information(
+                Log.Debug(
                     "Grant for drive {permissionDrive} with permission value ({permission}) returned the storage key",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission);
                 

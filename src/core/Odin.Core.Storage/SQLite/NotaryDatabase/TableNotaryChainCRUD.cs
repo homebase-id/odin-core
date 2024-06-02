@@ -300,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             } // Using
         }
 
-        public virtual int GetCount(DatabaseConnection conn)
+        public virtual int GetCountDirty(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {

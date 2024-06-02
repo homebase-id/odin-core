@@ -13,7 +13,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
-    public class PushNotificationControllerBase(
+    public abstract class PushNotificationControllerBase(
         PushNotificationService notificationService,
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage)

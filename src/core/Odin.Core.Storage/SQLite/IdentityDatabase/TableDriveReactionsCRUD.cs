@@ -207,7 +207,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCount(DatabaseConnection conn)
+        protected virtual int GetCountDirty(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
@@ -228,7 +228,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        protected virtual int GetDriveCount(DatabaseConnection conn, Guid driveId)
+        protected virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
                 using (var _getCountDriveCommand = _database.CreateCommand())
                 {

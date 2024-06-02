@@ -44,6 +44,20 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         public async Task AppCan_SendAndGet_Public_ReactionContent()
         {

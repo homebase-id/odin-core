@@ -81,7 +81,7 @@ namespace Odin.Services.Membership.Connections.Requests
             const string sentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
             _sentRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
         }
-
+        
         /// <summary>
         /// Gets a pending request by its sender
         /// </summary>
@@ -232,7 +232,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
                     header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
 
@@ -360,7 +360,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();

@@ -24,6 +24,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         }
 
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
         public void CanAllowAuthenticatedVisitorsToViewConnections()

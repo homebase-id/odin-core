@@ -55,6 +55,7 @@ public class PushNotification : IPushNotification
                 Aps = new Aps
                 {
                     ContentAvailable = true,
+                    MutableContent = true
                 },
             }
         };

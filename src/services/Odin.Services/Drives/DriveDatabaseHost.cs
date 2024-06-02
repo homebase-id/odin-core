@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using LazyCache;
@@ -65,10 +64,12 @@ namespace Odin.Services.Drives
 
             if (notification.IsHardDelete)
             {
-                await manager.RemoveFromCurrentIndex(notification.File, notification.DatabaseConnection);
+                await manager.HardDeleteFromIndex(notification.File, notification.DatabaseConnection);
             }
-
-            await manager.UpdateCurrentIndex(notification.ServerFileHeader, notification.DatabaseConnection);
+            else
+            {
+                await manager.SoftDeleteFromIndex(notification.ServerFileHeader, notification.DatabaseConnection);
+            }
         }
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)

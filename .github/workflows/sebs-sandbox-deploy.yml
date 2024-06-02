@@ -1,15 +1,37 @@
 name: Sebs Sandbox Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [windows-build]
+  pull_request:
+    branches: [windows-build]
+  workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
-  build_and_deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4 
-        with:
-          path: dotyoucore
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: '8.0.x'
+
+      # - name: Set folder permissions (RW required for SqLite)
+      #   shell: bash
+      #   run: |
+      #     chmod -R +rw ./
+
+      - name: Restore dependencies
+        run: dotnet restore ./dotyoucore.sln
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Debug --warnaserror ./dotyoucore.sln
+
+      - name: Test
+        # run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest.ItShouldGetAllTenants --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        # run: dotnet test --filter Odin.Hosting.Tests.AdminApi.AdminControllerTest --no-build --configuration Debug --verbosity normal ./dotyoucore.sln
+        run: dotnet test --no-build --configuration Debug --verbosity normal ./dotyoucore.sln

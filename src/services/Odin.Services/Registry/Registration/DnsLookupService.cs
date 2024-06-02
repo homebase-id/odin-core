@@ -258,7 +258,7 @@ public class DnsLookupService : IDnsLookupService
         if (managedApex.PrefixLabels.Count != labelCount)
         {
             throw new OdinSystemException(
-                $"Managed domain prefix {prefix} has incorret label count. Expected:{managedApex.PrefixLabels.Count}, was:{labelCount},  ");
+                $"Managed domain prefix {prefix} has incorrect label count. Expected:{managedApex.PrefixLabels.Count}, was:{labelCount},  ");
         }
     }
 

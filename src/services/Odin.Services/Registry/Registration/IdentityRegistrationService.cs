@@ -77,7 +77,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var httpClient = _httpClientFactory.CreateClient<IdentityRegistrationService>();
         try
         {
-            await httpClient.GetAsync($"https://{domain}");
+            await httpClient.GetAsync($"https://{domain}:{_configuration.Host.DefaultHttpsPort}");
             return true;
         }
         catch (Exception)
@@ -136,6 +136,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task CreateManagedDomain(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
+
+        _logger.LogInformation("Creating managed domain {domain}", domain);
+
         AsciiDomainNameValidator.AssertValidDomain(domain);
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
@@ -163,6 +166,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 throw new OdinSystemException($"Unsupported record: {record.Type}");
             }
         }
+
+        _logger.LogInformation("Created managed domain {domain}", domain);
     }
 
     //
@@ -292,7 +297,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             return Task.FromResult(true);
         }
-        
+
         if (string.IsNullOrEmpty(code))
         {
             return Task.FromResult(false);

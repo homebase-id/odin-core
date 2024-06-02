@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
@@ -63,13 +64,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         {
             using var cn = _tenantSystemStorage.CreateConnection();
             var key = await _publicKeyService.GetOfflineEccPublicKey(cn);
-            return key?.PublicKeyJwkBase64Url();
-
-            // return new GetPublicKeyResponse()
-            // {
-            //     PublicKey = key.publicKey,
-            //     Crc32 = key.crc32c
-            // };
+            var expiration = Math.Min(key.expiration.seconds, 3600);
+            Response.Headers.CacheControl = $"public,max-age={expiration}";
+            return key.PublicKeyJwkBase64Url();
         }
 
         [HttpGet("notifications_pk")]

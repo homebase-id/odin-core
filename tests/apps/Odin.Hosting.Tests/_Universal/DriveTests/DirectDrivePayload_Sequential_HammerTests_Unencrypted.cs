@@ -39,6 +39,20 @@ public class DirectDrivePayload_Sequential_HammerTests_Unencrypted
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     public async Task CanOverwritePayloadManyTimes_Sequentially_OneThread()
     {

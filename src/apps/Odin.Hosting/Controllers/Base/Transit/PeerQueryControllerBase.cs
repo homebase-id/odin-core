@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public class PeerQueryControllerBase(PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public abstract class PeerQueryControllerBase(PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("batchcollection")]
@@ -201,10 +201,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
             using var cn = tenantSystemStorage.CreateConnection();
             var drives = await peerDriveQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType(),
                 WebOdinContext, cn);
-            var clientDriveData = drives.Select(drive =>
-                new ClientDriveData()
+            var clientDriveData = drives.Select(drive => new ClientDriveData()
                 {
                     TargetDrive = drive.TargetDrive,
+                    Attributes = drive.Attributes
                 }).ToList();
 
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);

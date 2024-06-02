@@ -21,7 +21,7 @@ public class TwoKeyValueStorageTests
     [Test]
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
-        var finalPath = "testdb4.db";
+        var finalPath = "testdbqqqq4.db";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(myc, true);

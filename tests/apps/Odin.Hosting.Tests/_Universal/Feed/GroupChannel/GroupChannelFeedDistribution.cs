@@ -39,6 +39,20 @@ public class GroupChannelFeedDistribution
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     [Ignore("need to fix guest access bug")]
     public async Task FeedDistributionSucceedsWhenGuestPostsToGroupChannel()

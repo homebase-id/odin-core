@@ -6,7 +6,7 @@ using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {
-    public class TransitProcessControllerBase(
+    public abstract class PeerProcessControllerBase(
         PeerInboxProcessor peerInboxProcessor,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {

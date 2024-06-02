@@ -23,7 +23,7 @@ public class ThreeKeyValueStorageTests
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var identity = Guid.NewGuid();
-        var finalPath = "testdb2.db";
+        var finalPath = "testdbqqq2.db";
         using var db = new IdentityDatabase(identity, finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(myc, true);

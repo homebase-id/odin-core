@@ -12,9 +12,11 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -26,7 +28,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver)
+    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
@@ -72,16 +74,34 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
+            var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
+            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) 
+                                  && bool.TryParse(value, out bool collabChannelFlagValue) 
+                                  && collabChannelFlagValue;
+            
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
                 targetAcl = await ResetAclForComment(metadata, odinContext, cn);
             }
+            else
+            {
+                //
+                // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
+                //
+                if (isCollabChannel)
+                {
+                    targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
+                    {
+                        RequiredSecurityGroup = SecurityGroupType.Owner
+                    };
+                }
+            }
 
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = false,
+                AllowDistribution = isCollabChannel ? true : false, 
                 AccessControlList = targetAcl
             };
 
@@ -95,7 +115,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 case TransferFileType.Normal:
                     await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;
-                
+
                 case TransferFileType.EncryptedFileForFeed:
                     await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;
@@ -111,7 +131,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext, cn);
 
-            if (null == referencedFs)
+            if (null == referencedFs || !fileId.HasValue)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
                 throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
@@ -150,7 +170,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (clientFileHeader == null)
             {
                 // this is bad error.
-                logger.LogError("While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ", item.GlobalTransitId, item.DriveId);
+                logger.LogError(
+                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
+                    item.GlobalTransitId, item.DriveId);
                 throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
             }
 
@@ -188,7 +210,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var targetDriveId = tempFile.DriveId;
 
             //
-            // first case: If the file does not exist, then just write the file
+            // first case: If the file does not exist, then just write the file 
             //
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
@@ -403,8 +425,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+
+                //Update the reaction preview first since the overwrite method; uses what's on disk
+                // we call both of these here because this 'special' feed item hack method for collabgroups
+                await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
+
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
+
                 return;
             }
 
@@ -477,7 +505,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             throw new OdinSystemException("Transit Receiver has unhandled file update scenario");
         }
-        
+
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
             IOdinContext odinContext, DatabaseConnection cn)
         {

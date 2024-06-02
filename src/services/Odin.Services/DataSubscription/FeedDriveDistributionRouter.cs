@@ -27,6 +27,7 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+
 namespace Odin.Services.DataSubscription
 {
     /// <summary>
@@ -87,7 +88,13 @@ namespace Odin.Services.DataSubscription
         {
             var serverFileHeader = notification.ServerFileHeader;
             var odinContext = notification.OdinContext;
-            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection))
+
+            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
+            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && 
+                                  bool.TryParse(value, out bool collabChannelFlagValue) &&
+                                  collabChannelFlagValue;
+
+            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection, isCollabChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -108,20 +115,13 @@ namespace Odin.Services.DataSubscription
                 }
                 else
                 {
-                    // If this is the reaction preview being updated due to an incoming comment or reaction
-                    if (notification is ReactionPreviewUpdatedNotification)
-                    {
-                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
-                        return;
-                    }
-
                     try
                     {
-                        var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) && isCollabChannel)
+                        if(isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
+                            return;
                         }
                     }
                     catch (Exception e)
@@ -129,7 +129,16 @@ namespace Odin.Services.DataSubscription
                         _logger.LogError(e, "[Experimental support] Failed while DistributeToCollaborativeChannelMembers.");
 #if DEBUG
                         throw;
+#else
+                        return;
 #endif
+                    }
+
+                    // If this is the reaction preview being updated due to an incoming comment or reaction
+                    if (notification is ReactionPreviewUpdatedNotification)
+                    {
+                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
+                        return;
                     }
                 }
             }
@@ -157,12 +166,12 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn)
+        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn, bool isCollabChannel)
         {
             //if the file was received from another identity, do not redistribute
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
-            if (!uploadedByThisIdentity)
+            if (!uploadedByThisIdentity && !isCollabChannel)
             {
                 return false;
             }
@@ -249,9 +258,10 @@ namespace Odin.Services.DataSubscription
         {
             var header = notification.ServerFileHeader;
 
-            var author = odinContext.GetCallerOdinIdOrFail();
-            var connectedFollowers = (await GetConnectedFollowersWithFilePermission(notification, odinContext, cn))
-                .Where(f => (OdinId)f.AsciiDomain != author).ToList();
+            var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, cn);
+
+            // var author = odinContext.GetCallerOdinIdOrFail();
+            // connectedFollowers = connectedFollowers.Where(f => (OdinId)f.AsciiDomain != author).ToList();
 
             if (connectedFollowers.Any())
             {
@@ -269,7 +279,7 @@ namespace Odin.Services.DataSubscription
                         {
                             KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
-                        
+
                         encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                             PublicPrivateKeyType.OfflineKey,
                             recipient,
@@ -440,7 +450,8 @@ namespace Odin.Services.DataSubscription
             });
         }
 
-        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var followers = await GetFollowers(notification.File.DriveId, odinContext, cn);
             if (!followers.Any())

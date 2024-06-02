@@ -44,6 +44,20 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     [Ignore("return to these after prototyping phase")]
     public async Task EncryptedFile_UploadedByTheOwner_IsOnlyDistributedTo_ConnectedFollowers_WithAccessInFileAcl_Of_A_SingleCircle()

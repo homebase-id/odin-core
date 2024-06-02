@@ -65,6 +65,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
         [Test]
         public async Task CanTransferStandardFileAndRecipientCanQueryFilesByTag()
         {
@@ -1597,6 +1610,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
         [Test]
         public async Task FailToTransferCommentFileWith_InvalidGlobalTransitId()
         {
+            _scaffold.SetAssertLogEventsAction(logEvents =>
+            {
+                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
+                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
+                Assert.That(errorLogs[0].Exception!.Message, Is.EqualTo("Remote identity host failed: Referenced file missing or caller does not have access"));
+            });
+
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 

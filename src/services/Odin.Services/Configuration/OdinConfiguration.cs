@@ -238,6 +238,7 @@ namespace Odin.Services.Configuration
 
             public string ReportContentUrl { get; set; }
 
+            public int DefaultHttpPort => IPAddressListenList.FirstOrDefault()?.HttpPort ?? 80;
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
             public string PushNotificationSubject { get; set; }
@@ -280,7 +281,6 @@ namespace Odin.Services.Configuration
                 return this.Ip == "*" ? IPAddress.Any : IPAddress.Parse(this.Ip);
             }
         }
-
 
         //
 
@@ -342,6 +342,7 @@ namespace Odin.Services.Configuration
         public class LoggingSection
         {
             public string LogFilePath { get; init; }
+            public bool EnableStatistics { get; init; }
 
             public LoggingSection()
             {
@@ -351,6 +352,7 @@ namespace Odin.Services.Configuration
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
+                EnableStatistics = config.GetOrDefault("Logging:EnableStatistics", false);
             }
         }
 

@@ -111,6 +111,28 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return aclList.Any() ? aclList : null;
     }
 
+    string GuidOneOrTwo(Guid? v1, Guid? v2)
+    {
+        string v1Str = v1.HasValue ? v1.ToString() : "NULL";
+        string v2Str = v2.HasValue ? v2.ToString() : "NULL";
+
+        if (v1 == v2)
+            return "{" + v1Str + "}";
+        else
+            return "{" + v1Str + "," + v2Str + "}";
+    }
+
+    string IntOneOrTwo(int v1, int v2)
+    {
+        string v1Str = v1.ToString();
+        string v2Str = v2.ToString();
+
+        if (v1 == v2)
+            return "{" + v1Str + "}";
+        else
+            return "{" + v1Str + "," + v2Str + "}";
+    }
+
     public Task UpdateCurrentIndex(ServerFileHeader header, DatabaseConnection cn)
     {
         if (null == header)
@@ -122,22 +144,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-        var exists = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId) != null;
 
+        // This really doesn't belong here IMO, delete should be handled before this is called and never called with this flag
         if (header.ServerMetadata.DoNotIndex)
         {
-            if (exists) // clean up if the flag was changed after it was indexed
-            {
-                _db.tblDriveMainIndex.Delete(cn, Drive.Id, metadata.File.FileId);
-            }
-
-            return Task.CompletedTask;
+            return HardDeleteFromIndex(metadata.File, cn);
         }
 
-        var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
-            ? Array.Empty<byte>()
-            : ((OdinId)metadata.SenderOdinId).ToByteArray();
-        
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
@@ -147,63 +160,161 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
-        if (exists)
+        var driveMainIndexRecord = new DriveMainIndexRecord()
         {
-            _db.UpdateEntryZapZap(
-                cn,
-                Drive.Id,
-                fileId: metadata.File.FileId,
-                fileType: metadata.AppData.FileType,
-                dataType: metadata.AppData.DataType,
-                senderId: sender,
-                groupId: metadata.AppData.GroupId,
-                uniqueId: metadata.AppData.UniqueId,
-                archivalStatus: metadata.AppData.ArchivalStatus,
-                userDate: metadata.AppData.UserDate,
-                requiredSecurityGroup: securityGroup,
-                accessControlList: acl,
-                tagIdList: tags,
-                fileState: (int)metadata.FileState,
-                byteCount: header.ServerMetadata.FileByteCount,
-                fileSystemType: (int)header.ServerMetadata.FileSystemType);
+            driveId = Drive.Id,
+            fileId = metadata.File.FileId,
+            globalTransitId = metadata.GlobalTransitId,
+            uniqueId = metadata.AppData.UniqueId,
+            groupId = metadata.AppData.GroupId,
+
+            senderId = metadata.SenderOdinId,
+
+            fileType = metadata.AppData.FileType,
+            dataType = metadata.AppData.DataType,
+
+            archivalStatus = metadata.AppData.ArchivalStatus,
+            historyStatus = 0,
+            userDate = metadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
+            requiredSecurityGroup = securityGroup,
+
+            fileState = (int)metadata.FileState,
+            fileSystemType = (int)header.ServerMetadata.FileSystemType,
+            byteCount = header.ServerMetadata.FileByteCount
+        };
+
+        try
+        {
+            _db.BaseUpsertEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+            // driveMainIndexRecord created / modified contain the values written to the database
+            // @todd you might consider doing this:
+            // using (CreateCommitUnitOfWork()) {
+            //   r = UpdateCurrentIndex(...);
+            //   header.created = r.created;
+            //   header.modified = r.modified;
+            //   WriteFileToDisk(... header ...);
+            // }
+            // Thus you prepare to commit the data to the index, and unless the file write throws an error it commits the transaction
         }
-        else
+        catch (SqliteException e)
         {
-            try
+            if (e.SqliteErrorCode == 19)
             {
-                _db.AddEntry(
-                    cn,
-                    Drive.Id,
-                    fileId: metadata.File.FileId,
-                    globalTransitId: metadata.GlobalTransitId,
-                    fileType: metadata.AppData.FileType,
-                    dataType: metadata.AppData.DataType,
-                    senderId: sender,
-                    groupId: metadata.AppData.GroupId,
-                    uniqueId: metadata.AppData.UniqueId,
-                    archivalStatus: metadata.AppData.ArchivalStatus,
-                    userDate: metadata.AppData.UserDate.GetValueOrDefault(),
-                    requiredSecurityGroup: securityGroup,
-                    accessControlList: acl,
-                    tagIdList: tags,
-                    fileState: (int)metadata.FileState,
-                    fileSystemType: (int)header.ServerMetadata.FileSystemType,
-                    byteCount: header.ServerMetadata.FileByteCount
-                );
-            }
-            catch (SqliteException e)
-            {
-                if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+                DriveMainIndexRecord rf = null;
+                DriveMainIndexRecord ru = null;
+                DriveMainIndexRecord rt = null;
+
+                rf = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
+                if (metadata.AppData.UniqueId.HasValue)
+                    ru = _db.tblDriveMainIndex.GetByUniqueId(cn, Drive.Id, metadata.AppData.UniqueId);
+                if (metadata.GlobalTransitId.HasValue)
+                    rt = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, Drive.Id, metadata.GlobalTransitId);
+
+                string s = "";
+                DriveMainIndexRecord r = null;
+
+                if (rf != null)
                 {
-                    throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                    s += " FileId";
+                    r = rf;
                 }
+
+                if (rt != null)
+                {
+                    s += " GlobalTransitId";
+                    r = rt;
+                }
+
+                if (ru != null)
+                {
+                    s += " UniqueId";
+                    r = ru;
+                }
+
+                logger.LogError(
+                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
+                    s,
+                    GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
+                    GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
+                    GuidOneOrTwo(Drive.Id, r?.driveId),
+                    IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
+                    IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
+                    GuidOneOrTwo(metadata.File.FileId, r.fileId));
+
+                throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 
         return Task.CompletedTask;
     }
 
-    public Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn)
+    /// <summary>
+    /// Soft deleting a file
+    /// </summary>
+    /// <param name="header"></param>
+    /// <param name="cn"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="OdinClientException"></exception>
+    public Task SoftDeleteFromIndex(ServerFileHeader header, DatabaseConnection cn)
+    {
+        if (null == header)
+        {
+            logger.LogWarning("SoftDelete called on null server file header");
+            return Task.CompletedTask;
+        }
+
+        if (header.ServerMetadata.DoNotIndex)
+            throw new ArgumentException("SoftDelete called with DoNotIndex (hard-delete)");
+
+        var metadata = header.FileMetadata;
+        int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
+
+        var acl = new List<Guid>();
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
+            ((OdinId)odinId).ToHashId()
+        );
+        acl.AddRange(ids.ToList());
+
+        var tags = metadata.AppData.Tags?.ToList();
+
+        //Note: we set the fields to exactly what is stored in the file from the DriveStorageBase class
+        var driveMainIndexRecord = new DriveMainIndexRecord()
+        {
+            driveId = Drive.Id,
+            fileId = metadata.File.FileId,
+            globalTransitId = metadata.GlobalTransitId,
+            uniqueId = metadata.AppData.UniqueId,
+            groupId = metadata.AppData.GroupId,
+
+            senderId = metadata.SenderOdinId,
+
+            fileType = metadata.AppData.FileType,
+            dataType = metadata.AppData.DataType,
+
+            archivalStatus = metadata.AppData.ArchivalStatus,
+            historyStatus = 0,
+            userDate = metadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
+            requiredSecurityGroup = securityGroup,
+
+            fileState = (int)metadata.FileState,
+            fileSystemType = (int)header.ServerMetadata.FileSystemType,
+            byteCount = header.ServerMetadata.FileByteCount
+        };
+
+        int n = _db.BaseUpdateEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+
+        // @todd The modified timestamp in driveMainIndexRecord will be updated with the value written to the index
+
+        if (n < 1)
+            throw new OdinSystemException($"file to SoftDelete does not exist driveId {Drive.Id} fileId {metadata.File.FileId}");
+
+        return Task.CompletedTask;
+    }
+
+    public Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn)
     {
         _db.DeleteEntry(cn, Drive.Id, file.FileId);
         return Task.CompletedTask;
@@ -324,10 +435,43 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn)
     {
-        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(cn, Drive.Id);
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(cn, Drive.Id);
         return Task.FromResult((count, size));
     }
+
+    public Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn)
+    {
+        var record = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, driveId, globalTransitId);
+        if (null == record)
+        {
+            return Task.FromResult((Guid?)null);
+        }
+
+        if (record.fileSystemType == (int)fileSystemType)
+        {
+            return Task.FromResult((Guid?)record.fileId);
+        }
+
+        return Task.FromResult((Guid?)null);
+    }
     
+    public Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn)
+    {
+        var record = _db.tblDriveMainIndex.GetByUniqueId(cn, driveId, uniqueId);
+        
+        if (null == record)
+        {
+            return Task.FromResult((Guid?)null);
+        }
+
+        if (record.fileSystemType == (int)fileSystemType)
+        {
+            return Task.FromResult((Guid?)record.fileId);
+        }
+
+        return Task.FromResult((Guid?)null);
+    }
+
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, DatabaseConnection cn)
     {

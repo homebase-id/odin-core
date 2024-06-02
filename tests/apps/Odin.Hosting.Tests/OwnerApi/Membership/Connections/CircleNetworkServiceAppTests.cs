@@ -5,6 +5,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Services.Apps;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -30,6 +32,20 @@ public class CircleNetworkServiceAppTests
     {
         _scaffold.RunAfterAnyTests();
     }
+
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
 
     [Test]
     public async Task CreateNewApp_WithAuthorizedCircles_AfterSamIsConnected_Multiple_Circles()
@@ -140,7 +156,7 @@ public class CircleNetworkServiceAppTests
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 1, "There should be one app grant");
+        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
         Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
@@ -272,7 +288,7 @@ public class CircleNetworkServiceAppTests
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 1, "There should be one app grant");
+        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
         Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
@@ -394,7 +410,8 @@ public class CircleNetworkServiceAppTests
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 1, "There should be one app grant");
+        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+
         Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
@@ -463,7 +480,7 @@ public class CircleNetworkServiceAppTests
         Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(appGrants2.Count == 1, "There should be one app grant because we added one and deleted one");
+        Assert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; plus the two built-in grants");
         Assert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
 
@@ -582,7 +599,10 @@ public class CircleNetworkServiceAppTests
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 1, "There should be one app grant");
+        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        Assert.IsTrue(appGrants.TryGetValue(SystemAppConstants.MailAppId, out _));
+        Assert.IsTrue(appGrants.TryGetValue(SystemAppConstants.ChatAppId, out _));
+        Assert.IsTrue(appGrants.TryGetValue(appId, out _));
         Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
@@ -650,7 +670,7 @@ public class CircleNetworkServiceAppTests
         Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(appGrants2.Count == 1, "There should be one app grant because we added one and deleted one");
+        Assert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; and the two built-in grants (mail and chat)");
         Assert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
 
@@ -785,7 +805,8 @@ public class CircleNetworkServiceAppTests
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 1, "There should be one app grant");
+        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+
         Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(chatAppCircleGrantList, "chatAppCircleGrants != null");
         var chatAppCircleGrants = chatAppCircleGrantList.ToList();
@@ -834,7 +855,7 @@ public class CircleNetworkServiceAppTests
         Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var updatedAppGrants = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(updatedAppGrants.Count == 1, "There should still only be one app grant");
+        Assert.IsTrue(updatedAppGrants.Count == 3, "There should still only be 3 app grants");
         Assert.IsTrue(updatedAppGrants.TryGetValue(appKey, out var updatedChatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
         Assert.IsNotNull(updatedChatAppCircleGrantList, "chatAppCircleGrants2 != null");
         var updatedChatAppCircleGrants = updatedChatAppCircleGrantList.ToList();
