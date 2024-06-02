@@ -23,6 +23,20 @@ public class GuestQueryTests
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     // [Test]
     // [Ignore("wip")]
     // public async Task QueryBatchEnforcesPermissionsOnAnonymousDrive()

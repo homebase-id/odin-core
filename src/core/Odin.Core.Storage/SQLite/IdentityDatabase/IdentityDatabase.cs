@@ -1,10 +1,15 @@
-﻿using Odin.Core.Exceptions;
+﻿using Microsoft.VisualBasic.FileIO;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Xml;
 using static NodaTime.TimeZones.ZoneEqualityComparer;
 
 
@@ -194,21 +199,88 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 conn.Vacuum();
         }
 
+
+
+
+        public int BaseUpsertEntryZapZap(DatabaseConnection conn,
+            DriveMainIndexRecord driveMainIndexRecord,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null)
+        {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
+            lock (_dbLock)
+            {
+                int n = 0;
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    n = tblDriveMainIndex.Upsert(conn, driveMainIndexRecord);
+
+                    tblDriveAclIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                });
+
+                return n;
+            }
+        }
+
+
+        public int DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
+        {
+            lock (_dbLock)
+            {
+                int n = 0;
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                    n = tblDriveMainIndex.Delete(conn, driveId, fileId);
+                });
+                return n;
+            }
+        }
+
+
+
+        public int BaseUpdateEntryZapZap(DatabaseConnection conn,
+            DriveMainIndexRecord driveMainIndexRecord,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null)
+        {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
+            lock (_dbLock)
+            {
+                int n = 0;
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    n = tblDriveMainIndex.Update(conn, driveMainIndexRecord);
+
+                    tblDriveAclIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                });
+
+                return n;
+            }
+        }
+
+
         /// <summary>
-        /// If a transaction is not already ongoing, then the three tables are updated in a single transaction.
-        /// Otherwise they'll just be put into the existing transaction.
+        /// Only kept to not change all tests! Do not use.
         /// </summary>
-        /// <param name="driveId">The drive ID</param>
-        /// <param name="fileId">The GUID file ID</param>
-        /// <param name="fileType">An int32 designating the local drive file type, e.g. "attribute" (application specific)</param>
-        /// <param name="dataType">An int32 designating the data type of the file, e.g. "full name" (application specific)</param>
-        /// <param name="senderId">Who sent this item (may be null)</param>
-        /// <param name="groupId">The group id, may be NULL, e.g. for conversations thread, blog comments, email thread, picture album</param>
-        /// <param name="userDate">An int64 designating the user date (GetZeroTime(dt) or GetZeroTimeSeconds())</param>
-        /// <param name="requiredSecurityGroup">The security group required </param>
-        /// <param name="accessControlList">The list of Id's of the circles or identities which can access this file</param>
-        /// <param name="tagIdList">The tags</param>
-        public void AddEntry(DatabaseConnection conn, Guid driveId, Guid fileId,
+        public void AddEntryPassalongToUpsert(DatabaseConnection conn, Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -234,7 +306,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 conn.CreateCommitUnitOfWork(() =>
                 {
-                    tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
+                    var r = new DriveMainIndexRecord()
                     {
                         driveId = driveId,
                         fileId = fileId,
@@ -243,7 +315,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         userDate = userDate,
                         fileType = fileType,
                         dataType = dataType,
-                        senderId = senderId.ToString(),
+                        senderId = senderId?.ToString(),
                         groupId = groupId,
                         uniqueId = uniqueId,
                         archivalStatus = archivalStatus,
@@ -251,70 +323,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         requiredSecurityGroup = requiredSecurityGroup,
                         fileSystemType = fileSystemType,
                         byteCount = byteCount
-                    });
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                    };
+                    BaseUpsertEntryZapZap(conn: conn, r, accessControlList: accessControlList, tagIdList: tagIdList);
                 });
             }
         }
-
-        public void DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
-        {
-            lock (_dbLock)
-            {
-                conn.CreateCommitUnitOfWork(() =>
-                {
-                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveMainIndex.Delete(conn, driveId, fileId);
-
-                });
-            }
-        }
-
-        // We do not allow updating the fileId, globalTransitId
-        public void UpdateEntry(DatabaseConnection conn, Guid driveId, Guid fileId,
-            Guid? globalTransitId = null,
-            Int32? fileState = null,
-            Int32? fileType = null,
-            Int32? dataType = null,
-            byte[] senderId = null,
-            Guid? groupId = null,
-            Guid? uniqueId = null,
-            Int32? archivalStatus = null,
-            UnixTimeUtc? userDate = null,
-            Int32? requiredSecurityGroup = null,
-            Int64? byteCount = null,
-            List<Guid> addAccessControlList = null,
-            List<Guid> deleteAccessControlList = null,
-            List<Guid> addTagIdList = null,
-            List<Guid> deleteTagIdList = null)
-        {
-            if (conn.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
-            lock (_dbLock)
-            {
-                conn.CreateCommitUnitOfWork(() =>
-                {
-                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                        senderId: senderId,
-                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
-
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
-                    tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
-                    tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
-
-                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                    //
-                });
-            }
-        }
-
-        // We do not allow updating the fileId, globalTransitId
-        public void UpdateEntryZapZap(DatabaseConnection conn, Guid driveId, Guid fileId,
+        /// <summary>
+        /// Only kept to not change all tests! Do not use.
+        /// </summary>
+        public int UpdateEntryZapZapPassAlong(DatabaseConnection conn, Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
@@ -335,25 +352,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             lock (_dbLock)
             {
+                int n = 0;
+
                 conn.CreateCommitUnitOfWork(() =>
                 {
-                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                        senderId: senderId,
-                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
-
-                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
-
-                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                    //
+                    var r = new DriveMainIndexRecord()
+                    {
+                        driveId = driveId,
+                        fileId = fileId,
+                        globalTransitId = globalTransitId,
+                        fileState = fileState ?? 0,
+                        userDate = userDate ?? UnixTimeUtc.ZeroTime,
+                        fileType = fileType ?? 0,
+                        dataType = dataType ?? 0,
+                        senderId = senderId?.ToString(),
+                        groupId = groupId,
+                        uniqueId = uniqueId,
+                        archivalStatus = archivalStatus ?? 0,
+                        historyStatus = 0,
+                        requiredSecurityGroup = requiredSecurityGroup ?? 999,
+                        fileSystemType = fileSystemType,
+                        byteCount = byteCount ?? 1
+                    };
+                    BaseUpdateEntryZapZap(conn: conn, r, accessControlList: accessControlList, tagIdList: tagIdList);
                 });
+
+                return n;
             }
         }
-
-
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,

@@ -264,6 +264,25 @@ namespace Odin.Hosting.Controllers.Base.Drive
             };
         }
 
+        protected async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request, DatabaseConnection cn)
+        {
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+
+            if (request.Recipients != null && request.Recipients.Any())
+            {
+                throw new OdinClientException("Cannot specify recipients when hard-deleting a file", OdinClientErrorCode.InvalidRecipient);
+            }
+
+            var file = new InternalDriveFileId()
+            {
+                DriveId = driveId,
+                FileId = request.File.FileId
+            };
+            
+            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
+            return Ok();
+        }
+        
         private async Task<DeleteFileIdBatchResult> PerformDeleteFileIdBatch(DeleteFileIdBatchRequest batchRequest, DatabaseConnection cn)
         {
             var results = new List<DeleteFileResult>();

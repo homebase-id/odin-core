@@ -88,7 +88,13 @@ namespace Odin.Services.DataSubscription
         {
             var serverFileHeader = notification.ServerFileHeader;
             var odinContext = notification.OdinContext;
-            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection))
+
+            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
+            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && 
+                                  bool.TryParse(value, out bool collabChannelFlagValue) &&
+                                  collabChannelFlagValue;
+
+            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection, isCollabChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -111,9 +117,7 @@ namespace Odin.Services.DataSubscription
                 {
                     try
                     {
-                        var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) &&
-                            isCollabChannel)
+                        if(isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -162,12 +166,12 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn)
+        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn, bool isCollabChannel)
         {
             //if the file was received from another identity, do not redistribute
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
-            if (!uploadedByThisIdentity)
+            if (!uploadedByThisIdentity && !isCollabChannel)
             {
                 return false;
             }

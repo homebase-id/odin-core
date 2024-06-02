@@ -45,6 +45,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         [Ignore("This is tested in the app api until we determine if there are diff behaviors when transferring using the owner api")]
         public void CanGetAndSetGlobalTransitId()

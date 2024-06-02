@@ -9,7 +9,7 @@ using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
-    public class CircleNetworkControllerBase : OdinControllerBase
+    public abstract class CircleNetworkControllerBase : OdinControllerBase
     {
         private readonly CircleNetworkService _circleNetwork;
         private readonly TenantSystemStorage _tenantSystemStorage;

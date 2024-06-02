@@ -30,6 +30,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         [Test]
         public async Task CanGetAccountRecoveryKey()
         {
@@ -123,7 +137,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             using HttpClient authClient = new()
             {
-                BaseAddress = new Uri($"https://{identity}")
+                BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}")
             };
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);

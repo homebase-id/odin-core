@@ -342,7 +342,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE outbox " +
                                                  "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
-                                                 "WHERE (driveId = $driveId,fileId = $fileId,recipient = $recipient)";
+                                                 "WHERE (driveId = $driveId AND fileId = $fileId AND recipient = $recipient)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -401,7 +401,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseConnection conn)
+        public virtual int GetCountDirty(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {

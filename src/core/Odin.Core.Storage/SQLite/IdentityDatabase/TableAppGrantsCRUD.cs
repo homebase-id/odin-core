@@ -163,7 +163,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE appGrants " +
                                                  "SET data = $data "+
-                                                 "WHERE (odinHashId = $odinHashId,appId = $appId,circleId = $circleId)";
+                                                 "WHERE (odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$odinHashId";
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseConnection conn)
+        public virtual int GetCountDirty(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {

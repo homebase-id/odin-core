@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
@@ -13,21 +14,31 @@ namespace Odin.Core.Tests.Util;
 
 public class ConcurrentFileManagerTests
 {
-    private readonly ILogger<ConcurrentFileManager> _logger =
-        TestLogFactory.CreateConsoleLogger<ConcurrentFileManager>(LogEventLevel.Verbose);
+    private readonly ILogEventMemoryStore _logStore;
+    private readonly ILogger<ConcurrentFileManager> _logger;
 
     private readonly CorrelationContext _correlationContext = new(new CorrelationUniqueIdGenerator());
     private ConcurrentFileManager _fileManager;
 
+    public ConcurrentFileManagerTests()
+    {
+        _logStore = new LogEventMemoryStore();
+        _logger = TestLogFactory.CreateConsoleLogger<ConcurrentFileManager>(_logStore, LogEventLevel.Verbose);
+    }
+
     [SetUp]
     public void Setup()
     {
+        _logStore.Clear();
         _fileManager = new ConcurrentFileManager(_logger, _correlationContext);
     }
 
     [TearDown]
     public void TearDown()
     {
+        var logEvents = _logStore.GetLogEvents();
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
+        Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
     }
 
     [Test]

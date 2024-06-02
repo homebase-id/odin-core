@@ -33,6 +33,20 @@ namespace Odin.Hosting.Tests.Performance
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         /*
          TaskPerformanceTest_Ident
            Duration: 7.8 sec

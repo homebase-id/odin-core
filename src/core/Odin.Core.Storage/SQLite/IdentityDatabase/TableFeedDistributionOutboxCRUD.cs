@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand.CommandText = "UPDATE feedDistributionOutbox " +
                                                  "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
-                                                 "WHERE (fileId = $fileId,driveId = $driveId,recipient = $recipient)";
+                                                 "WHERE (fileId = $fileId AND driveId = $driveId AND recipient = $recipient)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$fileId";
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -300,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseConnection conn)
+        public virtual int GetCountDirty(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {

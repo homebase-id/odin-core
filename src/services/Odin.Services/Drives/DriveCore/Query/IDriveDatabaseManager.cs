@@ -43,11 +43,19 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task UpdateCurrentIndex(ServerFileHeader metadata, DatabaseConnection cn);
 
         /// <summary>
+        /// Todd says it aint soft and it aint hard ... mushy it is
+        /// </summary>
+        /// <param name="metadata"></param>
+        /// <param name="cn"></param>
+        /// <returns></returns>
+        Task SoftDeleteFromIndex(ServerFileHeader metadata, DatabaseConnection cn);
+
+        /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn);
+        Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn);
 
         Task LoadLatestIndex(DatabaseConnection cn);
 
@@ -72,7 +80,11 @@ namespace Odin.Services.Drives.DriveCore.Query
         int GetReactionCountByIdentity(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
         (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, DatabaseConnection cn);
-        
+
         Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn);
+
+        Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn);
+
+        Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn);
     }
 }

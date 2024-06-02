@@ -40,6 +40,20 @@ public class DataSubscriptionAndDistributionTests1
         _scaffold.RunAfterAnyTests();
     }
 
+    [SetUp]
+    public void Setup()
+    {
+        _scaffold.ClearAssertLogEventsAction();
+        _scaffold.ClearLogEvents();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scaffold.AssertLogEvents();
+    }
+
+
     [Test]
     public async Task CanUpdateStandardFileAndDistributeChangesForAllNotifications()
     {
@@ -868,7 +882,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile.FileState == FileState.Active);
         Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
-        Assert.IsTrue(theFile.FileMetadata.AppData.UniqueId == uniqueId);
+        Assert.IsTrue(theFile.FileMetadata.AppData.UniqueId == null, "feed uniqueId should be null");
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -1142,6 +1156,8 @@ public class DataSubscriptionAndDistributionTests1
     [Test]
     public async Task CommentingOn_EncryptedStandardFile_Updates_ReactionPreview()
     {
+        
+        
         const int fileType = 11345;
 
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);

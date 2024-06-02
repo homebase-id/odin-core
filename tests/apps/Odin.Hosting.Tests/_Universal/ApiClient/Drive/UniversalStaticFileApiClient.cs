@@ -47,7 +47,7 @@ public class UniversalStaticFileApiClient
     public async Task<ApiResponse<HttpContent>> GetPublicProfileCard()
     {
         var client = _factory.CreateHttpClient(_identity, out _);
-        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}:{WebScaffold.HttpsPort}");
         var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         return await staticFileSvc.GetPublicProfileCard();
     }
@@ -55,7 +55,7 @@ public class UniversalStaticFileApiClient
     public async Task<ApiResponse<HttpContent>> GetPublicProfileImage()
     {
         var client = _factory.CreateHttpClient(_identity, out _);
-        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}:{WebScaffold.HttpsPort}");
         var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         var response = await staticFileSvc.GetPublicProfileImage();
         return response;
@@ -64,7 +64,7 @@ public class UniversalStaticFileApiClient
     public async Task<ApiResponse<HttpContent>> GetStaticFile(string filename)
     {
         var client = _factory.CreateHttpClient(_identity, out _);
-        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}:{WebScaffold.HttpsPort}");
         var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         return await staticFileSvc.GetStaticFile(filename);
     }

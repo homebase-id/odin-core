@@ -238,6 +238,20 @@ TaskPerformanceTest
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
+
+
         // First make this test pass, then change it from a test to something else.
         //
         // [Test(Description = "publish static content to file, including payload and thumbnails")]

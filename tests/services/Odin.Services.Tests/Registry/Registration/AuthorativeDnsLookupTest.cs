@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using DnsClient;
 using NUnit.Framework;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.Registry.Registration;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
@@ -13,7 +14,8 @@ public class AuthorativeDnsLookupTest
     [Test]
     public async Task ItShouldGetTheRootServers()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupRootAuthority();
         Assert.That(result.AuthorativeDomain, Is.EqualTo(""));
@@ -21,6 +23,7 @@ public class AuthorativeDnsLookupTest
         Assert.That(result.NameServers, Does.Contain("a.root-servers.net"));
         Assert.That(result.NameServers, Does.Contain("h.root-servers.net"));
         Assert.That(result.NameServers, Does.Contain("m.root-servers.net"));
+        LogEvents.AssertEvents(logStore.GetLogEvents());
     }
 
     [Test, Explicit]
@@ -60,7 +63,8 @@ public class AuthorativeDnsLookupTest
         string expectedOtherNameServer,
         int expectedMinNameServers)
     {
-        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupDomainAuthority(domain);
         Assert.That(result.Exception, Is.Null);
@@ -68,6 +72,7 @@ public class AuthorativeDnsLookupTest
         Assert.That(result.AuthorativeNameServer, Is.EqualTo(expectedAuthorityNameserver));
         Assert.That(result.NameServers.Count, Is.GreaterThanOrEqualTo(expectedMinNameServers));
         Assert.That(result.NameServers, Is.Empty.Or.Contain(expectedOtherNameServer));
+        LogEvents.AssertEvents(logStore.GetLogEvents());
     }
 
     //
@@ -88,11 +93,13 @@ public class AuthorativeDnsLookupTest
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "")]
     public async Task ItShouldLookupZoneApexForTheDomain(string domain, string expectedZoneApex)
     {
-        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupZoneApex(domain);
 
         Assert.That(result, Is.EqualTo(expectedZoneApex));
+        LogEvents.AssertEvents(logStore.GetLogEvents());
     }
 
     //

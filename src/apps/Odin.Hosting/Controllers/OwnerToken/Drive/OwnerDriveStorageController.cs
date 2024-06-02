@@ -123,20 +123,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.GetThumbnail(new GetThumbnailRequest()
-            {
-                File = new ExternalFileIdentifier()
                 {
-                    FileId = fileId,
-                    TargetDrive = new()
+                    File = new ExternalFileIdentifier()
                     {
-                        Alias = alias,
-                        Type = type
-                    }
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Width = width,
+                    Height = height,
+                    PayloadKey = payloadKey,
                 },
-                Width = width,
-                Height = height,
-                PayloadKey = payloadKey,
-            },
                 cn);
         }
 
@@ -177,28 +177,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Hard deletes a file
+        /// Hard deletes a file which means the file is gone w/o a trace
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("harddelete")]
-        public async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
+        public async Task<IActionResult> HardDeleteFileC([FromBody] DeleteFileRequest request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
-
-            if (request.Recipients != null && request.Recipients.Any())
-            {
-                throw new OdinClientException("Cannot specify recipients when hard-deleting a file", OdinClientErrorCode.InvalidRecipient);
-            }
-
-            var file = new InternalDriveFileId()
-            {
-                DriveId = driveId,
-                FileId = request.File.FileId
-            };
-
             using var cn = tenantSystemStorage.CreateConnection();
-            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
-            return Ok();
+            return await base.HardDeleteFile(request, cn);
         }
     }
 }

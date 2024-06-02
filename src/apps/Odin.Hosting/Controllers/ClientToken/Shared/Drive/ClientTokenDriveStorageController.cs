@@ -1,22 +1,14 @@
 ﻿using System;
-using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
-using Quartz.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -25,17 +17,16 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveStorageController(
-        ILogger<ClientTokenDriveStorageController> logger,
+    public class GuestClientTokenDriveStorageController(
+        ILogger<GuestClientTokenDriveStorageController> logger,
         FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
-        private readonly ILogger<ClientTokenDriveStorageController> _logger = logger;
+        private readonly ILogger<GuestClientTokenDriveStorageController> _logger = logger;
 
         /// <summary>
         /// Returns the file header
@@ -174,5 +165,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.DeletePayload(request, cn);
         }
+        
     }
 }
