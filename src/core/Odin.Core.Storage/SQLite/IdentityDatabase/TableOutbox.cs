@@ -282,30 +282,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         // Read the total count
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int totalCount = rdr.GetInt32(0);
+                        int totalCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            totalCount = rdr.GetInt32(0);
 
                         // Read the popped count
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int poppedCount = rdr.GetInt32(0);
+                        int poppedCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            poppedCount = rdr.GetInt32(0);
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-                        // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
 
-                        Int64 t = rdr.GetInt64(0);
-                        var utc = new UnixTimeUtc(t);
+                        var utc = UnixTimeUtc.ZeroTime;
+
+                        // Read the marker, if any
+                        if (!rdr.IsDBNull(0))
+                        {
+                            Int64 t = rdr.GetInt64(0);
+                            utc = new UnixTimeUtc(t);
+                        }
+
                         return (totalCount, poppedCount, utc);
                     }
                 }
@@ -347,30 +352,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         // Read the total count
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int totalCount = rdr.GetInt32(0);
+                        int totalCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            totalCount = rdr.GetInt32(0);
 
                         // Read the popped count
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-
                         if (!rdr.Read())
                             throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
 
-                        int poppedCount = rdr.GetInt32(0);
+                        int poppedCount = 0;
+                        if (!rdr.IsDBNull(0))
+                            poppedCount = rdr.GetInt32(0);
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-                        // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
 
-                        Int64 t = rdr.GetInt64(0);
-                        var utc = new UnixTimeUtc(t);
+                        var utc = UnixTimeUtc.ZeroTime;
+                        // Read the marker, if any
+                        if (!rdr.IsDBNull(0))
+                        {
+                            Int64 t = rdr.GetInt64(0);
+                            utc = new UnixTimeUtc(t);
+                        }
                         return (totalCount, poppedCount, utc);
                     }
 

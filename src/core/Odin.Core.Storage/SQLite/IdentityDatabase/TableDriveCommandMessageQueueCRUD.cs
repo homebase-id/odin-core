@@ -186,8 +186,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveCommandMessageQueue; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
+                    var count = conn.ExecuteScalar(_getCountCommand);
+                    if (count == null || count == DBNull.Value || !(count is int || count is long))
+                        return -1;
+                    else
+                        return Convert.ToInt32(count);
                 }
         }
 
@@ -210,8 +213,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _getCountDriveParam1.ParameterName = "$driveId";
                     _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
                     _getCountDriveParam1.Value = driveId.ToByteArray();
-                    var count = conn.ExecuteNonQuery(_getCountDriveCommand);
-                    return count;
+                    var count = conn.ExecuteScalar(_getCountDriveCommand);
+                    if (count == null || count == DBNull.Value || !(count is int || count is long))
+                        return -1;
+                    else
+                        return Convert.ToInt32(count);
                 } // using
         }
 
