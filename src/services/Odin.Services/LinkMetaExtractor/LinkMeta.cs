@@ -33,19 +33,20 @@ public class LinkMeta
 
     private static string GetTitle(Dictionary<string, object> meta)
     {
+         var exception = new Exception("Title not found");
         if (meta.TryGetValue("title", out var value))
         {
-            return value.ToString();
+            return value.ToString() ?? throw exception;
         }
         else if (meta.TryGetValue("og:title", out var value1))
         {
-            return value1.ToString();
+            return value1.ToString() ?? throw exception;
         }
         else if (meta.TryGetValue("twitter:title", out var value2))
         {
-            return value2.ToString();
+            return value2.ToString() ?? throw exception;
         }
-        throw new Exception("Title not found");
+        throw exception;
     }
     
 
