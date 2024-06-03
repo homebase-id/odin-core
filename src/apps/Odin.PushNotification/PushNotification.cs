@@ -37,11 +37,12 @@ public class PushNotification : IPushNotification
         {
             Token = request.DeviceToken,
             Data = request.ToClientDictionary(),
-            Notification = new Notification
-            {
-                Title = request.Title,
-                Body = request.Body,
-            },
+            // Simple notifications taken out, as the RN app is handling them internally
+            // Notification = new Notification
+            // {
+            //     Title = request.Title,
+            //     Body = request.Body,
+            // },
             Android = new AndroidConfig // magic stuff to increase reliability on android
             {
                 Priority = Priority.High,
