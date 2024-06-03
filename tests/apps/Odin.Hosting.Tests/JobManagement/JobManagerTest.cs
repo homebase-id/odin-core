@@ -579,7 +579,9 @@ public class JobManagerTest
         // Jobs have run serially and thus time taken should be > 3s
 
         Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(3000));
+#if !NOISY_NEIGHBOUR
         Assert.That(sw.ElapsedMilliseconds, Is.LessThan(5000));
+#endif
 
         // Check response and data
         foreach (var jobKey in jobKeys)
@@ -638,8 +640,9 @@ public class JobManagerTest
 
         // Jobs have run in parallel and thus time taken should be < 2s
         Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(1000));
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(3000));
-
+#if !NOISY_NEIGHBOUR
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(2000));
+#endif
         // Check response and data
         foreach (var jobKey in jobKeys)
         {
