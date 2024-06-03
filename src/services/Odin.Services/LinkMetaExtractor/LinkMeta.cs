@@ -33,7 +33,7 @@ public class LinkMeta
 
     private static string GetTitle(Dictionary<string, object> meta)
     {
-        if (meta.TryGetValue("title", out object value))
+        if (meta.TryGetValue("title", out var value))
         {
             return value.ToString();
         }
@@ -52,7 +52,7 @@ public class LinkMeta
     private static string? GetDescription(Dictionary<string, object> meta)
     {
 
-        if (meta.TryGetValue("description", out object value))
+        if (meta.TryGetValue("description", out var value))
         {
             return value.ToString();
         }
@@ -70,7 +70,7 @@ public class LinkMeta
     
     private static string? GetImageUrl(Dictionary<string, object> meta)
     {
-        if (meta.TryGetValue("og:image", out object value))
+        if (meta.TryGetValue("og:image", out var value))
         {
             return value.ToString();
         }
