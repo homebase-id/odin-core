@@ -121,8 +121,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    UseGlobalTransitId = true
+                    Schedule = ScheduleOptions.SendNowAwaitResponse
                 },
                 Manifest = new UploadManifest()
                 {
@@ -196,7 +195,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             int someFiletype = 3892;
             var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.IsTransient = true;
-            instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()
             {
@@ -282,7 +280,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             int someFiletype = 89994;
 
             var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
-            instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()
             {
@@ -421,8 +418,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    UseGlobalTransitId = true
+                    Schedule = ScheduleOptions.SendNowAwaitResponse
                 },
                 Manifest = new UploadManifest()
             };
@@ -734,8 +730,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
             };

@@ -356,7 +356,6 @@ namespace Odin.Services.DataSubscription
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
                 Schedule = ScheduleOptions.SendLater,
                 IsTransient = false,
-                UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };

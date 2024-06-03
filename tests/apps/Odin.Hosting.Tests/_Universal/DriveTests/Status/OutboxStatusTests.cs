@@ -94,7 +94,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Status
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
                 // Priority = PriorityOptions.High,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default

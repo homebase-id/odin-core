@@ -231,8 +231,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
@@ -242,7 +241,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         const string publicContent = "some public content";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 
@@ -285,8 +284,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await frodoOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
@@ -296,7 +294,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         const string publicContent = "some public content from frodo";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await frodoOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        var publicFileUploadResult = await frodoOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 

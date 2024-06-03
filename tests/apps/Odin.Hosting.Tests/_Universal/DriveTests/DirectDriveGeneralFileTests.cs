@@ -412,7 +412,7 @@ public class DirectDriveGeneralFileTests
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
-        var response = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, useGlobalTransitId: true);
+        var response = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         Assert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
         Assert.IsNotNull(uploadResult);
