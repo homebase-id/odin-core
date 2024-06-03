@@ -13,7 +13,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory) : ILinkMetaExtr
         // These Headers are needed for request to be received as text/html
         // Some sites like Instagram does not return the meta data if no user agent specified
         client.DefaultRequestHeaders.Add("Accept", "text/html");
-        client.DefaultRequestHeaders.Add("User-Agent", "Chrome/114.0.5735.134");
+        client.DefaultRequestHeaders.Add("User-Agent", "googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
         var response = await client.GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
