@@ -24,7 +24,7 @@ jobs:
         run: dotnet restore ./dotyoucore.sln
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release --warnaserror ./dotyoucore.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="NOISY_NEIGHBOUR" ./dotyoucore.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./dotyoucore.sln
