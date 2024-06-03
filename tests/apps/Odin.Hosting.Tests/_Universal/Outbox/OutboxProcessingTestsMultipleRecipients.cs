@@ -14,7 +14,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -30,12 +29,16 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-
-            var overrides = new Dictionary<string, string>()
+            
+            var env = new Dictionary<string, string>
             {
-                { "Job:Enabled", bool.TrueString }
+                { "Job__BackgroundJobStartDelaySeconds", "0" },
+                { "Job__CronProcessingInterval", "1" },
+                {"Job__EnableJobBackgroundService", "true"},
+                {"Job__Enabled", "true"},
             };
-            _scaffold.RunBeforeAnyTests(envOverrides: overrides);
+        
+            _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
         [OneTimeTearDown]

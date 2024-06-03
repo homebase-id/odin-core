@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -24,6 +22,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
+        IJobManager jobManager,
+        ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage)
     {
         public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
@@ -40,22 +40,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext)
+        private async Task ProcessItem(OutboxItem item, IOdinContext odinContext)
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
 
             using var connection = tenantSystemStorage.CreateConnection();
 
-            OutboxProcessingResult result;
             switch (item.Type)
             {
                 case OutboxItemType.PushNotification:
-                    result = await SendPushNotification(item, odinContext, connection);
+                    await SendPushNotification(item, odinContext, connection);
                     break;
 
                 case OutboxItemType.File:
-                    result = await SendFileOutboxItem(item, odinContext, connection);
+                    await SendFileOutboxItem(item, odinContext, connection);
                     break;
 
                 // case OutboxItemType.Reaction:
@@ -64,36 +63,32 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-
-
-            return result;
         }
 
-        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
+            var workLogger = loggerFactory.CreateLogger<SendFileOutboxWorkerAsync>();
             var worker = new SendFileOutboxWorkerAsync(item,
                 fileSystemResolver,
-                // logger,
+                workLogger,
                 peerOutbox,
                 odinConfiguration,
                 odinHttpClientFactory,
-                mediator
-                //,jobManager
-                );
-
-            var result = await worker.Send(odinContext, cn);
+                mediator,
+                jobManager
+            );
             
-            return result;
+            await worker.Send(odinContext, cn);
         }
 
-        private async Task<OutboxProcessingResult> SendPushNotification(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task SendPushNotification(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var worker = new SendPushNotificationOutboxWorker(item,
                 appRegistrationService,
                 pushNotificationService,
                 peerOutbox);
 
-            return await worker.Send(odinContext, cn);
+            await worker.Send(odinContext, cn);
         }
     }
 }

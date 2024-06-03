@@ -36,6 +36,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         Task<bool> HasOutboxFileItem(OutboxItem arg, DatabaseConnection cn);
 
-        Task<OutboxProcessingSingleRecipient> GetOutboxStatus(Guid driveId, DatabaseConnection cn);
+        Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn);
     }
 }

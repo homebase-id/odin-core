@@ -53,11 +53,6 @@ public enum LatestTransferStatus
     SourceFileDoesNotAllowDistribution = 50,
 
     /// <summary>
-    /// Indicates the target recipient does not match the ACL requirements on the file 
-    /// </summary>
-    RecipientDoesNotHavePermissionToSourceFile = 60,
-
-    /// <summary>
     /// The recipient server did not respond
     /// </summary>
     RecipientServerNotResponding = 70,

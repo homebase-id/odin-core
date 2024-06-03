@@ -53,5 +53,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public OutboxItemType Type { get; set; }
         public int AttemptCount { get; set; }
         public byte[] RawValue { get; set; }
+        public Guid? DependencyFileId { get; set; }
     }
 }

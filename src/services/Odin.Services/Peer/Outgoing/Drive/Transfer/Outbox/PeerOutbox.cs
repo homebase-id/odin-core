@@ -38,6 +38,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 driveId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
+                dependencyFileId = item.DependencyFileId,
                 type = (int)OutboxItemType.File,
                 priority = item.Priority,
                 value = state
@@ -127,14 +128,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
         }
-        
+
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxProcessingSingleRecipient> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
+        public async Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
         {
             var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(cn, driveId);
-            return await Task.FromResult<OutboxProcessingSingleRecipient>(new OutboxProcessingSingleRecipient()
+            return await Task.FromResult(new OutboxDriveStatus()
             {
                 CheckedOutCount = poppedCount,
                 TotalItems = totalCount,

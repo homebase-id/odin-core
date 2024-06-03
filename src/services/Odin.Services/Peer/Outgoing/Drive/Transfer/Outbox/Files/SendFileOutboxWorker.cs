@@ -34,7 +34,7 @@ public class SendFileOutboxWorker(
     {
         try
         {
-            var result = await SendOutboxFileItemAsync(item, odinContext, cn);
+            var result = await SendOutboxFileItem(item, odinContext, cn);
             logger.LogDebug("Send file item RecipientPeerResponseCode: {d}", result.RecipientPeerResponseCode);
 
             // Try to clean up the transient file
@@ -86,7 +86,7 @@ public class SendFileOutboxWorker(
         return null;
     }
 
-    private async Task<OutboxProcessingResult> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<OutboxProcessingResult> SendOutboxFileItem(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
     {
         OdinId recipient = outboxItem.Recipient;
         var file = outboxItem.File;

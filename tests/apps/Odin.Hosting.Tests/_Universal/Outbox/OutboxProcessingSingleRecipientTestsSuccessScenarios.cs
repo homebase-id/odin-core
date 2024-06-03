@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Time;
@@ -20,10 +19,11 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Refit;
 
 namespace Odin.Hosting.Tests._Universal.Outbox
 {
-    public class OutboxProcessingSingleRecipientTests
+    public class OutboxProcessingSingleRecipientTestsSuccessScenarios
     {
         private WebScaffold _scaffold;
 
@@ -32,7 +32,16 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            
+            var env = new Dictionary<string, string>
+            {
+                { "Job__BackgroundJobStartDelaySeconds", "0" },
+                { "Job__CronProcessingInterval", "1" },
+                {"Job__EnableJobBackgroundService", "true"},
+                {"Job__Enabled", "true"},
+            };
+        
+            _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
         [OneTimeTearDown]
@@ -61,27 +70,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var targetDrive = callerContext.TargetDrive;
             await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
 
-            const string uploadedContent = "pie";
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AllowDistribution = true,
-                IsEncrypted = true,
-                AppData = new()
-                {
-                    Content = uploadedContent,
-                    FileType = default,
-                    GroupId = default,
-                    Tags = default
-                },
-                AccessControlList = AccessControlList.Connected
-            };
-
-            var storageOptions = new StorageOptions()
-            {
-                Drive = targetDrive
-            };
-
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
@@ -89,11 +77,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Schedule = ScheduleOptions.SendAsync
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
-                fileMetadata,
-                storageOptions,
-                transitOptions
-            );
+            var (uploadResponse, encryptedJsonContent64) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
@@ -133,85 +117,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
                 Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
             }
-
-            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
-        }
-
-        [Test]
-        public async Task GetModifiedOfSenderFilesIncludesFilesWithUpdatedPeerTransferStatusAndCanExcludeRecipientTransferHistory()
-        {
-            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-            const DrivePermission drivePermissions = DrivePermission.Write;
-
-            var targetDrive = TargetDrive.NewTargetDrive();
-            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
-
-            const string uploadedContent = "pie";
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AllowDistribution = true,
-                IsEncrypted = true,
-                AppData = new()
-                {
-                    Content = uploadedContent,
-                    FileType = 1011,
-                    GroupId = default,
-                    Tags = default
-                },
-                AccessControlList = AccessControlList.Connected
-            };
-
-            var storageOptions = new StorageOptions()
-            {
-                Drive = targetDrive
-            };
-
-            var transitOptions = new TransitOptions()
-            {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendAsync,
-                // Priority = PriorityOptions.High,
-            };
-
-            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
-                fileMetadata,
-                storageOptions,
-                transitOptions
-            );
-
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
-            var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
-
-            //Get modified to results ensure it will show up after a transfer
-            var queryModifiedResponse = await senderOwnerClient.DriveRedux.QueryModified(new QueryModifiedRequest()
-            {
-                QueryParams = new()
-                {
-                    TargetDrive = targetDrive,
-                    FileType = [fileMetadata.AppData.FileType]
-                },
-                ResultOptions = new QueryModifiedResultOptions()
-                {
-                    MaxDate = UnixTimeUtc.Now().AddSeconds(-100).milliseconds,
-                    IncludeTransferHistory = false
-                }
-            });
-
-            Assert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
-            var modifiedResults = queryModifiedResponse.Content;
-            var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
-            Assert.IsNotNull(fileInResults);
-
-            Assert.IsNull(fileInResults.ServerMetadata.TransferHistory);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -297,7 +202,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var queryBatchResponse = await senderOwnerClient.DriveRedux.QueryBatch(request);
             var theFileResponse = queryBatchResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theFileResponse);
-            
+
             Assert.IsNull(theFileResponse.ServerMetadata.TransferHistory);
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -383,9 +288,50 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var modifiedResults = queryModifiedResponse.Content;
             var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
             Assert.IsNotNull(fileInResults);
-            
+
             Assert.IsNull(fileInResults.ServerMetadata.TransferHistory);
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test, Ignore("How do i test this?  see notes in test")]
+        public Task CanSetDependencyIdOnOutboxItem()
+        {
+            //TODO: how do i test this?  It seems it will require me to inject debug-test code to the outbox
+            //processor to slow down processing enough to test the dependency ordering of files received
+            return Task.CompletedTask;
+        }
+
+        private async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadEncryptedMetadata(OwnerApiClientRedux senderOwnerClient,
+            TargetDrive targetDrive,
+            TransitOptions transitOptions)
+        {
+            const string uploadedContent = "pie";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = true,
+                IsEncrypted = true,
+                AppData = new()
+                {
+                    Content = uploadedContent,
+                    FileType = default,
+                    GroupId = default,
+                    Tags = default
+                },
+                AccessControlList = AccessControlList.Connected
+            };
+
+            var storageOptions = new StorageOptions()
+            {
+                Drive = targetDrive
+            };
+
+
+            return await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+                fileMetadata,
+                storageOptions,
+                transitOptions
+            );
         }
 
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient, TargetDrive targetDrive,

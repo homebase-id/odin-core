@@ -43,7 +43,7 @@ namespace Odin.Services.Drives
 
         public override string ToString()
         {
-            return $"FileId={this.FileId.ToString()}\nDrive={this.DriveId.ToString()}";
+            return $"FileId={this.FileId.ToString()} Drive={this.DriveId.ToString()}";
         }
 
         public override int GetHashCode()

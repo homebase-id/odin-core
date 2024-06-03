@@ -48,8 +48,23 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// </summary>
         //TODO: hack - This is a hack in place for alpha to support transit direct send
         public Guid? OverrideRemoteGlobalTransitId { get; set; }
-    }
 
+        /// <summary>
+        /// Sets the fileId on which this file depends when sending over peer
+        /// </summary>
+        public Guid? OutboxDependencyFileId { get; set; }
+
+        public OutboxPriority Priority { get; set; } = OutboxPriority.Low;
+    }
+    
+    [Flags]
+    public enum OutboxPriority
+    {
+        High,
+        Medium,
+        Low
+    }
+    
     [Flags]
     public enum SendContents
     {

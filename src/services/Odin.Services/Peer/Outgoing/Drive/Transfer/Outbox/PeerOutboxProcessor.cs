@@ -111,7 +111,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 pushNotificationService,
                 peerOutbox);
 
-            return await worker.Send(odinContext, cn);
+            await worker.Send(odinContext, cn);
+            
+            return new OutboxProcessingResult
+            {
+                Recipient = default,
+                RecipientPeerResponseCode = null,
+                TransferResult = TransferResult.Success,
+                File = default,
+                Timestamp = 0,
+                OutboxItem = item,
+                VersionTag = null
+            };
         }
     }
 }

@@ -791,10 +791,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AccessControlList = AccessControlList.OwnerOnly,
                 AllowDistribution = false
             };
-            
+
             //we don't accept uniqueIds into the feed
             fileMetadata.AppData.UniqueId = null;
-            
+
             var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext, cn);
             await this.WriteNewFileHeader(file, serverFileHeader, odinContext, cn, raiseEvent: true);
         }
@@ -838,7 +838,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             header.FileMetadata = fileMetadata;
-            
+
             // Clearing the UID for any files that go into the feed drive because the feed drive 
             // comes from multiple channel drives from many different identities so there could be a clash
             header.FileMetadata.AppData.UniqueId = null;
@@ -940,6 +940,16 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 header.ServerMetadata.TransferHistory = history;
+
+                _logger.LogDebug(
+                    "Updating transfer history on file:{file} for recipient:{recipient} \n Version:{versionTag}\t Status:{status}\t InOutbox:{outbox}\t isRead: {isRead}",
+                    file,
+                    recipient,
+                    updateData.VersionTag,
+                    updateData.LatestTransferStatus,
+                    updateData.IsInOutbox,
+                    updateData.IsReadByRecipient);
+
                 await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true,
                     ignoreFeedDistribution: true);
             }

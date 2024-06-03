@@ -61,13 +61,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var tenant = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
-            int priority = 100;
-            // var priority = options.Priority switch
-            // {
-            //     PriorityOptions.High => 1000,
-            //     PriorityOptions.Medium => 2000,
-            //     _ => 3000
-            // };
+            var priority = options.Priority switch
+            {
+                OutboxPriority.High => 1000,
+                OutboxPriority.Medium => 2000,
+                _ => 3000
+            };
 
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
@@ -201,6 +200,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         Recipient = recipient,
                         OriginalTransitOptions = options,
                         EncryptedClientAuthToken = encryptedClientAccessToken,
+                        DependencyFileId = options.OutboxDependencyFileId,
                         TransferInstructionSet = CreateTransferInstructionSet(
                             keyHeader,
                             clientAuthToken,
@@ -226,8 +226,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions options, FileTransferOptions fileTransferOptions, int priority, IOdinContext odinContext, DatabaseConnection cn)
         {
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
-            // await peerOutbox.Add(outboxItems, cn);
 
+            //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);

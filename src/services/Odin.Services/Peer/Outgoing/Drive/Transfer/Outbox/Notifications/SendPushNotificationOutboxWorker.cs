@@ -4,11 +4,11 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Storage;
 using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
@@ -19,15 +19,13 @@ public class SendPushNotificationOutboxWorker(
     PushNotificationService pushNotificationService,
     IPeerOutbox peerOutbox)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task Send(IOdinContext odinContext, DatabaseConnection cn)
     {
         try
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            var results = await this.PushItem(newContext, cn);
+            await PushItem(newContext, cn);
             await peerOutbox.MarkComplete(item.Marker, cn);
-
-            return results;
         }
         catch (OdinOutboxProcessingException)
         {
@@ -40,12 +38,10 @@ public class SendPushNotificationOutboxWorker(
         {
             await peerOutbox.MarkComplete(item.Marker, cn);
         }
-
-        return null;
     }
 
 
-    private async Task<OutboxProcessingResult> PushItem(IOdinContext odinContext, DatabaseConnection cn)
+    private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn)
     {
         //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
         var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
@@ -73,17 +69,19 @@ public class SendPushNotificationOutboxWorker(
             Log.Warning("No app registered with Id {id}", record.Options.AppId);
         }
 
-        await pushNotificationService.Push(pushContent, odinContext, cn);
-
-        return new OutboxProcessingResult
+        try
         {
-            Recipient = default,
-            RecipientPeerResponseCode = null,
-            TransferResult = TransferResult.Success,
-            File = default,
-            Timestamp = UnixTimeUtc.Now().milliseconds,
-            OutboxItem = item
-        };
+            await pushNotificationService.Push(pushContent, odinContext, cn);
+        }
+        catch (Exception e)
+        {
+            throw new OdinOutboxProcessingException(e.Message)
+            {
+                Recipient = default,
+                TransferStatus = LatestTransferStatus.UnknownServerError,
+                VersionTag = default
+            };
+        }
     }
 
     private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext, DatabaseConnection cn)
