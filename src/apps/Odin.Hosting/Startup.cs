@@ -228,7 +228,7 @@ namespace Odin.Hosting
                 config.Admin.Domain));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
-            services.AddSingleton<ILinkMetaExtractor>(sp => new LinkMetaExtractor(sp.GetRequiredService<IHttpClientFactory>()));
+            services.AddSingleton<ILinkMetaExtractor, LinkMetaExtractor>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         }
