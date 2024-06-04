@@ -217,8 +217,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
             //one is written any time you save a header)
-            metadata.VersionTag = metadata.VersionTag;
-
             metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
             //note: we also update the key header because it might have been changed by the sender
             await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
