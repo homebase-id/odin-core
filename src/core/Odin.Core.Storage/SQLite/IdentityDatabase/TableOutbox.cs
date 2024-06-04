@@ -299,16 +299,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
 
                         var utc = UnixTimeUtc.ZeroTime;
-
-                        // Read the marker, if any
-                        if (!rdr.IsDBNull(0))
+                        if (rdr.Read())
                         {
-                            Int64 t = rdr.GetInt64(0);
-                            utc = new UnixTimeUtc(t);
+                            // Read the marker, if any
+                            if (!rdr.IsDBNull(0))
+                            {
+                                Int64 t = rdr.GetInt64(0);
+                                utc = new UnixTimeUtc(t);
+                            }
                         }
 
                         return (totalCount, poppedCount, utc);
@@ -369,19 +369,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                         if (!rdr.NextResult())
                             throw new Exception("Not possible");
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
 
                         var utc = UnixTimeUtc.ZeroTime;
-                        // Read the marker, if any
-                        if (!rdr.IsDBNull(0))
+                        if (rdr.Read())
                         {
-                            Int64 t = rdr.GetInt64(0);
-                            utc = new UnixTimeUtc(t);
+                            // Read the marker, if any
+                            if (!rdr.IsDBNull(0))
+                            {
+                                Int64 t = rdr.GetInt64(0);
+                                utc = new UnixTimeUtc(t);
+                            }
                         }
                         return (totalCount, poppedCount, utc);
                     }
-
                 }
             }
         }
