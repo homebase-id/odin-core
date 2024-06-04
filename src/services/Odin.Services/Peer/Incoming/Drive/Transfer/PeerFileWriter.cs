@@ -207,7 +207,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
             });
 
-            logger.LogInformation("Handle file->CommitNewFile: {ms} ms", ms);
+            logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
         }
 
 
