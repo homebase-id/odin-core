@@ -75,10 +75,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) 
-                                  && bool.TryParse(value, out bool collabChannelFlagValue) 
+            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value)
+                                  && bool.TryParse(value, out bool collabChannelFlagValue)
                                   && collabChannelFlagValue;
-            
+
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
@@ -101,7 +101,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = isCollabChannel ? true : false, 
+                AllowDistribution = isCollabChannel ? true : false,
                 AccessControlList = targetAcl
             };
 
@@ -123,6 +123,63 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 default:
                     throw new OdinFileWriteException("Invalid TransferFileType");
             }
+        }
+
+        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext, cn);
+
+            if (clientFileHeader == null)
+            {
+                // this is bad error.
+                logger.LogError(
+                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
+                    item.GlobalTransitId, item.DriveId);
+                throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
+            }
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = clientFileHeader.FileId,
+                DriveId = item.DriveId,
+            };
+
+            await fs.Storage.SoftDeleteLongTermFile(file, odinContext, cn);
+        }
+
+        public async Task MarkAsFileRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
+                item.GlobalTransitId, odinContext, cn,
+                excludePreviewThumbnail: false,
+                includeTransferHistory: true);
+
+            if (null == header)
+            {
+                throw new OdinClientException("Invalid global transit Id");
+            }
+
+            var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
+
+            if (!recordExists || transferHistoryItem == null)
+            {
+                throw new OdinClientException("Cannot accept read-receipt");
+            }
+
+            var update = new UpdateTransferHistoryData()
+            {
+                IsReadByRecipient = true
+            };
+
+            await fs.Storage.UpdateTransferHistory(new InternalDriveFileId()
+                {
+                    FileId = header.FileId,
+                    DriveId = item.DriveId
+                },
+                odinContext.GetCallerOdinIdOrFail(),
+                update,
+                odinContext,
+                cn);
         }
 
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, DatabaseConnection cn)
@@ -161,28 +218,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             targetAcl = referencedFile.ServerMetadata.AccessControlList;
 
             return targetAcl;
-        }
-
-        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext, cn);
-
-            if (clientFileHeader == null)
-            {
-                // this is bad error.
-                logger.LogError(
-                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
-                    item.GlobalTransitId, item.DriveId);
-                throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
-            }
-
-            var file = new InternalDriveFileId()
-            {
-                FileId = clientFileHeader.FileId,
-                DriveId = item.DriveId,
-            };
-
-            await fs.Storage.SoftDeleteLongTermFile(file, odinContext, cn);
         }
 
         /// <summary>

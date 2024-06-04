@@ -154,6 +154,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return result;
         }
 
+        protected async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request, DatabaseConnection cn)
+        {
+            var internalFile = MapToInternalFile(request.File);
+            await peerOutgoingTransferService.SendReadReceipt(internalFile, WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
+            return Ok();
+        }
+        
         /// <summary>
         /// Deletes a file and sends delete linked file requests to all recipient if specified
         /// </summary>

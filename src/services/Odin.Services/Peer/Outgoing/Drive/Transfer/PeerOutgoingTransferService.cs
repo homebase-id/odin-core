@@ -133,6 +133,92 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return result;
         }
 
+        public async Task SendReadReceipt(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
+        {
+            var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
+
+            if (header == null)
+            {
+                throw new OdinClientException("Invalid File", OdinClientErrorCode.InvalidFile);
+            }
+
+            if (string.IsNullOrEmpty(header.FileMetadata.SenderOdinId))
+            {
+                throw new OdinClientException("File does not have a sender", OdinClientErrorCode.FileDoesNotHaveSender);
+            }
+
+            if (header.FileMetadata.GlobalTransitId == null)
+            {
+                throw new OdinClientException("File does not have global transit id", OdinClientErrorCode.MissingGlobalTransitId);
+            }
+
+            var globalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault();
+            var recipient = (OdinId)header.FileMetadata.SenderOdinId;
+
+            var clientAccessToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+            var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient,
+                clientAccessToken.ToAuthenticationToken(),
+                fileSystemType);
+            
+            //TODO: put in outbox
+
+            // await peerOutbox.Add(new OutboxItem
+            //     {
+            //         Recipient = default,
+            //         File = default,
+            //         Priority = 100,
+            //         IsTransientFile = false,
+            //         EncryptedClientAuthToken = new byte[]
+            //         {
+            //         },
+            //         Type = OutboxItemType.ReadReceipt,
+            //         DependencyFileId = null
+            //     },
+            //     cn,
+            //     useUpsert: true);
+
+            ApiResponse<PeerTransferResponse> httpResponse = null;
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                CancellationToken.None,
+                async () =>
+                {
+                    httpResponse = await client.MarkFileAsRead(new MarkFileAsReadRequest()
+                    {
+                        GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
+                        {
+                            TargetDrive = odinContext.PermissionsContext.GetTargetDrive(file.DriveId),
+                            GlobalTransitId = globalTransitId
+                        },
+                        FileSystemType = fileSystemType
+                    });
+                });
+            
+            var result = new Dictionary<string, DeleteLinkedFileStatus>();
+
+
+            if (httpResponse.IsSuccessStatusCode)
+            {
+                var transitResponse = httpResponse.Content;
+                switch (transitResponse.Code)
+                {
+                    case PeerResponseCode.AcceptedIntoInbox:
+                    case PeerResponseCode.AcceptedDirectWrite:
+                        result.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+            else
+            {
+                result.Add(recipient, DeleteLinkedFileStatus.RemoteServerFailed);
+            }
+        }
+
         // 
 
         private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
@@ -251,7 +337,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
                 await peerOutbox.Add(item, cn);
             }
-            
+
             return await MapOutboxCreationResult(outboxStatus);
         }
 

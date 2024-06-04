@@ -7,5 +7,6 @@ public enum TransferInstructionType
 {
     None,
     DeleteLinkedFile,
-    SaveFile
+    SaveFile,
+    ReadReceipt
 }

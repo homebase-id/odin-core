@@ -86,6 +86,8 @@ public enum OdinClientErrorCode
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerTransitRejected = 7900,
     InvalidTransitOptions = 7901,
+    FileDoesNotHaveSender = 7902,
+    MissingGlobalTransitId = 7903,
 
     RegistrationStatusNotReadyForFinalization = 8001,
 

@@ -244,7 +244,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, IOdinContext odinContext,
             DatabaseConnection cn,
             bool forceIncludeServerMetadata = false,
-            bool excludePreviewThumbnail = true)
+            bool excludePreviewThumbnail = true,
+            bool includeTransferHistory = true)
         {
             await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
 
@@ -262,7 +263,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     MaxRecords = 10,
                     ExcludePreviewThumbnail = excludePreviewThumbnail,
-                    IncludeHeaderContent = true
+                    IncludeHeaderContent = true,
+                    IncludeTransferHistory = includeTransferHistory
                 };
 
                 var headers = await CreateClientFileHeaders(driveId, [fileId.GetValueOrDefault()], options, odinContext, cn, forceIncludeServerMetadata);

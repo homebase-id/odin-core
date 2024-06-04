@@ -141,6 +141,21 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 cn);
         }
 
+        
+        [HttpPost("mark-file-read")]
+        public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
+        {
+            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            var perimeterService = GetPerimeterService(fileSystem);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await perimeterService.MarkFileAsRead(
+                request.GlobalTransitIdFileIdentifier.TargetDrive,
+                request.GlobalTransitIdFileIdentifier.GlobalTransitId,
+                request.FileSystemType,
+                WebOdinContext,
+                cn);
+        }
+        
         private Task ValidateCaller()
         {
             //TODO: later add check to see if this is from an introduction?

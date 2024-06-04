@@ -97,6 +97,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await writer.DeleteFile(fs, inboxItem, odinContext, cn);
                     }
+                    else if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
+                    {
+                        logger.LogDebug("Processing Inbox -> ReadReceipt maker/popstamp:[{maker}]",
+                            Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                        await writer.MarkAsFileRead(fs, inboxItem, odinContext, cn);
+                    }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
                     {
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker, cn);
