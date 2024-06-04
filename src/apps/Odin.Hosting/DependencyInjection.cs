@@ -79,7 +79,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<TransitFileReceivedNotification>>()
+                .As<INotificationHandler<InboxItemReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()

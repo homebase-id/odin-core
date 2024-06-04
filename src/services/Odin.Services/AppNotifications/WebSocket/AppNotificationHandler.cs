@@ -26,7 +26,7 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class AppNotificationHandler :
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>,
-        INotificationHandler<TransitFileReceivedNotification>
+        INotificationHandler<InboxItemReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
 
@@ -227,7 +227,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         }
         //
 
-        public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken)
         {
             var notificationDriveId = notification.OdinContext.PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,

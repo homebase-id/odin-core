@@ -57,15 +57,20 @@ public class GetQueryBatchRequest
     /// Specifies if the result set includes the metadata header (assuming the file has one)
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
+    public bool IncludeTransferHistory { get; set; }
 
     public Ordering Ordering { get; set; }
 
     public Sorting Sorting { get; set; }
 
-    public QueryBatchRequest ToQueryBatchRequest () {
-        return new QueryBatchRequest() {
-            QueryParams = new FileQueryParams() {
-                TargetDrive = new TargetDrive() {
+    public QueryBatchRequest ToQueryBatchRequest()
+    {
+        return new QueryBatchRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = new TargetDrive()
+                {
                     Alias = this.Alias,
                     Type = this.Type,
                 },
@@ -75,16 +80,18 @@ public class GetQueryBatchRequest
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,
-                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc) this.UserDateStart.Value,(UnixTimeUtc) this.UserDateEnd.Value) : null,
+                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value) : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
                 GlobalTransitId = this.GlobalTransitId
             },
-            ResultOptionsRequest = new QueryBatchResultOptionsRequest() {
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+            {
                 CursorState = this.CursorState,
                 MaxRecords = this.MaxRecords,
                 IncludeMetadataHeader = this.IncludeMetadataHeader,
+                IncludeTransferHistory = this.IncludeTransferHistory,
                 Ordering = this.Ordering,
                 Sorting = this.Sorting,
             }

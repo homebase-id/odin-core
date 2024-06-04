@@ -292,7 +292,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             await _transitInboxBoxStorage.Add(item, cn);
-            await _mediator.Publish(new TransitFileReceivedNotification()
+            await _mediator.Publish(new InboxItemReceivedNotification()
             {
                 TempFile = new ExternalFileIdentifier()
                 {

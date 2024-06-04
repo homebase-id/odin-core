@@ -21,7 +21,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         PushNotificationService pushNotificationService,
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
-        IMediator mediator,
         IJobManager jobManager,
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage)
@@ -74,7 +73,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 peerOutbox,
                 odinConfiguration,
                 odinHttpClientFactory,
-                mediator,
                 jobManager
             );
             

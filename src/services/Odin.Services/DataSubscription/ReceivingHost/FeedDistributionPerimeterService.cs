@@ -290,10 +290,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 EncryptedFeedPayload = request.EncryptedPayload
             };
 
-            //write the file to disk
             await inboxBoxStorage.Add(item, cn);
 
-            await mediator.Publish(new TransitFileReceivedNotification()
+            await mediator.Publish(new InboxItemReceivedNotification()
             {
                 TempFile = new ExternalFileIdentifier()
                 {
