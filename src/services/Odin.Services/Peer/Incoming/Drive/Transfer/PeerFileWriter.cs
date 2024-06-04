@@ -346,7 +346,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             SharedSecretEncryptedFileHeader header = null;
-            bool onlyHere = false;
 
             //
             // Second Case: 
@@ -376,8 +375,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     header = existingFileBySharedSecretEncryptedUniqueId; // equal
                 else
                     throw new OdinClientException($"Invalid write; UniqueId (fileId={existingFileBySharedSecretEncryptedUniqueId.FileId}) and GlobalTransitId (fileId={existingFileByGlobalTransitId.FileId}) point to two different fileIds.");
-
-                onlyHere = true;
             }
             else if (metadata.AppData.UniqueId.HasValue)
             {
@@ -426,9 +423,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // we call both of these here because this 'special' feed item hack method for collabgroups
 
 
-            // WHY ONLY HERE?
-            if (onlyHere)
-                await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
+            await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
 
             //note: we also update the key header because it might have been changed by the sender
             await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, true, odinContext, cn);
