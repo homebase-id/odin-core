@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -33,7 +32,6 @@ public class SendFileOutboxWorkerAsync(
     IPeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
-    IMediator mediator,
     IJobManager jobManager
 )
 {
@@ -65,15 +63,6 @@ public class SendFileOutboxWorkerAsync(
 
             logger.LogDebug("Successful transfer - Marking Complete (popStamp:{marker})", item.Marker);
             await peerOutbox.MarkComplete(item.Marker, cn);
-            await mediator.Publish(new OutboxFileItemDeliverySuccessNotification()
-            {
-                Recipient = item.Recipient,
-                File = item.File,
-                VersionTag = versionTag,
-                OdinContext = odinContext,
-                TransferStatus = LatestTransferStatus.Delivered,
-                FileSystemType = item.TransferInstructionSet.FileSystemType
-            });
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -97,14 +86,6 @@ public class SendFileOutboxWorkerAsync(
         {
             logger.LogError(e, "Unhandled error occured while sending file");
             await peerOutbox.MarkComplete(item.Marker, cn);
-            await mediator.Publish(new OutboxFileItemDeliveryFailedNotification()
-            {
-                Recipient = item.Recipient,
-                File = item.File,
-                FileSystemType = item.TransferInstructionSet.FileSystemType,
-                OdinContext = odinContext,
-                TransferStatus = LatestTransferStatus.UnknownServerError
-            });
         }
     }
 
@@ -135,8 +116,8 @@ public class SendFileOutboxWorkerAsync(
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
                 update.IsInOutbox = true;
                 var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-                logger.LogDebug(e, "Scheduling re-run. NextRunTime (popStamp:{nextRunTime})", nextRunTime);
                 await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(odinContext.Tenant, nextRunTime));
+                logger.LogDebug(e, "Scheduled re-run. NextRunTime (popStamp:{nextRunTime})", nextRunTime);
 
                 logger.LogDebug(e, "Marking Failure (popStamp:{marker})", item.Marker);
                 await peerOutbox.MarkFailure(item.Marker, nextRunTime, cn);
@@ -148,15 +129,6 @@ public class SendFileOutboxWorkerAsync(
         }
 
         await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
-
-        await mediator.Publish(new OutboxFileItemDeliveryFailedNotification()
-        {
-            Recipient = item.Recipient,
-            File = item.File,
-            FileSystemType = item.TransferInstructionSet.FileSystemType,
-            OdinContext = odinContext,
-            TransferStatus = e.TransferStatus
-        });
     }
 
     private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
