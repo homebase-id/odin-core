@@ -24,6 +24,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
-        Task SendReadReceipt(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType);
+        Task<SendReadReceiptResult> SendReadReceipt(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType);
     }
 }

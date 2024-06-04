@@ -26,6 +26,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -673,4 +674,17 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var results = await this.QueryBatch(request, fst);
         return results;
     }
+    
+    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(ExternalFileIdentifier file)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await transitSvc.SendReadReceipt(new SendReadReceiptRequest
+        {
+            File = file
+        });
+
+        return response;
+    }
+    
 }

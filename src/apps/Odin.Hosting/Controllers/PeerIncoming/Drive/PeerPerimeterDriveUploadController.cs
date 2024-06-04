@@ -148,6 +148,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection();
+            
             return await perimeterService.MarkFileAsRead(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,

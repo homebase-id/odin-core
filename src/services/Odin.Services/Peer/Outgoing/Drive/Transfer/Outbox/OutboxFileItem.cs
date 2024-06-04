@@ -8,9 +8,9 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
-    public class OutboxItem
+    public class OutboxFileItem
     {
-        public OutboxItem()
+        public OutboxFileItem()
         {
             this.AddedTimestamp = UnixTimeUtc.Now().seconds;
             this.Attempts = new List<TransferAttempt>();

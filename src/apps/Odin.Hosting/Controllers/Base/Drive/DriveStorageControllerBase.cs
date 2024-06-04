@@ -154,11 +154,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return result;
         }
 
-        protected async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request, DatabaseConnection cn)
+        protected async Task<SendReadReceiptResult> SendReadReceipt(SendReadReceiptRequest request, DatabaseConnection cn)
         {
             var internalFile = MapToInternalFile(request.File);
-            await peerOutgoingTransferService.SendReadReceipt(internalFile, WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
-            return Ok();
+            return await peerOutgoingTransferService.SendReadReceipt(internalFile, WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
         }
         
         /// <summary>

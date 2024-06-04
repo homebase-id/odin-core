@@ -9,6 +9,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files.Old;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
@@ -33,10 +34,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxFileItem> items, IOdinContext odinContext, DatabaseConnection cn)
         {
             var results = new List<OutboxProcessingResult>();
-            var stack = new Stack<OutboxItem>(items);
+            var stack = new Stack<OutboxFileItem>(items);
             while (stack.Count > 0)
             {
                 var item = stack.Pop();
@@ -63,20 +64,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
+        private async Task<OutboxProcessingResult> ProcessItem(OutboxFileItem fileItem, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
         {
             //TODO: add benchmark
-            logger.LogDebug("Processing outbox item type: {type}", item.Type);
+            logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
 
             OutboxProcessingResult result;
-            switch (item.Type)
+            switch (fileItem.Type)
             {
                 case OutboxItemType.PushNotification:
-                    result = await SendPushNotification(item, odinContext, cn);
+                    result = await SendPushNotification(fileItem, odinContext, cn);
                     break;
 
                 case OutboxItemType.File:
-                    result = await SendFileOutboxItem(item, odinContext, tryDeleteTransient, cn);
+                    result = await SendFileOutboxItem(fileItem, odinContext, tryDeleteTransient, cn);
                     break;
 
                 // case OutboxItemType.Reaction:
@@ -90,9 +91,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return result;
         }
 
-        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
+        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxFileItem fileItem, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
         {
-            var worker = new SendFileOutboxWorker(item,
+            var worker = new SendFileOutboxWorker(fileItem,
                 fileSystemResolver,
                 logger,
                 peerOutbox,
@@ -104,9 +105,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return result;
         }
 
-        private async Task<OutboxProcessingResult> SendPushNotification(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<OutboxProcessingResult> SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var worker = new SendPushNotificationOutboxWorker(item,
+            var worker = new SendPushNotificationOutboxWorker(fileItem,
                 appRegistrationService,
                 pushNotificationService,
                 peerOutbox);
@@ -120,7 +121,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 TransferResult = TransferResult.Success,
                 File = default,
                 Timestamp = 0,
-                OutboxItem = item,
+                OutboxFileItem = fileItem,
                 VersionTag = null
             };
         }

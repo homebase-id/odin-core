@@ -26,7 +26,7 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
 public class SendFileOutboxWorkerAsync(
-    OutboxItem item,
+    OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
     ILogger<SendFileOutboxWorkerAsync> logger,
     IPeerOutbox peerOutbox,
@@ -37,18 +37,18 @@ public class SendFileOutboxWorkerAsync(
 {
     public async Task Send(IOdinContext odinContext, DatabaseConnection cn)
     {
-        var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+        var fs = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
 
         try
         {
-            logger.LogDebug("Sending file: {file} to {recipient}", item.File, item.Recipient);
-            var versionTag = await SendOutboxFileItemAsync(item, odinContext, cn);
+            logger.LogDebug("Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
+            var versionTag = await SendOutboxFileItemAsync(fileItem, odinContext, cn);
 
             // Try to clean up the transient file
-            if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
+            if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
             {
                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
-                await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
+                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
             }
 
             var update = new UpdateTransferHistoryData()
@@ -59,10 +59,10 @@ public class SendFileOutboxWorkerAsync(
                 VersionTag = versionTag
             };
 
-            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
+            await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
 
-            logger.LogDebug("Successful transfer - Marking Complete (popStamp:{marker})", item.Marker);
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            logger.LogDebug("Successful transfer - Marking Complete (popStamp:{marker})", fileItem.Marker);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch (OdinOutboxProcessingException e)
         {
@@ -85,7 +85,7 @@ public class SendFileOutboxWorkerAsync(
         catch (Exception e)
         {
             logger.LogError(e, "Unhandled error occured while sending file");
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
     }
 
@@ -105,10 +105,10 @@ public class SendFileOutboxWorkerAsync(
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
             case LatestTransferStatus.UnknownServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
-                logger.LogDebug(e, "Marking Complete (popStamp:{marker})", item.Marker);
+                logger.LogDebug(e, "Marking Complete (popStamp:{marker})", fileItem.Marker);
 
                 update.IsInOutbox = false;
-                await peerOutbox.MarkComplete(item.Marker, cn);
+                await peerOutbox.MarkComplete(fileItem.Marker, cn);
                 break;
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
@@ -119,8 +119,8 @@ public class SendFileOutboxWorkerAsync(
                 await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(odinContext.Tenant, nextRunTime));
                 logger.LogDebug(e, "Scheduled re-run. NextRunTime (popStamp:{nextRunTime})", nextRunTime);
 
-                logger.LogDebug(e, "Marking Failure (popStamp:{marker})", item.Marker);
-                await peerOutbox.MarkFailure(item.Marker, nextRunTime, cn);
+                logger.LogDebug(e, "Marking Failure (popStamp:{marker})", fileItem.Marker);
+                await peerOutbox.MarkFailure(fileItem.Marker, nextRunTime, cn);
                 break;
 
             default:
@@ -128,18 +128,18 @@ public class SendFileOutboxWorkerAsync(
                 break;
         }
 
-        await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, update, odinContext, cn);
+        await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
     }
 
-    private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<Guid> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext, DatabaseConnection cn)
     {
-        OdinId recipient = outboxItem.Recipient;
-        var file = outboxItem.File;
-        var options = outboxItem.OriginalTransitOptions;
+        OdinId recipient = outboxFileItem.Recipient;
+        var file = outboxFileItem.File;
+        var options = outboxFileItem.OriginalTransitOptions;
 
-        var fileSystem = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+        var fileSystem = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
 
-        var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext, cn);
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
 
         if (header.ServerMetadata.AllowDistribution == false)
@@ -154,20 +154,20 @@ public class SendFileOutboxWorkerAsync(
         }
 
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-        var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
+        var decryptedClientAuthTokenBytes = outboxFileItem.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
         if (options.UseAppNotification)
         {
-            outboxItem.TransferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
+            outboxFileItem.TransferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
         }
 
         var redactedAcl = header.ServerMetadata.AccessControlList;
         redactedAcl?.OdinIdList?.Clear();
-        outboxItem.TransferInstructionSet.OriginalAcl = redactedAcl;
+        outboxFileItem.TransferInstructionSet.OriginalAcl = redactedAcl;
 
-        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(outboxItem.TransferInstructionSet).ToUtf8ByteArray();
+        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(outboxFileItem.TransferInstructionSet).ToUtf8ByteArray();
         var transferKeyHeaderStream = new StreamPart(
             new MemoryStream(transferInstructionSetBytes),
             "transferInstructionSet.encrypted", "application/json",
@@ -299,7 +299,7 @@ public class SendFileOutboxWorkerAsync(
 
     private UnixTimeUtc CalculateNextRunTime(LatestTransferStatus transferStatus)
     {
-        if (item.Type == OutboxItemType.File)
+        if (fileItem.Type == OutboxItemType.File)
         {
             switch (transferStatus)
             {

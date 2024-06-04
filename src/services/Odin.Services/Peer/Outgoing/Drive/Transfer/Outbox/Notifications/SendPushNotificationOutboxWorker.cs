@@ -14,7 +14,7 @@ using Serilog;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 public class SendPushNotificationOutboxWorker(
-    OutboxItem item,
+    OutboxFileItem fileItem,
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService,
     IPeerOutbox peerOutbox)
@@ -25,18 +25,18 @@ public class SendPushNotificationOutboxWorker(
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
             await PushItem(newContext, cn);
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch (OdinOutboxProcessingException)
         {
             // var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
             // await peerOutbox.MarkFailure(item.Marker, nextRun);
             // we're not going to retry push notifications for now
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch
         {
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
     }
 
@@ -44,7 +44,7 @@ public class SendPushNotificationOutboxWorker(
     private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn)
     {
         //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
-        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
+        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(fileItem.RawValue.ToStringFromUtf8Bytes());
 
         var pushContent = new PushNotificationContent()
         {

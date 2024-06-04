@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.Push;
@@ -39,21 +38,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task ProcessItem(OutboxItem item, IOdinContext odinContext)
+        private async Task ProcessItem(OutboxFileItem fileItem, IOdinContext odinContext)
         {
             //TODO: add benchmark
-            logger.LogDebug("Processing outbox item type: {type}", item.Type);
+            logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
 
             using var connection = tenantSystemStorage.CreateConnection();
 
-            switch (item.Type)
+            switch (fileItem.Type)
             {
                 case OutboxItemType.PushNotification:
-                    await SendPushNotification(item, odinContext, connection);
+                    await SendPushNotification(fileItem, odinContext, connection);
                     break;
 
                 case OutboxItemType.File:
-                    await SendFileOutboxItem(item, odinContext, connection);
+                    await SendFileOutboxItem(fileItem, odinContext, connection);
                     break;
 
                 // case OutboxItemType.Reaction:
@@ -63,11 +62,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     throw new ArgumentOutOfRangeException();
             }
         }
-
-        private async Task SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        
+        private async Task SendFileOutboxItem(OutboxFileItem fileItem, IOdinContext odinContext, DatabaseConnection cn)
         {
             var workLogger = loggerFactory.CreateLogger<SendFileOutboxWorkerAsync>();
-            var worker = new SendFileOutboxWorkerAsync(item,
+            var worker = new SendFileOutboxWorkerAsync(fileItem,
                 fileSystemResolver,
                 workLogger,
                 peerOutbox,
@@ -75,13 +74,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinHttpClientFactory,
                 jobManager
             );
-            
+
             await worker.Send(odinContext, cn);
         }
 
-        private async Task SendPushNotification(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var worker = new SendPushNotificationOutboxWorker(item,
+            var worker = new SendPushNotificationOutboxWorker(fileItem,
                 appRegistrationService,
                 pushNotificationService,
                 peerOutbox);

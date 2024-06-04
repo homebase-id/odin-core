@@ -20,10 +20,10 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
 
-namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
+namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files.Old;
 
 public class SendFileOutboxWorker(
-    OutboxItem item,
+    OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
     ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox,
@@ -34,7 +34,7 @@ public class SendFileOutboxWorker(
     {
         try
         {
-            var result = await SendOutboxFileItem(item, odinContext, cn);
+            var result = await SendOutboxFileItem(fileItem, odinContext, cn);
             logger.LogDebug("Send file item RecipientPeerResponseCode: {d}", result.RecipientPeerResponseCode);
 
             // Try to clean up the transient file
@@ -42,14 +42,14 @@ public class SendFileOutboxWorker(
             {
                 if(tryDeleteTransient)
                 {
-                    if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
+                    if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
                     {
-                        var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                        await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
+                        var fs = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
+                        await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
                     }
                 }
 
-                await peerOutbox.MarkComplete(item.Marker, cn);
+                await peerOutbox.MarkComplete(fileItem.Marker, cn);
 
             }
             else
@@ -60,13 +60,13 @@ public class SendFileOutboxWorker(
                     case TransferResult.UnknownError:
                     case TransferResult.FileDoesNotAllowDistribution:
                     case TransferResult.RecipientDoesNotHavePermissionToFileAcl:
-                        await peerOutbox.MarkComplete(item.Marker, cn);
+                        await peerOutbox.MarkComplete(fileItem.Marker, cn);
                         break;
 
                     case TransferResult.RecipientServerNotResponding:
                     case TransferResult.RecipientServerError:
                         var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
-                        await peerOutbox.MarkFailure(item.Marker, nextRun, cn);
+                        await peerOutbox.MarkFailure(fileItem.Marker, nextRun, cn);
                         break;
                 }
             }
@@ -76,25 +76,25 @@ public class SendFileOutboxWorker(
         catch (OdinOutboxProcessingException)
         {
             var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
-            await peerOutbox.MarkFailure(item.Marker, nextRun, cn);
+            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, cn);
         }
         catch
         {
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
 
         return null;
     }
 
-    private async Task<OutboxProcessingResult> SendOutboxFileItem(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<OutboxProcessingResult> SendOutboxFileItem(OutboxFileItem outboxFileItem, IOdinContext odinContext, DatabaseConnection cn)
     {
-        OdinId recipient = outboxItem.Recipient;
-        var file = outboxItem.File;
-        var options = outboxItem.OriginalTransitOptions;
+        OdinId recipient = outboxFileItem.Recipient;
+        var file = outboxFileItem.File;
+        var options = outboxFileItem.OriginalTransitOptions;
 
-        var fileSystem = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+        var fileSystem = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
 
-        var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext, cn);
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
 
         // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
         // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
@@ -110,10 +110,10 @@ public class SendFileOutboxWorker(
         // }
 
         //look up transfer key
-        var transferInstructionSet = outboxItem.TransferInstructionSet;
+        var transferInstructionSet = outboxFileItem.TransferInstructionSet;
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
 
-        var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
+        var decryptedClientAuthTokenBytes = outboxFileItem.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
@@ -140,7 +140,7 @@ public class SendFileOutboxWorker(
                 Recipient = recipient,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
                 TransferResult = TransferResult.FileDoesNotAllowDistribution,
-                OutboxItem = outboxItem
+                OutboxFileItem = outboxFileItem
             };
         }
 
@@ -231,7 +231,7 @@ public class SendFileOutboxWorker(
                 RecipientPeerResponseCode = peerCode,
                 TransferResult = transferResult,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
-                OutboxItem = outboxItem
+                OutboxFileItem = outboxFileItem
             };
         }
         catch (TryRetryException ex)
@@ -248,7 +248,7 @@ public class SendFileOutboxWorker(
                 RecipientPeerResponseCode = null,
                 TransferResult = tr,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
-                OutboxItem = outboxItem
+                OutboxFileItem = outboxFileItem
             };
         }
     }

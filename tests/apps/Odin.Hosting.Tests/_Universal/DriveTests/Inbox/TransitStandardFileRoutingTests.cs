@@ -16,7 +16,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Serilog;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
 {
