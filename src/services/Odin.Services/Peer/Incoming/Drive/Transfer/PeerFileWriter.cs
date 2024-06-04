@@ -422,9 +422,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = targetDriveId
             };
 
-            //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, true, odinContext, cn);
-
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
 
@@ -432,6 +429,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // WHY ONLY HERE?
             if (onlyHere)
                 await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
+
+            //note: we also update the key header because it might have been changed by the sender
+            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, true, odinContext, cn);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
