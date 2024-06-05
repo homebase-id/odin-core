@@ -466,7 +466,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     originalRequest.TempEncryptedFeedDriveStorageKey,
                     originalRequest.TempEncryptedIcrKey);
                 
-                _logger.LogDebug("EstablishConnect - Running SynchronizeChannelFiles");
+                _logger.LogDebug("EstablishConnection - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn, sharedSecret);
             }
             catch (Exception e)

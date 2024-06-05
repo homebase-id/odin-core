@@ -14,7 +14,7 @@ namespace Odin.Services.Base
     public class PermissionContext : IGenericCloneable<PermissionContext>
     {
         private readonly bool _isSystem = false;
-        public SensitiveByteArray SharedSecretKey { get; }
+        public SensitiveByteArray SharedSecretKey { get; private set; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
         public PermissionContext(
@@ -41,6 +41,11 @@ namespace Odin.Services.Base
         public PermissionContext Clone()
         {
             return new PermissionContext(this);
+        }
+
+        public void SetSharedSecretKey(SensitiveByteArray value)
+        {
+            this.SharedSecretKey = value;
         }
 
         public SensitiveByteArray GetIcrKey()

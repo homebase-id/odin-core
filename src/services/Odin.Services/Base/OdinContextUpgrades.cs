@@ -62,7 +62,7 @@ public static class OdinContextUpgrades
     public static IOdinContext PatchInSharedSecret(IOdinContext odinContext, SensitiveByteArray sharedSecret)
     {
         var patchedContext = odinContext.Clone();
-        patchedContext.PermissionsContext.SharedSecretKey.SetKey(sharedSecret.GetKey());
+        patchedContext.PermissionsContext.SetSharedSecretKey(sharedSecret);
         return patchedContext;
     }
 
