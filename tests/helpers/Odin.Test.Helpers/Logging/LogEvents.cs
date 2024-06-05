@@ -11,7 +11,7 @@ public static class LogEvents
         Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
     }
 
-    public static void AsserLogMessageExists(IEnumerable<LogEvent> logEvents, string message)
+    public static void AssertLogMessageExists(IEnumerable<LogEvent> logEvents, string message)
     {
         var found = logEvents.Any(e => e.RenderMessage() == message);
         Assert.That(found, Is.True, $"Expected log message not found: '{message}'");

@@ -77,12 +77,13 @@ public class WebScaffoldTest
     public void ItShouldDoOnDemandAssertionOfLogEvents()
     {
         var logger = Services.GetRequiredService<ILogger<WebScaffoldTest>>();
-        logger.LogDebug("This must be 'caught' in the Assert statement below");
+        logger.LogDebug("This must be 'caught' in the AssertLogMessageExists() statement below");
 
         var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
 
-        LogEvents.AsserLogMessageExists(
-            logEvents[Serilog.Events.LogEventLevel.Debug], "This must be 'caught' in the Assert statement below");
+        LogEvents.AssertLogMessageExists(
+            logEvents[Serilog.Events.LogEventLevel.Debug],
+            "This must be 'caught' in the AssertLogMessageExists() statement below");
     }
 
 }
