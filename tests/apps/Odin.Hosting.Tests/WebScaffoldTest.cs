@@ -3,20 +3,22 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Test.Helpers.Logging;
 
 namespace Odin.Hosting.Tests;
 
 public class WebScaffoldTest
 {
-    protected WebScaffold Scaffold = null!;
-    protected IServiceProvider Services => Scaffold.Services;
+    private WebScaffold _scaffold = null!;
+    private IServiceProvider Services => _scaffold.Services;
 
     [SetUp]
     public void Init()
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-        Scaffold = new WebScaffold(folder);
-        Scaffold.RunBeforeAnyTests();
+        _scaffold = new WebScaffold(folder);
+        _scaffold.RunBeforeAnyTests();
     }
 
     //
@@ -24,16 +26,23 @@ public class WebScaffoldTest
     [TearDown]
     public void Cleanup()
     {
-        Scaffold.RunAfterAnyTests(logEvents =>
+        if (TestContext.CurrentContext.Test.Name.StartsWith("TearDown"))
         {
-            Assert.That(logEvents[Serilog.Events.LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
-        });
+            _scaffold.RunAfterAnyTests(logEvents =>
+            {
+                Assert.That(logEvents[Serilog.Events.LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+            });
+        }
+        else
+        {
+            _scaffold.RunAfterAnyTests();
+        }
     }
 
     //
 
     [Test]
-    public void T01_RunAfterAnyTestsShouldOverrideDefaultLogEventAsserts()
+    public void TearDown01_RunAfterAnyTestsShouldOverrideDefaultLogEventAsserts()
     {
         var logger = Services.GetRequiredService<ILogger<WebScaffoldTest>>();
         logger.LogError("This must be 'caught' in [TearDown] above");
@@ -41,9 +50,9 @@ public class WebScaffoldTest
     }
 
     [Test]
-    public void T02_IndividualTestShouldOverrideDefaultLogEventAsserts()
+    public void TearDown02_IndividualTestShouldOverrideDefaultLogEventAsserts()
     {
-        Scaffold.SetAssertLogEventsAction(logEvents =>
+        _scaffold.SetAssertLogEventsAction(logEvents =>
         {
             Assert.That(logEvents[Serilog.Events.LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
             Assert.That(logEvents[Serilog.Events.LogEventLevel.Fatal].Count, Is.EqualTo(2), "Unexpected number of Fatal log events");
@@ -57,12 +66,23 @@ public class WebScaffoldTest
     }
 
     [Test]
-    public void T03_IndividualTestOverrideDefaultLogEventAssertsShouldBeTemporary()
+    public void TearDown03_IndividualTestOverrideDefaultLogEventAssertsShouldBeTemporary()
     {
         var logger = Services.GetRequiredService<ILogger<WebScaffoldTest>>();
         logger.LogError("This must be 'caught' in [TearDown] above");
         Assert.Pass();
     }
 
+    [Test]
+    public void ItShouldDoOnDemandAssertionOfLogEvents()
+    {
+        var logger = Services.GetRequiredService<ILogger<WebScaffoldTest>>();
+        logger.LogDebug("This must be 'caught' in the Assert statement below");
+
+        var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
+        LogEvents.AsserLogMessageExists(
+            logEvents[Serilog.Events.LogEventLevel.Debug], "This must be 'caught' in the Assert statement below");
+    }
 
 }
