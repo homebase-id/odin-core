@@ -24,33 +24,15 @@ public static class OdinContextUpgrades
         return patchedContext;
     }
 
-    public static IOdinContext PrepForSynchronizeChannelFiles(IOdinContext odinContext)
-    {
-        var patchedContext = odinContext.Clone();
-
-        patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
-
-        patchedContext.PermissionsContext.PermissionGroups.Add(
-            "required-permissions",
-            new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }),
-                new List<DriveGrant>(), null, null));
-
-        return patchedContext;
-    }
-
-    public static IOdinContext PatchInIcrKey(
+    public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
         Guid feedDriveId,
         SensitiveByteArray keyStoreKey,
-        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
-        SymmetricKeyEncryptedAes encryptedIcrKey)
+        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey)
     {
         var patchedContext = odinContext.Clone();
 
-        //
         // Upgrade access briefly to perform functions
-        //
         var feedDriveGrant = new DriveGrant()
         {
             DriveId = feedDriveId,
@@ -62,13 +44,14 @@ public static class OdinContextUpgrades
             KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey
         };
 
+
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
 
         patchedContext.PermissionsContext.PermissionGroups.Add(
-            "patch_in_temp_icr_key",
+            "PrepForSynchronizeChannelFiles",
             new PermissionGroup(
-                new PermissionSet(),
-                new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
+                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }),
+                new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, null));
 
         return patchedContext;
     }

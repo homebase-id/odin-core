@@ -416,10 +416,12 @@ namespace Odin.Services.DataSubscription.Follower
 
             var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard, odinContext, cn);
 
-            var patchedContext = OdinContextUpgrades.PatchInSharedSecret(
-                odinContext,
-                sharedSecret: sharedSecret);
-
+            var patchedContext = sharedSecret == null
+                ? odinContext
+                : OdinContextUpgrades.PatchInSharedSecret(
+                    odinContext,
+                    sharedSecret: sharedSecret);
+            
             foreach (var results in collection.Results)
             {
                 if (results.InvalidDrive)

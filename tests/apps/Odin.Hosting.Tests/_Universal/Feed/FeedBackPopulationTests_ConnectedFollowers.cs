@@ -196,7 +196,6 @@ public class FeedBackPopulationTests_ConnectedFollowers
     }
 
     [Test]
-    [Ignore("wip")]
     [TestCaseSource(nameof(TestCases))]
     public async Task ConnectToIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
@@ -212,7 +211,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         // Upon following Sam, frodo requests back population
 
-        const int fileType = 1038;
+        const int fileType = 1665;
 
         var frodo = TestIdentities.Frodo;
         var sam = TestIdentities.Samwise;

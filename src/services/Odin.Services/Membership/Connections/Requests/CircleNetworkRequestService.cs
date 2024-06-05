@@ -406,10 +406,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeletePendingRequest(senderOdinId, odinContext, cn);
             await this.DeleteSentRequest(senderOdinId, odinContext, cn);
-
-
+            
             try
             {
+                _logger.LogDebug("EstablishConnect - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, cn, remoteClientAccessToken.SharedSecret);
             }
             catch (Exception e)
@@ -459,7 +459,13 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
-                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext);
+                var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
+                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext, 
+                    feedDriveId.GetValueOrDefault(), 
+                    tempKey,
+                    originalRequest.TempEncryptedFeedDriveStorageKey);
+                
+                _logger.LogDebug("EstablishConnect - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn, sharedSecret);
             }
             catch (Exception e)
