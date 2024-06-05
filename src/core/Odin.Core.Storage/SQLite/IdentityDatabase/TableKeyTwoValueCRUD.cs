@@ -117,6 +117,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, KeyTwoValueRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyTwoValue (key1,key2,data) " +
+                                             "VALUES (@key1,@key2,@data)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@key1";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@key2";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam3);
+                _insertParam1.Value = item.key1;
+                _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
+                _insertParam3.Value = item.data ?? (object)DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                   _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, KeyTwoValueRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

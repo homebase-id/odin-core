@@ -124,6 +124,36 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, DriveReactionsRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO driveReactions (driveId,identity,postId,singleReaction) " +
+                                             "VALUES (@driveId,@identity,@postId,@singleReaction)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@identity";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@postId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@singleReaction";
+                _insertCommand.Parameters.Add(_insertParam4);
+                _insertParam1.Value = item.driveId.ToByteArray();
+                _insertParam2.Value = item.identity.DomainName;
+                _insertParam3.Value = item.postId.ToByteArray();
+                _insertParam4.Value = item.singleReaction;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, DriveReactionsRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

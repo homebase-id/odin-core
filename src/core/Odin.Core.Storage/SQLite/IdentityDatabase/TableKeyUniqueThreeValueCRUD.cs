@@ -138,6 +138,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyUniqueThreeValue (key1,key2,key3,data) " +
+                                             "VALUES (@key1,@key2,@key3,@data)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@key1";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@key2";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@key3";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam4);
+                _insertParam1.Value = item.key1;
+                _insertParam2.Value = item.key2;
+                _insertParam3.Value = item.key3;
+                _insertParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                   _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToBase64(), item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
