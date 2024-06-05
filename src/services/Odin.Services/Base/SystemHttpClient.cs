@@ -47,7 +47,12 @@ public class SystemHttpClient : ISystemHttpClient
         //handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
 
         var client = _httpClientFactory.CreateClient<SystemHttpClient>();
-        client.BaseAddress = new UriBuilder() { Scheme = "https", Host = odinId }.Uri;
+        client.BaseAddress = new UriBuilder
+        {
+            Scheme = "https",
+            Host = odinId,
+            Port = _config.Host.DefaultHttpsPort
+        }.Uri;
         
         var token = _config.Host.SystemProcessApiKey; 
         client.DefaultRequestHeaders.Add(HeaderName, token.ToString());
@@ -59,7 +64,12 @@ public class SystemHttpClient : ISystemHttpClient
     {
         var client = _httpClientFactory.CreateClient<SystemHttpClient>();
         
-        client.BaseAddress = new UriBuilder() { Scheme = "http", Host = odinId }.Uri;
+        client.BaseAddress = new UriBuilder
+        {
+            Scheme = "http",
+            Host = odinId,
+            Port = _config.Host.DefaultHttpPort
+        }.Uri;
         //TODO: need to handle the fact this is over http 
 
         var token = _config.Host.SystemProcessApiKey; 
