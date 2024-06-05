@@ -255,60 +255,60 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
-                                             "VALUES ($identityId,$driveId,$fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$byteCount,$created,$modified)";
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "$identityId";
+                _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
                 var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "$driveId";
+                _insertParam2.ParameterName = "@driveId";
                 _insertCommand.Parameters.Add(_insertParam2);
                 var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "$fileId";
+                _insertParam3.ParameterName = "@fileId";
                 _insertCommand.Parameters.Add(_insertParam3);
                 var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "$globalTransitId";
+                _insertParam4.ParameterName = "@globalTransitId";
                 _insertCommand.Parameters.Add(_insertParam4);
                 var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "$fileState";
+                _insertParam5.ParameterName = "@fileState";
                 _insertCommand.Parameters.Add(_insertParam5);
                 var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "$requiredSecurityGroup";
+                _insertParam6.ParameterName = "@requiredSecurityGroup";
                 _insertCommand.Parameters.Add(_insertParam6);
                 var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "$fileSystemType";
+                _insertParam7.ParameterName = "@fileSystemType";
                 _insertCommand.Parameters.Add(_insertParam7);
                 var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "$userDate";
+                _insertParam8.ParameterName = "@userDate";
                 _insertCommand.Parameters.Add(_insertParam8);
                 var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "$fileType";
+                _insertParam9.ParameterName = "@fileType";
                 _insertCommand.Parameters.Add(_insertParam9);
                 var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "$dataType";
+                _insertParam10.ParameterName = "@dataType";
                 _insertCommand.Parameters.Add(_insertParam10);
                 var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "$archivalStatus";
+                _insertParam11.ParameterName = "@archivalStatus";
                 _insertCommand.Parameters.Add(_insertParam11);
                 var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "$historyStatus";
+                _insertParam12.ParameterName = "@historyStatus";
                 _insertCommand.Parameters.Add(_insertParam12);
                 var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "$senderId";
+                _insertParam13.ParameterName = "@senderId";
                 _insertCommand.Parameters.Add(_insertParam13);
                 var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "$groupId";
+                _insertParam14.ParameterName = "@groupId";
                 _insertCommand.Parameters.Add(_insertParam14);
                 var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "$uniqueId";
+                _insertParam15.ParameterName = "@uniqueId";
                 _insertCommand.Parameters.Add(_insertParam15);
                 var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "$byteCount";
+                _insertParam16.ParameterName = "@byteCount";
                 _insertCommand.Parameters.Add(_insertParam16);
                 var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "$created";
+                _insertParam17.ParameterName = "@created";
                 _insertCommand.Parameters.Add(_insertParam17);
                 var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "$modified";
+                _insertParam18.ParameterName = "@modified";
                 _insertCommand.Parameters.Add(_insertParam18);
                 _insertParam1.Value = item.identityId.ToByteArray();
                 _insertParam2.Value = item.driveId.ToByteArray();
@@ -339,68 +339,157 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identityId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@fileId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@globalTransitId";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@fileState";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@requiredSecurityGroup";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@fileSystemType";
+                _insertCommand.Parameters.Add(_insertParam7);
+                var _insertParam8 = _insertCommand.CreateParameter();
+                _insertParam8.ParameterName = "@userDate";
+                _insertCommand.Parameters.Add(_insertParam8);
+                var _insertParam9 = _insertCommand.CreateParameter();
+                _insertParam9.ParameterName = "@fileType";
+                _insertCommand.Parameters.Add(_insertParam9);
+                var _insertParam10 = _insertCommand.CreateParameter();
+                _insertParam10.ParameterName = "@dataType";
+                _insertCommand.Parameters.Add(_insertParam10);
+                var _insertParam11 = _insertCommand.CreateParameter();
+                _insertParam11.ParameterName = "@archivalStatus";
+                _insertCommand.Parameters.Add(_insertParam11);
+                var _insertParam12 = _insertCommand.CreateParameter();
+                _insertParam12.ParameterName = "@historyStatus";
+                _insertCommand.Parameters.Add(_insertParam12);
+                var _insertParam13 = _insertCommand.CreateParameter();
+                _insertParam13.ParameterName = "@senderId";
+                _insertCommand.Parameters.Add(_insertParam13);
+                var _insertParam14 = _insertCommand.CreateParameter();
+                _insertParam14.ParameterName = "@groupId";
+                _insertCommand.Parameters.Add(_insertParam14);
+                var _insertParam15 = _insertCommand.CreateParameter();
+                _insertParam15.ParameterName = "@uniqueId";
+                _insertCommand.Parameters.Add(_insertParam15);
+                var _insertParam16 = _insertCommand.CreateParameter();
+                _insertParam16.ParameterName = "@byteCount";
+                _insertCommand.Parameters.Add(_insertParam16);
+                var _insertParam17 = _insertCommand.CreateParameter();
+                _insertParam17.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam17);
+                var _insertParam18 = _insertCommand.CreateParameter();
+                _insertParam18.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam18);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.driveId.ToByteArray();
+                _insertParam3.Value = item.fileId.ToByteArray();
+                _insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam5.Value = item.fileState;
+                _insertParam6.Value = item.requiredSecurityGroup;
+                _insertParam7.Value = item.fileSystemType;
+                _insertParam8.Value = item.userDate.milliseconds;
+                _insertParam9.Value = item.fileType;
+                _insertParam10.Value = item.dataType;
+                _insertParam11.Value = item.archivalStatus;
+                _insertParam12.Value = item.historyStatus;
+                _insertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam16.Value = item.byteCount;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam17.Value = now.uniqueTime;
+                item.modified = null;
+                _insertParam18.Value = DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                {
+                    item.created = now;
+                }
+                return count;
+            } // Using
+        }
+
         protected virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created) " +
-                                             "VALUES ($identityId,$driveId,$fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$byteCount,$created)"+
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
-                                             "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,byteCount = $byteCount,modified = $modified "+
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,modified = @modified "+
                                              "RETURNING created, modified;";
                 var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "$identityId";
+                _upsertParam1.ParameterName = "@identityId";
                 _upsertCommand.Parameters.Add(_upsertParam1);
                 var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "$driveId";
+                _upsertParam2.ParameterName = "@driveId";
                 _upsertCommand.Parameters.Add(_upsertParam2);
                 var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "$fileId";
+                _upsertParam3.ParameterName = "@fileId";
                 _upsertCommand.Parameters.Add(_upsertParam3);
                 var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "$globalTransitId";
+                _upsertParam4.ParameterName = "@globalTransitId";
                 _upsertCommand.Parameters.Add(_upsertParam4);
                 var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "$fileState";
+                _upsertParam5.ParameterName = "@fileState";
                 _upsertCommand.Parameters.Add(_upsertParam5);
                 var _upsertParam6 = _upsertCommand.CreateParameter();
-                _upsertParam6.ParameterName = "$requiredSecurityGroup";
+                _upsertParam6.ParameterName = "@requiredSecurityGroup";
                 _upsertCommand.Parameters.Add(_upsertParam6);
                 var _upsertParam7 = _upsertCommand.CreateParameter();
-                _upsertParam7.ParameterName = "$fileSystemType";
+                _upsertParam7.ParameterName = "@fileSystemType";
                 _upsertCommand.Parameters.Add(_upsertParam7);
                 var _upsertParam8 = _upsertCommand.CreateParameter();
-                _upsertParam8.ParameterName = "$userDate";
+                _upsertParam8.ParameterName = "@userDate";
                 _upsertCommand.Parameters.Add(_upsertParam8);
                 var _upsertParam9 = _upsertCommand.CreateParameter();
-                _upsertParam9.ParameterName = "$fileType";
+                _upsertParam9.ParameterName = "@fileType";
                 _upsertCommand.Parameters.Add(_upsertParam9);
                 var _upsertParam10 = _upsertCommand.CreateParameter();
-                _upsertParam10.ParameterName = "$dataType";
+                _upsertParam10.ParameterName = "@dataType";
                 _upsertCommand.Parameters.Add(_upsertParam10);
                 var _upsertParam11 = _upsertCommand.CreateParameter();
-                _upsertParam11.ParameterName = "$archivalStatus";
+                _upsertParam11.ParameterName = "@archivalStatus";
                 _upsertCommand.Parameters.Add(_upsertParam11);
                 var _upsertParam12 = _upsertCommand.CreateParameter();
-                _upsertParam12.ParameterName = "$historyStatus";
+                _upsertParam12.ParameterName = "@historyStatus";
                 _upsertCommand.Parameters.Add(_upsertParam12);
                 var _upsertParam13 = _upsertCommand.CreateParameter();
-                _upsertParam13.ParameterName = "$senderId";
+                _upsertParam13.ParameterName = "@senderId";
                 _upsertCommand.Parameters.Add(_upsertParam13);
                 var _upsertParam14 = _upsertCommand.CreateParameter();
-                _upsertParam14.ParameterName = "$groupId";
+                _upsertParam14.ParameterName = "@groupId";
                 _upsertCommand.Parameters.Add(_upsertParam14);
                 var _upsertParam15 = _upsertCommand.CreateParameter();
-                _upsertParam15.ParameterName = "$uniqueId";
+                _upsertParam15.ParameterName = "@uniqueId";
                 _upsertCommand.Parameters.Add(_upsertParam15);
                 var _upsertParam16 = _upsertCommand.CreateParameter();
-                _upsertParam16.ParameterName = "$byteCount";
+                _upsertParam16.ParameterName = "@byteCount";
                 _upsertCommand.Parameters.Add(_upsertParam16);
                 var _upsertParam17 = _upsertCommand.CreateParameter();
-                _upsertParam17.ParameterName = "$created";
+                _upsertParam17.ParameterName = "@created";
                 _upsertCommand.Parameters.Add(_upsertParam17);
                 var _upsertParam18 = _upsertCommand.CreateParameter();
-                _upsertParam18.ParameterName = "$modified";
+                _upsertParam18.ParameterName = "@modified";
                 _upsertCommand.Parameters.Add(_upsertParam18);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identityId.ToByteArray();
@@ -444,61 +533,61 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveMainIndex " +
-                                             "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,byteCount = $byteCount,modified = $modified "+
-                                             "WHERE (identityId = $identityId AND driveId = $driveId AND fileId = $fileId)";
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,modified = @modified "+
+                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
                 var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "$identityId";
+                _updateParam1.ParameterName = "@identityId";
                 _updateCommand.Parameters.Add(_updateParam1);
                 var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "$driveId";
+                _updateParam2.ParameterName = "@driveId";
                 _updateCommand.Parameters.Add(_updateParam2);
                 var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "$fileId";
+                _updateParam3.ParameterName = "@fileId";
                 _updateCommand.Parameters.Add(_updateParam3);
                 var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "$globalTransitId";
+                _updateParam4.ParameterName = "@globalTransitId";
                 _updateCommand.Parameters.Add(_updateParam4);
                 var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "$fileState";
+                _updateParam5.ParameterName = "@fileState";
                 _updateCommand.Parameters.Add(_updateParam5);
                 var _updateParam6 = _updateCommand.CreateParameter();
-                _updateParam6.ParameterName = "$requiredSecurityGroup";
+                _updateParam6.ParameterName = "@requiredSecurityGroup";
                 _updateCommand.Parameters.Add(_updateParam6);
                 var _updateParam7 = _updateCommand.CreateParameter();
-                _updateParam7.ParameterName = "$fileSystemType";
+                _updateParam7.ParameterName = "@fileSystemType";
                 _updateCommand.Parameters.Add(_updateParam7);
                 var _updateParam8 = _updateCommand.CreateParameter();
-                _updateParam8.ParameterName = "$userDate";
+                _updateParam8.ParameterName = "@userDate";
                 _updateCommand.Parameters.Add(_updateParam8);
                 var _updateParam9 = _updateCommand.CreateParameter();
-                _updateParam9.ParameterName = "$fileType";
+                _updateParam9.ParameterName = "@fileType";
                 _updateCommand.Parameters.Add(_updateParam9);
                 var _updateParam10 = _updateCommand.CreateParameter();
-                _updateParam10.ParameterName = "$dataType";
+                _updateParam10.ParameterName = "@dataType";
                 _updateCommand.Parameters.Add(_updateParam10);
                 var _updateParam11 = _updateCommand.CreateParameter();
-                _updateParam11.ParameterName = "$archivalStatus";
+                _updateParam11.ParameterName = "@archivalStatus";
                 _updateCommand.Parameters.Add(_updateParam11);
                 var _updateParam12 = _updateCommand.CreateParameter();
-                _updateParam12.ParameterName = "$historyStatus";
+                _updateParam12.ParameterName = "@historyStatus";
                 _updateCommand.Parameters.Add(_updateParam12);
                 var _updateParam13 = _updateCommand.CreateParameter();
-                _updateParam13.ParameterName = "$senderId";
+                _updateParam13.ParameterName = "@senderId";
                 _updateCommand.Parameters.Add(_updateParam13);
                 var _updateParam14 = _updateCommand.CreateParameter();
-                _updateParam14.ParameterName = "$groupId";
+                _updateParam14.ParameterName = "@groupId";
                 _updateCommand.Parameters.Add(_updateParam14);
                 var _updateParam15 = _updateCommand.CreateParameter();
-                _updateParam15.ParameterName = "$uniqueId";
+                _updateParam15.ParameterName = "@uniqueId";
                 _updateCommand.Parameters.Add(_updateParam15);
                 var _updateParam16 = _updateCommand.CreateParameter();
-                _updateParam16.ParameterName = "$byteCount";
+                _updateParam16.ParameterName = "@byteCount";
                 _updateCommand.Parameters.Add(_updateParam16);
                 var _updateParam17 = _updateCommand.CreateParameter();
-                _updateParam17.ParameterName = "$created";
+                _updateParam17.ParameterName = "@created";
                 _updateCommand.Parameters.Add(_updateParam17);
                 var _updateParam18 = _updateCommand.CreateParameter();
-                _updateParam18.ParameterName = "$modified";
+                _updateParam18.ParameterName = "@modified";
                 _updateCommand.Parameters.Add(_updateParam18);
              var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identityId.ToByteArray();
@@ -530,56 +619,56 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteScalar(_getCountCommand);
-                    if (count == null || count == DBNull.Value || !(count is int || count is long))
-                        return -1;
-                    else
-                        return Convert.ToInt32(count);
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
         }
 
         public override List<string> GetColumnNames()
         {
-                var sl = new List<string>();
-                sl.Add("identityId");
-                sl.Add("driveId");
-                sl.Add("fileId");
-                sl.Add("globalTransitId");
-                sl.Add("fileState");
-                sl.Add("requiredSecurityGroup");
-                sl.Add("fileSystemType");
-                sl.Add("userDate");
-                sl.Add("fileType");
-                sl.Add("dataType");
-                sl.Add("archivalStatus");
-                sl.Add("historyStatus");
-                sl.Add("senderId");
-                sl.Add("groupId");
-                sl.Add("uniqueId");
-                sl.Add("byteCount");
-                sl.Add("created");
-                sl.Add("modified");
+            var sl = new List<string>();
+            sl.Add("identityId");
+            sl.Add("driveId");
+            sl.Add("fileId");
+            sl.Add("globalTransitId");
+            sl.Add("fileState");
+            sl.Add("requiredSecurityGroup");
+            sl.Add("fileSystemType");
+            sl.Add("userDate");
+            sl.Add("fileType");
+            sl.Add("dataType");
+            sl.Add("archivalStatus");
+            sl.Add("historyStatus");
+            sl.Add("senderId");
+            sl.Add("groupId");
+            sl.Add("uniqueId");
+            sl.Add("byteCount");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
         protected virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
-                using (var _getCountDriveCommand = _database.CreateCommand())
-                {
-                    _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
-                    var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
-                    _getCountDriveParam1.ParameterName = "$driveId";
-                    _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
-                    _getCountDriveParam1.Value = driveId.ToByteArray();
-                    var count = conn.ExecuteScalar(_getCountDriveCommand);
-                    if (count == null || count == DBNull.Value || !(count is int || count is long))
-                        return -1;
-                    else
-                        return Convert.ToInt32(count);
-                } // using
+            using (var _getCountDriveCommand = _database.CreateCommand())
+            {
+                _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
+                _getCountDriveParam1.ParameterName = "$driveId";
+                _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
+                _getCountDriveParam1.Value = driveId.ToByteArray();
+                var count = conn.ExecuteScalar(_getCountDriveCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            } // using
         }
 
         // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified
@@ -744,15 +833,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _delete0Command = _database.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM driveMainIndex " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND fileId = $fileId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
                 var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "$identityId";
+                _delete0Param1.ParameterName = "@identityId";
                 _delete0Command.Parameters.Add(_delete0Param1);
                 var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "$driveId";
+                _delete0Param2.ParameterName = "@driveId";
                 _delete0Command.Parameters.Add(_delete0Param2);
                 var _delete0Param3 = _delete0Command.CreateParameter();
-                _delete0Param3.ParameterName = "$fileId";
+                _delete0Param3.ParameterName = "@fileId";
                 _delete0Command.Parameters.Add(_delete0Param3);
 
                 _delete0Param1.Value = identityId.ToByteArray();
@@ -897,15 +986,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get0Command = _database.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND uniqueId = $uniqueId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
                 var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "$identityId";
+                _get0Param1.ParameterName = "@identityId";
                 _get0Command.Parameters.Add(_get0Param1);
                 var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "$driveId";
+                _get0Param2.ParameterName = "@driveId";
                 _get0Command.Parameters.Add(_get0Param2);
                 var _get0Param3 = _get0Command.CreateParameter();
-                _get0Param3.ParameterName = "$uniqueId";
+                _get0Param3.ParameterName = "@uniqueId";
                 _get0Command.Parameters.Add(_get0Param3);
 
                 _get0Param1.Value = identityId.ToByteArray();
@@ -913,15 +1002,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        return null;
-                    }
-                    var r = ReadRecordFromReader0(rdr, identityId,driveId,uniqueId);
-                    return r;
-                } // using
+                        if (!rdr.Read())
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr, identityId,driveId,uniqueId);
+                        return r;
+                    } // using
                 } // lock
             } // using
         }
@@ -1060,15 +1149,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get1Command = _database.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND globalTransitId = $globalTransitId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
                 var _get1Param1 = _get1Command.CreateParameter();
-                _get1Param1.ParameterName = "$identityId";
+                _get1Param1.ParameterName = "@identityId";
                 _get1Command.Parameters.Add(_get1Param1);
                 var _get1Param2 = _get1Command.CreateParameter();
-                _get1Param2.ParameterName = "$driveId";
+                _get1Param2.ParameterName = "@driveId";
                 _get1Command.Parameters.Add(_get1Param2);
                 var _get1Param3 = _get1Command.CreateParameter();
-                _get1Param3.ParameterName = "$globalTransitId";
+                _get1Param3.ParameterName = "@globalTransitId";
                 _get1Command.Parameters.Add(_get1Param3);
 
                 _get1Param1.Value = identityId.ToByteArray();
@@ -1076,15 +1165,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        return null;
-                    }
-                    var r = ReadRecordFromReader1(rdr, identityId,driveId,globalTransitId);
-                    return r;
-                } // using
+                        if (!rdr.Read())
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader1(rdr, identityId,driveId,globalTransitId);
+                        return r;
+                    } // using
                 } // lock
             } // using
         }
@@ -1223,15 +1312,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get2Command = _database.CreateCommand())
             {
                 _get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND fileId = $fileId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
                 var _get2Param1 = _get2Command.CreateParameter();
-                _get2Param1.ParameterName = "$identityId";
+                _get2Param1.ParameterName = "@identityId";
                 _get2Command.Parameters.Add(_get2Param1);
                 var _get2Param2 = _get2Command.CreateParameter();
-                _get2Param2.ParameterName = "$driveId";
+                _get2Param2.ParameterName = "@driveId";
                 _get2Command.Parameters.Add(_get2Param2);
                 var _get2Param3 = _get2Command.CreateParameter();
-                _get2Param3.ParameterName = "$fileId";
+                _get2Param3.ParameterName = "@fileId";
                 _get2Command.Parameters.Add(_get2Param3);
 
                 _get2Param1.Value = identityId.ToByteArray();
@@ -1239,15 +1328,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get2Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        return null;
-                    }
-                    var r = ReadRecordFromReader2(rdr, identityId,driveId,fileId);
-                    return r;
-                } // using
+                        if (!rdr.Read())
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader2(rdr, identityId,driveId,fileId);
+                        return r;
+                    } // using
                 } // lock
             } // using
         }

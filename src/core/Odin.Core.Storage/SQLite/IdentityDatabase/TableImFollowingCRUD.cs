@@ -110,21 +110,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created,modified) " +
-                                             "VALUES ($identityId,$identity,$driveId,$created,$modified)";
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "$identityId";
+                _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
                 var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "$identity";
+                _insertParam2.ParameterName = "@identity";
                 _insertCommand.Parameters.Add(_insertParam2);
                 var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "$driveId";
+                _insertParam3.ParameterName = "@driveId";
                 _insertCommand.Parameters.Add(_insertParam3);
                 var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "$created";
+                _insertParam4.ParameterName = "@created";
                 _insertCommand.Parameters.Add(_insertParam4);
                 var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "$modified";
+                _insertParam5.ParameterName = "@modified";
                 _insertCommand.Parameters.Add(_insertParam5);
                 _insertParam1.Value = item.identityId.ToByteArray();
                 _insertParam2.Value = item.identity.DomainName;
@@ -143,29 +143,67 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, ImFollowingRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO imFollowing (identityId,identity,driveId,created,modified) " +
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identityId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@identity";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam5);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.identity.DomainName;
+                _insertParam3.Value = item.driveId.ToByteArray();
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam4.Value = now.uniqueTime;
+                item.modified = null;
+                _insertParam5.Value = DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                {
+                    item.created = now;
+                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
+                }
+                return count;
+            } // Using
+        }
+
         protected virtual int Upsert(DatabaseConnection conn, ImFollowingRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created) " +
-                                             "VALUES ($identityId,$identity,$driveId,$created)"+
+                                             "VALUES (@identityId,@identity,@driveId,@created)"+
                                              "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
-                                             "SET modified = $modified "+
+                                             "SET modified = @modified "+
                                              "RETURNING created, modified;";
                 var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "$identityId";
+                _upsertParam1.ParameterName = "@identityId";
                 _upsertCommand.Parameters.Add(_upsertParam1);
                 var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "$identity";
+                _upsertParam2.ParameterName = "@identity";
                 _upsertCommand.Parameters.Add(_upsertParam2);
                 var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "$driveId";
+                _upsertParam3.ParameterName = "@driveId";
                 _upsertCommand.Parameters.Add(_upsertParam3);
                 var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "$created";
+                _upsertParam4.ParameterName = "@created";
                 _upsertCommand.Parameters.Add(_upsertParam4);
                 var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "$modified";
+                _upsertParam5.ParameterName = "@modified";
                 _upsertCommand.Parameters.Add(_upsertParam5);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identityId.ToByteArray();
@@ -197,22 +235,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE imFollowing " +
-                                             "SET modified = $modified "+
-                                             "WHERE (identityId = $identityId AND identity = $identity AND driveId = $driveId)";
+                                             "SET modified = @modified "+
+                                             "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId)";
                 var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "$identityId";
+                _updateParam1.ParameterName = "@identityId";
                 _updateCommand.Parameters.Add(_updateParam1);
                 var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "$identity";
+                _updateParam2.ParameterName = "@identity";
                 _updateCommand.Parameters.Add(_updateParam2);
                 var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "$driveId";
+                _updateParam3.ParameterName = "@driveId";
                 _updateCommand.Parameters.Add(_updateParam3);
                 var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "$created";
+                _updateParam4.ParameterName = "@created";
                 _updateCommand.Parameters.Add(_updateParam4);
                 var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "$modified";
+                _updateParam5.ParameterName = "@modified";
                 _updateCommand.Parameters.Add(_updateParam5);
              var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identityId.ToByteArray();
@@ -232,25 +270,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM imFollowing; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteScalar(_getCountCommand);
-                    if (count == null || count == DBNull.Value || !(count is int || count is long))
-                        return -1;
-                    else
-                        return Convert.ToInt32(count);
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM imFollowing; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
         }
 
         public override List<string> GetColumnNames()
         {
-                var sl = new List<string>();
-                sl.Add("identityId");
-                sl.Add("identity");
-                sl.Add("driveId");
-                sl.Add("created");
-                sl.Add("modified");
+            var sl = new List<string>();
+            sl.Add("identityId");
+            sl.Add("identity");
+            sl.Add("driveId");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -313,15 +351,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _delete0Command = _database.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM imFollowing " +
-                                             "WHERE identityId = $identityId AND identity = $identity AND driveId = $driveId";
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId";
                 var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "$identityId";
+                _delete0Param1.ParameterName = "@identityId";
                 _delete0Command.Parameters.Add(_delete0Param1);
                 var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "$identity";
+                _delete0Param2.ParameterName = "@identity";
                 _delete0Command.Parameters.Add(_delete0Param2);
                 var _delete0Param3 = _delete0Command.CreateParameter();
-                _delete0Param3.ParameterName = "$driveId";
+                _delete0Param3.ParameterName = "@driveId";
                 _delete0Command.Parameters.Add(_delete0Param3);
 
                 _delete0Param1.Value = identityId.ToByteArray();
@@ -371,15 +409,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get0Command = _database.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT created,modified FROM imFollowing " +
-                                             "WHERE identityId = $identityId AND identity = $identity AND driveId = $driveId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
                 var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "$identityId";
+                _get0Param1.ParameterName = "@identityId";
                 _get0Command.Parameters.Add(_get0Param1);
                 var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "$identity";
+                _get0Param2.ParameterName = "@identity";
                 _get0Command.Parameters.Add(_get0Param2);
                 var _get0Param3 = _get0Command.CreateParameter();
-                _get0Param3.ParameterName = "$driveId";
+                _get0Param3.ParameterName = "@driveId";
                 _get0Command.Parameters.Add(_get0Param3);
 
                 _get0Param1.Value = identityId.ToByteArray();
@@ -387,17 +425,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = driveId.ToByteArray();
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
-                        return null;
-                    }
-                    var r = ReadRecordFromReader0(rdr, identityId,identity,driveId);
-                    _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
-                    return r;
-                } // using
+                        if (!rdr.Read())
+                        {
+                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr, identityId,identity,driveId);
+                        _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
+                        return r;
+                    } // using
                 } // lock
             } // using
         }
@@ -445,34 +483,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get1Command = _database.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT driveId,created,modified FROM imFollowing " +
-                                             "WHERE identityId = $identityId AND identity = $identity;";
+                                             "WHERE identityId = @identityId AND identity = @identity;";
                 var _get1Param1 = _get1Command.CreateParameter();
-                _get1Param1.ParameterName = "$identityId";
+                _get1Param1.ParameterName = "@identityId";
                 _get1Command.Parameters.Add(_get1Param1);
                 var _get1Param2 = _get1Command.CreateParameter();
-                _get1Param2.ParameterName = "$identity";
+                _get1Param2.ParameterName = "@identity";
                 _get1Command.Parameters.Add(_get1Param2);
 
                 _get1Param1.Value = identityId.ToByteArray();
                 _get1Param2.Value = identity.DomainName;
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
-                        _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
-                        return null;
-                    }
-                    var result = new List<ImFollowingRecord>();
-                    while (true)
-                    {
-                        result.Add(ReadRecordFromReader1(rdr, identityId,identity));
                         if (!rdr.Read())
-                            break;
-                    }
-                    return result;
-                } // using
+                        {
+                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
+                            return null;
+                        }
+                        var result = new List<ImFollowingRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr, identityId,identity));
+                            if (!rdr.Read())
+                                break;
+                        }
+                        return result;
+                    } // using
                 } // lock
             } // using
         }

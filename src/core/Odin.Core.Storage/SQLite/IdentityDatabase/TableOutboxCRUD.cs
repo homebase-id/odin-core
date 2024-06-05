@@ -211,45 +211,45 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
-                                             "VALUES ($identityId,$driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created,$modified)";
+                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "$identityId";
+                _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
                 var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "$driveId";
+                _insertParam2.ParameterName = "@driveId";
                 _insertCommand.Parameters.Add(_insertParam2);
                 var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "$fileId";
+                _insertParam3.ParameterName = "@fileId";
                 _insertCommand.Parameters.Add(_insertParam3);
                 var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "$recipient";
+                _insertParam4.ParameterName = "@recipient";
                 _insertCommand.Parameters.Add(_insertParam4);
                 var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "$type";
+                _insertParam5.ParameterName = "@type";
                 _insertCommand.Parameters.Add(_insertParam5);
                 var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "$priority";
+                _insertParam6.ParameterName = "@priority";
                 _insertCommand.Parameters.Add(_insertParam6);
                 var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "$dependencyFileId";
+                _insertParam7.ParameterName = "@dependencyFileId";
                 _insertCommand.Parameters.Add(_insertParam7);
                 var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "$checkOutCount";
+                _insertParam8.ParameterName = "@checkOutCount";
                 _insertCommand.Parameters.Add(_insertParam8);
                 var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "$nextRunTime";
+                _insertParam9.ParameterName = "@nextRunTime";
                 _insertCommand.Parameters.Add(_insertParam9);
                 var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "$value";
+                _insertParam10.ParameterName = "@value";
                 _insertCommand.Parameters.Add(_insertParam10);
                 var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "$checkOutStamp";
+                _insertParam11.ParameterName = "@checkOutStamp";
                 _insertCommand.Parameters.Add(_insertParam11);
                 var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "$created";
+                _insertParam12.ParameterName = "@created";
                 _insertCommand.Parameters.Add(_insertParam12);
                 var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "$modified";
+                _insertParam13.ParameterName = "@modified";
                 _insertCommand.Parameters.Add(_insertParam13);
                 _insertParam1.Value = item.identityId.ToByteArray();
                 _insertParam2.Value = item.driveId.ToByteArray();
@@ -275,53 +275,122 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, OutboxRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identityId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@fileId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@recipient";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@type";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@priority";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@dependencyFileId";
+                _insertCommand.Parameters.Add(_insertParam7);
+                var _insertParam8 = _insertCommand.CreateParameter();
+                _insertParam8.ParameterName = "@checkOutCount";
+                _insertCommand.Parameters.Add(_insertParam8);
+                var _insertParam9 = _insertCommand.CreateParameter();
+                _insertParam9.ParameterName = "@nextRunTime";
+                _insertCommand.Parameters.Add(_insertParam9);
+                var _insertParam10 = _insertCommand.CreateParameter();
+                _insertParam10.ParameterName = "@value";
+                _insertCommand.Parameters.Add(_insertParam10);
+                var _insertParam11 = _insertCommand.CreateParameter();
+                _insertParam11.ParameterName = "@checkOutStamp";
+                _insertCommand.Parameters.Add(_insertParam11);
+                var _insertParam12 = _insertCommand.CreateParameter();
+                _insertParam12.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam12);
+                var _insertParam13 = _insertCommand.CreateParameter();
+                _insertParam13.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam13);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.driveId.ToByteArray();
+                _insertParam3.Value = item.fileId.ToByteArray();
+                _insertParam4.Value = item.recipient;
+                _insertParam5.Value = item.type;
+                _insertParam6.Value = item.priority;
+                _insertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam8.Value = item.checkOutCount;
+                _insertParam9.Value = item.nextRunTime.milliseconds;
+                _insertParam10.Value = item.value ?? (object)DBNull.Value;
+                _insertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam12.Value = now.uniqueTime;
+                item.modified = null;
+                _insertParam13.Value = DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                {
+                    item.created = now;
+                }
+                return count;
+            } // Using
+        }
+
         protected virtual int Upsert(DatabaseConnection conn, OutboxRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
-                                             "VALUES ($identityId,$driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created)"+
+                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
-                                             "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
+                                             "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,modified = @modified "+
                                              "RETURNING created, modified;";
                 var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "$identityId";
+                _upsertParam1.ParameterName = "@identityId";
                 _upsertCommand.Parameters.Add(_upsertParam1);
                 var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "$driveId";
+                _upsertParam2.ParameterName = "@driveId";
                 _upsertCommand.Parameters.Add(_upsertParam2);
                 var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "$fileId";
+                _upsertParam3.ParameterName = "@fileId";
                 _upsertCommand.Parameters.Add(_upsertParam3);
                 var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "$recipient";
+                _upsertParam4.ParameterName = "@recipient";
                 _upsertCommand.Parameters.Add(_upsertParam4);
                 var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "$type";
+                _upsertParam5.ParameterName = "@type";
                 _upsertCommand.Parameters.Add(_upsertParam5);
                 var _upsertParam6 = _upsertCommand.CreateParameter();
-                _upsertParam6.ParameterName = "$priority";
+                _upsertParam6.ParameterName = "@priority";
                 _upsertCommand.Parameters.Add(_upsertParam6);
                 var _upsertParam7 = _upsertCommand.CreateParameter();
-                _upsertParam7.ParameterName = "$dependencyFileId";
+                _upsertParam7.ParameterName = "@dependencyFileId";
                 _upsertCommand.Parameters.Add(_upsertParam7);
                 var _upsertParam8 = _upsertCommand.CreateParameter();
-                _upsertParam8.ParameterName = "$checkOutCount";
+                _upsertParam8.ParameterName = "@checkOutCount";
                 _upsertCommand.Parameters.Add(_upsertParam8);
                 var _upsertParam9 = _upsertCommand.CreateParameter();
-                _upsertParam9.ParameterName = "$nextRunTime";
+                _upsertParam9.ParameterName = "@nextRunTime";
                 _upsertCommand.Parameters.Add(_upsertParam9);
                 var _upsertParam10 = _upsertCommand.CreateParameter();
-                _upsertParam10.ParameterName = "$value";
+                _upsertParam10.ParameterName = "@value";
                 _upsertCommand.Parameters.Add(_upsertParam10);
                 var _upsertParam11 = _upsertCommand.CreateParameter();
-                _upsertParam11.ParameterName = "$checkOutStamp";
+                _upsertParam11.ParameterName = "@checkOutStamp";
                 _upsertCommand.Parameters.Add(_upsertParam11);
                 var _upsertParam12 = _upsertCommand.CreateParameter();
-                _upsertParam12.ParameterName = "$created";
+                _upsertParam12.ParameterName = "@created";
                 _upsertCommand.Parameters.Add(_upsertParam12);
                 var _upsertParam13 = _upsertCommand.CreateParameter();
-                _upsertParam13.ParameterName = "$modified";
+                _upsertParam13.ParameterName = "@modified";
                 _upsertCommand.Parameters.Add(_upsertParam13);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identityId.ToByteArray();
@@ -360,46 +429,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE outbox " +
-                                             "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
-                                             "WHERE (identityId = $identityId AND driveId = $driveId AND fileId = $fileId AND recipient = $recipient)";
+                                             "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,modified = @modified "+
+                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient)";
                 var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "$identityId";
+                _updateParam1.ParameterName = "@identityId";
                 _updateCommand.Parameters.Add(_updateParam1);
                 var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "$driveId";
+                _updateParam2.ParameterName = "@driveId";
                 _updateCommand.Parameters.Add(_updateParam2);
                 var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "$fileId";
+                _updateParam3.ParameterName = "@fileId";
                 _updateCommand.Parameters.Add(_updateParam3);
                 var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "$recipient";
+                _updateParam4.ParameterName = "@recipient";
                 _updateCommand.Parameters.Add(_updateParam4);
                 var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "$type";
+                _updateParam5.ParameterName = "@type";
                 _updateCommand.Parameters.Add(_updateParam5);
                 var _updateParam6 = _updateCommand.CreateParameter();
-                _updateParam6.ParameterName = "$priority";
+                _updateParam6.ParameterName = "@priority";
                 _updateCommand.Parameters.Add(_updateParam6);
                 var _updateParam7 = _updateCommand.CreateParameter();
-                _updateParam7.ParameterName = "$dependencyFileId";
+                _updateParam7.ParameterName = "@dependencyFileId";
                 _updateCommand.Parameters.Add(_updateParam7);
                 var _updateParam8 = _updateCommand.CreateParameter();
-                _updateParam8.ParameterName = "$checkOutCount";
+                _updateParam8.ParameterName = "@checkOutCount";
                 _updateCommand.Parameters.Add(_updateParam8);
                 var _updateParam9 = _updateCommand.CreateParameter();
-                _updateParam9.ParameterName = "$nextRunTime";
+                _updateParam9.ParameterName = "@nextRunTime";
                 _updateCommand.Parameters.Add(_updateParam9);
                 var _updateParam10 = _updateCommand.CreateParameter();
-                _updateParam10.ParameterName = "$value";
+                _updateParam10.ParameterName = "@value";
                 _updateCommand.Parameters.Add(_updateParam10);
                 var _updateParam11 = _updateCommand.CreateParameter();
-                _updateParam11.ParameterName = "$checkOutStamp";
+                _updateParam11.ParameterName = "@checkOutStamp";
                 _updateCommand.Parameters.Add(_updateParam11);
                 var _updateParam12 = _updateCommand.CreateParameter();
-                _updateParam12.ParameterName = "$created";
+                _updateParam12.ParameterName = "@created";
                 _updateCommand.Parameters.Add(_updateParam12);
                 var _updateParam13 = _updateCommand.CreateParameter();
-                _updateParam13.ParameterName = "$modified";
+                _updateParam13.ParameterName = "@modified";
                 _updateCommand.Parameters.Add(_updateParam13);
              var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identityId.ToByteArray();
@@ -426,34 +495,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM outbox; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteScalar(_getCountCommand);
-                    if (count == null || count == DBNull.Value || !(count is int || count is long))
-                        return -1;
-                    else
-                        return Convert.ToInt32(count);
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM outbox; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
         }
 
         public override List<string> GetColumnNames()
         {
-                var sl = new List<string>();
-                sl.Add("rowid");
-                sl.Add("identityId");
-                sl.Add("driveId");
-                sl.Add("fileId");
-                sl.Add("recipient");
-                sl.Add("type");
-                sl.Add("priority");
-                sl.Add("dependencyFileId");
-                sl.Add("checkOutCount");
-                sl.Add("nextRunTime");
-                sl.Add("value");
-                sl.Add("checkOutStamp");
-                sl.Add("created");
-                sl.Add("modified");
+            var sl = new List<string>();
+            sl.Add("rowid");
+            sl.Add("identityId");
+            sl.Add("driveId");
+            sl.Add("fileId");
+            sl.Add("recipient");
+            sl.Add("type");
+            sl.Add("priority");
+            sl.Add("dependencyFileId");
+            sl.Add("checkOutCount");
+            sl.Add("nextRunTime");
+            sl.Add("value");
+            sl.Add("checkOutStamp");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -597,18 +666,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _delete0Command = _database.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM outbox " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND fileId = $fileId AND recipient = $recipient";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient";
                 var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "$identityId";
+                _delete0Param1.ParameterName = "@identityId";
                 _delete0Command.Parameters.Add(_delete0Param1);
                 var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "$driveId";
+                _delete0Param2.ParameterName = "@driveId";
                 _delete0Command.Parameters.Add(_delete0Param2);
                 var _delete0Param3 = _delete0Command.CreateParameter();
-                _delete0Param3.ParameterName = "$fileId";
+                _delete0Param3.ParameterName = "@fileId";
                 _delete0Command.Parameters.Add(_delete0Param3);
                 var _delete0Param4 = _delete0Command.CreateParameter();
-                _delete0Param4.ParameterName = "$recipient";
+                _delete0Param4.ParameterName = "@recipient";
                 _delete0Command.Parameters.Add(_delete0Param4);
 
                 _delete0Param1.Value = identityId.ToByteArray();
@@ -722,15 +791,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get0Command = _database.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND fileId = $fileId;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
                 var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "$identityId";
+                _get0Param1.ParameterName = "@identityId";
                 _get0Command.Parameters.Add(_get0Param1);
                 var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "$driveId";
+                _get0Param2.ParameterName = "@driveId";
                 _get0Command.Parameters.Add(_get0Param2);
                 var _get0Param3 = _get0Command.CreateParameter();
-                _get0Param3.ParameterName = "$fileId";
+                _get0Param3.ParameterName = "@fileId";
                 _get0Command.Parameters.Add(_get0Param3);
 
                 _get0Param1.Value = identityId.ToByteArray();
@@ -738,21 +807,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
-                        return null;
-                    }
-                    var result = new List<OutboxRecord>();
-                    while (true)
-                    {
-                        result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
                         if (!rdr.Read())
-                            break;
-                    }
-                    return result;
-                } // using
+                        {
+                            return null;
+                        }
+                        var result = new List<OutboxRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
+                            if (!rdr.Read())
+                                break;
+                        }
+                        return result;
+                    } // using
                 } // lock
             } // using
         }
@@ -859,18 +928,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _get1Command = _database.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
-                                             "WHERE identityId = $identityId AND driveId = $driveId AND fileId = $fileId AND recipient = $recipient LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;";
                 var _get1Param1 = _get1Command.CreateParameter();
-                _get1Param1.ParameterName = "$identityId";
+                _get1Param1.ParameterName = "@identityId";
                 _get1Command.Parameters.Add(_get1Param1);
                 var _get1Param2 = _get1Command.CreateParameter();
-                _get1Param2.ParameterName = "$driveId";
+                _get1Param2.ParameterName = "@driveId";
                 _get1Command.Parameters.Add(_get1Param2);
                 var _get1Param3 = _get1Command.CreateParameter();
-                _get1Param3.ParameterName = "$fileId";
+                _get1Param3.ParameterName = "@fileId";
                 _get1Command.Parameters.Add(_get1Param3);
                 var _get1Param4 = _get1Command.CreateParameter();
-                _get1Param4.ParameterName = "$recipient";
+                _get1Param4.ParameterName = "@recipient";
                 _get1Command.Parameters.Add(_get1Param4);
 
                 _get1Param1.Value = identityId.ToByteArray();
@@ -879,15 +948,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param4.Value = recipient;
                 lock (conn._lock)
                 {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        return null;
-                    }
-                    var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,recipient);
-                    return r;
-                } // using
+                        if (!rdr.Read())
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,recipient);
+                        return r;
+                    } // using
                 } // lock
             } // using
         }
