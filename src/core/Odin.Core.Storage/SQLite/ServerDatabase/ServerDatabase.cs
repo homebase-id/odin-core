@@ -18,12 +18,10 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
     public class ServerDatabase : DatabaseBase
     {
-        public readonly TableCron tblCron = null;
         private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
 
         public ServerDatabase(string databasePath) : base(databasePath)
         {
-            tblCron = new TableCron(this, _cache);
         }
 
 
@@ -41,8 +39,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public override void Dispose()
         {
-            tblCron.Dispose();
-
             base.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -56,7 +52,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            tblCron.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
                 conn.Vacuum();
         }
