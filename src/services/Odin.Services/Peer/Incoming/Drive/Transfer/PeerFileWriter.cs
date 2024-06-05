@@ -75,10 +75,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) 
-                                  && bool.TryParse(value, out bool collabChannelFlagValue) 
+            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value)
+                                  && bool.TryParse(value, out bool collabChannelFlagValue)
                                   && collabChannelFlagValue;
-            
+
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
@@ -101,7 +101,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = isCollabChannel ? true : false, 
+                AllowDistribution = isCollabChannel ? true : false,
                 AccessControlList = targetAcl
             };
 
@@ -117,7 +117,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 case TransferFileType.EncryptedFileForFeed:
-                    await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
+                    await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, odinContext, cn);
                     break;
 
                 default:
@@ -196,6 +196,32 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, [tempFile.FileId], cn);
         }
 
+
+        private async Task WriteNewFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var ms = await Benchmark.MillisecondsAsync(async () =>
+            {
+                metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
+                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            });
+
+            logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
+        }
+
+
+        private async Task UpdateExistingFile(IDriveFileSystem fs, InternalDriveFileId targetFile, KeyHeader keyHeader,
+            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
+            //one is written any time you save a header)
+            metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+            //note: we also update the key header because it might have been changed by the sender
+            await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+        }
+
         /// <summary>
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
@@ -204,26 +230,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             DatabaseConnection cn)
         {
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
-
-            //TODO: should we lock on the id of the global transit id or client unique id?
-
             var targetDriveId = tempFile.DriveId;
 
-            //
-            // first case: If the file does not exist, then just write the file 
-            //
-            if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
+            if (metadata.GlobalTransitId.HasValue == false)
             {
-                var ms = await Benchmark.MillisecondsAsync(async () =>
-                {
-                    //
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                });
-
-                logger.LogInformation("Handle file->CommitNewFile: {ms} ms", ms);
-                return;
+                throw new OdinClientException("Must have a global transit id to write peer.", OdinClientErrorCode.InvalidFile);
             }
+
+            SharedSecretEncryptedFileHeader header = null;
 
             //
             // Second Case: 
@@ -231,279 +245,101 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //  - The files they match must be same file
             //  - The current sender must be the same as the sender of the existing file
             //
-            if (metadata.GlobalTransitId.HasValue && metadata.AppData.UniqueId.HasValue)
-            {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
-                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
-                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
-
-                if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
-                {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
-
-                //if one has a value and the other does not
-                if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null) ||
-                    (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
-                {
-                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
-                }
-
-                //Must be the same file
-                if (existingFileBySharedSecretEncryptedUniqueId.FileId != existingFileByGlobalTransitId.FileId)
-                {
-                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
-                }
-
-                existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
-
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
-                {
-                    FileId = existingFileBySharedSecretEncryptedUniqueId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-                //one is written any time you save a header)
-                metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
-
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
-                return;
-            }
-
-            //
-            // If there is only a unique id, validate sender and upsert file
-            //
             if (metadata.AppData.UniqueId.HasValue)
             {
                 SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
                     await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
-
-                if (existingFileBySharedSecretEncryptedUniqueId == null)
-                {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
-
-                existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
-
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
-                {
-                    FileId = existingFileBySharedSecretEncryptedUniqueId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                //note: we also update the key header because it might have been changed by the sender
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                return;
-            }
-
-            //
-            // If there is only a global transit id, validate sender and upsert file
-            //
-            if (metadata.GlobalTransitId.HasValue)
-            {
-                logger.LogInformation("processing incoming file with global transit id");
-
                 SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
                     await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
-                if (existingFileByGlobalTransitId == null)
+                // Neither gtid nor uid points to an existing file, so just write a new file
+                if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+                    await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
                     return;
                 }
 
-                existingFileByGlobalTransitId.AssertFileIsActive();
-                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+                //if one has a value and the other does not
+                if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null))
+                    header = existingFileBySharedSecretEncryptedUniqueId;
+                else if ((existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
+                    header = existingFileByGlobalTransitId;
+                else if (existingFileBySharedSecretEncryptedUniqueId.FileId == existingFileByGlobalTransitId.FileId)
+                    header = existingFileBySharedSecretEncryptedUniqueId; // equal
+                else
+                    throw new OdinClientException(
+                        $"Invalid write; UniqueId (fileId={existingFileBySharedSecretEncryptedUniqueId.FileId}) and GlobalTransitId (fileId={existingFileByGlobalTransitId.FileId}) point to two different fileIds.");
+            }
+            else
+            {
+                //
+                // If there is only a global transit id, validate sender and upsert file
+                //
+                // logger.LogInformation("processing incoming file with global transit id");
 
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
+                header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
+                if (header == null)
                 {
-                    FileId = existingFileByGlobalTransitId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
-                //note: we also update the key header because it might have been changed by the sender
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: false, odinContext: odinContext, cn);
-                return;
+                    await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+                    return;
+                }
             }
 
-            throw new OdinSystemException("Transit Receiver has unhandled file update scenario");
+            header.AssertFileIsActive();
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+
+            metadata.VersionTag = header.FileMetadata.VersionTag;
+
+            //Update existing file
+            var targetFile = new InternalDriveFileId()
+            {
+                FileId = header.FileId,
+                DriveId = targetDriveId
+            };
+
+            //note: we also update the key header because it might have been changed by the sender
+            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
         }
 
         private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
-            DatabaseConnection cn)
+            FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
+            // Rules:
+            // You must have a global transit id to write to the feed drive
+            // We never allow uniqueId for the feed drive
+            metadata.AppData.UniqueId = null;
 
-            // TODO: decrypt keyheader from ECC keys; see if I can use the same code to store once i have the raw key header
-            //TODO: should we lock on the id of the global transit id or client unique id?
-
-            var targetDriveId = tempFile.DriveId;
-
-            //
-            // first case: If the file does not exist, then just write the file
-            //
-            if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
+            if (metadata.GlobalTransitId.HasValue == false)
             {
-                var ms = await Benchmark.MillisecondsAsync(async () =>
-                {
-                    //
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                });
+                throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
+            }
 
-                logger.LogInformation("Handle file->CommitNewFile: {ms} ms", ms);
+            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+            if (header == null)
+            {
+                await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, cn);
                 return;
             }
 
-            //
-            // Second Case: 
-            // If there are both a uniqueId and globalTransitId;
-            //  - The files they match must be same file
-            //  - The current sender must be the same as the sender of the existing file
-            //
-            if (metadata.GlobalTransitId.HasValue && metadata.AppData.UniqueId.HasValue)
+            header.AssertFileIsActive();
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+
+            metadata.VersionTag = header.FileMetadata.VersionTag;
+
+            //Update existing file
+            var targetFile = new InternalDriveFileId()
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
-                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
-                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+                FileId = header.FileId,
+                DriveId = tempFile.DriveId
+            };
 
-                if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
-                {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
+            //Update the reaction preview first since the overwrite method; uses what's on disk
+            // we call both of these here because this 'special' feed item hack method for collabgroups
+            await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
 
-                //if one has a value and the other does not
-                if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null) ||
-                    (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
-                {
-                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
-                }
-
-                //Must be the same file
-                if (existingFileBySharedSecretEncryptedUniqueId.FileId != existingFileByGlobalTransitId.FileId)
-                {
-                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
-                }
-
-                existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
-
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
-                {
-                    FileId = existingFileBySharedSecretEncryptedUniqueId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-                //one is written any time you save a header)
-                metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
-
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-
-                //Update the reaction preview first since the overwrite method; uses what's on disk
-                // we call both of these here because this 'special' feed item hack method for collabgroups
-                await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
-
-                //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true, odinContext: odinContext, cn);
-
-                return;
-            }
-
-            //
-            // If there is only a unique id, validate sender and upsert file
-            //
-            if (metadata.AppData.UniqueId.HasValue)
-            {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
-                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
-
-                if (existingFileBySharedSecretEncryptedUniqueId == null)
-                {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
-
-                existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
-
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
-                {
-                    FileId = existingFileBySharedSecretEncryptedUniqueId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                //note: we also update the key header because it might have been changed by the sender
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                return;
-            }
-
-            //
-            // If there is only a global transit id, validate sender and upsert file
-            //
-            if (metadata.GlobalTransitId.HasValue)
-            {
-                logger.LogInformation("processing incoming file with global transit id");
-
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
-                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
-
-                if (existingFileByGlobalTransitId == null)
-                {
-                    // Write a new file
-                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
-
-                existingFileByGlobalTransitId.AssertFileIsActive();
-                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
-
-                //Update existing file
-                var targetFile = new InternalDriveFileId()
-                {
-                    FileId = existingFileByGlobalTransitId.FileId,
-                    DriveId = targetDriveId
-                };
-
-                metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
-                //note: we also update the key header because it might have been changed by the sender
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: false, odinContext: odinContext, cn);
-                return;
-            }
-
-            throw new OdinSystemException("Transit Receiver has unhandled file update scenario");
+            //note: we also update the key header because it might have been changed by the sender
+            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, cn);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
