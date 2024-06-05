@@ -81,7 +81,7 @@ namespace Odin.Services.Membership.Connections.Requests
             const string sentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
             _sentRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
         }
-        
+
         /// <summary>
         /// Gets a pending request by its sender
         /// </summary>
@@ -101,7 +101,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 return null;
             }
 
-            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, cn);
+            var (isValidPublicKey, payloadBytes) =
+                await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, cn);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -118,7 +119,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByCategory<PendingConnectionRequestHeader>(cn, _pendingRequestsDataType);
@@ -405,8 +407,15 @@ namespace Odin.Services.Membership.Connections.Requests
             await this.DeletePendingRequest(senderOdinId, odinContext, cn);
             await this.DeleteSentRequest(senderOdinId, odinContext, cn);
 
-            // eww to this coupling
-            await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, cn);
+
+            try
+            {
+                await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, cn, remoteClientAccessToken.SharedSecret);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed while trying to sync channels");
+            }
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -416,7 +425,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Establishes a connection between two individuals.  This must be called
         /// from a recipient who has accepted a sender's connection request
         /// </summary>
-        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             // Note: This method runs under the Transit Context because it's called by another identity
             // therefore, all operations that require master key or owner access must have already been completed
@@ -447,18 +457,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData, odinContext, cn);
 
-            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
-            //since i have the icr key, i could create a client and make a request across the wire to pull
-
             try
             {
-                var patchedContext = OdinContextUpgrades.PatchInIcrKey(
-                    odinContext,
-                    feedDriveId.GetValueOrDefault(),
-                    tempKey,
-                    originalRequest.TempEncryptedFeedDriveStorageKey,
-                    originalRequest.TempEncryptedIcrKey);
-                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn);
+                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext);
+                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn, sharedSecret);
             }
             catch (Exception e)
             {

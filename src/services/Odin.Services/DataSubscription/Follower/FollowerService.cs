@@ -23,8 +23,9 @@ using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Outgoing.Drive.Query;
+using Odin.Services.Peer.Incoming.Drive.Query;
 using Refit;
+using PeerDriveQueryService = Odin.Services.Peer.Outgoing.Drive.Query.PeerDriveQueryService;
 
 namespace Odin.Services.DataSubscription.Follower
 {
@@ -148,7 +149,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.SynchronizeFeedHistoryNow)
             {
-                await this.SynchronizeChannelFiles(identityToFollow, odinContext, cn);
+                await SynchronizeChannelFiles(identityToFollow, odinContext, cn);
             }
         }
 
@@ -360,18 +361,8 @@ namespace Odin.Services.DataSubscription.Follower
             }
         }
 
-
         public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
-            var definition = await this.GetIdentityIFollowInternal(odinId, cn);
-            if (definition == null) //not following
-            {
-                return;
-            }
-
-            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-
             SensitiveByteArray sharedSecret = null;
             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, cn);
             if (icr.IsConnected())
@@ -379,14 +370,22 @@ namespace Odin.Services.DataSubscription.Follower
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            var channelDrives =
-                await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext, cn);
+            await this.SynchronizeChannelFiles(odinId, odinContext, cn, sharedSecret: sharedSecret);
+        }
 
-            //filter the drives to those I want to see
-            if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
+        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn, SensitiveByteArray sharedSecret)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
+
+            var definition = await this.GetIdentityIFollowInternal(odinId, cn);
+            if (definition == null) //not following
             {
-                channelDrives = channelDrives.IntersectBy(definition.Channels, d => d.TargetDrive);
+                _logger.LogDebug("SynchronizeChannelFiles - not following the requested identity; no synchronization will occur");
+                return;
             }
+
+            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+            var channelDrives = await GetChannelsIFollow(odinId, odinContext, cn, definition);
 
             var request = new QueryBatchCollectionRequest()
             {
@@ -417,86 +416,122 @@ namespace Odin.Services.DataSubscription.Follower
 
             var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard, odinContext, cn);
 
+            var patchedContext = OdinContextUpgrades.PatchInSharedSecret(
+                odinContext,
+                sharedSecret: sharedSecret);
+
             foreach (var results in collection.Results)
             {
                 if (results.InvalidDrive)
                 {
+                    _logger.LogDebug("SynchronizeChannelFiles - Skipping invalid drive found in the results named {drive}.", results.Name);
                     continue;
                 }
 
                 foreach (var dsr in results.SearchResults)
                 {
-                    var keyHeader = KeyHeader.Empty();
-                    if (dsr.FileMetadata.IsEncrypted)
+                    try
                     {
-                        if (null == sharedSecret)
-                        {
-                            //skip this file.  i should have received it because i'm not connected
-                            continue;
-                        }
-
-                        keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+                        await TryWriteFeedFile(odinId, patchedContext, cn, dsr, feedDriveId);
                     }
-
-                    var fm = dsr.FileMetadata;
-                    var newFileMetadata = new FileMetadata()
+                    catch (Exception e)
                     {
-                        File = default,
-                        GlobalTransitId = fm.GlobalTransitId,
-                        ReferencedFile = fm.ReferencedFile,
-                        AppData = fm.AppData,
-
-                        IsEncrypted = fm.IsEncrypted,
-                        SenderOdinId = odinId,
-
-                        VersionTag = fm.VersionTag,
-                        ReactionPreview = fm.ReactionPreview,
-                        Created = fm.Created,
-                        Updated = fm.Updated,
-                        FileState = dsr.FileState,
-                        Payloads = fm.Payloads
-                    };
-
-                    
-                    SharedSecretEncryptedFileHeader existingFile = null;
-                    if (dsr.FileMetadata.GlobalTransitId.HasValue)
-                    {
-                        existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
-                            dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
-
-                        if (null != existingFile)
-                        {
-                            _logger.LogDebug("SynchronizeChannelFiles - Found file by GTID:{gtid}", dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
-                        }
-                    }
-
-                    if (null == existingFile)
-                    {
-                        _logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
-                            newFileMetadata.GlobalTransitId.GetValueOrDefault(),
-                            newFileMetadata.AppData.UniqueId.GetValueOrDefault());
-                        await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata, odinContext, cn);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("SynchronizeChannelFiles - updating existing file gtid:{gtid} and uid:{uid}",
-                            newFileMetadata.GlobalTransitId.GetValueOrDefault(),
-                            newFileMetadata.AppData.UniqueId.GetValueOrDefault());
-
-                        var file = new InternalDriveFileId()
-                        {
-                            FileId = existingFile.FileId,
-                            DriveId = feedDriveId
-                        };
-
-                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, cn, bypassCallerCheck: true);
+                        _logger.LogError(e, "SynchronizeChannelFiles - Failed while writing file with gtid:{gtid}.  Shared secret was {ss}",
+                            dsr.FileMetadata.GlobalTransitId,
+                            patchedContext.PermissionsContext.SharedSecretKey == null ? "null" : "not null");
                     }
                 }
             }
         }
 
-
         ///
+        private async Task TryWriteFeedFile(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn, SharedSecretEncryptedFileHeader dsr,
+            Guid feedDriveId)
+        {
+            if (dsr.FileMetadata.GlobalTransitId == null)
+            {
+                throw new OdinSystemException("File is missing a global transit id");
+            }
+
+            var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+            var keyHeader = KeyHeader.Empty();
+            if (dsr.FileMetadata.IsEncrypted)
+            {
+                if (null == sharedSecret)
+                {
+                    throw new OdinSystemException("File is encrypted but shared secret is not set");
+                }
+
+                keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            }
+
+            var fm = dsr.FileMetadata;
+            var newFileMetadata = new FileMetadata()
+            {
+                File = default,
+                GlobalTransitId = fm.GlobalTransitId,
+                ReferencedFile = fm.ReferencedFile,
+                AppData = fm.AppData,
+
+                IsEncrypted = fm.IsEncrypted,
+                SenderOdinId = odinId,
+
+                VersionTag = fm.VersionTag,
+                ReactionPreview = fm.ReactionPreview,
+                Created = fm.Created,
+                Updated = fm.Updated,
+                FileState = dsr.FileState,
+                Payloads = fm.Payloads
+            };
+
+
+            var existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
+                dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
+            if (null == existingFile)
+            {
+                _logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
+                    newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    newFileMetadata.AppData.UniqueId.GetValueOrDefault());
+                await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata, odinContext, cn);
+            }
+            else
+            {
+                _logger.LogDebug("SynchronizeChannelFiles - updating existing file gtid:{gtid} and uid:{uid}",
+                    newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    newFileMetadata.AppData.UniqueId.GetValueOrDefault());
+
+                var file = new InternalDriveFileId()
+                {
+                    FileId = existingFile.FileId,
+                    DriveId = feedDriveId
+                };
+
+                await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, cn, bypassCallerCheck: true);
+            }
+        }
+
+        private async Task<IEnumerable<PerimeterDriveData>> GetChannelsIFollow(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn,
+            FollowerDefinition definition)
+        {
+            var channelDrives =
+                await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext, cn);
+
+            if (null == channelDrives)
+            {
+                _logger.LogWarning("SynchronizeChannelFiles - Failed to get channel drives from recipient");
+                return new List<PerimeterDriveData>();
+            }
+
+            //filter the drives to those I want to see
+            if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
+            {
+                channelDrives = channelDrives.IntersectBy(definition.Channels, d => d.TargetDrive);
+            }
+
+            return channelDrives;
+        }
+
         private int DefaultMax(int max)
         {
             return Math.Max(max, 10);
