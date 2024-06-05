@@ -409,7 +409,7 @@ namespace Odin.Services.Membership.Connections.Requests
             
             try
             {
-                _logger.LogDebug("EstablishConnect - Running SynchronizeChannelFiles");
+                _logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, cn, remoteClientAccessToken.SharedSecret);
             }
             catch (Exception e)
@@ -463,7 +463,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext, 
                     feedDriveId.GetValueOrDefault(), 
                     tempKey,
-                    originalRequest.TempEncryptedFeedDriveStorageKey);
+                    originalRequest.TempEncryptedFeedDriveStorageKey,
+                    originalRequest.TempEncryptedIcrKey);
                 
                 _logger.LogDebug("EstablishConnect - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn, sharedSecret);

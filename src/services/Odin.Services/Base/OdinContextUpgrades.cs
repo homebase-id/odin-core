@@ -28,10 +28,12 @@ public static class OdinContextUpgrades
         IOdinContext odinContext,
         Guid feedDriveId,
         SensitiveByteArray keyStoreKey,
-        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey)
+        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
+        SymmetricKeyEncryptedAes encryptedIcrKey)
     {
         var patchedContext = odinContext.Clone();
-
+        
+        
         // Upgrade access briefly to perform functions
         var feedDriveGrant = new DriveGrant()
         {
@@ -51,7 +53,7 @@ public static class OdinContextUpgrades
             "PrepForSynchronizeChannelFiles",
             new PermissionGroup(
                 new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }),
-                new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, null));
+                new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
 
         return patchedContext;
     }
