@@ -78,7 +78,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Get(RootDriveEndpoint + "/status")]
         Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
 
-        [Post(RootDriveEndpoint + "/send-read-receipt")]
+        [Post(RootStorageEndpoint + "/send-read-receipt")]
         Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(SendReadReceiptRequest request);
     }
 }

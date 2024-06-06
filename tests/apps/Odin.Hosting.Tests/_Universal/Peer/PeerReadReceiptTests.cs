@@ -7,14 +7,12 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
@@ -105,16 +103,18 @@ namespace Odin.Hosting.Tests._Universal.Peer
             // Send the read receipt
             //
 
-            var sendReadReceiptResponse = await recipientOwnerClient.DriveRedux.SendReadReceipt(new ExternalFileIdentifier()
+            var sendReadReceiptResponse = await recipientOwnerClient.DriveRedux.SendReadReceipt([new ExternalFileIdentifier()
             {
                 FileId = recipientFile.FileId,
                 TargetDrive = recipientFile.TargetDrive
-            });
+            }]);
             
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
             Assert.IsNotNull(sendReadReceiptResult);
-            Assert.IsTrue(sendReadReceiptResult.Status == SendReadReceiptResultStatus.RequestAccepted);
+
+            Assert.IsTrue(sendReadReceiptResult.Results.TryGetValue(senderOwnerClient.Identity.OdinId, out var value));
+            Assert.IsTrue(value == SendReadReceiptResultStatus.RequestAccepted);
             
             //
             // Assert the read receipt was updated on the sender's file

@@ -1,8 +1,10 @@
+using System.Collections.Generic;
+
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 public class SendReadReceiptResult
 {
-    public SendReadReceiptResultStatus Status { get; set; }
+    public Dictionary<string, SendReadReceiptResultStatus> Results { get; set; }
 }
 
 public enum SendReadReceiptResultStatus

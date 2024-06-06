@@ -187,7 +187,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return await base.HardDeleteFile(request, cn);
         }
         
-        [HttpPost("files/send-read-receipt")]
+        [HttpPost("send-read-receipt")]
         public async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
             var cn = tenantSystemStorage.CreateConnection();

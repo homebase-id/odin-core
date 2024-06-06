@@ -675,13 +675,13 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return results;
     }
     
-    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(ExternalFileIdentifier file)
+    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await transitSvc.SendReadReceipt(new SendReadReceiptRequest
         {
-            File = file
+            Files = files
         });
 
         return response;

@@ -1,11 +1,9 @@
+using System.Collections.Generic;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
 
 public class SendReadReceiptRequest
 {
-    /// <summary>
-    /// The file to be deleted
-    /// </summary>
-    public ExternalFileIdentifier File { get; set; }
+    public List<ExternalFileIdentifier> Files { get; set; }
 }
