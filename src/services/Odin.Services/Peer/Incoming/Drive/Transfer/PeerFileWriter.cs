@@ -101,7 +101,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = isCollabChannel ? true : false,
+                AllowDistribution = isCollabChannel,
                 AccessControlList = targetAcl
             };
 
@@ -237,7 +237,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write peer.", OdinClientErrorCode.InvalidFile);
             }
 
-            SharedSecretEncryptedFileHeader header = null;
+            SharedSecretEncryptedFileHeader header;
 
             //
             // Second Case: 
