@@ -76,7 +76,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         // Upon following Sam, frodo requests back population
 
-        const int fileType = 1038;
+        const int fileType = 4579;
 
         var frodo = TestIdentities.Frodo;
         var sam = TestIdentities.Samwise;
@@ -165,7 +165,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
                 QueryParams = new FileQueryParams()
                 {
                     TargetDrive = SystemDriveConstants.FeedDrive,
-                    FileType = new List<int>() { }
+                    FileType = new List<int>() { fileType }
                 },
                 ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                 {
@@ -328,6 +328,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
         await ownerFrodo.Follower.UnfollowIdentity(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
+        await ownerSam.Follower.UnfollowIdentity(frodo.OdinId);
     }
 
 
