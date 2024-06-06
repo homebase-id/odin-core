@@ -11,10 +11,10 @@ public class InboxItemReceivedNotification : MediatorNotificationBase
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.InboxItemReceived;
 
+    public Guid DriveId { get; init; }
     public ExternalFileIdentifier TempFile { get; init; }
     public FileSystemType FileSystemType { get; init; }
     public TransferFileType TransferFileType { get; init; }
     public DatabaseConnection  DatabaseConnection { get; init; }
     
-    public Guid DriveId { get; set; }
 }

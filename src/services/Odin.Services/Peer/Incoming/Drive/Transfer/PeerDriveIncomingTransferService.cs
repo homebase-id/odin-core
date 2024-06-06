@@ -141,8 +141,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 return new PeerTransferResponse()
                 {
-                    Code = PeerResponseCode.AcceptedDirectWrite,
-                    Message = ""
+                    Code = PeerResponseCode.AcceptedDirectWrite
                 };
             }
 
@@ -162,8 +161,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return new PeerTransferResponse()
             {
-                Code = PeerResponseCode.AcceptedIntoInbox,
-                Message = ""
+                Code = PeerResponseCode.AcceptedIntoInbox
             };
         }
 
@@ -200,7 +198,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return new PeerTransferResponse()
             {
                 Code = PeerResponseCode.AcceptedIntoInbox,
-                Message = ""
             };
         }
 

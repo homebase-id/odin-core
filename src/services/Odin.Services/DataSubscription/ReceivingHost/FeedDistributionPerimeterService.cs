@@ -308,8 +308,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             return new PeerTransferResponse
             {
-                Code = PeerResponseCode.AcceptedIntoInbox,
-                Message = null
+                Code = PeerResponseCode.AcceptedIntoInbox
             };
         }
     }
