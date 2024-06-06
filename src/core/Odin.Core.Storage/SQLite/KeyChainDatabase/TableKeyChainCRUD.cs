@@ -187,6 +187,49 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, KeyChainRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@previousHash";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@identity";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@timestamp";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@signedPreviousHash";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@algorithm";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@publicKeyJwkBase64Url";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@recordHash";
+                _insertCommand.Parameters.Add(_insertParam7);
+                _insertParam1.Value = item.previousHash;
+                _insertParam2.Value = item.identity;
+                _insertParam3.Value = item.timestamp.uniqueTime;
+                _insertParam4.Value = item.signedPreviousHash;
+                _insertParam5.Value = item.algorithm;
+                _insertParam6.Value = item.publicKeyJwkBase64Url;
+                _insertParam7.Value = item.recordHash;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                   _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, KeyChainRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

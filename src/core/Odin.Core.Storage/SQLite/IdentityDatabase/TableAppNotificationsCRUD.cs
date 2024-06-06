@@ -177,6 +177,52 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, AppNotificationsRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (notificationId,unread,senderId,timestamp,data,created,modified) " +
+                                             "VALUES (@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@notificationId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@unread";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@senderId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@timestamp";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam7);
+                _insertParam1.Value = item.notificationId.ToByteArray();
+                _insertParam2.Value = item.unread;
+                _insertParam3.Value = item.senderId ?? (object)DBNull.Value;
+                _insertParam4.Value = item.timestamp.milliseconds;
+                _insertParam5.Value = item.data ?? (object)DBNull.Value;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam6.Value = now.uniqueTime;
+                item.modified = null;
+                _insertParam7.Value = DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                    item.created = now;
+                   _cache.AddOrUpdate("TableAppNotificationsCRUD", item.notificationId.ToString(), item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
