@@ -53,7 +53,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService, ILoggerFactory loggerFactory)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
+            ILoggerFactory loggerFactory)
         {
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
@@ -141,14 +142,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 cn);
         }
 
-        
+
         [HttpPost("mark-file-read")]
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
-            using var cn = _tenantSystemStorage.CreateConnection();
-            
+            using var cn = _tenantSystemStorage.CreateConnection(context: "peer-mark-file-as-read");
+
             return await perimeterService.MarkFileAsRead(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,
@@ -156,7 +157,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 WebOdinContext,
                 cn);
         }
-        
+
         private Task ValidateCaller()
         {
             //TODO: later add check to see if this is from an introduction?
@@ -237,7 +238,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream, WebOdinContext, cn);
+            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream, WebOdinContext,
+                cn);
         }
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)

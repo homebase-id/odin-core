@@ -6,7 +6,6 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Authorization.Acl;
@@ -207,9 +206,9 @@ namespace Odin.Hosting.Tests._Universal.Peer
                 Drive = targetDrive,
                 Permission = drivePermissions
             };
-
-            var circleId = Guid.NewGuid();
-            var createCircleResponse = await recipientOwnerClient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest()
+            
+            var senderCircleId = Guid.NewGuid();
+            var createCircleOnSenderResponse = await senderOwnerClient.Network.CreateCircle(senderCircleId, "Circle with drive access for the recipient to send back a read-receipt", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -220,17 +219,32 @@ namespace Odin.Hosting.Tests._Universal.Peer
                 }
             });
 
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+            Assert.IsTrue(createCircleOnSenderResponse.IsSuccessStatusCode);
+            
+
+            var recipientCircleId = Guid.NewGuid();
+            var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId, "Circle with drive access", new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = expectedPermissionedDrive
+                    }
+                }
+            });
+
+            Assert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
 
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, new List<GuidId>());
+            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, [senderCircleId]);
 
             //
             // Recipient accepts; grants access to circle
             //
-            await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, new List<GuidId>() { circleId });
+            await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, [recipientCircleId]);
 
             // 
             // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key

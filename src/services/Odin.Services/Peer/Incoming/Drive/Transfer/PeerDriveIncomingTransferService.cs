@@ -172,7 +172,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
 
-            //TODO: add checks if the sender can write comments if this is a comment
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext, cn);
 
             var item = new TransferInboxItem()
@@ -192,11 +191,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 OdinContext = odinContext,
                 TempFile = null,
+                DriveId = driveId,
                 FileSystemType = fileSystemType,
                 TransferFileType = TransferFileType.ReadReceipt,
                 DatabaseConnection = cn
             });
-            
+
             return new PeerTransferResponse()
             {
                 Code = PeerResponseCode.AcceptedIntoInbox,

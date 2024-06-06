@@ -16,6 +16,7 @@ namespace Odin.Core.Storage.SQLite
     {
         private bool _disposed = false;
         public readonly DatabaseBase db;
+        private readonly string _context;
 
         private SqliteConnection _connection;
         private SqliteTransaction _transaction = null;
@@ -25,9 +26,10 @@ namespace Odin.Core.Storage.SQLite
 
         public SqliteConnection Connection { get { return _connection; } }
 
-        public DatabaseConnection(DatabaseBase db, string connectionString)
+        public DatabaseConnection(DatabaseBase db, string connectionString, string context = "")
         {
             this.db = db;
+            _context = context;
             _connection = new SqliteConnection(connectionString);
             _connection.Open();
         }
@@ -35,9 +37,9 @@ namespace Odin.Core.Storage.SQLite
         ~DatabaseConnection()
         {
 #if DEBUG
-            throw new Exception("aiai boom, a LogicalThreadConnection was not disposed, catastrophe, data wont get written");
+            throw new Exception($"aiai boom, a LogicalThreadConnection was not disposed, catastrophe, data wont get written {_context}");
 #else
-                Serilog.Log.Error("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
+                Serilog.Log.Error("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written (context:{context})", _context);
 #endif
         }
 
