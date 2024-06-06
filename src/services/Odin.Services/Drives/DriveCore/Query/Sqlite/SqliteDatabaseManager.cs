@@ -372,14 +372,14 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return rowsAffected > 0;
     }
 
-    public void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn)
+    public bool DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn)
     {
-        _db.tblDriveReactions.DeleteAllReactions(cn, Drive.Id, odinId, fileId);
+        return _db.tblDriveReactions.DeleteAllReactions(cn, Drive.Id, odinId, fileId) > 0;
     }
 
-    public void DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
+    public bool DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
     {
-        _db.tblDriveReactions.Delete(cn, Drive.Id, odinId, fileId, reaction);
+        return _db.tblDriveReactions.Delete(cn, Drive.Id, odinId, fileId, reaction) > 0;
     }
 
     public (List<string>, int) GetReactions(Guid fileId, DatabaseConnection cn)

@@ -67,9 +67,9 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         bool AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
-        void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);
+        bool DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
-        void DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
+        bool DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
         (List<string>, int) GetReactions(Guid fileId, DatabaseConnection cn);
 
