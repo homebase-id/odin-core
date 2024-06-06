@@ -115,6 +115,33 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, AttestationRequestRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
+                                             "VALUES (@attestationId,@requestEnvelope,@timestamp)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@attestationId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@requestEnvelope";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@timestamp";
+                _insertCommand.Parameters.Add(_insertParam3);
+                _insertParam1.Value = item.attestationId;
+                _insertParam2.Value = item.requestEnvelope;
+                _insertParam3.Value = item.timestamp.milliseconds;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, AttestationRequestRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

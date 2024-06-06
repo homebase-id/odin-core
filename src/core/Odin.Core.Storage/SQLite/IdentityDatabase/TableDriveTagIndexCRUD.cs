@@ -107,6 +107,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (driveId,fileId,tagId) " +
+                                             "VALUES (@driveId,@fileId,@tagId)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@fileId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@tagId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                _insertParam1.Value = item.driveId.ToByteArray();
+                _insertParam2.Value = item.fileId.ToByteArray();
+                _insertParam3.Value = item.tagId.ToByteArray();
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
