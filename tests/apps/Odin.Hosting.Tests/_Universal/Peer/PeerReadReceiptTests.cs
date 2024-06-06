@@ -55,6 +55,15 @@ namespace Odin.Hosting.Tests._Universal.Peer
             yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
         }
 
+        
+        /*
+         * Successes
+         *  send file; send read receipt
+         *  
+         * Failures
+         * 
+         */
+        
         [Test]
         [TestCaseSource(nameof(TestCases))]
         public async Task RecipientCanSendReadReceipt(IApiClientContext callerContext,

@@ -197,7 +197,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return new PeerTransferResponse()
             {
-                Code = PeerResponseCode.AcceptedIntoInbox,
+                Code = PeerResponseCode.AcceptedIntoInbox
             };
         }
 
