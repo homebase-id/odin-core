@@ -359,15 +359,17 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         // _db.Dispose();
     }
 
-    public void AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
+    public bool AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
     {
-        _db.tblDriveReactions.Insert(cn, new DriveReactionsRecord()
-        {
-            driveId = Drive.Id,
-            identity = odinId,
-            postId = fileId,
-            singleReaction = reaction
-        });
+        var rowsAffected =
+            _db.tblDriveReactions.TryInsert(cn, new DriveReactionsRecord
+            {
+                driveId = Drive.Id,
+                identity = odinId,
+                postId = fileId,
+                singleReaction = reaction
+            });
+        return rowsAffected > 0;
     }
 
     public void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn)

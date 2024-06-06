@@ -29,15 +29,12 @@ public class ReactionContentService
 
     public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var context = odinContext;
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-        var callerId = context.GetCallerOdinIdOrFail();
+        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+        var callerId = odinContext.GetCallerOdinIdOrFail();
 
         var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
-        if (manager != null)
+        if (manager != null && manager.AddReaction(callerId, file.FileId, reactionContent, cn))
         {
-            manager.AddReaction(callerId, file.FileId, reactionContent, cn);
-
             await _mediator.Publish(new ReactionContentAddedNotification
             {
                 Reaction = new Reaction()

@@ -65,7 +65,7 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task MarkCommandsCompleted(List<Guid> fileIds, DatabaseConnection cn);
 
-        void AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
+        bool AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
         void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
