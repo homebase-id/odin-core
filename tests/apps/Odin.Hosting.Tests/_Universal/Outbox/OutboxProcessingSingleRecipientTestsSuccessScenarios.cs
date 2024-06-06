@@ -73,7 +73,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 
@@ -156,7 +155,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 
@@ -242,7 +240,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 

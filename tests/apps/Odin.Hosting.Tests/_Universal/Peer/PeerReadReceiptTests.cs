@@ -80,7 +80,6 @@ namespace Odin.Hosting.Tests._Universal.Peer
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 

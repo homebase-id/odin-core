@@ -86,7 +86,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 
@@ -161,7 +160,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendAsync
             };
 
