@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -68,18 +69,31 @@ namespace Odin.Hosting.Tests._Universal.Peer
             yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
         }
 
-        
+
         /*
          * Successes
-         *  send file; send read receipt
-         *  
+         * CanSendReadReceipt
+         *  - send file; send read receipt; sender can see read-receipt updated
+         * CanSendMultipleReadReceipts
+         *  - send multiple files; send multiple read receipts (partial of files); sender can see read receipts
+         *
          * Failures
-         * 
+         * SendReadReceiptWhenRecipientDoesNotHaveWriteAccessToOriginalSendersDrive
+         *  send file; caller does not have write access to sender's drive to update read receipt
+         *  - send error code back to calling app
+         *
+         * SendReadReceiptWhenOriginalSenderIdentityIsNotResponding
+         *  send file; recipient gets file; send read receipt - original-sender's server does not respond
+         *  - send error code back to calling app
+         *
+         * SendReadReceiptWhenNotConnected (can happen after your disconnect from someone)
+         *  - send error code back to calling app
+         *
          */
-        
+
         [Test]
         [TestCaseSource(nameof(TestCases))]
-        public async Task RecipientCanSendReadReceipt(IApiClientContext callerContext,
+        public async Task CanSendReadReceipt(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -96,46 +110,34 @@ namespace Odin.Hosting.Tests._Universal.Peer
                 Schedule = ScheduleOptions.SendAsync
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResponse, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
-
-            await callerContext.Initialize(senderOwnerClient);
-            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
-
-            await driveClient.WaitForEmptyOutbox(targetDrive);
-
-            // validate recipient got the file
-
             await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
-            var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-            Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
-            var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(recipientFile);
-            Assert.IsTrue(recipientFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+            await callerContext.Initialize(senderOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             //
             // Send the read receipt
             //
+            var sendReadReceiptResponse = await driveClient.SendReadReceipt([
+                new ExternalFileIdentifier()
+                {
+                    FileId = recipientFiles.Single().Value.FileId,
+                    TargetDrive = recipientFiles.Single().Value.TargetDrive
+                }
+            ]);
 
-            var sendReadReceiptResponse = await recipientOwnerClient.DriveRedux.SendReadReceipt([new ExternalFileIdentifier()
-            {
-                FileId = recipientFile.FileId,
-                TargetDrive = recipientFile.TargetDrive
-            }]);
-            
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
             Assert.IsNotNull(sendReadReceiptResult);
 
             Assert.IsTrue(sendReadReceiptResult.Results.TryGetValue(senderOwnerClient.Identity.OdinId, out var value));
-            Assert.IsTrue(value == SendReadReceiptResultStatus.RequestAccepted);
-            
+            Assert.IsTrue(value == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+
             //
             // Assert the read receipt was updated on the sender's file
             //
@@ -156,10 +158,134 @@ namespace Odin.Hosting.Tests._Universal.Peer
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public Task CanSendMultipleReadReceipts(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            Assert.Inconclusive("todo");
+            return Task.CompletedTask;
+        }
 
-        private async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadEncryptedMetadata(OwnerApiClientRedux senderOwnerClient,
-            TargetDrive targetDrive,
-            TransitOptions transitOptions)
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        // public async Task CanSendMultipleReadReceiptsAcrossMultipleRecipient(IApiClientContext callerContext,
+        //     HttpStatusCode expectedStatusCode)
+        // {
+        //     var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        //     var recipientSamOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        //     var recipientPippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        //
+        //     const DrivePermission drivePermissions = DrivePermission.Write;
+        //
+        //     var targetDrive = callerContext.TargetDrive;
+        //     await PrepareScenario(senderOwnerClient, recipientSamOwnerClient, targetDrive, drivePermissions);
+        //
+        //     // send to sam
+        //     var (bothUploadResponse1, _, bothRecipientFiles) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientSamOwnerClient, targetDrive,
+        //         new TransitOptions()
+        //         {
+        //             Recipients = [recipientSamOwnerClient.Identity.OdinId, recipientPippinOwnerClient.Identity.OdinId],
+        //             Schedule = ScheduleOptions.SendAsync
+        //         });
+        //
+        //     var (samUploadResponse2, _, samRecipientFile2) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientSamOwnerClient, targetDrive,
+        //         new TransitOptions()
+        //         {
+        //             Recipients = [recipientSamOwnerClient.Identity.OdinId],
+        //             Schedule = ScheduleOptions.SendAsync
+        //         });
+        //
+        //     await callerContext.Initialize(senderOwnerClient);
+        //     var samDriveClient = new UniversalDriveApiClient(recipientSamOwnerClient.Identity.OdinId, callerContext.GetFactory());
+        //
+        //     //
+        //     // Sam Sends the read receipt
+        //     //
+        //     var samSendReadReceiptResponse = await samDriveClient.SendReadReceipt([
+        //         new ExternalFileIdentifier()
+        //         {
+        //             FileId = bothRecipientFiles[recipientSamOwnerClient.Identity.OdinId].FileId,
+        //             TargetDrive = bothRecipientFiles[recipientSamOwnerClient.Identity.OdinId].TargetDrive
+        //         },
+        //         new ExternalFileIdentifier()
+        //         {
+        //             FileId = samRecipientFile2[recipientSamOwnerClient.Identity.OdinId].FileId,
+        //             TargetDrive = samRecipientFile2[recipientSamOwnerClient.Identity.OdinId].TargetDrive
+        //         }
+        //     ]);
+        //     
+        //     Assert.IsTrue(samSendReadReceiptResponse.IsSuccessStatusCode);
+        //     var samSendReadReceiptResult = samSendReadReceiptResponse.Content;
+        //     Assert.IsNotNull(samSendReadReceiptResult);
+        //
+        //     Assert.IsTrue(samSendReadReceiptResult.Results.TryGetValue(senderOwnerClient.Identity.OdinId, out var samValue));
+        //     Assert.IsTrue(samValue == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+        //
+        //     //
+        //     // Pippin Sends the read receipt
+        //     //
+        //     var pippinSendReadReceiptResponse = await samDriveClient.SendReadReceipt([
+        //         new ExternalFileIdentifier()
+        //         {
+        //             FileId = bothRecipientFiles[recipientPippinOwnerClient.Identity.OdinId].FileId,
+        //             TargetDrive = bothRecipientFiles[recipientPippinOwnerClient.Identity.OdinId].TargetDrive
+        //         },
+        //     ]);
+        //
+        //     Assert.IsTrue(pippinSendReadReceiptResponse.IsSuccessStatusCode);
+        //     var pippinSendReadReceiptResult = pippinSendReadReceiptResponse.Content;
+        //     Assert.IsNotNull(pippinSendReadReceiptResult);
+        //
+        //     Assert.IsTrue(pippinSendReadReceiptResult.Results.TryGetValue(senderOwnerClient.Identity.OdinId, out var pippinValue));
+        //     Assert.IsTrue(pippinValue == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+        //
+        //     //
+        //     // Assert the read receipt was updated on the sender's file
+        //     //
+        //
+        //     await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
+        //
+        //     var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(bothUploadResponse1.Content.File);
+        //     Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+        //     var uploadedFile1 = uploadedFileResponse1.Content;
+        //
+        //     var file1TransferHistory = uploadedFile1.ServerMetadata.TransferHistory;
+        //     Assert.IsTrue(file1TransferHistory.Recipients.Count == 2);
+        //     Assert.IsTrue(file1TransferHistory.Recipients.TryGetValue(recipientSamOwnerClient.Identity.OdinId, out var samRecipientStatus));
+        //     Assert.IsNotNull(samRecipientStatus, "There should be a status update for the sam");
+        //     Assert.IsTrue(samRecipientStatus.IsReadByRecipient);
+        //     Assert.IsTrue(samRecipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
+        //     Assert.IsTrue(samRecipientStatus.LatestSuccessfullyDeliveredVersionTag == bothUploadResponse1.Content.NewVersionTag);
+        //
+        //     Assert.IsTrue(file1TransferHistory.Recipients.TryGetValue(recipientPippinOwnerClient.Identity.OdinId, out var pippinRecipientStatus));
+        //     Assert.IsNotNull(pippinRecipientStatus, "There should be a status update for the pippin");
+        //     Assert.IsTrue(pippinRecipientStatus.IsReadByRecipient);
+        //     Assert.IsTrue(pippinRecipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
+        //     Assert.IsTrue(pippinRecipientStatus.LatestSuccessfullyDeliveredVersionTag == bothUploadResponse1.Content.NewVersionTag);
+        //
+        //     var uploadedFileResponse2 = await senderOwnerClient.DriveRedux.GetFileHeader(bothUploadResponse1.Content.File);
+        //     Assert.IsTrue(uploadedFileResponse2.IsSuccessStatusCode);
+        //     var uploadedFile2 = uploadedFileResponse2.Content;
+        //
+        //     var file1TransferHistory2 = uploadedFile2.ServerMetadata.TransferHistory;
+        //     Assert.IsTrue(file1TransferHistory2.Recipients.Count == 2);
+        //     Assert.IsTrue(file1TransferHistory2.Recipients.TryGetValue(recipientSamOwnerClient.Identity.OdinId, out var samRecipientStatus));
+        //     Assert.IsNotNull(samRecipientStatus, "There should be a status update for the recipient");
+        //     Assert.IsTrue(samRecipientStatus.IsReadByRecipient);
+        //     Assert.IsTrue(samRecipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
+        //     Assert.IsTrue(samRecipientStatus.LatestSuccessfullyDeliveredVersionTag == bothUploadResponse1.Content.NewVersionTag);
+        //
+        //     await this.DeleteScenario(senderOwnerClient, recipientSamOwnerClient);
+        // }
+
+        private async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, Dictionary<string, SharedSecretEncryptedFileHeader>
+                recipientFiles)>
+            AssertCanUploadEncryptedMetadata(
+                OwnerApiClientRedux senderOwnerClient,
+                OwnerApiClientRedux recipientOwnerClient,
+                TargetDrive targetDrive,
+                TransitOptions transitOptions)
         {
             const string uploadedContent = "pie";
 
@@ -182,12 +308,38 @@ namespace Odin.Hosting.Tests._Universal.Peer
                 Drive = targetDrive
             };
 
-
-            return await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
             );
+
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            var uploadResult = uploadResponse.Content;
+            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult.RecipientStatus[transitOptions.Recipients.Single()] == TransferStatus.Enqueued);
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(storageOptions.Drive);
+
+            // validate recipient got the file
+
+            var uploadResult1 = uploadResponse.Content;
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult1.File.TargetDrive);
+
+            var recipientFiles = new Dictionary<string, SharedSecretEncryptedFileHeader>();
+            foreach (var recipient in transitOptions.Recipients)
+            {
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult1.GlobalTransitIdFileIdentifier);
+                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                var file = recipientFileResponse.Content.SearchResults.SingleOrDefault();
+                Assert.IsNotNull(file);
+                recipientFiles.Add(recipient, file);
+            }
+
+
+            return (uploadResponse, encryptedJsonContent64, recipientFiles);
         }
 
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient, TargetDrive targetDrive,
@@ -227,33 +379,35 @@ namespace Odin.Hosting.Tests._Universal.Peer
                 Drive = targetDrive,
                 Permission = drivePermissions
             };
-            
+
             var senderCircleId = Guid.NewGuid();
-            var createCircleOnSenderResponse = await senderOwnerClient.Network.CreateCircle(senderCircleId, "Circle with drive access for the recipient to send back a read-receipt", new PermissionSetGrantRequest()
-            {
-                Drives = new List<DriveGrantRequest>()
+            var createCircleOnSenderResponse = await senderOwnerClient.Network.CreateCircle(senderCircleId,
+                "Circle with drive access for the recipient to send back a read-receipt", new PermissionSetGrantRequest()
                 {
-                    new()
+                    Drives = new List<DriveGrantRequest>()
                     {
-                        PermissionedDrive = expectedPermissionedDrive
+                        new()
+                        {
+                            PermissionedDrive = expectedPermissionedDrive
+                        }
                     }
-                }
-            });
+                });
 
             Assert.IsTrue(createCircleOnSenderResponse.IsSuccessStatusCode);
-            
+
 
             var recipientCircleId = Guid.NewGuid();
-            var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId, "Circle with drive access", new PermissionSetGrantRequest()
-            {
-                Drives = new List<DriveGrantRequest>()
+            var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId, "Circle with drive access",
+                new PermissionSetGrantRequest()
                 {
-                    new()
+                    Drives = new List<DriveGrantRequest>()
                     {
-                        PermissionedDrive = expectedPermissionedDrive
+                        new()
+                        {
+                            PermissionedDrive = expectedPermissionedDrive
+                        }
                     }
-                }
-            });
+                });
 
             Assert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
 

@@ -9,6 +9,6 @@ public class SendReadReceiptResult
 
 public enum SendReadReceiptResultStatus
 {
-    RequestAccepted = 1,
+    RequestAcceptedIntoInbox = 1,
     RemoteServerFailed = 2
 }

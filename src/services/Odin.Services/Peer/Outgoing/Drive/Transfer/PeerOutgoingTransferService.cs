@@ -208,7 +208,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                 {
                     var status = response.IsSuccessStatusCode
-                        ? SendReadReceiptResultStatus.RequestAccepted
+                        ? SendReadReceiptResultStatus.RequestAcceptedIntoInbox
                         : SendReadReceiptResultStatus.RemoteServerFailed;
 
                     return (recipient, status);
