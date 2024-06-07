@@ -228,8 +228,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             var response = await driveClient.UploadNewFile(targetDrive,
                 fileMetadata,
                 uploadManifest: uploadManifest,
-                payloads: [payload],
-                useGlobalTransitId: false);
+                payloads: [payload]);
 
             var uploadResult = response.Content;
 

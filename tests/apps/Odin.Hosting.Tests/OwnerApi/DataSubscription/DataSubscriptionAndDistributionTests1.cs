@@ -1276,7 +1276,7 @@ public class DataSubscriptionAndDistributionTests1
             AccessControlList = AccessControlList.Connected
         };
 
-        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);
         var uploadResult = uploadResponse.response.Content;
         return (uploadResult, uploadResponse.encryptedJsonContent64, "");
     }

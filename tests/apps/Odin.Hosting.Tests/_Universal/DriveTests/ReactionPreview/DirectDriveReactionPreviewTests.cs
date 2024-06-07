@@ -50,7 +50,7 @@ public class DirectDriveReactionPreviewTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, useGlobalTransitId: true);
+        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
         var uploadResult = uploadMetadataResponse.Content;
 

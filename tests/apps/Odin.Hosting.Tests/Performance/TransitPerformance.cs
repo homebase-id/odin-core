@@ -244,7 +244,6 @@ TaskPerformanceTest_Transit
                     //TODO: comment transit options if you only want to upload
                     TransitOptions = new TransitOptions()
                     {
-                        UseGlobalTransitId = true,
                         Recipients = recipients,
                         Schedule = ScheduleOptions.SendNowAwaitResponse
                     }
@@ -503,7 +502,6 @@ TaskPerformanceTest_Transit
                     },
                     TransitOptions = new TransitOptions()
                     {
-                        UseGlobalTransitId = true,
                         Recipients = recipients,
                         Schedule = ScheduleOptions.SendNowAwaitResponse
                     }

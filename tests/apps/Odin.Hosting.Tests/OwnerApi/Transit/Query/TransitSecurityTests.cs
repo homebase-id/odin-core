@@ -152,7 +152,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     TransitOptions = new TransitOptions()
             //     {
             //         Recipients = new List<string>() { recipient.OdinId },
-            //         UseGlobalTransitId = true
             //     }
             // };
             //
