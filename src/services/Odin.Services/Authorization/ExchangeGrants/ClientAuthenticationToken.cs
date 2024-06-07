@@ -77,7 +77,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         public static bool TryParse(string value, out ClientAuthenticationToken result)
         {
             result = null;
-            if (null == value)
+            if (string.IsNullOrEmpty(value))
             {
                 return false;
             }
