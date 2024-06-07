@@ -147,7 +147,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Storage.SoftDeleteLongTermFile(file, odinContext, cn);
         }
 
-        public async Task MarkAsFileRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
                 item.GlobalTransitId, odinContext, cn,
@@ -156,14 +156,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == header)
             {
-                throw new OdinClientException("Invalid global transit Id");
+                throw new OdinFileWriteException($"No file found with specified global transit Id ({item.GlobalTransitId}) on driveId({item.DriveId})");
             }
 
             var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
             if (!recordExists || transferHistoryItem == null)
             {
-                throw new OdinClientException("Cannot accept read-receipt");
+                throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
             }
 
             var update = new UpdateTransferHistoryData()
@@ -171,12 +171,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 IsReadByRecipient = true
             };
 
-            await fs.Storage.UpdateTransferHistory(new InternalDriveFileId()
-                {
-                    FileId = header.FileId,
-                    DriveId = item.DriveId
-                },
-                odinContext.GetCallerOdinIdOrFail(),
+            var file = new InternalDriveFileId()
+            {
+                FileId = header.FileId,
+                DriveId = item.DriveId
+            };
+            
+            await fs.Storage.UpdateTransferHistory(
+                file,
+                item.Sender,
                 update,
                 odinContext,
                 cn);

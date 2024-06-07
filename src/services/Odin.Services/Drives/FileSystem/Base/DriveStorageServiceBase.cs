@@ -934,7 +934,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 recipientItem.LastUpdated = UnixTimeUtc.Now();
                 recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered)
+                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
                 {
                     recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
                 }

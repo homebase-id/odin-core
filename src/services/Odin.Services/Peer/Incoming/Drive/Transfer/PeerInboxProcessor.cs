@@ -32,6 +32,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         DriveManager driveManager)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
+        public const string ExpectedReadReceiptLog = "ReadReceipt Marked As Complete";
+        
         /// <summary>
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
@@ -64,7 +66,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         DriveId = inboxItem.DriveId,
                         FileId = inboxItem.FileId
                     };
-
+                    
                     if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                     {
                         if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
@@ -101,11 +103,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> ReadReceipt maker/popstamp:[{maker}]",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                        await writer.MarkAsFileRead(fs, inboxItem, odinContext, cn);
+                        await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
+                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker, cn);
+                        logger.LogDebug(ExpectedReadReceiptLog);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
                     {
-                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker, cn);
                         throw new OdinClientException("Transfer type not specified",
                             OdinClientErrorCode.TransferTypeNotSpecified);
                     }

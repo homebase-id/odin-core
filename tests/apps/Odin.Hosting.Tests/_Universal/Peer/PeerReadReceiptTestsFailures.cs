@@ -22,7 +22,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests._Universal.Peer
 {
-    public class PeerReadReceiptTestsSuccess
+    public class PeerReadReceiptTestsFailures
     {
         private WebScaffold _scaffold;
 
@@ -71,7 +71,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
         [Test]
         [TestCaseSource(nameof(TestCases))]
-        public async Task CanSendReadReceipt(IApiClientContext callerContext,
+        public async Task SendReadReceiptWhenRecipientDoesNotHaveWriteAccessToOriginalSendersDrive(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -99,18 +99,18 @@ namespace Odin.Hosting.Tests._Universal.Peer
             //
             // Send the read receipt
             //
-            var fileForReadReceipt = new ExternalFileIdentifier()
-            {
-                FileId = recipientFiles.Single().Value.FileId,
-                TargetDrive = recipientFiles.Single().Value.TargetDrive
-            };
-
-            var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            var sendReadReceiptResponse = await driveClient.SendReadReceipt([
+                new ExternalFileIdentifier()
+                {
+                    FileId = recipientFiles.Single().Value.FileId,
+                    TargetDrive = recipientFiles.Single().Value.TargetDrive
+                }
+            ]);
 
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
             Assert.IsNotNull(sendReadReceiptResult);
-            var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
+            var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == uploadResult.File);
             Assert.IsNotNull(item, "no record for file");
             var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
@@ -138,103 +138,43 @@ namespace Odin.Hosting.Tests._Universal.Peer
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
+
         [Test]
         [TestCaseSource(nameof(TestCases))]
-        public async Task CanSendMultipleReadReceipts(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+        public Task SendReadReceiptWhenOriginalSenderIdentityIsNotResponding(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
         {
-            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            Assert.Inconclusive("");
+            return Task.CompletedTask;
+        }
 
-            const DrivePermission drivePermissions = DrivePermission.Write;
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public Task SendReadReceiptWhenNotConnected(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            Assert.Inconclusive("");
+            return Task.CompletedTask;
+        }
 
-            var targetDrive = callerContext.TargetDrive;
-            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
 
-            // send sam two files
-            var (senderUploadResult1, _, recipientFiles1) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive,
-                new TransitOptions()
-                {
-                    Recipients = [recipientOwnerClient.Identity.OdinId],
-                    Schedule = ScheduleOptions.SendAsync
-                });
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public Task SendReadReceiptWhenNeverHaveReceivedTheOriginalFile(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            Assert.Inconclusive("");
+            return Task.CompletedTask;
+        }
 
-            var (senderUploadResult2, _, recipientFiles2) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive,
-                new TransitOptions()
-                {
-                    Recipients = [recipientOwnerClient.Identity.OdinId],
-                    Schedule = ScheduleOptions.SendAsync
-                });
 
-            await callerContext.Initialize(recipientOwnerClient);
-            var samDriveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
-
-            //
-            // Sam Sends the read receipt
-            //
-            var fileForReadReceipt1 = new ExternalFileIdentifier()
-            {
-                FileId = recipientFiles1[recipientOwnerClient.Identity.OdinId].FileId,
-                TargetDrive = recipientFiles1[recipientOwnerClient.Identity.OdinId].TargetDrive
-            };
-
-            var fileForReadReceipt2 = new ExternalFileIdentifier()
-            {
-                FileId = recipientFiles2[recipientOwnerClient.Identity.OdinId].FileId,
-                TargetDrive = recipientFiles2[recipientOwnerClient.Identity.OdinId].TargetDrive
-            };
-
-            var samSendReadReceiptResponse = await samDriveClient.SendReadReceipt([fileForReadReceipt1, fileForReadReceipt2]);
-
-            Assert.IsTrue(samSendReadReceiptResponse.IsSuccessStatusCode);
-            var samSendReadReceiptResult = samSendReadReceiptResponse.Content;
-            Assert.IsNotNull(samSendReadReceiptResult);
-
-            //
-            //Assert both file read-receipt was accepted into the inbox
-            //
-            var item1 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt1);
-            Assert.IsNotNull(item1, "no record for file 1");
-            var statusItem1 = item1.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
-            Assert.IsNotNull(statusItem1);
-            Assert.IsTrue(statusItem1.Status == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
-
-            var item2 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt2);
-            Assert.IsNotNull(item2, "no record for file 2");
-            var statusItem2 = item2.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
-            Assert.IsNotNull(statusItem2);
-            Assert.IsTrue(statusItem2.Status == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
-
-            //
-            // Assert the read receipt was updated on the sender's file
-            //
-
-            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
-
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult1.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            var file1TransferHistory = uploadedFile1.ServerMetadata.TransferHistory;
-            Assert.IsTrue(file1TransferHistory.Recipients.Count == 1);
-            Assert.IsTrue(file1TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var samRecipientStatus1));
-            Assert.IsNotNull(samRecipientStatus1, "There should be a status update for the sam");
-            Assert.IsTrue(samRecipientStatus1.IsReadByRecipient);
-            Assert.IsTrue(samRecipientStatus1.LatestTransferStatus == LatestTransferStatus.Delivered);
-            Assert.IsTrue(samRecipientStatus1.LatestSuccessfullyDeliveredVersionTag == senderUploadResult1.NewVersionTag);
-
-            var uploadedFileResponse2 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult2.File);
-            Assert.IsTrue(uploadedFileResponse2.IsSuccessStatusCode);
-            var uploadedFile2 = uploadedFileResponse2.Content;
-
-            var file1TransferHistory2 = uploadedFile2.ServerMetadata.TransferHistory;
-            Assert.IsTrue(file1TransferHistory2.Recipients.Count == 1);
-            Assert.IsTrue(file1TransferHistory2.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var samRecipientStatus));
-            Assert.IsNotNull(samRecipientStatus, "There should be a status update for the recipient");
-            Assert.IsTrue(samRecipientStatus.IsReadByRecipient);
-            Assert.IsTrue(samRecipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-            Assert.IsTrue(samRecipientStatus.LatestSuccessfullyDeliveredVersionTag == senderUploadResult2.NewVersionTag);
-
-            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public Task SendReadReceiptWithInvalidGlobalTransitId(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            Assert.Inconclusive("");
+            return Task.CompletedTask;
         }
 
         private async Task<(UploadResult response, string encryptedJsonContent64, Dictionary<string, SharedSecretEncryptedFileHeader>

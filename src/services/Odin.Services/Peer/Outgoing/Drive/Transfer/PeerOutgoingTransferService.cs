@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -140,12 +141,31 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
 
-            var results = new Dictionary<string, SendReadReceiptResultStatus>();
-            foreach (var fileId in files)
+            // This is all ugly mapping code but 🤷
+            var intermediateResults = new List<(ExternalFileIdentifier File, SendReadReceiptResultRecipientStatusItem StatusItem)>();
+            foreach (var file in files)
             {
+                var externalFile = new ExternalFileIdentifier()
+                {
+                    FileId = file.FileId,
+                    TargetDrive = odinContext.PermissionsContext.GetTargetDrive(file.DriveId)
+                };
+
                 //TODO: write in try/catch to ensure we send back to the client
-                var r = await SendReadReceiptToRecipient(fileId, odinContext, cn, fs, fileSystemType);
-                results.Add(r.recipient, r.status);
+                var statusItem = await SendReadReceiptToRecipient(file, odinContext, cn, fs, fileSystemType);
+
+                intermediateResults.Add((externalFile, statusItem));
+            }
+
+            var results = new List<SendReadReceiptResultFileItem>();
+
+            foreach (var item in intermediateResults.GroupBy(i => i.File))
+            {
+                results.Add(new SendReadReceiptResultFileItem
+                {
+                    File = item.Key,
+                    Status = item.Select(i => i.StatusItem).ToList()
+                });
             }
 
             return new SendReadReceiptResult()
@@ -156,7 +176,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         // 
 
-        private async Task<(OdinId recipient, SendReadReceiptResultStatus status)> SendReadReceiptToRecipient(InternalDriveFileId file, IOdinContext odinContext,
+        private async Task<SendReadReceiptResultRecipientStatusItem> SendReadReceiptToRecipient(InternalDriveFileId file, IOdinContext odinContext,
             DatabaseConnection cn, IDriveFileSystem fs, FileSystemType fileSystemType)
         {
             var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
@@ -207,19 +227,24 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     async () => { response = await TrySend(); });
 
                 {
-                    var status = response.IsSuccessStatusCode
-                        ? SendReadReceiptResultStatus.RequestAcceptedIntoInbox
-                        : SendReadReceiptResultStatus.RemoteServerFailed;
-
-                    return (recipient, status);
+                    return new SendReadReceiptResultRecipientStatusItem
+                    {
+                        Recipient = recipient,
+                        Status = response.IsSuccessStatusCode
+                            ? SendReadReceiptResultStatus.RequestAcceptedIntoInbox
+                            : SendReadReceiptResultStatus.RemoteServerFailed
+                    };
                 }
             }
             catch (TryRetryException ex)
             {
                 var e = ex.InnerException;
                 logger.LogError(e, "Recipient server not responding");
-                var status = SendReadReceiptResultStatus.RemoteServerFailed;
-                return (recipient, status);
+                return new SendReadReceiptResultRecipientStatusItem
+                {
+                    Recipient = recipient,
+                    Status = SendReadReceiptResultStatus.RemoteServerFailed
+                };
             }
         }
 

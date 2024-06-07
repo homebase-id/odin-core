@@ -153,7 +153,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 InstructionType = TransferInstructionType.DeleteLinkedFile,
                 DriveId = driveId,
+
+                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint 
                 GlobalTransitId = globalTransitId,
+
                 FileSystemType = fileSystemType,
             };
 
@@ -179,6 +182,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Sender = odinContext.GetCallerOdinIdOrFail(),
                 InstructionType = TransferInstructionType.ReadReceipt,
                 DriveId = driveId,
+
+                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint since we can have multiple senders sending a read receipt for the same gtid
                 GlobalTransitId = globalTransitId,
                 FileSystemType = fileSystemType,
             };
