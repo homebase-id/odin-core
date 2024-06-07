@@ -229,15 +229,16 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken)
         {
+            var notificationDriveId = notification.OdinContext.PermissionsContext.GetDriveId(notification.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
-                    ExternalFileIdentifier = notification.TempFile,
+                    TargetDrive = notification.TargetDrive,
                     notification.TransferFileType,
                     notification.FileSystemType
                 }));
 
-            await SerializeSendToAllDevicesForDrive(notification.DriveId, translated, cancellationToken, false);
+            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
         }
 
         //

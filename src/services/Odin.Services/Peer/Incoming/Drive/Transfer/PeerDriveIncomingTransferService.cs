@@ -188,8 +188,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _mediator.Publish(new InboxItemReceivedNotification
             {
                 OdinContext = odinContext,
-                TempFile = null,
-                DriveId = driveId,
+                TargetDrive = targetDrive,
                 FileSystemType = fileSystemType,
                 TransferFileType = TransferFileType.ReadReceipt,
                 DatabaseConnection = cn
@@ -300,12 +299,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _transitInboxBoxStorage.Add(item, cn);
             await _mediator.Publish(new InboxItemReceivedNotification()
             {
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = _driveManager.GetDrive(item.DriveId, cn).Result.TargetDriveInfo,
-                    FileId = item.FileId
-                },
-
+                TargetDrive = _driveManager.GetDrive(item.DriveId, cn).Result.TargetDriveInfo,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

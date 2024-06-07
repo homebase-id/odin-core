@@ -84,11 +84,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    
+
                     // Clearing the UID for any files that go into the feed drive because the feed drive 
                     // comes from multiple channel drives from many different identities so there could be a clash
                     request.FileMetadata.AppData.UniqueId = null;
-                    
+
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, cn);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, cn, raiseEvent: true);
@@ -294,12 +294,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = SystemDriveConstants.FeedDrive,
-                    FileId = item.FileId
-                },
-
+                TargetDrive = SystemDriveConstants.FeedDrive,
                 TransferFileType = item.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.TransferInstructionSet.FileSystemType,
                 OdinContext = odinContext,
