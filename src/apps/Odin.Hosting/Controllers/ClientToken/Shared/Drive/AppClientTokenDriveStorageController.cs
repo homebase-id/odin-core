@@ -181,7 +181,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/send-read-receipt")]
         public async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            var cn = tenantSystemStorage.CreateConnection();
+            using var cn = tenantSystemStorage.CreateConnection();
             var result = await base.SendReadReceipt(request , cn);
             return new JsonResult(result);
         }

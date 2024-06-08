@@ -135,7 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogError(
                     "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
                     item.GlobalTransitId, item.DriveId);
-                throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
+                throw new OdinFileWriteException("Missing file by global transit id while file while processing delete request in inbox");
             }
 
             var file = new InternalDriveFileId()

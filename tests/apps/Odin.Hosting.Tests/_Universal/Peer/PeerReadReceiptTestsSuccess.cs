@@ -133,7 +133,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
-            _scaffold.AssertHasDebugLogEvent(message: PeerInboxProcessor.ExpectedReadReceiptLog, count: 1);
+            _scaffold.AssertHasDebugLogEvent(message: PeerInboxProcessor.ReadReceiptItemMarkedComplete, count: 1);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }

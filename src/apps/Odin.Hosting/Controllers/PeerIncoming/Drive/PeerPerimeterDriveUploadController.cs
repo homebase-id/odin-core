@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("upload")]
         public async Task<PeerTransferResponse> ReceiveIncomingTransfer()
         {
-            await ValidateCaller();
+            await AssertIsValidCaller();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -146,6 +146,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("mark-file-read")]
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
         {
+            await AssertIsValidCaller();
+            
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection(context: "peer-mark-file-as-read");
@@ -158,7 +160,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 cn);
         }
 
-        private Task ValidateCaller()
+        private Task AssertIsValidCaller()
         {
             //TODO: later add check to see if this is from an introduction?
 

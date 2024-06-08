@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -151,14 +152,35 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     TargetDrive = odinContext.PermissionsContext.GetTargetDrive(file.DriveId)
                 };
 
-                //TODO: write in try/catch to ensure we send back to the client
-                var statusItem = await SendReadReceiptToRecipient(file, odinContext, cn, fs, fileSystemType);
+                try
+                {
+                    var statusItem = await SendReadReceiptToRecipient(file, odinContext, cn, fs, fileSystemType);
+                    intermediateResults.Add((externalFile, statusItem));
+                }
+                catch (OdinClientException oce)
+                {
+                    intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
+                    {
+                        Status = SendReadReceiptResultStatus.RecipientIdentityReturnedBadRequest
+                    }));
 
-                intermediateResults.Add((externalFile, statusItem));
+                    logger.LogWarning(oce, "A client exception was detected while sending a read receipt for file {file};" +
+                                           "we are logging this client exception since the client is another identity", file);
+                }
+                catch (Exception e)
+                {
+                    intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
+                    {
+                        Status = SendReadReceiptResultStatus.SenderServerHadAnInternalError
+                    }));
+
+                    logger.LogWarning(e, "General exception occured while sending a read receipt file:{file}", file);
+                }
             }
 
             var results = new List<SendReadReceiptResultFileItem>();
 
+            // This, too, is all ugly mapping code but 🤷
             foreach (var item in intermediateResults.GroupBy(i => i.File))
             {
                 results.Add(new SendReadReceiptResultFileItem
@@ -197,12 +219,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             var recipient = (OdinId)header.FileMetadata.SenderOdinId;
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+            if (null == clientAuthToken)
+            {
+                return new SendReadReceiptResultRecipientStatusItem()
+                {
+                    Recipient = recipient,
+                    Status = SendReadReceiptResultStatus.NotConnectedToOriginalSender
+                };
+            }
 
             async Task<ApiResponse<PeerTransferResponse>> TrySend()
             {
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient,
                     clientAuthToken.ToAuthenticationToken(), fileSystemType);
+
                 var response = await client.MarkFileAsRead(new MarkFileAsReadRequest()
                 {
                     GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
@@ -227,12 +259,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     async () => { response = await TrySend(); });
 
                 {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return new SendReadReceiptResultRecipientStatusItem
+                        {
+                            Recipient = recipient,
+                            Status = SendReadReceiptResultStatus.RequestAcceptedIntoInbox
+                        };
+                    }
+
                     return new SendReadReceiptResultRecipientStatusItem
                     {
                         Recipient = recipient,
-                        Status = response.IsSuccessStatusCode
-                            ? SendReadReceiptResultStatus.RequestAcceptedIntoInbox
-                            : SendReadReceiptResultStatus.RemoteServerFailed
+                        Status = MapPeerErrorResponseFromHttpStatus(response)
                     };
                 }
             }
@@ -243,7 +282,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new SendReadReceiptResultRecipientStatusItem
                 {
                     Recipient = recipient,
-                    Status = SendReadReceiptResultStatus.RemoteServerFailed
+                    Status = SendReadReceiptResultStatus.RecipientIdentityReturnedServerError
                 };
             }
         }
@@ -439,6 +478,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             return Task.FromResult(transferStatus);
+        }
+
+
+        private SendReadReceiptResultStatus MapPeerErrorResponseFromHttpStatus(ApiResponse<PeerTransferResponse> response)
+        {
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return SendReadReceiptResultStatus.RecipientIdentityReturnedAccessDenied;
+            }
+
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                return SendReadReceiptResultStatus.RecipientIdentityReturnedBadRequest;
+            }
+
+            return SendReadReceiptResultStatus.RecipientIdentityReturnedServerError;
         }
     }
 }

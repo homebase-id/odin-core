@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         DriveManager driveManager)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
-        public const string ExpectedReadReceiptLog = "ReadReceipt Marked As Complete";
+        public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
         
         /// <summary>
         /// Processes incoming transfers by converting their transfer
@@ -105,7 +105,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker, cn);
-                        logger.LogDebug(ExpectedReadReceiptLog);
+                        logger.LogDebug(ReadReceiptItemMarkedComplete);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
                     {
