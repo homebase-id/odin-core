@@ -292,6 +292,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
             if (header == null)
             {
                 await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, cn);

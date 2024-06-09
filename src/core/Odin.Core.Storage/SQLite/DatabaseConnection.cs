@@ -56,8 +56,9 @@ namespace Odin.Core.Storage.SQLite
 
         private void BeginTransaction()
         {
-            ArgumentNullException.ThrowIfNull(_transaction);
             ArgumentNullException.ThrowIfNull(_connection);
+            if (_transaction != null)
+                throw new ArgumentException("transaction already in use on this connection.");
             _transaction = _connection.BeginTransaction();
         }
 
