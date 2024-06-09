@@ -239,53 +239,29 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             SharedSecretEncryptedFileHeader header;
 
+            // First we check if we can match the gtid to an existing file on disk.
+            // If we can, then the gtid is the winner and decides the matching file
             //
-            // Second Case: 
-            // If there are both a uniqueId and globalTransitId;
-            //  - The files they match must be same file
-            //  - The current sender must be the same as the sender of the existing file
-            //
-            if (metadata.AppData.UniqueId.HasValue)
+
+            // TODO: Use tblMainIndex.GetByGlobalTransitId() rather than QB()
+            header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
+            // If there is no file matching the gtid, let's check if the UID might point to one
+            if (header == null && metadata.AppData.UniqueId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
-                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
-                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
-
-                // Neither gtid nor uid points to an existing file, so just write a new file
-                if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
-                {
-                    await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
-
-                //if one has a value and the other does not
-                if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null))
-                    header = existingFileBySharedSecretEncryptedUniqueId;
-                else if ((existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
-                    header = existingFileByGlobalTransitId;
-                else if (existingFileBySharedSecretEncryptedUniqueId.FileId == existingFileByGlobalTransitId.FileId)
-                    header = existingFileBySharedSecretEncryptedUniqueId; // equal
-                else
-                    throw new OdinClientException(
-                        $"Invalid write; UniqueId (fileId={existingFileBySharedSecretEncryptedUniqueId.FileId}) and GlobalTransitId (fileId={existingFileByGlobalTransitId.FileId}) point to two different fileIds.");
-            }
-            else
-            {
-                //
-                // If there is only a global transit id, validate sender and upsert file
-                //
-                // logger.LogInformation("processing incoming file with global transit id");
-
-                header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
-
-                if (header == null)
-                {
-                    await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-                    return;
-                }
+                // TODO: Use tblMainIndex.GetByClientUniqueId() rather than QB()
+                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
             }
 
+            if (header == null)
+            {
+                // Neither gtid not uid points to an exiting file, so it's a new file
+                await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+                return;
+            }
+
+            // The header new points to a file by either gtid or uid (in this priority)
+            //
             header.AssertFileIsActive();
             header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
 
@@ -316,6 +292,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+
             if (header == null)
             {
                 await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, cn);
