@@ -478,20 +478,6 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
         }
-
-
-        //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
-        // uses the existing global transit id
-        if (!package.IsUpdateOperation)
-        {
-            bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
-            if (serverMetadata.AllowDistribution && usesGlobalTransitId == false)
-            {
-                throw new OdinClientException(
-                    "UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param",
-                    OdinClientErrorCode.InvalidTransitOptions);
-            }
-        }
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)

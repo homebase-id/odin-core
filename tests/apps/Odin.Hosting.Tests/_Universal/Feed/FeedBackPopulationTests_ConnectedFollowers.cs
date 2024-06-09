@@ -76,7 +76,142 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         // Upon following Sam, frodo requests back population
 
-        const int fileType = 1038;
+        const int fileType = 4579;
+
+        var frodo = TestIdentities.Frodo;
+        var sam = TestIdentities.Samwise;
+
+        var ownerSam = _scaffold.CreateOwnerApiClientRedux(sam);
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var samFriendsOnlyTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var samPublicTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+
+        Guid samFriendsOnlyCircle = Guid.NewGuid();
+        var samPreparedFiles = await PrepareSamIdentityWithChannelsAndPosts(samFriendsOnlyCircle, samFriendsOnlyTargetDrive,
+            samPublicTargetDrive,
+            postFileType: fileType);
+
+        var frodoFriendsOnlyTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        var frodoPublicTargetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        Guid frodoFriendsOnlyCircle = Guid.NewGuid();
+        var frodoPreparedFiles = await PrepareFrodoIdentityWithChannelsAndPosts(frodoFriendsOnlyCircle, frodoFriendsOnlyTargetDrive,
+            frodoPublicTargetDrive,
+            postFileType: fileType);
+
+        // grant frodo access to friends only
+        await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, new List<GuidId>() { samFriendsOnlyCircle });
+        await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { frodoFriendsOnlyCircle });
+
+        await callerContext.Initialize(ownerFrodo);
+
+        //at this point we follow sam 
+        var followerApiClient = new UniversalFollowerApiClient(ownerFrodo.Identity.OdinId, callerContext.GetFactory());
+        var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
+            FollowerNotificationType.AllNotifications,
+            new List<TargetDrive>() { });
+
+        Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
+
+        var followFrodoResponse = await ownerSam.Follower.FollowIdentity(TestIdentities.Frodo.OdinId,
+            FollowerNotificationType.AllNotifications,
+            new List<TargetDrive>() { });
+
+        Assert.IsTrue(followFrodoResponse.IsSuccessStatusCode, $"actual status code was {followFrodoResponse.StatusCode}");
+
+        //
+        // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
+        //
+        var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
+        var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = SystemDriveConstants.FeedDrive,
+                FileType = new List<int>() { fileType }
+            },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = 10,
+                IncludeMetadataHeader = true
+            }
+        });
+
+        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //continue testing
+        {
+            var feedSearchResults = frodoQueryFeedResponse.Content?.SearchResults;
+            Assert.IsNotNull(feedSearchResults);
+            Assert.IsTrue(feedSearchResults.Count() == 2);
+
+            var expectedFriendsOnlyFile = feedSearchResults.SingleOrDefault(s =>
+                s.FileMetadata.IsEncrypted &&
+                s.FileMetadata.AppData.Content == samPreparedFiles.encryptedFriendsFileContent64);
+            Assert.IsNotNull(expectedFriendsOnlyFile);
+
+            var expectedPublicFile = feedSearchResults.SingleOrDefault(s =>
+                s.FileMetadata.IsEncrypted == false &&
+                s.FileMetadata.AppData.Content == samPreparedFiles.publicFileContent);
+            Assert.IsNotNull(expectedPublicFile);
+
+
+            //
+            // Validation - check that SAM has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
+            //
+
+            var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
+            {
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = SystemDriveConstants.FeedDrive,
+                    FileType = new List<int>() { fileType }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                }
+            });
+
+            Assert.IsTrue(samQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {samQueryFeedResponse.StatusCode}");
+            var samFeedSearchResults = samQueryFeedResponse.Content?.SearchResults?.ToList();
+            Assert.IsNotNull(samFeedSearchResults);
+            Assert.IsTrue(samFeedSearchResults.Count() == 2);
+
+            var samExpectedFriendsOnlyFile = samFeedSearchResults.SingleOrDefault(s =>
+                s.FileMetadata.IsEncrypted &&
+                s.FileMetadata.AppData.Content == frodoPreparedFiles.encryptedFriendsFileContent64);
+            Assert.IsNotNull(samExpectedFriendsOnlyFile);
+
+            var samExpectedPublicFile = samFeedSearchResults.SingleOrDefault(s =>
+                s.FileMetadata.IsEncrypted == false &&
+                s.FileMetadata.AppData.Content == frodoPreparedFiles.publicFileContent);
+            Assert.IsNotNull(samExpectedPublicFile);
+        }
+
+        await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
+        await ownerFrodo.Follower.UnfollowIdentity(sam.OdinId);
+        await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task ConnectToIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
+
+        // Sam's identity creates the circle 'friends' with read access to a channel drive.
+        // Sam's posts 1 item to this friends channel drive
+        // sam posts 1 item to a public channel drive
+
+        // Frodo sends connection request to Sam, Sam approves and puts Frodo in the friends circle
+        // Frodo follows Sam
+
+        // Upon following Sam, frodo requests back population
+
+        const int fileType = 1665;
 
         var frodo = TestIdentities.Frodo;
         var sam = TestIdentities.Samwise;
@@ -175,7 +310,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
             });
 
             Assert.IsTrue(samQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {samQueryFeedResponse.StatusCode}");
-            var samFeedSearchResults = samQueryFeedResponse.Content?.SearchResults;
+            var samFeedSearchResults = samQueryFeedResponse.Content?.SearchResults?.ToList();
             Assert.IsNotNull(samFeedSearchResults);
             Assert.IsTrue(samFeedSearchResults.Count() == 2);
 
@@ -193,7 +328,9 @@ public class FeedBackPopulationTests_ConnectedFollowers
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
         await ownerFrodo.Follower.UnfollowIdentity(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
+        await ownerSam.Follower.UnfollowIdentity(frodo.OdinId);
     }
+
 
     private async Task<(string encryptedFriendsFileContent64, string publicFileContent)>
         PrepareSamIdentityWithChannelsAndPosts(Guid circleId, TargetDrive friendsOnlyTargetDrive, TargetDrive publicTargetDrive, int postFileType)
@@ -231,8 +368,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
@@ -242,7 +378,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         const string publicContent = "some public content";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 
@@ -285,8 +421,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await frodoOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
@@ -296,7 +431,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         const string publicContent = "some public content from frodo";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await frodoOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        var publicFileUploadResult = await frodoOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 

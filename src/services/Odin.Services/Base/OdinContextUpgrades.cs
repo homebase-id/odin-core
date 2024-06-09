@@ -24,7 +24,7 @@ public static class OdinContextUpgrades
         return patchedContext;
     }
 
-    public static IOdinContext PatchInIcrKey(
+    public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
         Guid feedDriveId,
         SensitiveByteArray keyStoreKey,
@@ -32,10 +32,9 @@ public static class OdinContextUpgrades
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
         var patchedContext = odinContext.Clone();
-
-        //
+        
+        
         // Upgrade access briefly to perform functions
-        //
         var feedDriveGrant = new DriveGrant()
         {
             DriveId = feedDriveId,
@@ -47,16 +46,25 @@ public static class OdinContextUpgrades
             KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey
         };
 
+
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+
         patchedContext.PermissionsContext.PermissionGroups.Add(
-            "patch_in_temp_icr_key",
+            "PrepForSynchronizeChannelFiles",
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
+                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }),
                 new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
 
         return patchedContext;
     }
 
+
+    public static IOdinContext PatchInSharedSecret(IOdinContext odinContext, SensitiveByteArray sharedSecret)
+    {
+        var patchedContext = odinContext.Clone();
+        patchedContext.PermissionsContext.SetSharedSecretKey(sharedSecret);
+        return patchedContext;
+    }
 
     public static IOdinContext UpgradeToReadFollowersForDistribution(IOdinContext odinContext)
     {

@@ -172,7 +172,6 @@ public class AppDriveApiClient : AppApiClientBase
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = true
             }
         };
 
@@ -339,7 +338,6 @@ public class AppDriveApiClient : AppApiClientBase
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = true
             }
         };
 
@@ -396,7 +394,6 @@ public class AppDriveApiClient : AppApiClientBase
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = true
             },
             Manifest = new UploadManifest()
         };

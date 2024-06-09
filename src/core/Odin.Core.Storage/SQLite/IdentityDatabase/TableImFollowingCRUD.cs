@@ -128,6 +128,40 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, ImFollowingRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO imFollowing (identity,driveId,created,modified) " +
+                                             "VALUES (@identity,@driveId,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identity";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@driveId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam4);
+                _insertParam1.Value = item.identity.DomainName;
+                _insertParam2.Value = item.driveId.ToByteArray();
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam3.Value = now.uniqueTime;
+                item.modified = null;
+                _insertParam4.Value = DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                    item.created = now;
+                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.DomainName+item.driveId.ToString(), item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, ImFollowingRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

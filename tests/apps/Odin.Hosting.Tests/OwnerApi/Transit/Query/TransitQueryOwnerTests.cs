@@ -131,8 +131,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -397,8 +396,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -773,8 +771,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 TransitOptions = new TransitOptions()
                 {
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -907,8 +904,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -1172,8 +1168,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -1539,8 +1534,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 TransitOptions = new TransitOptions()
                 {
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -1691,8 +1685,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 TransitOptions = new TransitOptions()
                 {
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId },
-                    UseGlobalTransitId = true
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
