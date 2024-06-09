@@ -35,9 +35,9 @@ namespace Odin.Core.Storage.SQLite
         ~DatabaseConnection()
         {
 #if DEBUG
-            throw new Exception("aiai boom, a LogicalThreadConnection was not disposed, catastrophe, data wont get written");
+            throw new Exception("aiai boom, a DatabaseConnection was not disposed");
 #else
-                Serilog.Log.Error("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
+            Serilog.Log.Error("aiai boom, a DatabaseConnection was not disposed");
 #endif
         }
 
@@ -56,8 +56,9 @@ namespace Odin.Core.Storage.SQLite
 
         private void BeginTransaction()
         {
-            Debug.Assert(_transaction == null);
-            Debug.Assert(_connection != null);
+            ArgumentNullException.ThrowIfNull(_connection);
+            if (_transaction != null)
+                throw new ArgumentException("transaction already in use on this connection.");
             _transaction = _connection.BeginTransaction();
         }
 
