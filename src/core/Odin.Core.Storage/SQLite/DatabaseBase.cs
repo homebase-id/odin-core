@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.SQLite
             {
                 throw new ObjectDisposedException("DatabaseBase");
             }
-            return new DatabaseConnection(this, _connectionString, context);
+            return new DatabaseConnection(this, _connectionString);
         }
 
 
