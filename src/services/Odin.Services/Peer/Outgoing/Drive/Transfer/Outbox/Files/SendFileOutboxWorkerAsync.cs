@@ -35,14 +35,15 @@ public class SendFileOutboxWorkerAsync(
     IJobManager jobManager
 )
 {
-    public async Task Send(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         var fs = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
 
         try
         {
             logger.LogDebug("Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
-            var versionTag = await SendOutboxFileItemAsync(fileItem, odinContext, cn);
+
+            var versionTag = await SendOutboxFileItemAsync(fileItem, odinContext, cn, cancellationToken);
 
             // Try to clean up the transient file
             if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
@@ -75,12 +76,17 @@ public class SendFileOutboxWorkerAsync(
                 logger.LogError(exception, "Error while handling the outbox processing exception " +
                                            "for file: {file} and recipient: {recipient} with version: " +
                                            "{version} and status: {status}",
-                    e.File, 
+                    e.File,
                     e.Recipient,
                     e.TransferStatus,
                     e.VersionTag);
                 throw;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            var nextRun = UnixTimeUtc.Now().AddSeconds(2);
+            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, cn);
         }
         catch (Exception e)
         {
@@ -131,7 +137,8 @@ public class SendFileOutboxWorkerAsync(
         await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
     }
 
-    private async Task<Guid> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<Guid> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext, DatabaseConnection cn,
+        CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;

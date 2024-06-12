@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
@@ -19,12 +20,12 @@ public class SendPushNotificationOutboxWorker(
     PushNotificationService pushNotificationService,
     IPeerOutbox peerOutbox)
 {
-    public async Task Send(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            await PushItem(newContext, cn);
+            await PushItem(newContext, cn, cancellationToken);
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch (OdinOutboxProcessingException)
@@ -41,7 +42,7 @@ public class SendPushNotificationOutboxWorker(
     }
 
 
-    private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn)
+    private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
         var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(fileItem.RawValue.ToStringFromUtf8Bytes());
@@ -71,7 +72,7 @@ public class SendPushNotificationOutboxWorker(
 
         try
         {
-            await pushNotificationService.Push(pushContent, odinContext, cn);
+            await pushNotificationService.Push(pushContent, odinContext, cn, cancellationToken);
         }
         catch (Exception e)
         {

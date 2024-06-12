@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
@@ -112,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 pushNotificationService,
                 peerOutbox);
 
-            await worker.Send(odinContext, cn);
+            await worker.Send(odinContext, cn, CancellationToken.None);
             
             return new OutboxProcessingResult
             {
