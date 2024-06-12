@@ -12,6 +12,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
+    // SEB:REVIEW this class must be a BackgroundService that is started and stopped automatically by the host
     public class PeerOutboxProcessorAsync(
         IPeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -24,22 +25,62 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage)
     {
+        // SEB:REVIEW
+        // - this must include a CancellationToken to be able to stop the service
+        // - DatabaseConnection should not be passed in. It should be created on demand in the method
         public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
         {
             var item = await peerOutbox.GetNextItem(cn);
 
+            // SEB:REVIEW
+            // - GetNextIem() can return null, meaning this function will exit prematurely
+            // - The loop must exit when the CancellationToken is signaled
             while (item != null)
             {
+                // SEB:REVIEW
+                // - task must be added to a list so that we can do a controlled shutdown when this method is exiting
+                // - consider using a semaphore to limit the number of concurrent tasks (remember CancellationToken)
                 _ = ProcessItem(item, odinContext);
                 item = await peerOutbox.GetNextItem(cn);
             }
+
+            // SEB:REVIEW
+            // I suggest changing the above to something like this:
+            //
+            // var tasks = new List<Task>();
+            // while (!cancellationToken.IsCancellationRequested)
+            // {
+            //     using (var cn = tenantSystemStorage.CreateConnection())
+            //     {
+            //         while (!cancellationToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
+            //         {
+            //             var task = ProcessItem(item, odinContext, cn, cancellationToken);
+            //             tasks.Add(task);
+            //         }
+            //     }
+            //
+            //     tasks.RemoveAll(t => t.IsCompleted);
+            //
+            //     if (!cancellationToken.IsCancellationRequested)
+            //     {
+            //         await Task.Delay(1000, cancellationToken);
+            //     }
+            // }
+            // await Task.WhenAll(tasks);
         }
 
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
+        ///
+        // SEB:REVIEW
+        // - this must include a CancellationToken to be able to stop the service
         private async Task ProcessItem(OutboxFileItem fileItem, IOdinContext odinContext)
         {
+            // SEB:REVIEW
+            // since this method is not being awaited, it must have a try-catch block to deal with exceptions
+            // Exceptions must be logged as errors and the swallowed. No unhandled exceptions must escape this method.
+
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
 
