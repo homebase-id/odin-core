@@ -11,8 +11,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-// SEB:REVIEW this class should be removed. Outbox processing should be a BackgroundService
-
 namespace Odin.Hosting.Controllers.System
 {
     /// <summary>
