@@ -209,7 +209,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             {
                 Recipients = [recipient.OdinId],
                 IsTransient = false,
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
             };

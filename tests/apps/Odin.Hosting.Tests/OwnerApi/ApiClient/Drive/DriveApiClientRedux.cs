@@ -84,7 +84,6 @@ public class DriveApiClientRedux
     /// </summary>
     public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var storageOptions = new StorageOptions()
@@ -94,7 +93,6 @@ public class DriveApiClientRedux
 
         var transitOptions = new TransitOptions()
         {
-            UseGlobalTransitId = useGlobalTransitId
         };
 
         return await UploadNewMetadata(fileMetadata, storageOptions, transitOptions, fileSystemType);
@@ -202,7 +200,6 @@ public class DriveApiClientRedux
     /// </summary>
     public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var storageOptions = new StorageOptions()
@@ -212,7 +209,6 @@ public class DriveApiClientRedux
 
         var transitOptions = new TransitOptions()
         {
-            UseGlobalTransitId = useGlobalTransitId
         };
 
         return await UploadNewEncryptedMetadata(fileMetadata, storageOptions, transitOptions, fileSystemType);
@@ -276,7 +272,6 @@ public class DriveApiClientRedux
             UploadFileMetadata fileMetadata,
             UploadManifest uploadManifest,
             List<TestPayloadDefinition> payloads,
-            bool useGlobalTransitId = false,
             FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
@@ -294,7 +289,6 @@ public class DriveApiClientRedux
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = useGlobalTransitId
             },
             Manifest = uploadManifest
         };
@@ -368,7 +362,6 @@ public class DriveApiClientRedux
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
-        bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -383,7 +376,6 @@ public class DriveApiClientRedux
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = useGlobalTransitId
             },
             Manifest = uploadManifest
         };

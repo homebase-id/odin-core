@@ -90,7 +90,7 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && 
+            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) &&
                                   bool.TryParse(value, out bool collabChannelFlagValue) &&
                                   collabChannelFlagValue;
 
@@ -117,7 +117,7 @@ namespace Odin.Services.DataSubscription
                 {
                     try
                     {
-                        if(isCollabChannel)
+                        if (isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -204,41 +204,49 @@ namespace Odin.Services.DataSubscription
         {
             async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(FeedDistributionOutboxRecord record)
             {
-                var distroItem = OdinSystemSerializer.Deserialize<FeedDistributionItem>(record.value.ToStringFromUtf8Bytes());
-                var recipient = (OdinId)record.recipient;
-                if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded or DriveNotificationType.FileModified)
+                try
                 {
-                    bool success = await _feedDistributorService.SendFile(
-                        new InternalDriveFileId()
-                        {
-                            FileId = record.fileId,
-                            DriveId = record.driveId
-                        },
-                        distroItem,
-                        recipient,
-                        odinContext,
-                        cn);
+                    var distroItem = OdinSystemSerializer.Deserialize<FeedDistributionItem>(record.value.ToStringFromUtf8Bytes());
+                    var recipient = (OdinId)record.recipient;
+                    if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded or DriveNotificationType.FileModified)
+                    {
+                        bool success = await _feedDistributorService.SendFile(
+                            new InternalDriveFileId()
+                            {
+                                FileId = record.fileId,
+                                DriveId = record.driveId
+                            },
+                            distroItem,
+                            recipient,
+                            odinContext,
+                            cn);
 
-                    return (record, success);
+                        return (record, success);
+                    }
+
+                    if (distroItem.DriveNotificationType == DriveNotificationType.FileDeleted)
+                    {
+                        var success = await _feedDistributorService.DeleteFile(new InternalDriveFileId()
+                            {
+                                FileId = record.fileId,
+                                DriveId = record.driveId
+                            },
+                            distroItem.FileSystemType,
+                            recipient,
+                            odinContext,
+                            cn);
+                        return (record, success);
+                    }
+
+                    //Note: not throwing exception so we dont block other-valid feed items from being sent
+                    _logger.LogWarning($"Unhandled Notification Type {distroItem.DriveNotificationType}");
+                    return (record, false);
                 }
-
-                if (distroItem.DriveNotificationType == DriveNotificationType.FileDeleted)
+                catch (Exception e)
                 {
-                    var success = await _feedDistributorService.DeleteFile(new InternalDriveFileId()
-                        {
-                            FileId = record.fileId,
-                            DriveId = record.driveId
-                        },
-                        distroItem.FileSystemType,
-                        recipient,
-                        odinContext,
-                        cn);
-                    return (record, success);
+                    _logger.LogError(e, "HandleFileUpdates - Failed while sending a file or delete update in feed distribution");
+                    return (record, false);
                 }
-
-                //Note: not throwing exception so we dont block other-valid feed items from being sent
-                _logger.LogWarning($"Unhandled Notification Type {distroItem.DriveNotificationType}");
-                return (record, false);
             }
 
             var batch = _tenantSystemStorage.Feedbox.Pop(cn, _odinConfiguration.Feed.DistributionBatchSize);
@@ -356,7 +364,6 @@ namespace Odin.Services.DataSubscription
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
                 Schedule = ScheduleOptions.SendLater,
                 IsTransient = false,
-                UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };

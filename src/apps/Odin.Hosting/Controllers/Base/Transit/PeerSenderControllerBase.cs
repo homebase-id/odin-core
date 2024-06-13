@@ -152,7 +152,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 TransitOptions = new TransitOptions()
                 {
                     IsTransient = true,
-                    UseGlobalTransitId = true,
                     SendContents = SendContents.All,
 
                     //TODO: OMG HACK

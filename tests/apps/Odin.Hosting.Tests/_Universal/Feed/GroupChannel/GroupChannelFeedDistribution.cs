@@ -189,8 +189,7 @@ public class GroupChannelFeedDistribution
 
         var uploadResponse = await guestDriveClient.UploadNewEncryptedMetadata(
             targetDrive,
-            file,
-            useGlobalTransitId: true);
+            file);
 
         Assert.IsTrue(uploadResponse.response.IsSuccessStatusCode);
 

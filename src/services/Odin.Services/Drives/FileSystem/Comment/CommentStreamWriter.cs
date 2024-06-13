@@ -106,7 +106,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, cn);
     }
@@ -117,9 +118,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
-            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
-                ? Guid.NewGuid()
-                : null,
+            GlobalTransitId = Guid.NewGuid(),
 
             ReferencedFile = uploadDescriptor.FileMetadata.ReferencedFile,
 
