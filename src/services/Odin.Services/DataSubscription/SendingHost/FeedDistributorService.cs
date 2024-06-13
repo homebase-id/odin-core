@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -13,6 +14,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
 using Refit;
+using Serilog;
 
 namespace Odin.Services.DataSubscription.SendingHost
 {
@@ -20,9 +22,11 @@ namespace Odin.Services.DataSubscription.SendingHost
         FileSystemResolver fileSystemResolver,
         IOdinHttpClientFactory odinHttpClientFactory,
         IDriveAclAuthorizationService driveAcl,
-        OdinConfiguration odinConfiguration)
+        OdinConfiguration odinConfiguration,
+        ILogger<FeedDistributorService> logger)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
@@ -72,7 +76,8 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FeedDistributionItem distroItem, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> SendFile(InternalDriveFileId file, FeedDistributionItem distroItem, OdinId recipient, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
@@ -123,15 +128,30 @@ namespace Odin.Services.DataSubscription.SendingHost
                 HandleTryRetryException(e);
                 throw;
             }
+            catch (Exception e)
+            {
+                logger.LogError(e, "A general exception occurd while distributing a feed item (gtid:{gtid}) to {recipient}", recipient, request.FileId.GlobalTransitId);
+            }
 
             return IsSuccess(httpResponse);
         }
 
         bool IsSuccess(ApiResponse<PeerTransferResponse> httpResponse)
         {
+            if (null == httpResponse)
+            {
+                logger.LogError("httpResponse is null");
+            }
+
             if (httpResponse?.IsSuccessStatusCode ?? false)
             {
                 var transitResponse = httpResponse.Content;
+
+                if (null == transitResponse)
+                {
+                    logger.LogError("TransitResponse is missing the Code property");
+                }
+
                 return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
             }
 

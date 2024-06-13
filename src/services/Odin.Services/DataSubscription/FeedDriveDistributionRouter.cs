@@ -67,7 +67,8 @@ namespace Odin.Services.DataSubscription
             OdinConfiguration odinConfiguration,
             IDriveAclAuthorizationService driveAcl,
             ILogger<FeedDriveDistributionRouter> logger,
-            PublicPrivateKeyService pkService)
+            PublicPrivateKeyService pkService,
+            ILoggerFactory loggerFactory)
         {
             _followerService = followerService;
             _peerOutgoingTransferService = peerOutgoingTransferService;
@@ -81,7 +82,8 @@ namespace Odin.Services.DataSubscription
             _logger = logger;
             _pkService = pkService;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration);
+            var distroLogger = loggerFactory.CreateLogger<FeedDistributorService>();
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration, distroLogger);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
