@@ -218,15 +218,7 @@ namespace Odin.Hosting
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
-            //TODO: add logging back in
-            // var logger = scope.Resolve<ILogger<Startup>>();
-            // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
-
-            var registry = scope.Resolve<IIdentityRegistry>();
-            var tenantContext = scope.Resolve<TenantContext>();
-
-            var tc = registry.CreateTenantContext(tenant.Name);
-            tenantContext.Update(tc);
+            // DEPRECATED - don't do stuff in here.
         }
     }
 }

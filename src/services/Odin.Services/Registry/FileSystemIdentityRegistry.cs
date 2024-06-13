@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -458,6 +459,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
+
+        // Create multitenant scope
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var tenantContext = scope.Resolve<TenantContext>();
+        var tc = CreateTenantContext(registration.PrimaryDomainName);
+        tenantContext.Update(tc);
     }
 
     private void UnloadRegistration(IdentityRegistration registration)
