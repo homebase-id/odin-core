@@ -14,7 +14,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
 using Refit;
-using Serilog;
 
 namespace Odin.Services.DataSubscription.SendingHost
 {
@@ -130,7 +129,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
             catch (Exception e)
             {
-                logger.LogError(e, "A general exception occurd while distributing a feed item (gtid:{gtid}) to {recipient}", recipient, request.FileId.GlobalTransitId);
+                logger.LogError(e, "A general exception occured while distributing a feed item (gtid:{gtid}) to {recipient}", recipient, request.FileId.GlobalTransitId);
             }
 
             return IsSuccess(httpResponse);
@@ -146,10 +145,10 @@ namespace Odin.Services.DataSubscription.SendingHost
             if (httpResponse?.IsSuccessStatusCode ?? false)
             {
                 var transitResponse = httpResponse.Content;
-
+                
                 if (null == transitResponse)
                 {
-                    logger.LogError("TransitResponse is missing the Code property");
+                    logger.LogError("TransitResponse is missing the Code property; perhaps the identity's domain expired?");
                 }
 
                 return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
