@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
@@ -16,10 +17,14 @@ namespace Odin.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, OdinConfiguration config)
+public class ReactionPreviewCalculator(
+    ILogger<ReactionPreviewCalculator> logger,
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration config)
     : INotificationHandler<IDriveNotification>,
-        INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
-        INotificationHandler<AllReactionsByFileDeleted>
+      INotificationHandler<ReactionContentAddedNotification>,
+      INotificationHandler<ReactionDeletedNotification>,
+      INotificationHandler<AllReactionsByFileDeleted>
 {
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
     {
@@ -150,6 +155,8 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
 
     public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
     {
+        logger.LogDebug("ReactionPreviewCalculator add {reaction}", notification.Reaction.ReactionContent);
+
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext, notification.DatabaseConnection);

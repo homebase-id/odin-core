@@ -30,8 +30,10 @@ namespace Odin.Services.DataSubscription
         DriveManager driveManager,
         PushNotificationService pushNotificationService,
         TenantContext tenantContext)
-        : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
-            INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
+        : INotificationHandler<ReactionContentAddedNotification>,
+          INotificationHandler<NewFeedItemReceived>,
+          INotificationHandler<NewFollowerNotification>,
+          INotificationHandler<DriveFileAddedNotification>
     {
         private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
         private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");

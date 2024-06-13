@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
@@ -10,12 +11,15 @@ using Odin.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Odin.Services.Drives.Reactions;
 
-//TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive 
+//TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive. (SEB:No they are not.)
 
 /// <summary>
 /// Manages reactions to files
 /// </summary>
-public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediator mediator)
+public class ReactionContentService(
+    ILogger<ReactionContentService> logger,
+    DriveDatabaseHost driveDatabaseHost,
+    IMediator mediator)
 {
     public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
@@ -25,6 +29,8 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null && manager.AddReaction(callerId, file.FileId, reactionContent, cn))
         {
+            logger.LogDebug("{CallerId} added reaction {ReactionContent} to file {FileId}", callerId, reactionContent, file.FileId);
+
             await mediator.Publish(new ReactionContentAddedNotification
             {
                 Reaction = new Reaction()
@@ -50,6 +56,8 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null && manager.DeleteReaction(callerId, file.FileId, reactionContent, cn))
         {
+            logger.LogDebug("{CallerId} deleted reaction {ReactionContent} to file {FileId}", callerId, reactionContent, file.FileId);
+
             await mediator.Publish(new ReactionDeletedNotification
             {
                 Reaction = new Reaction
