@@ -148,7 +148,8 @@ namespace Odin.Services.DataSubscription.SendingHost
                 
                 if (null == transitResponse)
                 {
-                    logger.LogError("TransitResponse is missing the Code property; perhaps the identity's domain expired?");
+                    logger.LogWarning("TransitResponse is missing the Code property; perhaps the identity's domain expired?");
+                    return false;
                 }
 
                 return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
