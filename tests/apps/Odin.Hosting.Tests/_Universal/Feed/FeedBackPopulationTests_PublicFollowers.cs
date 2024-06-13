@@ -165,8 +165,7 @@ public class FeedBackPopulationTests_PublicFollowers
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
@@ -176,16 +175,16 @@ public class FeedBackPopulationTests_PublicFollowers
         const string publicContent = "some public content";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Anonymous);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         publicFile.AppData.Content = Guid.NewGuid().ToString();
-        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         publicFile.AppData.Content = Guid.NewGuid().ToString();
-        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
         
         publicFile.AppData.Content = Guid.NewGuid().ToString();
-        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 

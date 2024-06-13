@@ -35,12 +35,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     /// </summary>
     public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transitOptions = new TransitOptions()
         {
-            UseGlobalTransitId = useGlobalTransitId
         };
 
         return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
@@ -203,7 +201,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
     public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
         KeyHeader keyHeader = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -216,7 +213,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         var t = new TransitOptions()
         {
-            UseGlobalTransitId = useGlobalTransitId
         };
 
         return await UploadNewEncryptedMetadata(fileMetadata, s, t, keyHeader, fileSystemType);
@@ -231,7 +227,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             UploadFileMetadata fileMetadata,
             UploadManifest uploadManifest,
             List<TestPayloadDefinition> payloads,
-            bool useGlobalTransitId = false,
             FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
@@ -249,7 +244,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = useGlobalTransitId
             },
             Manifest = uploadManifest
         };
@@ -323,7 +317,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
-        bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -338,7 +331,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = useGlobalTransitId
             },
             Manifest = uploadManifest
         };

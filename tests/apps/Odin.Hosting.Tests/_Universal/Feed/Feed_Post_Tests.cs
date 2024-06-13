@@ -127,8 +127,7 @@ public class Feed_Post_Tests
 
         var (friendsFileUploadResponse, encryptedJsonContent64) = await driveApiAsFeedApp.UploadNewEncryptedMetadata(
             SystemDriveConstants.PublicPostsChannelDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
@@ -247,8 +246,7 @@ public class Feed_Post_Tests
 
         var (friendsFileUploadResponse, encryptedJsonContent64) = await driveApiAsFeedApp.UploadNewEncryptedMetadata(
             SystemDriveConstants.PublicPostsChannelDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
         Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
         await ownerSam.Cron.DistributeFeedFiles();

@@ -11,7 +11,7 @@ public class TwoKeyValueStorageTests
     [Test]
     public void RequireNonEmptyContextKey()
     {
-        var finalPath = "testdb1.db";
+        var finalPath = ":memory:";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(myc, false);
@@ -21,7 +21,7 @@ public class TwoKeyValueStorageTests
     [Test]
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
-        var finalPath = "testdbqqqq4.db";
+        var finalPath = ":memory:";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(myc, false);
