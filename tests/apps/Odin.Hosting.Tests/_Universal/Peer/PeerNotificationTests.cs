@@ -7,22 +7,21 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner;
-using Odin.Hosting.Tests._Universal.DriveTests;
 
-namespace Odin.Hosting.Tests._Universal.NotificationTests.Transit;
+namespace Odin.Hosting.Tests._Universal.Peer;
 
-public class TransitNotificationTests
+public class PeerNotificationTests
 {
     private WebScaffold _scaffold;
 
@@ -73,10 +72,10 @@ public class TransitNotificationTests
          * Both need an app named 'chat'
          * sam sends a chat to frodo and includes an app notification (done via app)
          * the notification should be queued in sam's outbox
-         * i call process notifications on sam's owner api
+         * I call process notifications on sam's owner api
          * the notification will then exist in frodo's inbox
-         * i call process notifications on frodo's owner api
-         * here we ignore whether or not the push actually went out (because that's a whole other set of dependencies)
+         * I call process notifications on frodo's owner api
+         * here we ignore whether the push actually went out (because that's a whole other set of dependencies)
          * the notification will then exist in frodo's notification's list
          */
 
@@ -119,9 +118,8 @@ public class TransitNotificationTests
 
         var transitOptions = new TransitOptions()
         {
-            Recipients = new List<string>() { frodo.OdinId },
+            Recipients = [frodo.OdinId],
             UseAppNotification = true,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
             AppNotificationOptions = options
         };
 
@@ -160,7 +158,7 @@ public class TransitNotificationTests
         await ownerClient.DriveManager.CreateDrive(targetDrive, "Chat Drive", "", false);
         await ownerClient.Network.CreateCircle(circleId, "Chat Participants", new PermissionSetGrantRequest()
         {
-            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow) //doesnt matter, just need to create the circle
+            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow) //does not matter, just need to create the circle
         });
 
         // Both need the same app

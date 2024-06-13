@@ -120,8 +120,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 //Add recipients so system will try to send it
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
                 {
@@ -216,7 +215,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 IncludeThumbnail = true
             };
 
-            instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
             var ctx = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
 
             var sentFile = ctx.UploadedFile;
@@ -417,8 +415,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse
+                    Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
             };

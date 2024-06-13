@@ -102,7 +102,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 var (uploadResult, encryptedJsonContent64) = await SendStandardFile(senderOwnerClient, targetDrive, fileContent, recipientOwnerClient.Identity);
 
                 Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToInbox, $"Should have been delivered, actual status was {recipientStatus}");
+                Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
                 results.Add(new FileSendResponse()
                 {
@@ -111,7 +111,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                     EncryptedContent64 = encryptedJsonContent64
                 });
             }
-            
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
             return results;
         }
 
@@ -208,7 +209,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             {
                 Recipients = [recipient.OdinId],
                 IsTransient = false,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
             };
 

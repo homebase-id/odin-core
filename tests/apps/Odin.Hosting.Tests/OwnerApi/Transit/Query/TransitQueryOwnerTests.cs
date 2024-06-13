@@ -770,7 +770,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
@@ -1104,7 +1103,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
-
+  
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
                     permissionKeys: new List<int>() { },
@@ -1139,6 +1138,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    
                 },
                 IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1533,7 +1533,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()
@@ -1684,7 +1683,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId }
                 },
                 Manifest = new UploadManifest()

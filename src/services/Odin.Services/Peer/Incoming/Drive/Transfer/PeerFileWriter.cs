@@ -109,7 +109,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             switch (transferFileType)
             {
                 case TransferFileType.CommandMessage:
-                    await StoreCommandMessage(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, odinContext, cn);
+                    logger.LogInformation("Command message received yet no longer supported (it must be stuck in a queue)");
                     break;
 
                 case TransferFileType.Normal:
@@ -222,18 +222,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return targetAcl;
         }
-
-        /// <summary>
-        /// Stores an incoming command message and updates the queue
-        /// </summary>
-        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, odinContext: odinContext, ignorePayload: false, cn: cn);
-            await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, [tempFile.FileId], cn);
-        }
-
 
         private async Task WriteNewFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,

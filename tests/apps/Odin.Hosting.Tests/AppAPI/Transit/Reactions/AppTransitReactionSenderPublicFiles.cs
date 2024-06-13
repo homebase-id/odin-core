@@ -284,7 +284,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
             var transitResult = response.Content;
             Assert.IsNotNull(transitResult);
-            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.DeliveredToTargetDrive);
+            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             //
             // Merry uses transit query to get all files of that file type
@@ -318,16 +318,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
         }
         
         
-        private async Task Connect(TestIdentity sender, TestIdentity recipient)
-        {
-            //Note
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
-
-            await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { });
-            await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>() { });
-        }
-
         private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)
         {
             var appId = Guid.NewGuid();
@@ -378,30 +368,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 payloadData: payload ?? "",
                 thumbnail: thumbnail);
             return (result, fileMetadata);
-        }
-
-        private async Task<(UploadResult uploadResult, ClientFileMetadata modifiedMetadata)> ModifyFile(TestIdentity identity, ExternalFileIdentifier file)
-        {
-            var client = _scaffold.CreateOwnerApiClient(identity);
-
-            var header = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                IsEncrypted = false,
-                AppData = new()
-                {
-                    FileType = 777,
-                    Content = header.FileMetadata.AppData.Content + " something i appended"
-                },
-                VersionTag = header.FileMetadata.VersionTag,
-                AccessControlList = AccessControlList.Anonymous
-            };
-
-            var result = await client.Drive.UploadFile(FileSystemType.Standard, file.TargetDrive, fileMetadata, overwriteFileId: file.FileId);
-
-            var modifiedFile = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
-            return (result, modifiedFile.FileMetadata);
         }
     }
 }

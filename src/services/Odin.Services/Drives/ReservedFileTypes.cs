@@ -1,4 +1,4 @@
-namespace Odin.Services.Apps.CommandMessaging;
+namespace Odin.Services.Drives;
 
 public static class ReservedFileTypes
 {
@@ -11,8 +11,6 @@ public static class ReservedFileTypes
     /// End range of reserved file types
     /// </summary>
     public const int End = int.MaxValue;
-
-    public const int CommandMessage = 2100000001;
 
     public static bool IsInReservedRange(int value)
     {

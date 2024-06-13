@@ -220,7 +220,6 @@ public class TransitApiClient
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,
         };
 
@@ -288,7 +287,6 @@ public class TransitApiClient
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,
         };
 

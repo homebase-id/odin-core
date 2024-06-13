@@ -24,28 +24,14 @@ namespace Odin.Services.Peer
         DeliveredToTargetDrive = 7,
         
         /// <summary>
-        /// Specifies there was a failure to send the transfer and it will be retried.
-        /// </summary>
-        PendingRetry = 8,
-        
-        /// <summary>
         /// Recipient server rejected the transfer, client should retry 
         /// </summary>
         TotalRejectionClientShouldRetry = 9,
-        
-        /// <summary>
-        /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
-        /// </summary>
-        FileDoesNotAllowDistribution = 11,
         
         /// <summary>
         /// Indicates the recipient server returned a security error
         /// </summary>
         RecipientReturnedAccessDenied = 13,
         
-        /// <summary>
-        /// The recipient cannot read the file due to the file's ACL configuration
-        /// </summary>
-        RecipientDoesNotHavePermissionToFileAcl = 15
     }
 }

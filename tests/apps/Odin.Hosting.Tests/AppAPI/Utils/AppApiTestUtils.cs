@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -24,7 +23,6 @@ using Odin.Services.Peer.Incoming;
 using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Registry.Registration;
 using Odin.Core.Storage;
@@ -228,18 +226,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-
-                        if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToTargetDrive,
-                                $"file was not delivered to {recipient}");
-                        }
-
-                        if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
-                                $"transfer key not created for {recipient}");
-                        }
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued);
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;

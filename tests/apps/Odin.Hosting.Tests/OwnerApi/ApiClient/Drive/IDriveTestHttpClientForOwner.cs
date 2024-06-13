@@ -75,6 +75,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
 
+        [Obsolete]
         [Post(OwnerApiPathConstants.PeerV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 

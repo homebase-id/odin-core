@@ -36,7 +36,6 @@ using Odin.Services.Peer.Incoming;
 using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -861,7 +860,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //Feature added much later in schedule but it means we don't have to thread sleep in our unit tests
             if (options.ProcessOutbox && instructionSet.TransitOptions != null)
             {
-                instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
             }
 
             await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);

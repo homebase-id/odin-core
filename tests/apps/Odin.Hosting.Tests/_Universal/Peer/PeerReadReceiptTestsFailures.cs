@@ -85,8 +85,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -153,8 +152,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -227,8 +225,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
