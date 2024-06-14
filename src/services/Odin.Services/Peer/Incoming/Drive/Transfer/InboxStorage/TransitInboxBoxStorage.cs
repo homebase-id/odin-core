@@ -80,15 +80,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Task MarkComplete(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            var driveId = file.DriveId;
-            tenantSystemStorage.Inbox.PopCommitList(cn, marker, [file.FileId]);
+            tenantSystemStorage.Inbox.PopCommitList(cn, marker, file.DriveId, [file.FileId]);
             return Task.CompletedTask;
         }
 
         public Task MarkFailure(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            var driveId = file.DriveId;
-            tenantSystemStorage.Inbox.PopCancelList(cn, marker, [file.FileId]);
+            tenantSystemStorage.Inbox.PopCancelList(cn, marker, file.DriveId, [file.FileId]);
             return Task.CompletedTask;
         }
 
