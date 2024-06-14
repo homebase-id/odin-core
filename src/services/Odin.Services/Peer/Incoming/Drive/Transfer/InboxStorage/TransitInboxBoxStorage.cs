@@ -8,6 +8,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 {
@@ -77,15 +78,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return await Task.FromResult(items);
         }
 
-        public Task MarkComplete(Guid fileId, Guid marker, DatabaseConnection cn)
+        public Task MarkComplete(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCommitList(cn, marker, [fileId]);
+            var driveId = file.DriveId;
+            tenantSystemStorage.Inbox.PopCommitList(cn, marker, [file.FileId]);
             return Task.CompletedTask;
         }
 
-        public Task MarkFailure(Guid fileId, Guid marker, DatabaseConnection cn)
+        public Task MarkFailure(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCancelList(cn, marker, [fileId]);
+            var driveId = file.DriveId;
+            tenantSystemStorage.Inbox.PopCancelList(cn, marker, [file.FileId]);
             return Task.CompletedTask;
         }
 

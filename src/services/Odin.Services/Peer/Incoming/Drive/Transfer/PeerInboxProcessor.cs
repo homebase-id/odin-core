@@ -57,15 +57,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 // await cn.CreateCommitUnitOfWorkAsync(async () =>
                 // {
+                var tempFile = new InternalDriveFileId()
+                {
+                    DriveId = inboxItem.DriveId,
+                    FileId = inboxItem.FileId
+                };
+                
                 try
                 {
                     var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
-
-                    var tempFile = new InternalDriveFileId()
-                    {
-                        DriveId = inboxItem.DriveId,
-                        FileId = inboxItem.FileId
-                    };
+                    
                     
                     if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                     {
@@ -104,7 +105,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         logger.LogDebug("Processing Inbox -> ReadReceipt maker/popstamp:[{maker}]",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
-                        await transitInboxBoxStorage.MarkComplete(inboxItem.FileId, inboxItem.Marker, cn);
+                        await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                         logger.LogDebug(ReadReceiptItemMarkedComplete);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
@@ -114,7 +115,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else
                     {
-                        await transitInboxBoxStorage.MarkComplete(inboxItem.FileId, inboxItem.Marker, cn);
+                        await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                         throw new OdinClientException("Invalid transfer type",
                             OdinClientErrorCode.InvalidTransferType);
                     }
@@ -122,11 +123,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}",
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                         Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                    await transitInboxBoxStorage.MarkComplete(inboxItem.FileId, inboxItem.Marker, cn);
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                 }
                 catch (OdinRemoteIdentityException)
                 {
-                    await transitInboxBoxStorage.MarkFailure(inboxItem.FileId, inboxItem.Marker, cn);
+                    await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
                     throw;
                 }
                 catch (OdinFileWriteException)
@@ -134,7 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     logger.LogError(
                         "File was missing for inbox item.  the inbox item will be removed.  marker/popStamp: [{marker}]",
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                    await transitInboxBoxStorage.MarkComplete(inboxItem.FileId, inboxItem.Marker, cn);
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                 }
                 catch (Exception e)
                 {
@@ -146,7 +147,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         e.GetType().Name,
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                         Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                    await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker, cn);
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                 }
                 // });
             }
