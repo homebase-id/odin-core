@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IUniversalRefitOwnerTransitSender
+    public interface IUniversalRefitPeerSender
     {
         private const string RootEndpoint = OwnerApiPathConstants.PeerSenderV1;
 

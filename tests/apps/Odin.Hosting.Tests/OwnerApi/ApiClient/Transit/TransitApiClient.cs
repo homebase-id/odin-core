@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -15,21 +14,14 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Incoming.Reactions;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
-using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Hosting.Controllers.OwnerToken.Transit;
-using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.Transit.Query;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -47,21 +39,10 @@ public class TransitApiClient
         _identity = identity;
     }
 
-    public async Task ProcessOutbox(int batchSize = 1)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _ownerApi.SystemProcessApiKey.ToString());
-            var resp = await transitSvc.ProcessOutbox(batchSize);
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        }
-    }
-
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
-        
+
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -88,7 +69,7 @@ public class TransitApiClient
             await Task.Delay(100);
         }
     }
-    
+
     public async Task ProcessInbox(TargetDrive drive)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -328,8 +309,7 @@ public class TransitApiClient
             foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
-                bool wasDelivered = status == TransferStatus.DeliveredToInbox || status == TransferStatus.DeliveredToTargetDrive;
-                Assert.IsTrue(wasDelivered, $"failed to deliver to {recipient}; status was {status}");
+                Assert.IsTrue(status == TransferStatus.Enqueued, $"failed to enqueue into outbox for {recipient}; status was {status}");
             }
 
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
@@ -337,6 +317,10 @@ public class TransitApiClient
             Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
             Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
 
+            await this.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
+            //Note: with the new outbox - there is no way to check the final status
+            //of files sent using the peer direct send
 
             keyHeader.AesKey.Wipe();
 

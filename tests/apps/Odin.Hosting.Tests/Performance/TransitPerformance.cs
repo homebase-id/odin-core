@@ -334,11 +334,11 @@ TaskPerformanceTest_Transit
 
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    var wasDeliveredToAll =
+                    var wasPutInOutboxForAll =
                         instructionSet.TransitOptions.Recipients.All(r =>
-                            uploadResult.RecipientStatus[r] == TransferStatus.DeliveredToTargetDrive);
+                            uploadResult.RecipientStatus[r] == TransferStatus.Enqueued);
 
-                    Assert.IsTrue(wasDeliveredToAll);
+                    Assert.IsTrue(wasPutInOutboxForAll);
                 }
 
 

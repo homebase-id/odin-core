@@ -110,7 +110,7 @@ public class DataSubscriptionAndDistributionTests1
             versionTag: firstUploadResult.NewVersionTag);
 
         //Tell frodo's identity to process the outbox due to feed distribution
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Cron.DistributeFeedFiles();
@@ -228,7 +228,7 @@ public class DataSubscriptionAndDistributionTests1
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         //Tell frodo's identity to process the outbox due to feed distribution
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         //Tell Frodo's identity to process the feed outbox
         await frodoOwnerClient.Cron.DistributeFeedFiles();
@@ -488,7 +488,7 @@ public class DataSubscriptionAndDistributionTests1
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         //Tell frodo's identity to process the outbox due to feed distribution
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         //
         // Sam should, however, have a reaction summary update for that comment on the original file
@@ -553,7 +553,7 @@ public class DataSubscriptionAndDistributionTests1
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         //Tell frodo's identity to process the outbox
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
@@ -604,15 +604,17 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.DeliveredToTargetDrive, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == TransferStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
 
+        // weird
+        await samOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         var commentFileQueryParams = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
 
-        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         //
         // Sam should not have the comment since they are not distributed
@@ -693,7 +695,7 @@ public class DataSubscriptionAndDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         //Tell frodo's identity to process the outbox
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
@@ -731,7 +733,7 @@ public class DataSubscriptionAndDistributionTests1
         };
 
         // transfer a comment from Sam directly to frodo
-        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFileHeader(
+        var (transitResult, _) = await samOwnerClient.Transit.TransferEncryptedFileHeader(
             FileSystemType.Comment,
             commentFile,
             recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
@@ -743,15 +745,16 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.DeliveredToTargetDrive, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == TransferStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
 
+        // weird
+        await samOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         var commentFileQueryParams = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             FileType = new List<int>() { commentFileType }
         };
-
-        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         //
         // Sam should not have the comment since they are not distributed
@@ -918,7 +921,7 @@ public class DataSubscriptionAndDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType, Guid.NewGuid());
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -971,7 +974,7 @@ public class DataSubscriptionAndDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
@@ -1185,7 +1188,7 @@ public class DataSubscriptionAndDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
         // await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
         
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);

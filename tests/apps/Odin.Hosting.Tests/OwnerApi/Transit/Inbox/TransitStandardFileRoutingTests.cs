@@ -80,8 +80,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive, $"Should have been delivered, actual status was {recipientStatus}");
-
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
             //
             // Test results
             //
@@ -137,8 +137,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToInbox, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
+            await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
+            
             //
             //  Assert recipient does not have the file when it is first sent
             //
@@ -197,12 +199,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             //
             // Test results
             //
-
+            
+            //
+            // Validate the transfer history was updated correctly
+            //
+            await senderOwnerClient.DriveRedux.WaitForTransferStatus(uploadResult.File,
+                recipientOwnerClient.Identity.OdinId,
+                LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+            
             //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
             // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
             //
