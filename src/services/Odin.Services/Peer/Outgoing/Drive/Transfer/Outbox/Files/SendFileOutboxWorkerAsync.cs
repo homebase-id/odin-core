@@ -45,13 +45,6 @@ public class SendFileOutboxWorkerAsync(
 
             var versionTag = await SendOutboxFileItemAsync(fileItem, odinContext, cn, cancellationToken);
 
-            // Try to clean up the transient file
-            if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
-            {
-                logger.LogDebug("File was transient and all other outbox records sent; deleting");
-                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
-            }
-
             var update = new UpdateTransferHistoryData()
             {
                 IsInOutbox = false,
@@ -64,6 +57,13 @@ public class SendFileOutboxWorkerAsync(
 
             logger.LogDebug("Successful transfer - Marking Complete (popStamp:{marker})", fileItem.Marker);
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
+            
+            // Try to clean up the transient file
+            if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
+            {
+                logger.LogDebug("File was transient and all other outbox records sent; deleting");
+                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
+            }
         }
         catch (OdinOutboxProcessingException e)
         {
