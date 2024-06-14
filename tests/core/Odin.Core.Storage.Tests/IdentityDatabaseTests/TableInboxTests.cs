@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var boxId = SequentialGuid.CreateGuid();
 
                 var tslo = UnixTimeUtc.Now();
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = v1});
+                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = v1 });
                 db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 10, value = v2 });
                 var tshi = UnixTimeUtc.Now();
 
@@ -250,7 +250,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b1 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1});
+                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
                 db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
                 db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
 
@@ -260,7 +260,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // Commit one of the three records
-                db.tblInbox.PopCommitList(myc, (Guid)r1[0].popStamp, new List<Guid>() { f2 });
+                db.tblInbox.PopCommitList(myc, (Guid)r1[0].popStamp, b1, new List<Guid>() { f2 });
 
                 // Cancel the rest (f1, f3)
                 db.tblInbox.PopCancelAll(myc, (Guid)r1[0].popStamp);
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // Commit all records
-                db.tblInbox.PopCommitList(myc, (Guid)r2[0].popStamp, new List<Guid>() { f1, f3 });
+                db.tblInbox.PopCommitList(myc, (Guid)r2[0].popStamp, b1, new List<Guid>() { f1, f3 });
 
                 // Cancel nothing
                 db.tblInbox.PopCancelAll(myc, (Guid)r2[0].popStamp);
@@ -311,7 +311,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // Cancel two of the three records
-                db.tblInbox.PopCancelList(myc, (Guid)r1[0].popStamp, new List<Guid>() { f1, f2 });
+                db.tblInbox.PopCancelList(myc, (Guid)r1[0].popStamp, b1, new List<Guid>() { f1, f2 });
 
                 // Pop all the recods from the Inbox, but sure we get the two cancelled
                 var r2 = db.tblInbox.PopSpecificBox(myc, b1, 5);
@@ -319,7 +319,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // Cancel one of the two records
-                db.tblInbox.PopCancelList(myc, (Guid)r2[0].popStamp, new List<Guid>() { f1 });
+                db.tblInbox.PopCancelList(myc, (Guid)r2[0].popStamp, b1, new List<Guid>() { f1 });
 
                 // Pop all the recods from the Inbox, but sure we get the two cancelled
                 var r3 = db.tblInbox.PopSpecificBox(myc, b1, 5);
