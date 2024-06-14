@@ -230,7 +230,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _popCancelListCommand = _database.CreateCommand())
             {
-                _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
+                _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE boxId=$driveId AND fileid=$fileid AND popstamp=$popstamp";
 
                 var _pcancellistparam1 = _popCancelListCommand.CreateParameter();
                 _pcancellistparam1.ParameterName = "$popstamp";
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _popCommitListCommand = _database.CreateCommand())
             {
-                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE driveId=$driveId AND fileid=$fileid AND popstamp=$popstamp";
+                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE boxId=$driveId AND fileid=$fileid AND popstamp=$popstamp";
 
                 var _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
                 _pcommitlistparam1.ParameterName = "$popstamp";
