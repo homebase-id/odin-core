@@ -19,5 +19,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         [Post(DriveRoot + "/deletelinkedfile")]
         Task<ApiResponse<PeerTransferResponse>> DeleteLinkedFile([Body] DeleteRemoteFileRequest request);
+
+        [Post(DriveRoot + "/mark-file-read")]
+        Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest);
     }
 }

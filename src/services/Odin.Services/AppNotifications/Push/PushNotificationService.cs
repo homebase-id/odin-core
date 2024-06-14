@@ -146,7 +146,7 @@ public class PushNotificationService(
             notification.DatabaseConnection);
     }
 
-    public async Task Push(PushNotificationContent content, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task Push(PushNotificationContent content, IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting push notification");
 
@@ -160,7 +160,7 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPush(subscription, keys, content, odinContext, cn));
+                tasks.Add(WebPush(subscription, keys, content, odinContext, cn, cancellationToken));
             }
             else
             {
@@ -174,7 +174,8 @@ public class PushNotificationService(
         await Task.WhenAll(tasks);
     }
 
-    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext,
+        DatabaseConnection cn, CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
 
@@ -186,7 +187,7 @@ public class PushNotificationService(
         var webPushClient = new WebPushClient();
         try
         {
-            await webPushClient.SendNotificationAsync(pushSubscription, data, vapidDetails);
+            await webPushClient.SendNotificationAsync(pushSubscription, data, vapidDetails, cancellationToken);
         }
         catch (WebPushException exception)
         {

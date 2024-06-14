@@ -17,5 +17,6 @@ namespace Odin.Services.Mediator
         public ExternalFileIdentifier ExternalFile { get; set; }
 
         public DatabaseConnection DatabaseConnection { get; init; }
+        public bool IgnoreFeedDistribution { get; set; }
     }
 }

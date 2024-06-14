@@ -383,6 +383,12 @@ namespace Odin.Hosting.Tests
             AssertLogEvents(logEvents, assertLogEvents);
         }
 
+        public Dictionary<LogEventLevel, List<LogEvent>> GetLogEvents()
+        {
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+            return logEvents;
+        }
+
         public void ClearLogEvents()
         {
             Services.GetRequiredService<ILogEventMemoryStore>().Clear();
@@ -412,5 +418,11 @@ namespace Odin.Hosting.Tests
             Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
         }
 
+        public void AssertHasDebugLogEvent(string message, int count)
+        {
+            var logEvents = GetLogEvents();
+            var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
+            Assert.IsTrue(expectedEvent.Count() == count);
+        }
     }
 }

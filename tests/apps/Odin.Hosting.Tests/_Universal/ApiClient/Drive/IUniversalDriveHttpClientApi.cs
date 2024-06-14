@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
@@ -9,6 +10,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
 using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
@@ -75,5 +77,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         
         [Get(RootDriveEndpoint + "/status")]
         Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
+
+        [Post(RootStorageEndpoint + "/send-read-receipt")]
+        Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(SendReadReceiptRequest request);
     }
 }

@@ -16,9 +16,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        Task Add(OutboxItem item, DatabaseConnection cn, bool useUpsert = false);
-
-        Task Add(IEnumerable<OutboxItem> items, DatabaseConnection cn);
+        Task Add(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false);
 
         Task MarkComplete(Guid marker, DatabaseConnection cn);
 
@@ -29,13 +27,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn);
 
-        Task<OutboxItem> GetNextItem(DatabaseConnection cn);
+        Task<OutboxFileItem> GetNextItem(DatabaseConnection cn);
 
         /// <summary>
         /// Checks if this outbox item exists and is of type OutboxItemType.File
         /// </summary>
-        Task<bool> HasOutboxFileItem(OutboxItem arg, DatabaseConnection cn);
+        Task<bool> HasOutboxFileItem(OutboxFileItem arg, DatabaseConnection cn);
 
-        Task<OutboxStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn);
+        Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn);
     }
 }

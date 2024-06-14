@@ -1,4 +1,5 @@
 using System;
+using Odin.Core;
 
 namespace Odin.Services.Drives
 {
@@ -16,6 +17,11 @@ namespace Odin.Services.Drives
         /// The fileId to retrieve
         /// </summary>
         public Guid FileId { get; set; }
+        
+        public byte[] ToKey()
+        {
+            return ByteArrayUtil.Combine(FileId.ToByteArray(), TargetDrive.ToKey());
+        }
         
         public bool HasValue()
         {

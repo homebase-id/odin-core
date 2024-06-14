@@ -146,9 +146,12 @@ namespace Odin.Core.Storage.SQLite
                 {
                     if (++_nestedCounter == 1)
                     {
-                        Serilog.Log.Debug(
-                            "CreateCommitUnitOfWorkAsync: {caller} BeginTransaction ({filePath}:{lineNumber})",
-                            caller, Path.GetFileName(filePath), lineNumber);
+                        if (Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Verbose))
+                        {
+                            Serilog.Log.Verbose(
+                                "CreateCommitUnitOfWorkAsync: {caller} BeginTransaction ({filePath}:{lineNumber})",
+                                caller, Path.GetFileName(filePath), lineNumber);
+                        }
                         BeginTransaction();
                     }
                 }
@@ -168,9 +171,12 @@ namespace Odin.Core.Storage.SQLite
                     if (--_nestedCounter == 0)
                     {
                         EndTransaction(commit);
-                        Serilog.Log.Debug(
-                            "CreateCommitUnitOfWorkAsync: {caller} EndTransaction({commit}) ({filePath}:{lineNumber})",
-                            caller, commit, Path.GetFileName(filePath), lineNumber);;
+                        if (Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Verbose))
+                        {
+                            Serilog.Log.Verbose(
+                                "CreateCommitUnitOfWorkAsync: {caller} EndTransaction({commit}) ({filePath}:{lineNumber})",
+                                caller, commit, Path.GetFileName(filePath), lineNumber);
+                        }
                     }
                     else if (_nestedCounter < 0)
                     {

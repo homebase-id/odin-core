@@ -21,5 +21,5 @@ public class DriveFileAddedNotification : MediatorNotificationBase, IDriveNotifi
     // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
     public DatabaseConnection DatabaseConnection { get; init; }
-
+    public bool IgnoreFeedDistribution { get; set; }
 }
