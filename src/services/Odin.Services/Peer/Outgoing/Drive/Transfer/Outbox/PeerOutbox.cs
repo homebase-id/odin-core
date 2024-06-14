@@ -21,25 +21,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task Add(OutboxItem item, DatabaseConnection cn, bool useUpsert = false)
+        public Task Add(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
         {
             var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
-                Recipient = item.Recipient,
-                IsTransientFile = item.IsTransientFile,
+                Recipient = fileItem.Recipient,
+                IsTransientFile = fileItem.IsTransientFile,
                 Attempts = { },
-                TransferInstructionSet = item.TransferInstructionSet,
-                OriginalTransitOptions = item.OriginalTransitOptions,
-                EncryptedClientAuthToken = item.EncryptedClientAuthToken
+                TransferInstructionSet = fileItem.TransferInstructionSet,
+                OriginalTransitOptions = fileItem.OriginalTransitOptions,
+                EncryptedClientAuthToken = fileItem.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
 
             var record = new OutboxRecord()
             {
-                driveId = item.File.DriveId,
-                recipient = item.Recipient,
-                fileId = item.File.FileId,
+                driveId = fileItem.File.DriveId,
+                recipient = fileItem.Recipient,
+                fileId = fileItem.File.FileId,
+                dependencyFileId = fileItem.DependencyFileId,
                 type = (int)OutboxItemType.File,
-                priority = item.Priority,
+                priority = fileItem.Priority,
                 value = state
             };
 
@@ -54,16 +55,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             var sender = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-
-            return Task.CompletedTask;
-        }
-
-        public Task Add(IEnumerable<OutboxItem> items, DatabaseConnection cn)
-        {
-            foreach (var item in items)
-            {
-                Add(item, cn);
-            }
 
             return Task.CompletedTask;
         }
@@ -89,17 +80,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public async Task<OutboxItem> GetNextItem(DatabaseConnection cn)
+        public async Task<OutboxFileItem> GetNextItem(DatabaseConnection cn)
         {
             var record = tenantSystemStorage.Outbox.CheckOutItem(cn);
 
             if (null == record)
             {
-                return await Task.FromResult<OutboxItem>(null);
+                return await Task.FromResult<OutboxFileItem>(null);
             }
 
             var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
-            var item = new OutboxItem()
+            var item = new OutboxFileItem()
             {
                 Recipient = (OdinId)record.recipient,
                 Priority = record.priority,
@@ -121,20 +112,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await Task.FromResult(item);
         }
 
-        public Task<bool> HasOutboxFileItem(OutboxItem item, DatabaseConnection cn)
+        public Task<bool> HasOutboxFileItem(OutboxFileItem fileItem, DatabaseConnection cn)
         {
-            var records = tenantSystemStorage.Outbox.Get(cn, item.File.DriveId, item.File.FileId);
+            var records = tenantSystemStorage.Outbox.Get(cn, fileItem.File.DriveId, fileItem.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
         }
-        
+
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
+        public async Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
         {
             var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(cn, driveId);
-            return await Task.FromResult<OutboxStatus>(new OutboxStatus()
+            return await Task.FromResult(new OutboxDriveStatus()
             {
                 CheckedOutCount = poppedCount,
                 TotalItems = totalCount,
