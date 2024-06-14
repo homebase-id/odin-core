@@ -33,8 +33,6 @@
         public const string SecurityV1 = BasePathV1 + "/security";
 
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
-
-        public const string CommandSenderV1 = BasePathV1 + "/commands";
         
         public const string OptimizationV1 = BasePathV1 + "/optimization";
 

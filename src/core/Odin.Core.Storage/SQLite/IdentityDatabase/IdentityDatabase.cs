@@ -27,19 +27,6 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
-    public static class ReservedFileTypes
-    {
-        private const int Start = 2100000000;
-        private const int End = int.MaxValue;
-
-        public const int CommandMessage = 2100000001;
-
-        public static bool IsInReservedRange(int value)
-        {
-            return value is < End and >= Start;
-        }
-    }
-
     public class IdentityDatabase : DatabaseBase
     {
         public class NullableGuid
@@ -51,7 +38,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableDriveMainIndex tblDriveMainIndex = null;
         public readonly TableDriveAclIndex tblDriveAclIndex = null;
         public readonly TableDriveTagIndex tblDriveTagIndex = null;
-        public readonly TableDriveCommandMessageQueue tblDriveCommandMessageQueue = null;
         public readonly TableDriveReactions tblDriveReactions = null;
 
         // Identity tables
@@ -92,7 +78,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblDriveMainIndex = new TableDriveMainIndex(this, _cache);
             tblDriveAclIndex = new TableDriveAclIndex(this, _cache);
             tblDriveTagIndex = new TableDriveTagIndex(this, _cache);
-            tblDriveCommandMessageQueue = new TableDriveCommandMessageQueue(this, _cache);
             tblDriveReactions = new TableDriveReactions(this, _cache);
 
             // Identity
@@ -141,7 +126,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblDriveMainIndex.Dispose();
             tblDriveAclIndex.Dispose();
             tblDriveTagIndex.Dispose();
-            tblDriveCommandMessageQueue.Dispose();
             tblDriveReactions.Dispose();
 
             // Identity
@@ -176,7 +160,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
             tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
             tblDriveTagIndex.EnsureTableExists(conn, dropExistingTables);
-            tblDriveCommandMessageQueue.EnsureTableExists(conn, dropExistingTables);
             tblDriveReactions.EnsureTableExists(conn, dropExistingTables);
 
             // Identity
