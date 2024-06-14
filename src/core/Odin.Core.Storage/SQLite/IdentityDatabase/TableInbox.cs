@@ -226,7 +226,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void PopCancelList(DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
+        public void PopCancelList(DatabaseConnection conn, Guid popstamp, Guid driveId, List<Guid> listFileId)
         {
             using (var _popCancelListCommand = _database.CreateCommand())
             {
@@ -240,7 +240,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pcancellistparam2.ParameterName = "$fileid";
                 _popCancelListCommand.Parameters.Add(_pcancellistparam2);
 
+                var _pcancellistparam3 = _popCancelListCommand.CreateParameter();
+                _pcancellistparam3.ParameterName = "$driveId";
+                _popCancelListCommand.Parameters.Add(_pcancellistparam3);
+
                 _pcancellistparam1.Value = popstamp.ToByteArray();
+                _pcancellistparam3.Value = driveId.ToByteArray();
 
                 conn.CreateCommitUnitOfWork(() =>
                 {
@@ -280,11 +285,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommitList(DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
+        public void PopCommitList(DatabaseConnection conn, Guid popstamp, Guid driveId, List<Guid> listFileId)
         {
             using (var _popCommitListCommand = _database.CreateCommand())
             {
-                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE fileid=$fileid AND popstamp=$popstamp";
+                _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE driveId=$driveId AND fileid=$fileid AND popstamp=$popstamp";
 
                 var _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
                 _pcommitlistparam1.ParameterName = "$popstamp";
@@ -294,7 +299,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pcommitlistparam2.ParameterName = "$fileid";
                 _popCommitListCommand.Parameters.Add(_pcommitlistparam2);
 
+                var _pcommitlistparam3 = _popCommitListCommand.CreateParameter();
+                _pcommitlistparam3.ParameterName = "$driveId";
+                _popCommitListCommand.Parameters.Add(_pcommitlistparam3);
+
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
+                _pcommitlistparam3.Value = driveId.ToByteArray();
 
                 conn.CreateCommitUnitOfWork(() =>
                 {
