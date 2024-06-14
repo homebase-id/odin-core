@@ -7,8 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -36,6 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -95,8 +98,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             return df;
         }
 
-        public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext, DatabaseConnection cn,
-            bool raiseEvent = false)
+        public async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
+            IOdinContext odinContext, DatabaseConnection cn,
+            bool raiseEvent = false, bool ignoreFeedDistribution = false)
         {
             if (!header.IsValid())
             {
@@ -129,7 +133,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
 
-            await WriteFileHeaderInternal(header, cn);
+            await WriteFileHeaderInternal(header, cn, keepSameVersionTag);
 
             //clean up temp storage
             var tsm = await GetTempStorageManager(targetFile.DriveId, cn);
@@ -145,7 +149,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         File = targetFile,
                         ServerFileHeader = header,
                         OdinContext = odinContext,
-                        DatabaseConnection = cn
+                        DatabaseConnection = cn,
+                        IgnoreFeedDistribution = ignoreFeedDistribution
                     });
                 }
             }
@@ -770,7 +775,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
         }
-
+        
         // Feed drive hacks
 
         public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata, IOdinContext odinContext, DatabaseConnection cn)
@@ -786,10 +791,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AccessControlList = AccessControlList.OwnerOnly,
                 AllowDistribution = false
             };
-            
+
             //we don't accept uniqueIds into the feed
             fileMetadata.AppData.UniqueId = null;
-            
+
             var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext, cn);
             await this.WriteNewFileHeader(file, serverFileHeader, odinContext, cn, raiseEvent: true);
         }
@@ -799,6 +804,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
             var header = await GetServerFileHeaderInternal(file, odinContext, cn);
+            AssertValidFileSystemType(header.ServerMetadata);
 
             if (header == null)
             {
@@ -810,9 +816,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file; this will be ignored.");
                 return;
             }
-            
+
             AssertValidFileSystemType(header.ServerMetadata);
-            
+
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
             if (file.DriveId != feedDriveId)
             {
@@ -832,7 +838,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             header.FileMetadata = fileMetadata;
-            
+
             // Clearing the UID for any files that go into the feed drive because the feed drive 
             // comes from multiple channel drives from many different identities so there could be a clash
             header.FileMetadata.AppData.UniqueId = null;
@@ -900,6 +906,55 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext, DatabaseConnection cn,
+            bool raiseEvent = false)
+        {
+            await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, cn, raiseEvent);
+        }
+
+        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            using (await _updateTransferHistoryLock.LockAsync())
+            {
+                var header = await this.GetServerFileHeader(file, odinContext, cn);
+
+                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
+
+                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                {
+                    recipientItem = new RecipientTransferHistoryItem();
+                    history.Recipients.Add(recipient, recipientItem);
+                }
+
+                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+
+                recipientItem.LastUpdated = UnixTimeUtc.Now();
+                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
+                {
+                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
+                }
+
+                header.ServerMetadata.TransferHistory = history;
+
+                _logger.LogDebug(
+                    "Updating transfer history on file:{file} for recipient:{recipient} \n Version:{versionTag}\t Status:{status}\t InOutbox:{outbox}\t isRead: {isRead}",
+                    file,
+                    recipient,
+                    updateData.VersionTag,
+                    updateData.LatestTransferStatus,
+                    updateData.IsInOutbox,
+                    updateData.IsReadByRecipient);
+
+                await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, odinContext, cn, raiseEvent: true,
+                    ignoreFeedDistribution: true);
+            }
+        }
+
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
@@ -915,9 +970,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             return new TempStorageManager(drive, driveFileReaderWriter, logger);
         }
 
-        private async Task WriteFileHeaderInternal(ServerFileHeader header, DatabaseConnection cn)
+        private async Task WriteFileHeaderInternal(ServerFileHeader header, DatabaseConnection cn, bool keepSameVersionTag = false)
         {
-            header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            if (!keepSameVersionTag)
+            {
+                header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            }
+
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var file = header.FileMetadata.File;

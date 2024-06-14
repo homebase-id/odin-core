@@ -1,18 +1,17 @@
-using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer
 {
     public enum TransferStatus
     {
         /// <summary>
-        /// Indicates the transfer is waiting to have an <see cref="EncryptedKeyHeader"/> created
+        /// Indicates creating the outbox item failed.  The client should retry.
         /// </summary>
-        AwaitingTransferKey = 1,
+        EnqueuedFailed = 1,
         
         /// <summary>
-        /// Item is enqueued in the outbox and will be send with the next call to ProcessOutbox
+        /// Item is enqueued in the outbox and will be sent shortly
         /// </summary>
-        TransferKeyCreated = 3, //todo: rename to EnqueuedOutbox
+        Enqueued = 3,
 
         /// <summary>
         /// Indicates the transfer was successfully delivered to the inbox.

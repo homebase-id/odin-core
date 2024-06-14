@@ -921,7 +921,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
                             $"transfer key not created for {recipient}");
                     }
 

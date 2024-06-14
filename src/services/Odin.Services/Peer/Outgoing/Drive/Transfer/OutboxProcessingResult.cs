@@ -20,6 +20,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         public Int64 Timestamp { get; set; }
 
-        public OutboxItem OutboxItem { get; set; }
+        public OutboxFileItem OutboxFileItem { get; set; }
+        public Guid? VersionTag { get; set; }
     }
 }

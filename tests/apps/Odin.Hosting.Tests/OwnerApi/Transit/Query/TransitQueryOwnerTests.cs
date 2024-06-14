@@ -189,7 +189,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -469,7 +469,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -963,7 +963,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -1235,7 +1235,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
