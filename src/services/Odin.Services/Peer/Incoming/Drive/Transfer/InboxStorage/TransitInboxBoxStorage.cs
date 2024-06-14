@@ -38,10 +38,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             });
         }
 
-        
+
         public InboxStatus GetPendingCount(Guid driveId, DatabaseConnection cn)
         {
-
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
 
             return new InboxStatus()
@@ -66,7 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             {
                 var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
 
-                item.Priority = (int)r.priority;
+                item.Priority = r.priority;
                 item.AddedTimestamp = r.timeStamp;
                 item.DriveId = r.boxId;
                 item.FileId = r.fileId;
@@ -78,15 +77,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return await Task.FromResult(items);
         }
 
-        public Task MarkComplete(Guid driveId, Guid marker, DatabaseConnection cn)
+        public Task MarkComplete(Guid fileId, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCommitAll(cn, marker);
+            tenantSystemStorage.Inbox.PopCommitList(cn, marker, [fileId]);
             return Task.CompletedTask;
         }
 
-        public Task MarkFailure(Guid driveId, Guid marker, DatabaseConnection cn)
+        public Task MarkFailure(Guid fileId, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCancelAll(cn, marker);
+            tenantSystemStorage.Inbox.PopCancelList(cn, marker, [fileId]);
             return Task.CompletedTask;
         }
 

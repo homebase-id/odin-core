@@ -387,7 +387,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.Add(item, cn);
             }
 
-            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
             return await MapOutboxCreationResult(outboxStatus);
         }
