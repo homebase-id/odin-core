@@ -159,6 +159,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinFileWriteException($"No file found with specified global transit Id ({item.GlobalTransitId}) on driveId({item.DriveId})");
             }
 
+            if (header.FileState == FileState.Deleted)
+            {
+                logger.LogInformation("Attempted to mark a deleted file as read; skipping");
+                return;
+            }
+
             var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
             if (!recordExists || transferHistoryItem == null)

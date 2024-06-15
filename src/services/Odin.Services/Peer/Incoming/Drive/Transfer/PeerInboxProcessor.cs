@@ -96,16 +96,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                     {
-                        logger.LogDebug("Processing Inbox -> DeleteFile maker/popstamp:[{maker}]",
+                        logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await writer.DeleteFile(fs, inboxItem, odinContext, cn);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
                     {
-                        logger.LogDebug("Processing Inbox -> ReadReceipt maker/popstamp:[{maker}]",
+                        logger.LogDebug("Processing Inbox -> ReadReceipt marker/popstamp:[{maker}]",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                        
                         await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
                         await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+                        
                         logger.LogDebug(ReadReceiptItemMarkedComplete);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
