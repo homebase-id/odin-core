@@ -4,7 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -14,16 +16,14 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Core.Storage;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
+namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 {
     /// <summary>
     /// Tests to send comment files to another identity w/o storing them locally
     /// </summary>
-    public class TransitSenderTests
+    public class PeerDirectSendTests
     {
         private WebScaffold _scaffold;
 
@@ -55,7 +55,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
         }
 
 
-
         [Test]
         public async Task CanTransfer_Unencrypted_Comment()
         {
@@ -76,8 +75,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo; //sender is the one who sends the comment
             var recipient = TestIdentities.Samwise;
 
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -86,17 +85,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             const string commentFileContent = "Srsly!?? =O";
             const bool commentIsEncrypted = false;
 
-            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
 
-            var (standardFileUploadResult, _) = await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+            var (standardFileUploadResult, _) =
+                await UploadStandardFile(recipientOwnerClient, recipientTargetDrive, standardFileContent, standardFileIsEncrypted);
 
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
-                FileSystemType.Standard,
+            var recipientFileByGtidResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
+            var recipientFileByGlobalTransitId = recipientFileByGtidResponse.Content?.SearchResults.SingleOrDefault();
             Assert.IsNotNull(recipientFileByGlobalTransitId);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
@@ -108,9 +108,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
             //
             // Test results
             //
@@ -120,13 +120,27 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new QueryBatchRequest
             {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                    GlobalTransitId = new List<Guid>()
+                    {
+                        commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId
+                    }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true,
+                    IncludeTransferHistory = false
+                }
             };
 
-            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var batch = batchResponse.Content;
+
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -160,8 +174,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -178,10 +192,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
-                FileSystemType.Standard,
-                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+            var recipientFileByGlobalTransitIdResponse =
+                await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
+            var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
             Assert.IsNotNull(recipientFileByGlobalTransitId);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
@@ -193,8 +207,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
             //
             // Test results
@@ -205,13 +220,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new QueryBatchRequest
             {
-                TargetDrive = commentUploadResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = commentUploadResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                    GlobalTransitId = new List<Guid>() { commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true,
+                }
             };
 
-            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var batch = batchResponse.Content;
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -224,6 +248,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
+
 
         [Test]
         public async Task CanTransfer_AndUpdate_Encrypted_Comment_S2110()
@@ -245,8 +270,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -264,10 +289,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
-                FileSystemType.Standard,
-                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+            var recipientFileByGlobalTransitIdResponse =
+                await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
+            var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults.SingleOrDefault();
             Assert.IsNotNull(recipientFileByGlobalTransitId);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
@@ -280,8 +305,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
             //
             // Test results
@@ -292,13 +319,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new QueryBatchRequest
             {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                    GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                }
             };
 
-            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var batch = batchResponse.Content;
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -313,7 +349,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
 
             //Sender updates their comment
 
-            var (updatedCommentTransitResult, encryptedUpdatedCommentJsonContent64) = await this.TransferComment(
+            var (_, encryptedUpdatedCommentJsonContent64) = await this.TransferComment(
                 senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: updatedCommentFileContent,
@@ -322,7 +358,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 versionTag: receivedFile.FileMetadata.VersionTag);
 
-            var updatedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+
+            var updatedBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var updatedBatch = updatedBatchResponse.Content;
             Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
             var updatedReceivedFile = updatedBatch.SearchResults.First();
             Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
@@ -360,8 +398,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -378,10 +416,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
-                FileSystemType.Standard,
-                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+            var recipientFileByGlobalTransitIdResponse =
+                await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
+            var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
             Assert.IsNotNull(recipientFileByGlobalTransitId);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
@@ -394,8 +432,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 recipient: recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
             //
             // Test results
@@ -406,13 +445,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new QueryBatchRequest
             {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                    GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                }
             };
 
-            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var batch = batchResponse.Content;
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -424,7 +472,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
 
             //Sender updates their comment
 
-            var (updatedCommentTransitResult, _) = await this.TransferComment(
+            var (_, _) = await this.TransferComment(
                 senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: updatedCommentFileContent,
@@ -432,7 +480,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 recipient: recipient,
                 overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
-            var updatedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var updatedBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var updatedBatch = updatedBatchResponse.Content;
             Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
             var updatedReceivedFile = updatedBatch.SearchResults.First();
             Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
@@ -452,8 +501,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
-            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var samwiseOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var samwiseOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -469,10 +518,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await samwiseOwnerClient.Drive.QueryByGlobalTransitFileId(
-                FileSystemType.Standard,
+            var recipientFileByGlobalTransitIdResponse = await samwiseOwnerClient.DriveRedux.QueryByGlobalTransitId(
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
+            var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
             Assert.IsNotNull(recipientFileByGlobalTransitId);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
@@ -484,21 +533,33 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+
+
+            await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
             //
             // Test results
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new QueryBatchRequest
             {
-                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                    GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                }
             };
 
-            var batch = await samwiseOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batchResponse = await samwiseOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var batch = batchResponse.Content;
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -511,16 +572,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //Delete the comment
             //
 
-            await frodoOwnerClient.Transit.DeleteFile(
+            await frodoOwnerClient.PeerDirect.DeleteFile(
                 FileSystemType.Comment,
                 commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
-                new List<string>() { recipient.OdinId });
+                [recipient.OdinId]);
 
             //
             // See the comment is deleted
             //
 
-            var softDeletedBatch = await samwiseOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var softDeletedBatchResponse = await samwiseOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
+            var softDeletedBatch = softDeletedBatchResponse.Content;
             Assert.IsTrue(softDeletedBatch.SearchResults.Count() == 1);
             var theDeletedFile = softDeletedBatch.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theDeletedFile);
@@ -530,13 +592,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             await this.DeleteScenario(frodoOwnerClient, samwiseOwnerClient);
         }
 
-        //
 
         /// <summary>
         /// Sends a standard file to a single recipient and performs basic assertions required by all tests
         /// </summary>
         private async Task<(TransitResult, string encryptedJsonContent64)> TransferComment(
-            OwnerApiClient sender,
+            OwnerApiClientRedux sender,
             GlobalTransitIdFileIdentifier referencedFile,
             string uploadedContent,
             bool encrypted,
@@ -544,70 +605,64 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Guid? overwriteFile = null,
             Guid? versionTag = null)
         {
-            var fileMetadata = new UploadFileMetadata()
-            {
-                VersionTag = versionTag,
-                AllowDistribution = true,
-                IsEncrypted = encrypted,
-
-                //indicates the file about which this file is giving feed back
-                ReferencedFile = referencedFile,
-
-                AppData = new()
-                {
-                    Content = uploadedContent,
-                    FileType = default,
-                    GroupId = default,
-                    Tags = default
-                },
-                AccessControlList = AccessControlList.Connected
-            };
+            var fileMetadata = SampleMetadataData.CreateWithContent(default, uploadedContent, AccessControlList.Connected);
+            fileMetadata.VersionTag = versionTag;
+            fileMetadata.AllowDistribution = true;
+            fileMetadata.IsEncrypted = encrypted;
+            fileMetadata.ReferencedFile = referencedFile; //indicates the file about which this file is giving feed back
 
             var recipients = new List<string>() { recipient.OdinId };
 
-            TransitResult transitResult;
+            ApiResponse<TransitResult> transitResultResponse;
+
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFileHeader(
-                    FileSystemType.Comment,
+                (transitResultResponse, encryptedJsonContent64) = await sender.PeerDirect.TransferEncryptedMetadata(
+                    remoteTargetDrive: referencedFile.TargetDrive,
                     fileMetadata,
                     recipients: recipients,
-                    remoteTargetDrive: referencedFile.TargetDrive,
                     overwriteGlobalTransitFileId: overwriteFile,
-                    thumbnail: null
-                );
-            }
-            else
-            {
-                transitResult = await sender.Transit.TransferFileHeader(
-                    fileMetadata,
-                    recipients: recipients,
-                    remoteTargetDrive: referencedFile.TargetDrive,
-                    overwriteGlobalTransitFileId: overwriteFile,
-                    thumbnail: null,
                     fileSystemType: FileSystemType.Comment
                 );
             }
+
+            else
+            {
+                transitResultResponse = await sender.PeerDirect.TransferMetadata(
+                    referencedFile.TargetDrive,
+                    fileMetadata,
+                    recipients: recipients,
+                    overwriteFile,
+                    fileSystemType: FileSystemType.Comment
+                );
+            }
+
+            Assert.IsTrue(transitResultResponse.IsSuccessStatusCode);
+            var transitResult = transitResultResponse.Content;
 
             //
             // Basic tests first which apply to all calls
             //
             Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
 
+
+            await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
             return (transitResult, encryptedJsonContent64);
         }
 
         private async Task<TargetDrive> PrepareScenario(
-            OwnerApiClient senderOwnerClient,
-            OwnerApiClient recipientOwnerClient,
+            OwnerApiClientRedux senderOwnerClient,
+            OwnerApiClientRedux recipientOwnerClient,
             DrivePermission drivePermissions)
         {
+            var targetDrive = TargetDrive.NewTargetDrive();
+
             //
             // Recipient creates a target drive
             //
-            var recipientTargetDrive = await recipientOwnerClient.Drive.CreateDrive(
-                targetDrive: TargetDrive.NewTargetDrive(),
+            await recipientOwnerClient.DriveManager.CreateDrive(
+                targetDrive: targetDrive,
                 name: "Target drive on recipient",
                 metadata: "",
                 allowAnonymousReads: false,
@@ -619,11 +674,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             var expectedPermissionedDrive = new PermissionedDrive()
             {
-                Drive = recipientTargetDrive.TargetDriveInfo,
+                Drive = targetDrive,
                 Permission = drivePermissions
             };
 
-            var recipientCircle = await recipientOwnerClient.Membership.CreateCircle("Circle with drive access", new PermissionSetGrantRequest()
+            var recipientCircleId = Guid.NewGuid();
+            await recipientOwnerClient.Network.CreateCircle(recipientCircleId, "Circle with drive access", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -637,41 +693,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Network.SendConnectionRequestTo(recipientOwnerClient.Identity, new List<GuidId>() { });
+            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, []);
 
             //
             // Recipient accepts; grants access to circle
             //
-            await recipientOwnerClient.Network.AcceptConnectionRequest(senderOwnerClient.Identity, new List<GuidId>() { recipientCircle.Id });
+            await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, [recipientCircleId]);
 
-            // 
-            // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
-
-            var senderConnectionInfo = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
-
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
-                cg.DriveGrants.Any(dg => dg.PermissionedDrive == recipientCircle.DriveGrants.Single().PermissionedDrive)));
-
-            return recipientTargetDrive.TargetDriveInfo;
+            return targetDrive;
         }
 
-        private async Task<(UploadResult, string encryptedJsonContent64)> UploadStandardFile(OwnerApiClient client, TargetDrive targetDrive,
+        private async Task<(UploadResult, string encryptedJsonContent64)> UploadStandardFile(OwnerApiClientRedux client, TargetDrive targetDrive,
             string uploadedContent, bool encrypted)
         {
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AllowDistribution = true,
-                IsEncrypted = encrypted,
-                AppData = new()
-                {
-                    Content = uploadedContent,
-                    FileType = 200,
-                    GroupId = default,
-                    Tags = default
-                },
-                AccessControlList = AccessControlList.Connected
-            };
+            var fileMetadata = SampleMetadataData.CreateWithContent(200, uploadedContent, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
+            fileMetadata.IsEncrypted = encrypted;
 
             ApiResponse<UploadResult> uploadResponse;
             string encryptedJsonContent64 = null;
@@ -688,7 +725,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             return (uploadResponse.Content, encryptedJsonContent64);
         }
 
-        private async Task DeleteScenario(OwnerApiClient senderOwnerClient, OwnerApiClient recipientOwnerClient)
+        private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient)
         {
             await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipientOwnerClient.Identity.OdinId);
         }

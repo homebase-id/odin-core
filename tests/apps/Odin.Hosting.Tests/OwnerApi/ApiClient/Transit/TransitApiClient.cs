@@ -11,7 +11,6 @@ using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -130,54 +129,6 @@ public class TransitApiClient
             });
 
             return response;
-        }
-    }
-
-    public async Task DeleteAllReactionsOnFile(TestIdentity recipient, GlobalTransitIdFileIdentifier file)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.DeleteAllReactionsOnFile(new PeerDeleteReactionRequest()
-            {
-                OdinId = recipient.OdinId,
-                Request = new DeleteReactionRequestByGlobalTransitId()
-                {
-                    Reaction = "",
-                    File = file
-                }
-            });
-        }
-    }
-
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(TestIdentity recipient, GetRemoteReactionsRequest request)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetReactionCountsByFile(new PeerGetReactionsRequest()
-            {
-                OdinId = recipient.OdinId,
-                Request = request
-            });
-
-            return resp.Content;
-        }
-    }
-
-    public async Task<List<string>> GetReactionsByIdentity(TestIdentity recipient, OdinId identity, GlobalTransitIdFileIdentifier file)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetReactionsByIdentity(new PeerGetReactionsByIdentityRequest()
-            {
-                OdinId = recipient.OdinId,
-                Identity = identity,
-                File = file
-            });
-
-            return resp.Content;
         }
     }
 
