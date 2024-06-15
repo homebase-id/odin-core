@@ -161,10 +161,28 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header.FileState == FileState.Deleted)
             {
-                logger.LogInformation("Attempted to mark a deleted file as read; skipping");
+                logger.LogInformation("MarkFileAsRead -> Attempted to mark a deleted file as read; skipping");
                 return;
             }
 
+            if (header.ServerMetadata == null)
+            {
+                logger.LogDebug("MarkFileAsRead -> ServerMetadata is null; skipping");
+                return;
+            }
+
+            if (header.ServerMetadata.TransferHistory == null)
+            {
+                logger.LogDebug("MarkFileAsRead -> TransferHistory is null; skipping");
+                return;
+            }
+            
+            if (header.ServerMetadata.TransferHistory.Recipients == null)
+            {
+                logger.LogDebug("MarkFileAsRead -> TransferHistory.Recipients is null; skipping");
+                return;
+            }
+            
             var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
             if (!recordExists || transferHistoryItem == null)
