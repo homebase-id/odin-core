@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
-        
+
         /// <summary>
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
@@ -41,8 +41,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, DatabaseConnection cn, int batchSize = 1)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-            logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
-            var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize, cn);
+            const int constrainedBatchSize = 1;
+            logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with constrainedBatchSize: {batchSize}", driveId, constrainedBatchSize);
+            var items = await transitInboxBoxStorage.GetPendingItems(driveId, constrainedBatchSize, cn);
 
             var status = transitInboxBoxStorage.GetPendingCount(driveId, cn);
             logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
@@ -62,12 +63,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     DriveId = inboxItem.DriveId,
                     FileId = inboxItem.FileId
                 };
-                
+
                 try
                 {
                     var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
-                    
-                    
+
                     if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                     {
                         if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
@@ -104,22 +104,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> ReadReceipt marker/popstamp:[{maker}]",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                        
+
                         await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
-                        await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
-                        
                         logger.LogDebug(ReadReceiptItemMarkedComplete);
                     }
                     else if (inboxItem.InstructionType == TransferInstructionType.None)
                     {
-                        throw new OdinClientException("Transfer type not specified",
-                            OdinClientErrorCode.TransferTypeNotSpecified);
+                        throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
                     }
                     else
                     {
                         await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
-                        throw new OdinClientException("Invalid transfer type",
-                            OdinClientErrorCode.InvalidTransferType);
+                        throw new OdinClientException("Invalid transfer type", OdinClientErrorCode.InvalidTransferType);
                     }
 
                     logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}",
@@ -142,16 +138,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 catch (Exception e)
                 {
                     logger.LogError(
-                        "Processing Inbox -> Marking Complete (Catch-all Exception): Failed with exception: {message}\n{stackTrace}\n file:{f}\n inbox item gtid: {gtid}",
-                        e.Message, 
+                        "Processing Inbox -> Marking Complete (Catch-all Exception): Failed with " +
+                        "exception: {message}\n{stackTrace}\n file:{f}\n inbox item gtid: {gtid} (gtid as hex x'{gtidHex}')",
+                        e.Message,
                         e.StackTrace,
                         tempFile,
-                        inboxItem.GlobalTransitId);
+                        inboxItem.GlobalTransitId,
+                        Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()));
+
                     logger.LogError(
                         "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): Marking Complete PopStamp (hex): {marker} for drive (hex): {driveId}",
                         e.GetType().Name,
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                         Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+
                     await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                 }
                 // });

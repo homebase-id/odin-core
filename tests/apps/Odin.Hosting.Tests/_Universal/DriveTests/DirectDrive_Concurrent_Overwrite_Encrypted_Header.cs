@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using NUnit.Framework;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -29,6 +30,15 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
+
+        var gtid = Convert.ToHexString(Guid.Parse("cf66be51-d290-45f1-a8a1-25f8d1e29924").ToByteArray());
+
+        var driveHex = "8D7DE5C6F553C840A011263D26B8222C";
+        var fileHex = "19017D0814500026334CD11F14DA6EB7";
+
+        var driveId = new Guid(Convert.FromHexString(driveHex));
+        var fileId = new Guid(Convert.FromHexString(fileHex));
+        
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();

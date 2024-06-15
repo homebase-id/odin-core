@@ -168,12 +168,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header.ServerMetadata == null)
             {
-                logger.LogError("MarkFileAsRead -> ServerMetadata is null; skipping");
+                logger.LogError("MarkFileAsRead -> ServerMetadata is null");
             }
 
             if (header.ServerMetadata?.TransferHistory == null)
             {
-                logger.LogError("MarkFileAsRead -> TransferHistory is null; skipping");
+                logger.LogError("MarkFileAsRead -> TransferHistory is null");
             }
             
             if (header.ServerMetadata?.TransferHistory?.Recipients == null)

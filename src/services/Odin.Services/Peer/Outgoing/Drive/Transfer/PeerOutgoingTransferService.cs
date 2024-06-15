@@ -384,7 +384,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.Add(item, cn);
+                await peerOutbox.Add(item, cn, useUpsert: true);
             }
 
             await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
