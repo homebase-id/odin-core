@@ -41,9 +41,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, DatabaseConnection cn, int batchSize = 1)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-            const int constrainedBatchSize = 1;
-            logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with constrainedBatchSize: {batchSize}", driveId, constrainedBatchSize);
-            var items = await transitInboxBoxStorage.GetPendingItems(driveId, constrainedBatchSize, cn);
+            logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with constrainedBatchSize: {batchSize}", driveId, batchSize);
+            var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize, cn);
 
             var status = transitInboxBoxStorage.GetPendingCount(driveId, cn);
             logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
