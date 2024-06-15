@@ -142,8 +142,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 catch (Exception e)
                 {
                     logger.LogError(
-                        "Processing Inbox -> Marking Complete (Catch-all Exception): Failed with exception: {message}\n{stackTrace}",
-                        e.Message, e.StackTrace);
+                        "Processing Inbox -> Marking Complete (Catch-all Exception): Failed with exception: {message}\n{stackTrace}\n file:{f}",
+                        e.Message, 
+                        e.StackTrace,
+                        tempFile);
                     logger.LogError(
                         "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): Marking Complete PopStamp (hex): {marker} for drive (hex): {driveId}",
                         e.GetType().Name,

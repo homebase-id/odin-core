@@ -150,7 +150,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
-                item.GlobalTransitId, odinContext, cn,
+                item.GlobalTransitId, 
+                odinContext,
+                cn,
                 excludePreviewThumbnail: false,
                 includeTransferHistory: true);
 
@@ -161,29 +163,25 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header.FileState == FileState.Deleted)
             {
-                logger.LogInformation("MarkFileAsRead -> Attempted to mark a deleted file as read; skipping");
-                return;
+                logger.LogWarning("MarkFileAsRead -> Attempted to mark a deleted file as read; skipping");
             }
 
             if (header.ServerMetadata == null)
             {
-                logger.LogDebug("MarkFileAsRead -> ServerMetadata is null; skipping");
-                return;
+                logger.LogError("MarkFileAsRead -> ServerMetadata is null; skipping");
             }
 
-            if (header.ServerMetadata.TransferHistory == null)
+            if (header.ServerMetadata?.TransferHistory == null)
             {
-                logger.LogDebug("MarkFileAsRead -> TransferHistory is null; skipping");
-                return;
+                logger.LogError("MarkFileAsRead -> TransferHistory is null; skipping");
             }
             
-            if (header.ServerMetadata.TransferHistory.Recipients == null)
+            if (header.ServerMetadata?.TransferHistory?.Recipients == null)
             {
-                logger.LogDebug("MarkFileAsRead -> TransferHistory.Recipients is null; skipping");
-                return;
+                logger.LogError("MarkFileAsRead -> TransferHistory.Recipients is null; skipping");
             }
             
-            var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
+            var recordExists = header.ServerMetadata!.TransferHistory!.Recipients!.TryGetValue(item.Sender, out var transferHistoryItem);
 
             if (!recordExists || transferHistoryItem == null)
             {
