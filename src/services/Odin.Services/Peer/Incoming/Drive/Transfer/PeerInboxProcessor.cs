@@ -38,16 +38,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, DatabaseConnection cn, int batchSize = 1)
         {
+            int actualBatchSize = batchSize == 0 ? 1 : batchSize;
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-            logger.LogDebug("Processing Inbox -> Getting Pending Items (chatty) for drive {driveId} with batchSize: {batchSize}", driveId,
-                batchSize);
+            logger.LogDebug("Processing Inbox -> Getting Pending Items (chatty) for drive {driveId} with requested " +
+                            "batchSize: {batchSize}; actualBatchSize: {actualBatchSize}", driveId,
+                batchSize, actualBatchSize);
 
             var status = transitInboxBoxStorage.GetPendingCount(driveId, cn);
             logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
                 status.PoppedCount, status.TotalItems,
                 status.OldestItemTimestamp.milliseconds);
 
-            for (int i = 0; i < batchSize; i++)
+            for (int i = 0; i < actualBatchSize; i++)
             {
                 var items = await transitInboxBoxStorage.GetPendingItems(driveId, 1, cn);
 
