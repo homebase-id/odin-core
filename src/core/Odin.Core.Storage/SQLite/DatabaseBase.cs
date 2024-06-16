@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.SQLite
         {
         }
 
-        public DatabaseConnection CreateDisposableConnection(string context = "")
+        public DatabaseConnection CreateDisposableConnection()
         {
             if (_wasDisposed)
             {
