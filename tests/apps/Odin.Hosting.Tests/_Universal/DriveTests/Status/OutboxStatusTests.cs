@@ -194,7 +194,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Status
             // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
             // 
 
-            var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
+            var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
 
             Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
             var senderConnectionInfo = getConnectionInfoResponse.Content;

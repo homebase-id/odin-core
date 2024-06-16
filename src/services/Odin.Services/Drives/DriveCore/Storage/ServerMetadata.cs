@@ -24,5 +24,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public FileSystemType FileSystemType { get; set; }
 
         public Int64 FileByteCount { get; set; }
+        
+        public RecipientTransferHistory TransferHistory { get; set; }
+
     }
 }

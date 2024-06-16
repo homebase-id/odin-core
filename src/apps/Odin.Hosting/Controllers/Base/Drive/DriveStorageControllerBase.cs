@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -154,6 +155,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return result;
         }
 
+        protected async Task<SendReadReceiptResult> SendReadReceipt(SendReadReceiptRequest request, DatabaseConnection cn)
+        {
+            if (null == request?.Files)
+            {
+                throw new OdinClientException("Files not specified");
+            }
+
+            var internalFiles = request.Files.Select(MapToInternalFile).ToList();
+            return await peerOutgoingTransferService.SendReadReceipt(internalFiles, WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
+        }
+
         /// <summary>
         /// Deletes a file and sends delete linked file requests to all recipient if specified
         /// </summary>
@@ -278,11 +290,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 DriveId = driveId,
                 FileId = request.File.FileId
             };
-            
+
             await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
             return Ok();
         }
-        
+
         private async Task<DeleteFileIdBatchResult> PerformDeleteFileIdBatch(DeleteFileIdBatchRequest batchRequest, DatabaseConnection cn)
         {
             var results = new List<DeleteFileResult>();

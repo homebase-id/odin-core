@@ -4,5 +4,6 @@ public enum TransferFileType
 {
     CommandMessage,
     Normal,
-    EncryptedFileForFeed
+    EncryptedFileForFeed,
+    ReadReceipt
 }

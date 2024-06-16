@@ -1,55 +1,51 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Storage;
+using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 public class SendPushNotificationOutboxWorker(
-    OutboxItem item,
+    OutboxFileItem fileItem,
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService,
-    ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            var results = await this.PushItem(newContext, cn);
-            await peerOutbox.MarkComplete(item.Marker, cn);
-
-            return results;
+            await PushItem(newContext, cn, cancellationToken);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch (OdinOutboxProcessingException)
         {
             // var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
             // await peerOutbox.MarkFailure(item.Marker, nextRun);
             // we're not going to retry push notifications for now
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
         catch
         {
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
-
-        return null;
     }
 
 
-    private async Task<OutboxProcessingResult> PushItem(IOdinContext odinContext, DatabaseConnection cn)
+    private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
-        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
+        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(fileItem.RawValue.ToStringFromUtf8Bytes());
 
         var pushContent = new PushNotificationContent()
         {
@@ -70,20 +66,23 @@ public class SendPushNotificationOutboxWorker(
         }
         else
         {
-            logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
+            //TODO: change to proper logger
+            Log.Warning("No app registered with Id {id}", record.Options.AppId);
         }
 
-        await pushNotificationService.Push(pushContent, odinContext, cn);
-
-        return new OutboxProcessingResult
+        try
         {
-            Recipient = default,
-            RecipientPeerResponseCode = null,
-            TransferResult = TransferResult.Success,
-            File = default,
-            Timestamp = UnixTimeUtc.Now().milliseconds,
-            OutboxItem = item
-        };
+            await pushNotificationService.Push(pushContent, odinContext, cn, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            throw new OdinOutboxProcessingException(e.Message)
+            {
+                Recipient = default,
+                TransferStatus = LatestTransferStatus.UnknownServerError,
+                VersionTag = default
+            };
+        }
     }
 
     private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext, DatabaseConnection cn)

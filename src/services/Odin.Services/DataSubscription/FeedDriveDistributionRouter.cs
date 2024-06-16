@@ -67,7 +67,8 @@ namespace Odin.Services.DataSubscription
             OdinConfiguration odinConfiguration,
             IDriveAclAuthorizationService driveAcl,
             ILogger<FeedDriveDistributionRouter> logger,
-            PublicPrivateKeyService pkService)
+            PublicPrivateKeyService pkService,
+            ILoggerFactory loggerFactory)
         {
             _followerService = followerService;
             _peerOutgoingTransferService = peerOutgoingTransferService;
@@ -81,12 +82,12 @@ namespace Odin.Services.DataSubscription
             _logger = logger;
             _pkService = pkService;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration);
+            var distroLogger = loggerFactory.CreateLogger<FeedDistributorService>();
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration, distroLogger);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var serverFileHeader = notification.ServerFileHeader;
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
@@ -94,7 +95,7 @@ namespace Odin.Services.DataSubscription
                                   bool.TryParse(value, out bool collabChannelFlagValue) &&
                                   collabChannelFlagValue;
 
-            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection, isCollabChannel))
+            if (await ShouldDistribute(notification, isCollabChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -166,9 +167,15 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn, bool isCollabChannel)
+        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollabChannel)
         {
+            if (notification.IgnoreFeedDistribution)
+            {
+                return false;
+            }
+
             //if the file was received from another identity, do not redistribute
+            var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity && !isCollabChannel)
@@ -192,7 +199,7 @@ namespace Odin.Services.DataSubscription
                 return false;
             }
 
-            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId, cn))
+            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId, notification.DatabaseConnection))
             {
                 return false;
             }
@@ -288,6 +295,7 @@ namespace Odin.Services.DataSubscription
                             KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
 
+                        //TODO: encryption - need to convert to the online key
                         encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                             PublicPrivateKeyType.OfflineKey,
                             recipient,
@@ -381,7 +389,7 @@ namespace Odin.Services.DataSubscription
             {
                 if (transferStatusMap.TryGetValue(recipient, out var status))
                 {
-                    if (status != TransferStatus.TransferKeyCreated)
+                    if (status != TransferStatus.Enqueued)
                     {
                         _logger.LogError(
                             "Feed Distribution Router result - {recipient} returned status was [{status}] but should have been TransferKeyCreated " +

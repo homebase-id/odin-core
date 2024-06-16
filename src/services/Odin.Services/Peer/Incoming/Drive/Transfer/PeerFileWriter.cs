@@ -125,6 +125,88 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
+        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext, cn);
+
+            if (clientFileHeader == null)
+            {
+                // this is bad error.
+                logger.LogError(
+                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
+                    item.GlobalTransitId, item.DriveId);
+                throw new OdinFileWriteException("Missing file by global transit id while file while processing delete request in inbox");
+            }
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = clientFileHeader.FileId,
+                DriveId = item.DriveId,
+            };
+
+            await fs.Storage.SoftDeleteLongTermFile(file, odinContext, cn);
+        }
+
+        public async Task MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
+                item.GlobalTransitId, 
+                odinContext,
+                cn,
+                excludePreviewThumbnail: false,
+                includeTransferHistory: true);
+
+            if (null == header)
+            {
+                throw new OdinFileWriteException($"No file found with specified global transit Id ({item.GlobalTransitId}) on driveId({item.DriveId})");
+            }
+
+            if (header.FileState == FileState.Deleted)
+            {
+                logger.LogWarning("MarkFileAsRead -> Attempted to mark a deleted file as read; skipping");
+            }
+
+            if (header.ServerMetadata == null)
+            {
+                logger.LogError("MarkFileAsRead -> ServerMetadata is null");
+            }
+
+            if (header.ServerMetadata?.TransferHistory == null)
+            {
+                logger.LogError("MarkFileAsRead -> TransferHistory is null");
+            }
+            
+            if (header.ServerMetadata?.TransferHistory?.Recipients == null)
+            {
+                logger.LogError("MarkFileAsRead -> TransferHistory.Recipients is null; skipping");
+            }
+            
+            var recordExists = header.ServerMetadata!.TransferHistory!.Recipients!.TryGetValue(item.Sender, out var transferHistoryItem);
+
+            if (!recordExists || transferHistoryItem == null)
+            {
+                throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
+            }
+
+            var update = new UpdateTransferHistoryData()
+            {
+                IsReadByRecipient = true
+            };
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = header.FileId,
+                DriveId = item.DriveId
+            };
+            
+            await fs.Storage.UpdateTransferHistory(
+                file,
+                item.Sender,
+                update,
+                odinContext,
+                cn);
+        }
+
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, DatabaseConnection cn)
         {
             AccessControlList targetAcl;
@@ -161,28 +243,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             targetAcl = referencedFile.ServerMetadata.AccessControlList;
 
             return targetAcl;
-        }
-
-        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext, cn);
-
-            if (clientFileHeader == null)
-            {
-                // this is bad error.
-                logger.LogError(
-                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
-                    item.GlobalTransitId, item.DriveId);
-                throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
-            }
-
-            var file = new InternalDriveFileId()
-            {
-                FileId = clientFileHeader.FileId,
-                DriveId = item.DriveId,
-            };
-
-            await fs.Storage.SoftDeleteLongTermFile(file, odinContext, cn);
         }
 
         /// <summary>

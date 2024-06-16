@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -23,7 +24,9 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -605,6 +608,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         return response;
     }
+
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
@@ -643,4 +647,36 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var response = await driveSvc.GetDriveStatus(drive.Alias, drive.Type);
         return response;
     }
+
+    public async Task<ApiResponse<QueryBatchResponse>> QueryByGlobalTransitId(GlobalTransitIdFileIdentifier file, FileSystemType fst = FileSystemType.Standard)
+    {
+        var request = new QueryBatchRequest
+        {
+            QueryParams = new()
+            {
+                TargetDrive = file.TargetDrive,
+                GlobalTransitId = [file.GlobalTransitId]
+            },
+            ResultOptionsRequest = new()
+            {
+                MaxRecords = 1,
+                IncludeMetadataHeader = true,
+            },
+        };
+        var results = await this.QueryBatch(request, fst);
+        return results;
+    }
+    
+    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await transitSvc.SendReadReceipt(new SendReadReceiptRequest
+        {
+            Files = files
+        });
+
+        return response;
+    }
+    
 }
