@@ -49,7 +49,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             for (int i = 0; i < actualBatchSize; i++)
             {
-                await ProcessInboxItem(targetDrive, odinContext, cn);
+                var items = await transitInboxBoxStorage.GetPendingItems(driveId, 1, cn);
+                // if nothing comes back; exit
+                var inboxItem = items?.FirstOrDefault();
+                if (inboxItem == null)
+                    break;
+
+                if (driveId != inboxItem.DriveId)
+                    throw new Exception("kapow - targetDrive and popped driveId not matching");
+
+                await ProcessInboxItem(inboxItem, driveId, odinContext, cn);
             }
 
             var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId, cn);
@@ -63,23 +72,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
         /// </summary>
-        private async Task ProcessInboxItem(TargetDrive targetDrive, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task ProcessInboxItem(TransferInboxItem inboxItem, Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-
-            const int constrainedBatchSize = 1;
-
-            var items = await transitInboxBoxStorage.GetPendingItems(driveId, constrainedBatchSize, cn);
-
-            // if nothing comes back; exit
-            var inboxItem = items?.FirstOrDefault();
-            if (inboxItem == null)
-            {
-                return;
-            }
-
             PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
-            logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
+            logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", 1);
             logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
