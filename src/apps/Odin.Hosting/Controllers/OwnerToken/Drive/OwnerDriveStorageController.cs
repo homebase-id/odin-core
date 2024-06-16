@@ -190,7 +190,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("send-read-receipt")]
         public async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection("sender-mark-as-read");
+            using var cn = tenantSystemStorage.CreateConnection();
             var result = await base.SendReadReceipt(request , cn);
             return new JsonResult(result);
         }

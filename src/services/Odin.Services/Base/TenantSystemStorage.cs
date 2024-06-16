@@ -53,9 +53,9 @@ public sealed class TenantSystemStorage : IDisposable
         IdentityDatabase.Dispose();
     }
 
-    public DatabaseConnection CreateConnection(string context = "")
+    public DatabaseConnection CreateConnection()
     {
-        return IdentityDatabase.CreateDisposableConnection(context);
+        return IdentityDatabase.CreateDisposableConnection();
     }
 
     public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
