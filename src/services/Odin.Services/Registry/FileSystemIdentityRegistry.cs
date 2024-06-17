@@ -20,6 +20,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.BackgroundService;
+using Odin.Services.Tenant.BackgroundService.Services;
 using Odin.Services.Tenant.Container;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 

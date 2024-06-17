@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Odin.Services.Tenant.BackgroundService;
+namespace Odin.Services.Tenant.BackgroundService.Services;
 
 public sealed class DummyBackgroundService(ILogger<DummyBackgroundService> logger, Tenant tenant)
     : AbstractTenantBackgroundService

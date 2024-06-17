@@ -1,5 +1,6 @@
 using Autofac;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Tenant.BackgroundService.Services;
 
 namespace Odin.Services.Tenant.BackgroundService;
 
@@ -7,15 +8,18 @@ public static class Extensions
 {
     public static void RegisterTenantBackgroundServices(this ContainerBuilder cb, Tenant tenant)
     {
-        cb.Register(c => new TenantBackgroundServiceManager(
-                c.Resolve<ILogger<TenantBackgroundServiceManager>>(),
-                tenant))
+        cb.RegisterType<TenantBackgroundServiceManager>()
+            .WithParameter(new TypedParameter(typeof(Tenant), tenant))
             .As<ITenantBackgroundServiceManager>()
             .SingleInstance();
 
-        cb.Register(c => new DummyBackgroundService(
-                c.Resolve<ILogger<DummyBackgroundService>>(),
-                tenant))
+        cb.RegisterType<OutboxBackgroundService>()
+            .WithParameter(new TypedParameter(typeof(Tenant), tenant))
+            .AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<DummyBackgroundService>()
+            .WithParameter(new TypedParameter(typeof(Tenant), tenant))
             .AsSelf()
             .SingleInstance();
     }
