@@ -175,24 +175,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext, cn);
 
-            var targetFile = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext, cn, true, true, true);
-
-            if (targetFile == null)
-            {
-                _logger.LogDebug("No file matching globalTransitId: {gtid}", globalTransitId);
-                throw new OdinClientException("No file matching global transit id");
-            }
-            
-            if (targetFile.ServerMetadata.TransferHistory != null)
-            {
-                var recordExists = targetFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(odinContext.GetCallerOdinIdOrFail(), out var transferHistoryItem);
-
-                if (!recordExists || transferHistoryItem == null)
-                {
-                    throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {odinContext.GetCallerOdinIdOrFail()}");
-                }
-            }
-            
             var item = new TransferInboxItem()
             {
                 Id = Guid.NewGuid(),
