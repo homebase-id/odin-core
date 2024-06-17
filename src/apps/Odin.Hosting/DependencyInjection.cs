@@ -40,10 +40,10 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
-using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Tenant.BackgroundService;
 
 namespace Odin.Hosting
 {
@@ -216,6 +216,9 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+
+            // Background services
+            cb.RegisterTenantBackgroundServices(tenant);
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

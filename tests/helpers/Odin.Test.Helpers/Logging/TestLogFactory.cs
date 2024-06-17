@@ -23,6 +23,17 @@ public static class TestLogFactory
         });
     }
 
+    //
+
+    public static ILogger<T> CreateConsoleLogger<T>(
+        LogEventLevel minimumLevel = LogEventLevel.Debug)
+    {
+        var logEventMemoryStore = new LogEventMemoryStore();
+        return CreateConsoleLogger<T>(logEventMemoryStore, minimumLevel);
+    }
+
+    //
+
     public static ILogger<T> CreateConsoleLogger<T>(
         ILogEventMemoryStore logEventMemoryStore,
         LogEventLevel minimumLevel = LogEventLevel.Debug)
@@ -30,4 +41,6 @@ public static class TestLogFactory
         var loggerFactory = CreateLoggerFactory(logEventMemoryStore, minimumLevel);
         return loggerFactory.CreateLogger<T>();
     }
+
+    //
 }

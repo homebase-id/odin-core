@@ -11,6 +11,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -18,6 +19,7 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
+using Odin.Services.Tenant.BackgroundService;
 using Odin.Services.Tenant.Container;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -73,13 +75,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
 
         RegisterCertificateInitializerHttpClient();
-        Initialize();
-    }
-
-
-    public void Initialize()
-    {
-        LoadCache();
+        LoadRegistrations().BlockingWait();
     }
 
     public Guid? ResolveId(string domain)
@@ -334,7 +330,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         _logger.LogInformation("Write registration file for [{registrationId}]", registration.Id);
 
-        Cache(registration);
+        await LoadIdentity(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -398,7 +394,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
     }
 
-    private void LoadCache()
+    private async Task LoadRegistrations()
     {
         if (!Directory.Exists(RegistrationRoot))
         {
@@ -428,7 +424,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
-                Cache(registration);
+                await LoadIdentity(registration);
             }
             catch (Exception e)
             {
@@ -452,7 +448,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private void Cache(IdentityRegistration registration)
+    private async Task LoadIdentity(IdentityRegistration registration)
     {
         RegisterDotYouHttpClient(registration);
 
@@ -465,6 +461,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
+
+        // Create tenant background jobs
+        var backgroundServices = scope.Resolve<ITenantBackgroundServiceManager>();
+        await backgroundServices.StartAsync("foobar", scope.Resolve<DummyBackgroundService>());
     }
 
     private void UnloadRegistration(IdentityRegistration registration)
