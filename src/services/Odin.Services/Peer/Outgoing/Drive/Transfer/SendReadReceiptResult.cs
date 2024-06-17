@@ -18,7 +18,7 @@ public class SendReadReceiptResultFileItem
 
 public class SendReadReceiptResultRecipientStatusItem
 {
-    public OdinId Recipient { get; set; }
+    public OdinId? Recipient { get; set; }
 
     public SendReadReceiptResultStatus Status { get; set; }
 }
@@ -30,5 +30,6 @@ public enum SendReadReceiptResultStatus
     RecipientIdentityReturnedAccessDenied = 3,
     RecipientIdentityReturnedBadRequest = 4,
     SenderServerHadAnInternalError = 5,
-    NotConnectedToOriginalSender = 6
+    NotConnectedToOriginalSender = 6,
+    LocalIdentityReturnedBadRequest = 7
 }

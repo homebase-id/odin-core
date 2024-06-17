@@ -26,4 +26,6 @@ public class OdinOutboxProcessingException : OdinException
     /// Indicates the version of the file that was sent
     /// </summary>
     public Guid VersionTag { get; set; }
+    
+    public Guid? GlobalTransitId { get; set; }
 }

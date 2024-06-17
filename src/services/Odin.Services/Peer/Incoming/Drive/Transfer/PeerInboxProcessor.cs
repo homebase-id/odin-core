@@ -63,7 +63,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
-                
+
                 await ProcessInboxItem(inboxItem, odinContext);
             }
 
@@ -125,7 +125,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
                 {
-                    logger.LogDebug("Processing Inbox -> ReadReceipt marker/popstamp:[{maker}]",
+                    logger.LogDebug("Processing Inbox -> ReadReceipt (gtid: {gtid} gtid as hex x'{gtidHex}') marker/popstamp:[{maker}]",
+                        inboxItem.GlobalTransitId,
+                        Utilities.BytesToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
 
                     await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
@@ -160,17 +162,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (Exception e)
             {
-                logger.LogError(
-                    "Processing Inbox -> Marking Complete (Catch-all Exception): Failed with " +
-                    "exception: {message}\n{stackTrace}\n file:{f}\n inbox item gtid: {gtid} (gtid as hex x'{gtidHex}')",
-                    e.Message,
-                    e.StackTrace,
+                logger.LogError(e, 
+                    "Processing Inbox -> Catch-all Exception: Failed with " +
+                    "File:{f}\n inbox item gtid: {gtid} (gtid as hex x'{gtidHex}').  Action: Marking Complete",
                     tempFile,
                     inboxItem.GlobalTransitId,
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()));
 
                 logger.LogError(
-                    "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): Marking Complete PopStamp (hex): {marker} for drive (hex): {driveId}",
+                    "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
                     e.GetType().Name,
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
@@ -210,7 +210,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             return Task.CompletedTask;
         }
-        
+
         private InboxStatus GetPendingCount(TargetDrive targetDrive, DatabaseConnection cn, Guid driveId)
         {
             var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId, cn);
@@ -219,6 +219,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
         }
-
     }
 }
