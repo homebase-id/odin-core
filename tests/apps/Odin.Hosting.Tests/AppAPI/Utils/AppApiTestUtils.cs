@@ -32,6 +32,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -124,7 +125,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
             instructionSet.AssertIsValid();
 
-            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            if (options.ProcessInboxBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
                     "Options not valid. There must be at least one recipient and" +
@@ -234,14 +235,13 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                 if (options is { ProcessOutbox: true })
                 {
-                    await _ownerApi.ProcessOutbox(senderAppContext.Identity, batchSize);
+                    var c = new TransitApiClient(_ownerApi, TestIdentities.All[senderAppContext.Identity]);
+                    await c.WaitForEmptyOutbox(instructionSet.StorageOptions.Drive);
+                    // await _ownerApi.ProcessOutbox(senderAppContext.Identity, batchSize);
                 }
 
-                if (options is { ProcessTransitBox: true })
+                if (options is { ProcessInboxBox: true })
                 {
-                    //wait for process outbox to run
-                    Task.Delay(2000).Wait();
-
                     foreach (var rCtx in recipientContexts)
                     {
                         var rClient = this.CreateAppApiHttpClient(rCtx.Value);
@@ -369,7 +369,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
-            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            if (options.ProcessInboxBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
                     "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");

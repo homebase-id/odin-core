@@ -168,8 +168,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = false,
                 DriveAllowAnonymousReads = true
             };

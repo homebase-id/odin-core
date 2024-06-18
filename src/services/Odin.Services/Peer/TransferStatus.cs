@@ -19,11 +19,6 @@ namespace Odin.Services.Peer
         DeliveredToInbox = 5,
         
         /// <summary>
-        /// Indicates the transfer was successfully delivered and directly written to the target drive
-        /// </summary>
-        DeliveredToTargetDrive = 7,
-        
-        /// <summary>
         /// Recipient server rejected the transfer, client should retry 
         /// </summary>
         TotalRejectionClientShouldRetry = 9,

@@ -208,7 +208,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipient.OdinId],
-                IsTransient = false,
                 RemoteTargetDrive = default
             };
 

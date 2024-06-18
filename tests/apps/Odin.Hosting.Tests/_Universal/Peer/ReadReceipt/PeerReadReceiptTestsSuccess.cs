@@ -20,7 +20,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.Tests._Universal.Peer
+namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 {
     public class PeerReadReceiptTestsSuccess
     {

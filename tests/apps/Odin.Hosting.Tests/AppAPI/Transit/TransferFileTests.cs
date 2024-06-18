@@ -11,7 +11,6 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -19,14 +18,9 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
-using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -81,7 +75,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -90,7 +84,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -100,8 +94,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
-                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
-                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                    CircleIdsGrantedToRecipient = [senderCircleDef.Id],
+                    CircleIdsGrantedToSender = [recipientCircleDef.Id]
                 });
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -209,7 +203,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var options = new TransitTestUtilsOptions()
             {
                 ProcessOutbox = true,
-                ProcessTransitBox = true,
+                ProcessInboxBox = true,
                 DisconnectIdentitiesAfterTransfer = true,
                 EncryptPayload = false,
                 IncludeThumbnail = true
@@ -293,7 +287,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var options = new TransitTestUtilsOptions()
             {
                 ProcessOutbox = true,
-                ProcessTransitBox = true,
+                ProcessInboxBox = true,
                 DisconnectIdentitiesAfterTransfer = false,
                 EncryptPayload = false,
                 IncludeThumbnail = true
@@ -377,7 +371,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -386,7 +380,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -519,9 +513,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.DeliveredToTargetDrive, $"file was not delivered to {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"file was not enqued for {r}");
                 }
             }
+
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
             {
@@ -690,7 +686,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -699,7 +695,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -840,7 +836,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
             {

@@ -126,13 +126,11 @@ public class PeerNotificationTests
         var uploadFileResponse = await samDriveClient.UploadNewMetadata(targetDrive, fileMetadata, transitOptions);
         Assert.IsTrue(uploadFileResponse.IsSuccessStatusCode, $"Failed with status code {uploadFileResponse.StatusCode}");
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
-        Assert.IsTrue(frodoTransferStatus == TransferStatus.DeliveredToTargetDrive, $"transfer status: {frodoTransferStatus}");
+        Assert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
 
         
-        var processPushResponse = await ownerFrodo.Cron.ProcessTransitOutbox();
-        Assert.IsTrue(processPushResponse.IsSuccessStatusCode,
-            $"failed ProcessIncomingPushNotifications with status code {processPushResponse.StatusCode}");
-
+        await ownerFrodo.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        
         // Frodo should have the notification in his list
 
         var getNotificationsResponse = await ownerFrodo.AppNotifications.GetList(1000);

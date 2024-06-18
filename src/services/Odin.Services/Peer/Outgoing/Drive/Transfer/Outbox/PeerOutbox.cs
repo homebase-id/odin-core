@@ -91,6 +91,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 Recipient = (OdinId)record.recipient,
                 Priority = record.priority,
+                IsTransientFile = state.IsTransientFile,
                 AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
                 Type = (OutboxItemType)record.type,
                 TransferInstructionSet = state.TransferInstructionSet,
