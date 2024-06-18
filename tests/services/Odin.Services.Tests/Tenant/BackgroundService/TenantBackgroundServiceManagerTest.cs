@@ -15,9 +15,10 @@ public class TenantBackgroundServiceManagerTest
     public async Task ItShouldStartAndStopAServiceWithoutLoop()
     {
         var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
-        var manager = new TenantBackgroundServiceManager(logger, new Services.Tenant.Tenant("frodo.hobbit"));
+        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
+        var manager = new TenantBackgroundServiceManager(logger, tenant);
 
-        var service = new NoOpBackgroundService();
+        var service = new NoOpBackgroundService(tenant);
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -48,9 +49,10 @@ public class TenantBackgroundServiceManagerTest
     public async Task ItShouldStartAndStopAServiceWithLoop()
     {
         var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
-        var manager = new TenantBackgroundServiceManager(logger, new Services.Tenant.Tenant("frodo.hobbit"));
+        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
+        var manager = new TenantBackgroundServiceManager(logger, tenant);
 
-        var service = new LoopingBackgroundService();
+        var service = new LoopingBackgroundService(tenant);
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -85,13 +87,14 @@ public class TenantBackgroundServiceManagerTest
     public async Task ItShouldStartAndStopManyServicesWithLoop()
     {
         var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
-        var manager = new TenantBackgroundServiceManager(logger, new Services.Tenant.Tenant("frodo.hobbit"));
+        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
+        var manager = new TenantBackgroundServiceManager(logger, tenant);
 
         const int serviceCount = 100;
         var services = new List<LoopingBackgroundService>();
         for (var i = 0; i < serviceCount; i++)
         {
-            var service = new LoopingBackgroundService();
+            var service = new LoopingBackgroundService(tenant);
             services.Add(service);
             Assert.False(service.DidInitialize);
             Assert.False(service.DidFinish);
@@ -139,12 +142,9 @@ public class TenantBackgroundServiceManagerTest
             Assert.True(service.DidDispose);
         }
     }
-
 }
 
-
-
-public abstract class BaseBackgroundService : AbstractTenantBackgroundService, IDisposable
+public abstract class BaseBackgroundService(Services.Tenant.Tenant tenant) : AbstractTenantBackgroundService(tenant), IDisposable
 {
     public volatile bool DidInitialize;
     public volatile bool DidFinish;
@@ -170,7 +170,7 @@ public abstract class BaseBackgroundService : AbstractTenantBackgroundService, I
     }
 }
 
-public class NoOpBackgroundService : BaseBackgroundService
+public class NoOpBackgroundService(Services.Tenant.Tenant tenant) : BaseBackgroundService(tenant)
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -179,7 +179,7 @@ public class NoOpBackgroundService : BaseBackgroundService
     }
 }
 
-public class LoopingBackgroundService : BaseBackgroundService
+public class LoopingBackgroundService(Services.Tenant.Tenant tenant) : BaseBackgroundService(tenant)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
