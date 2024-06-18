@@ -48,7 +48,7 @@ public enum LatestTransferStatus
     RecipientIdentityReturnedAccessDenied = 40,
 
     /// <summary>
-    /// The local file cannot be sent due to it's settings or recipient's permissions
+    /// The local file cannot be sent due to its settings or recipient's permissions
     /// </summary>
     SourceFileDoesNotAllowDistribution = 50,
 

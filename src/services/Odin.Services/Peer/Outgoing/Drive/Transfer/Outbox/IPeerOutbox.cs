@@ -14,9 +14,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     public interface IPeerOutbox
     {
         /// <summary>
-        /// Adds an item to be encrypted and moved to the outbox
+        /// Adds a normal file item to be sent via the outbox processor
         /// </summary>
-        Task Add(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false);
+        Task AddFileItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false);
+        
+        /// <summary>
+        /// Adds a feed item to be sent via the outbox processor
+        /// </summary>
+        Task AddFeedItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false);
 
         Task MarkComplete(Guid marker, DatabaseConnection cn);
 

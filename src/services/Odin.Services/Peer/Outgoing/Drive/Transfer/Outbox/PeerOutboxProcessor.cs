@@ -48,7 +48,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 if (result.TransferResult != TransferResult.Success)
                 {
                     //enqueue into the outbox since it was never added before
-                    await peerOutbox.Add(item, cn, useUpsert: true); //useUpsert just in-case
+                    await peerOutbox.AddFileItem(item, cn, useUpsert: true); //useUpsert just in-case
                 }
 
                 //TODO: interim hack

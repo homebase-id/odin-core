@@ -41,6 +41,7 @@ namespace Odin.Services.DataSubscription
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
         private readonly PublicPrivateKeyService _pkService;
+        private readonly PeerOutboxProcessorAsync _peerOutboxProcessorAsync;
         private readonly IPeerOutbox _peerOutbox;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
@@ -57,6 +58,7 @@ namespace Odin.Services.DataSubscription
             IDriveAclAuthorizationService driveAcl,
             ILogger<FeedDriveDistributionRouter> logger,
             PublicPrivateKeyService pkService,
+            PeerOutboxProcessorAsync peerOutboxProcessorAsync,
             IPeerOutbox peerOutbox)
         {
             _followerService = followerService;
@@ -67,6 +69,7 @@ namespace Odin.Services.DataSubscription
             _driveAcl = driveAcl;
             _logger = logger;
             _pkService = pkService;
+            _peerOutboxProcessorAsync = peerOutboxProcessorAsync;
             _peerOutbox = peerOutbox;
         }
 
@@ -97,6 +100,8 @@ namespace Odin.Services.DataSubscription
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
                     }
+                    
+                    await _peerOutboxProcessorAsync.StartOutboxProcessingAsync(odinContext, notification.DatabaseConnection);
                 }
                 else
                 {
@@ -106,6 +111,7 @@ namespace Odin.Services.DataSubscription
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
+                            await _peerOutboxProcessorAsync.StartOutboxProcessingAsync(odinContext, notification.DatabaseConnection);
                             return;
                         }
                     }
@@ -123,8 +129,10 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
+                        await _peerOutboxProcessorAsync.StartOutboxProcessingAsync(odinContext, notification.DatabaseConnection);
                         return;
                     }
+
                 }
             }
         }
@@ -375,7 +383,7 @@ namespace Odin.Services.DataSubscription
                 RawValue = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
             };
 
-            _peerOutbox.Add(item, cn, useUpsert: true);
+            _peerOutbox.AddFeedItem(item, cn, useUpsert: true);
         }
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,

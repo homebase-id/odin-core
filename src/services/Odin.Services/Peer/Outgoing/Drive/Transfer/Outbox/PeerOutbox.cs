@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -9,6 +8,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task Add(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
+        public Task AddFileItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
         {
             var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
@@ -39,9 +39,37 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 recipient = fileItem.Recipient,
                 fileId = fileItem.File.FileId,
                 dependencyFileId = fileItem.DependencyFileId,
-                type = (int)OutboxItemType.File,
+                type = (int)fileItem.Type,
                 priority = fileItem.Priority,
                 value = state
+            };
+
+            if (useUpsert)
+            {
+                tenantSystemStorage.Outbox.Upsert(cn, record);
+            }
+            else
+            {
+                tenantSystemStorage.Outbox.Insert(cn, record);
+            }
+
+            var sender = tenantContext.HostOdinId;
+            serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
+
+            return Task.CompletedTask;
+        }
+
+        public Task AddFeedItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
+        {
+            var record = new OutboxRecord()
+            {
+                recipient = fileItem.Recipient,
+                driveId = fileItem.File.DriveId,
+                fileId = fileItem.File.FileId,
+                dependencyFileId = fileItem.DependencyFileId,
+                type = (int)fileItem.Type,
+                priority = fileItem.Priority,
+                value = fileItem.RawValue
             };
 
             if (useUpsert)
@@ -88,7 +116,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 return await Task.FromResult<OutboxFileItem>(null);
             }
-
+            
             var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
             var item = new OutboxFileItem()
             {

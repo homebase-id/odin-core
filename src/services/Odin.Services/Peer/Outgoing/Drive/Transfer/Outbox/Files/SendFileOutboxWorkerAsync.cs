@@ -139,7 +139,8 @@ public class SendFileOutboxWorkerAsync(
                 break;
 
             default:
-                logger.LogWarning(e, "Unhandled Transfer Status: {transferStatus}", e.TransferStatus);
+                logger.LogWarning(e, "Unhandled Transfer Status: {transferStatus}.  Action: Marking Complete", e.TransferStatus);
+                await peerOutbox.MarkComplete(fileItem.Marker, cn);
                 break;
         }
 

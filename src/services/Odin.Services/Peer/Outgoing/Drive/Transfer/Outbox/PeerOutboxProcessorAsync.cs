@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Tasks;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -27,7 +28,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage,
         IHostApplicationLifetime hostApplicationLifetime,
-        IForgottenTasks outstandingTasks)
+        IForgottenTasks outstandingTasks,
+        IDriveAclAuthorizationService driveAcl)
     {
         public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
         {
@@ -65,7 +67,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     case OutboxItemType.UnencryptedFeedItem:
                         await SendUnencryptedFeedItem(fileItem, odinContext, cancellationToken);
                         break;
-                    
+
                     // case OutboxItemType.Reaction:
                     //     return await SendReactionItem(item, odinContext);
 
@@ -80,7 +82,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             catch (Exception e)
             {
                 logger.LogError(e, "Unhandled exception occured while processing an outbox " +
-                                   "item.  File:{file}\t Marker:{marker}", fileItem.File, fileItem.Marker);
+                                   "item (type: {itemType}).  File:{file}\t Marker:{marker}", 
+                    fileItem.Type,
+                    fileItem.File, 
+                    fileItem.Marker);
             }
         }
 
@@ -109,7 +114,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             using var connection = tenantSystemStorage.CreateConnection();
             await worker.Send(odinContext, connection, cancellationToken);
         }
-        
+
         private async Task SendUnencryptedFeedItem(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendUnencryptedFeedFileOutboxWorkerAsync>();
@@ -119,9 +124,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 peerOutbox,
                 odinConfiguration,
                 odinHttpClientFactory,
-                jobManager
+                jobManager,
+                driveAcl
             );
-            
+
             using var connection = tenantSystemStorage.CreateConnection();
             await worker.Send(odinContext, connection, cancellationToken);
         }

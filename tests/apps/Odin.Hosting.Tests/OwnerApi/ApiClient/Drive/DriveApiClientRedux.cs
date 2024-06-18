@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -604,6 +605,37 @@ public class DriveApiClientRedux
 
             var response = await svc.GetBatchCollection(request);
             return response;
+        }
+    }
+    
+    public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Outbox.TotalItems == 0)
+            {
+                return;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException($"timeout occured while waiting for outbox to complete processing");
+            }
+
+            await Task.Delay(100);
         }
     }
 }

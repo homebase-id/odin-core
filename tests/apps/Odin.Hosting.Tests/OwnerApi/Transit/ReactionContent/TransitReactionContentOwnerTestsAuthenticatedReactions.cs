@@ -86,7 +86,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent, acl: AccessControlList.Anonymous);
 
         //Tell Pippin's identity to process the feed outbox
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+        await pippinOwnerClient.DriveRedux.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Get the post from Sam's feed drive, validate we got it
@@ -105,7 +105,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
         // the changes
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+        await pippinOwnerClient.DriveRedux.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Sam queries across Transit to get all reactions
@@ -140,7 +140,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
         // the changes
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+        await pippinOwnerClient.DriveRedux.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Get the post from sam's feed drive again, it should have the header updated

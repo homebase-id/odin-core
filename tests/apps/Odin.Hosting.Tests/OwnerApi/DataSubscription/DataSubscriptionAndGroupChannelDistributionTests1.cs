@@ -102,11 +102,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         var uploadedContent = "Hi all, I'm here; my name is Sam.";
         var firstUploadResult = await UploadStandardUnencryptedFileToChannel(samOwnerClient, groupChannelDrive, uploadedContent, fileType);
 
-        //Tell frodo's identity to process the outbox
-        // await frodoOwnerClient.Transit.ProcessOutbox(1);
-
-        //Process the outbox since we're sending an encrypted file
-        await groupIdentityOwnerClient.Cron.DistributeFeedFiles();
+        await groupIdentityOwnerClient.DriveRedux.WaitForEmptyOutbox(groupChannelDrive);
 
         // Sam should have the same content on his feed drive since it was distributed by the backend
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -132,12 +128,9 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             updatedContent,
             fileType,
             versionTag: firstUploadResult.NewVersionTag);
-
-        //Tell frodo's identity to process the outbox due to feed distribution
-        await groupIdentityOwnerClient.Transit.ProcessOutbox(1);
-
-        //Process the outbox since we're sending an encrypted file
-        await groupIdentityOwnerClient.Cron.DistributeFeedFiles();
+        
+        await groupIdentityOwnerClient.DriveRedux.WaitForEmptyOutbox(groupChannelDrive);
+        
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);

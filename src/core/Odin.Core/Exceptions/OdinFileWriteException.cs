@@ -13,3 +13,14 @@ public class OdinFileWriteException : OdinException
     {
     }
 }
+
+public class OdinFileReadException : OdinException
+{
+    public OdinFileReadException(string message) : base(message)
+    {
+    }
+
+    public OdinFileReadException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+}
