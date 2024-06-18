@@ -145,37 +145,56 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             // This is all ugly mapping code but 🤷
             var intermediateResults = new List<(ExternalFileIdentifier File, SendReadReceiptResultRecipientStatusItem StatusItem)>();
-            foreach (var file in files)
+            foreach (var fileId in files)
             {
                 var externalFile = new ExternalFileIdentifier()
                 {
-                    FileId = file.FileId,
-                    TargetDrive = odinContext.PermissionsContext.GetTargetDrive(file.DriveId)
+                    FileId = fileId.FileId,
+                    TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId)
                 };
+
+                var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);
 
                 try
                 {
-                    var statusItem = await SendReadReceiptToRecipient(file, odinContext, cn, fs, fileSystemType);
+                    if (header == null)
+                    {
+                        throw new OdinClientException("Invalid File", OdinClientErrorCode.InvalidFile);
+                    }
+
+                    if (string.IsNullOrEmpty(header.FileMetadata.SenderOdinId) || string.IsNullOrWhiteSpace(header.FileMetadata.SenderOdinId))
+                    {
+                        throw new OdinClientException("File does not have a sender", OdinClientErrorCode.FileDoesNotHaveSender);
+                    }
+
+                    if (header.FileMetadata.GlobalTransitId == null)
+                    {
+                        throw new OdinClientException("File does not have global transit id", OdinClientErrorCode.MissingGlobalTransitId);
+                    }
+
+                    var statusItem = await SendReadReceiptToRecipient(header, fileId, odinContext, cn, fileSystemType);
                     intermediateResults.Add((externalFile, statusItem));
                 }
                 catch (OdinClientException oce)
                 {
                     intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
                     {
-                        Status = SendReadReceiptResultStatus.RecipientIdentityReturnedBadRequest
+                        Recipient = string.IsNullOrEmpty(header?.FileMetadata?.SenderOdinId) ? null : (OdinId)header.FileMetadata.SenderOdinId,
+                        Status = SendReadReceiptResultStatus.LocalIdentityReturnedBadRequest
                     }));
 
                     logger.LogWarning(oce, "A client exception was detected while sending a read receipt for file {file};" +
-                                           "we are logging this client exception since the client is another identity", file);
+                                           "we are logging this client exception since the client is another identity", fileId);
                 }
                 catch (Exception e)
                 {
                     intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
                     {
+                        Recipient = string.IsNullOrEmpty(header?.FileMetadata?.SenderOdinId) ? null : (OdinId)header.FileMetadata.SenderOdinId,
                         Status = SendReadReceiptResultStatus.SenderServerHadAnInternalError
                     }));
 
-                    logger.LogWarning(e, "General exception occured while sending a read receipt file:{file}", file);
+                    logger.LogWarning(e, "General exception occured while sending a read receipt file:{file}", fileId);
                 }
             }
 
@@ -199,26 +218,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         // 
 
-        private async Task<SendReadReceiptResultRecipientStatusItem> SendReadReceiptToRecipient(InternalDriveFileId file, IOdinContext odinContext,
-            DatabaseConnection cn, IDriveFileSystem fs, FileSystemType fileSystemType)
+        private async Task<SendReadReceiptResultRecipientStatusItem> SendReadReceiptToRecipient(ServerFileHeader header,
+            InternalDriveFileId fileId, IOdinContext odinContext,
+            DatabaseConnection cn, FileSystemType fileSystemType)
         {
-            var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
-
-            if (header == null)
-            {
-                throw new OdinClientException("Invalid File", OdinClientErrorCode.InvalidFile);
-            }
-
-            if (string.IsNullOrEmpty(header.FileMetadata.SenderOdinId) || string.IsNullOrWhiteSpace(header.FileMetadata.SenderOdinId))
-            {
-                throw new OdinClientException("File does not have a sender", OdinClientErrorCode.FileDoesNotHaveSender);
-            }
-
-            if (header.FileMetadata.GlobalTransitId == null)
-            {
-                throw new OdinClientException("File does not have global transit id", OdinClientErrorCode.MissingGlobalTransitId);
-            }
-
             var recipient = (OdinId)header.FileMetadata.SenderOdinId;
 
             var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
@@ -240,7 +243,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
                     {
-                        TargetDrive = odinContext.PermissionsContext.GetTargetDrive(file.DriveId),
+                        TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId),
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault()
                     },
                     FileSystemType = fileSystemType
