@@ -18,9 +18,8 @@ public abstract class AbstractTenantBackgroundService(Tenant tenant)
         Caller = new CallerContext(default, null, SecurityGroupType.Anonymous)
     };
 
-    private readonly AsyncLock _mutex = new();
+    private readonly AsyncAutoResetEvent _pulseEvent = new();
     private CancellationTokenSource? _stoppingCts;
-    private CancellationTokenSource? _wakeUpCts;
     private Task? _task;
 
     // Override initialization logic here. TenantBackgroundServiceManager will wait for this to complete before starting the service.
@@ -45,30 +44,15 @@ public abstract class AbstractTenantBackgroundService(Tenant tenant)
     // Call me in your ExecuteAsync method to sleep for a while
     protected async Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
     {
-        lock (_mutex)
-        {
-            if (_wakeUpCts != null)
-            {
-                return;
-            }
-            _wakeUpCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        }
-
         try
         {
-            await Task.Delay(duration, _wakeUpCts.Token);
+            var pulse = _pulseEvent.WaitAsync(stoppingToken);
+            var delay = Task.Delay(duration, stoppingToken);
+            await Task.WhenAny(pulse, delay);
         }
         catch (OperationCanceledException)
         {
-            // ignore - this will happen when _wakeUpCts is signalled/cancelled
-        }
-        finally
-        {
-            lock (_mutex)
-            {
-                _wakeUpCts?.Dispose();
-                _wakeUpCts = null;
-            }
+            // ignore - this is expected and will happen when stoppingToken is cancelled
         }
     }
 
@@ -77,10 +61,7 @@ public abstract class AbstractTenantBackgroundService(Tenant tenant)
     // Call me from anywhere to wake up the service from SleepAsync
     public void Pulse()
     {
-        lock (_mutex)
-        {
-            _wakeUpCts?.Cancel();
-        }
+        _pulseEvent.Set();
     }
 
     //
