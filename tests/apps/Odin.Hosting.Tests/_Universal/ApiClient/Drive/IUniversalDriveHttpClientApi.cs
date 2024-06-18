@@ -26,7 +26,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
         [Post("/transit/inbox/processor/process")]
-        Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
+        Task<ApiResponse<InboxStatus>> ProcessInboxAsync([Body] ProcessInboxRequest request);
+        
+        [Post("/transit/inbox/processor/process-sync")]
+        Task<ApiResponse<InboxStatus>> ProcessInboxSync([Body] ProcessInboxRequest request);
         
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]

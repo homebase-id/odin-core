@@ -596,11 +596,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return response;
     }
 
-    public async Task<ApiResponse<InboxStatus>> ProcessInbox(TargetDrive drive, int batchSize = 1)
+    public async Task<ApiResponse<InboxStatus>> ProcessInboxSync(TargetDrive drive, int batchSize = 1)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var response = await transitSvc.ProcessInbox(new ProcessInboxRequest()
+        var response = await transitSvc.ProcessInboxSync(new ProcessInboxRequest()
         {
             TargetDrive = drive,
             BatchSize = batchSize

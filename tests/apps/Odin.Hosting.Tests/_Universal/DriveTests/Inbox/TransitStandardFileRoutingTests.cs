@@ -77,7 +77,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             
             var ms = await Benchmark.MillisecondsAsync(async () =>
             {
-                var processInboxResponse = await recipientOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
+                var processInboxResponse = await recipientOwnerClient.DriveRedux.ProcessInboxSync(targetDrive, batchSize: 100);
                 Assert.IsTrue(processInboxResponse.IsSuccessStatusCode);
                 Assert.IsTrue(processInboxResponse.Content.PoppedCount == 0);
                 Assert.IsTrue(processInboxResponse.Content.TotalItems == 0);

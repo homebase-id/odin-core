@@ -97,7 +97,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             {
                 // validate recipient got the file
 
-                await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+                await recipientOwnerClient.DriveRedux.ProcessInboxSync(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
                 Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
@@ -159,7 +159,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             {
                 // validate recipient got the file
 
-                await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+                await recipientOwnerClient.DriveRedux.ProcessInboxSync(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
                 Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
@@ -225,7 +225,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             {
                 // validate recipient got the file
 
-                await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+                await recipientOwnerClient.DriveRedux.ProcessInboxSync(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
                 Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);

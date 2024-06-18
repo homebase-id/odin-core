@@ -91,7 +91,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
             var (uploadResult, _, recipientFiles) =
                 await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
 
-            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+            await recipientOwnerClient.DriveRedux.ProcessInboxSync(uploadResult.File.TargetDrive);
 
             await callerContext.Initialize(recipientOwnerClient);
             var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
@@ -120,7 +120,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
             // Assert the read receipt was updated on the sender's file
             //
 
-            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
+            await senderOwnerClient.DriveRedux.ProcessInboxSync(targetDrive);
 
             var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
@@ -208,7 +208,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
             // Assert the read receipt was updated on the sender's file
             //
 
-            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
+            await senderOwnerClient.DriveRedux.ProcessInboxSync(targetDrive, batchSize: 100);
 
             var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult1.File);
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
@@ -284,7 +284,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var uploadResult1 = uploadResponse.Content;
             Assert.IsNotNull(uploadResult1);
-            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult1.File.TargetDrive);
+            await recipientOwnerClient.DriveRedux.ProcessInboxSync(uploadResult1.File.TargetDrive);
 
             var recipientFiles = new Dictionary<string, SharedSecretEncryptedFileHeader>();
             foreach (var recipient in transitOptions.Recipients)

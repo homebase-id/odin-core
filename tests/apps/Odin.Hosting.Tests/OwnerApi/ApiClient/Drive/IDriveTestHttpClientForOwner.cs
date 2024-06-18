@@ -79,7 +79,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
         [Post(OwnerApiPathConstants.PeerV1 + "/inbox/processor/process")]
-        Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
+        Task<ApiResponse<InboxStatus>> ProcessInboxAsync([Body] ProcessInboxRequest request);
+        
+        [Post(OwnerApiPathConstants.PeerV1 + "/inbox/processor/process-sync")]
+        Task<ApiResponse<InboxStatus>> ProcessInboxSync([Body] ProcessInboxRequest request);
         
         [Get(OwnerApiPathConstants.DriveV1 + "/status")]
         Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);

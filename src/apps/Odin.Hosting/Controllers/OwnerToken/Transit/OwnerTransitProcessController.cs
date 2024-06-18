@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Tasks;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -11,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class OwnerPeerProcessController(
         PeerInboxProcessor peerInboxProcessor,
-        TenantSystemStorage tenantSystemStorage
-        ) : PeerProcessControllerBase(peerInboxProcessor, tenantSystemStorage);
+        TenantSystemStorage tenantSystemStorage,
+        IForgottenTasks forgottenTasks
+    ) : PeerProcessControllerBase(peerInboxProcessor, tenantSystemStorage, forgottenTasks);
 }

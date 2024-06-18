@@ -94,7 +94,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
+            var resp = await transitSvc.ProcessInboxSync(new ProcessInboxRequest() { TargetDrive = drive });
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }
