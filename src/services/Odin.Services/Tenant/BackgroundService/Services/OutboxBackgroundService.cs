@@ -30,6 +30,8 @@ public class OutboxBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var sleepDuration = TimeSpan.FromSeconds(1);
+
         var tasks = new List<Task>();
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -44,10 +46,7 @@ public class OutboxBackgroundService(
 
             tasks.RemoveAll(t => t.IsCompleted);
 
-            if (!stoppingToken.IsCancellationRequested)
-            {
-                await Task.Delay(1000, stoppingToken);
-            }
+            await SleepAsync(sleepDuration, stoppingToken);
         }
         await Task.WhenAll(tasks);
     }

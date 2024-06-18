@@ -14,7 +14,7 @@ public interface ITenantBackgroundServiceManager
 {
     Task StartAsync(string serviceIdentifier, AbstractTenantBackgroundService backgroundService);
     Task StopAsync(string serviceIdentifier);
-    Task StopAllAsync();
+    Task ShutdownAsync();
 }
 
 //
@@ -69,21 +69,30 @@ public sealed class TenantBackgroundServiceManager(ILogger<TenantBackgroundServi
 
     public async Task StopAllAsync()
     {
-        await _stoppingCts.CancelAsync();
-
         var tasks = new List<Task>();
-        foreach (var serviceIdentifier in _backgroundServices.Keys)
+        using (await _mutex.LockAsync())
         {
-            tasks.Add(StopAsync(serviceIdentifier));
+            foreach (var serviceIdentifier in _backgroundServices.Keys)
+            {
+                tasks.Add(StopAsync(serviceIdentifier));
+            }
         }
         await Task.WhenAll(tasks);
     }
 
     //
 
+    public async Task ShutdownAsync()
+    {
+        await _stoppingCts.CancelAsync();
+        await StopAllAsync();
+    }
+
+    //
+
     public void Dispose()
     {
-        StopAllAsync().BlockingWait();
+        ShutdownAsync().BlockingWait();
         _stoppingCts.Dispose();
     }
 }
