@@ -8,5 +8,5 @@ public enum OutboxItemType
 
     PushNotification = 300,
 
-    ReadReceipt = 400
+    UnencryptedFeedItem = 500
 }

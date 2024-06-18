@@ -62,6 +62,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         await SendFileOutboxItem(fileItem, odinContext, cancellationToken);
                         break;
 
+                    case OutboxItemType.UnencryptedFeedItem:
+                        await SendUnencryptedFeedItem(fileItem, odinContext, cancellationToken);
+                        break;
+                    
                     // case OutboxItemType.Reaction:
                     //     return await SendReactionItem(item, odinContext);
 
@@ -102,6 +106,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 pushNotificationService,
                 peerOutbox);
 
+            using var connection = tenantSystemStorage.CreateConnection();
+            await worker.Send(odinContext, connection, cancellationToken);
+        }
+        
+        private async Task SendUnencryptedFeedItem(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendUnencryptedFeedFileOutboxWorkerAsync>();
+            var worker = new SendUnencryptedFeedFileOutboxWorkerAsync(fileItem,
+                fileSystemResolver,
+                workLogger,
+                peerOutbox,
+                odinConfiguration,
+                odinHttpClientFactory,
+                jobManager
+            );
+            
             using var connection = tenantSystemStorage.CreateConnection();
             await worker.Send(odinContext, connection, cancellationToken);
         }
