@@ -215,8 +215,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFs || !fileId.HasValue)
             {
-                //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                throw new OdinClientException("Referenced file missing or caller does not have access");
             }
 
             //
