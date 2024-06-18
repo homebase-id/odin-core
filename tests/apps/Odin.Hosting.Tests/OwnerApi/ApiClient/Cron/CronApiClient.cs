@@ -25,7 +25,7 @@ public class CronApiClient
         _systemApiKey = ownerApi.SystemProcessApiKey;
     }
 
-    public async Task DistributeFeedFiles()
+    public Task DistributeFeedFiles()
     {
         throw new NotImplementedException("replacing this");
     }
