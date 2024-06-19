@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -38,12 +37,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
-        private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
+
+        // private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
+        private readonly KeyedAsyncLock<string> _updateTransferHistoryLock = new KeyedAsyncLock<string>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
         /// <summary>
-        /// Gets the <see cref="FileSystemType"/> the inheriting class manages
+        /// Gets the <see cref="FileSystemType"/> of which the inheriting class manages
         /// </summary>
         public abstract FileSystemType GetFileSystemType();
 
@@ -775,7 +776,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
         }
-        
+
         // Feed drive hacks
 
         public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata, IOdinContext odinContext, DatabaseConnection cn)
@@ -916,7 +917,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            using (await _updateTransferHistoryLock.LockAsync())
+            var timeout = TimeSpan.FromSeconds(5);
+            using (await _updateTransferHistoryLock.LockAsync($"fileId:{file.FileId}-driveId:{file.DriveId}", timeout))
             {
                 var header = await this.GetServerFileHeader(file, odinContext, cn);
 
@@ -954,6 +956,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     ignoreFeedDistribution: true);
             }
         }
+
 
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
         {
