@@ -161,7 +161,7 @@ namespace Odin.Core.Storage.SQLite
             }
             catch (Exception e)
             {
-                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync exception: {error}", e.Message);
+                Serilog.Log.Warning(e, "CreateCommitUnitOfWorkAsync exception: {error}", e.Message);
                 throw;
             }
             finally
