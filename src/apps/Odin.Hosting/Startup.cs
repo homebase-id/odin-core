@@ -45,6 +45,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.JobManagement;
+using Odin.Services.Tenant.BackgroundService;
 
 namespace Odin.Hosting
 {
@@ -481,6 +482,20 @@ namespace Odin.Hosting
 
                 // Wait for any registered fire-and-forget tasks to complete
                 services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
+
+
+                //
+                // Shutdown all tenant background services
+                //
+                var multitenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
+                var registry = services.GetRequiredService<IIdentityRegistry>();
+                var registrations = registry.GetList().Result;
+                foreach (var registration in registrations.Results)
+                {
+                    var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+                    var backgroundServiceManager = scope.Resolve<ITenantBackgroundServiceManager>();
+                    backgroundServiceManager.ShutdownAsync().BlockingWait();
+                }
             });
         }
 

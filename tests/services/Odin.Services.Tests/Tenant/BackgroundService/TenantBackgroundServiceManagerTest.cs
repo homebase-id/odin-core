@@ -18,7 +18,7 @@ public class TenantBackgroundServiceManagerTest
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
         var manager = new TenantBackgroundServiceManager(logger, tenant);
 
-        var service = new NoOpBackgroundService(tenant);
+        var service = new NoOpBackgroundService();
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -52,7 +52,7 @@ public class TenantBackgroundServiceManagerTest
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
         var manager = new TenantBackgroundServiceManager(logger, tenant);
 
-        var service = new LoopingBackgroundService(tenant);
+        var service = new LoopingBackgroundService();
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -94,7 +94,7 @@ public class TenantBackgroundServiceManagerTest
         var services = new List<LoopingBackgroundService>();
         for (var i = 0; i < serviceCount; i++)
         {
-            var service = new LoopingBackgroundService(tenant);
+            var service = new LoopingBackgroundService();
             services.Add(service);
             Assert.False(service.DidInitialize);
             Assert.False(service.DidFinish);
@@ -157,7 +157,7 @@ public class TenantBackgroundServiceManagerTest
             var services = new List<LoopingBackgroundServiceWithSleepAndWakeUp>();
             for (var i = 0; i < serviceCount; i++)
             {
-                var service = new LoopingBackgroundServiceWithSleepAndWakeUp(tenant);
+                var service = new LoopingBackgroundServiceWithSleepAndWakeUp();
                 services.Add(service);
                 Assert.False(service.DidInitialize);
                 Assert.False(service.DidFinish);
@@ -223,7 +223,7 @@ public class TenantBackgroundServiceManagerTest
 
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            var service = new LoopingBackgroundServiceWithSleepAndWakeUp(tenant);
+            var service = new LoopingBackgroundServiceWithSleepAndWakeUp();
             await manager.StartAsync(Guid.NewGuid().ToString(), service);
         });
         Assert.AreEqual("The background service is stopping.", exception?.Message);
@@ -232,7 +232,7 @@ public class TenantBackgroundServiceManagerTest
 
 }
 
-public abstract class BaseBackgroundService(Services.Tenant.Tenant tenant) : AbstractTenantBackgroundService(tenant), IDisposable
+public abstract class BaseBackgroundService : AbstractTenantBackgroundService, IDisposable
 {
     public volatile bool DidInitialize;
     public volatile bool DidFinish;
@@ -258,7 +258,7 @@ public abstract class BaseBackgroundService(Services.Tenant.Tenant tenant) : Abs
     }
 }
 
-public class NoOpBackgroundService(Services.Tenant.Tenant tenant) : BaseBackgroundService(tenant)
+public class NoOpBackgroundService : BaseBackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -267,7 +267,7 @@ public class NoOpBackgroundService(Services.Tenant.Tenant tenant) : BaseBackgrou
     }
 }
 
-public class LoopingBackgroundService(Services.Tenant.Tenant tenant) : BaseBackgroundService(tenant)
+public class LoopingBackgroundService : BaseBackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -285,7 +285,7 @@ public class LoopingBackgroundService(Services.Tenant.Tenant tenant) : BaseBackg
     }
 }
 
-public class LoopingBackgroundServiceWithSleepAndWakeUp(Services.Tenant.Tenant tenant) : BaseBackgroundService(tenant)
+public class LoopingBackgroundServiceWithSleepAndWakeUp : BaseBackgroundService
 {
     public int Counter  { get; private set; }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

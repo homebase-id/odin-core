@@ -3,8 +3,13 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -26,11 +31,38 @@ public class OutboxBackgroundService(
     ILoggerFactory loggerFactory,
     TenantSystemStorage tenantSystemStorage,
     Tenant tenant)
-    : AbstractTenantBackgroundService(tenant)
+    : AbstractTenantBackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var sleepDuration = TimeSpan.FromSeconds(1);
+        //var sleepDuration = TimeSpan.FromSeconds(1);
+        //var sleepDuration = TimeSpan.FromSeconds(10);
+        var sleepDuration = TimeSpan.FromMilliseconds(100);
+
+        //
+        // SEB:TODO Lifted from SystemAuthenticationHandler. Where to put this? Here? In the children?
+        //
+        var odinContext = new OdinContext
+        {
+            Tenant = (OdinId)tenant.Name,
+            Caller = new CallerContext(
+                odinId: (OdinId)tenant.Name,
+                masterKey: null,
+                securityLevel: SecurityGroupType.System)
+        };
+        var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers, PermissionKeys.SendPushNotifications });
+        var grantKeyStoreKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+        var systemPermissions = new Dictionary<string, PermissionGroup>()
+        {
+            {
+                "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, grantKeyStoreKey, null)
+            }
+        };
+        odinContext.SetPermissionContext(new PermissionContext(systemPermissions, null, true));
+
+        //
+        // ODINCONTEXT END
+        //
 
         var tasks = new List<Task>();
         while (!stoppingToken.IsCancellationRequested)
@@ -39,7 +71,7 @@ public class OutboxBackgroundService(
             {
                 while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
                 {
-                    var task = ProcessItem(item, OdinContext, stoppingToken);
+                    var task = ProcessItem(item, odinContext, stoppingToken);
                     tasks.Add(task);
                 }
             }

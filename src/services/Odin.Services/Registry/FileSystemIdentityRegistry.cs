@@ -473,6 +473,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private void UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
+        // SEB:TODO stop all background services for tenant
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 

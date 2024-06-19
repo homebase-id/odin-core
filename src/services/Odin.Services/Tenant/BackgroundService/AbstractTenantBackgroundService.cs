@@ -2,22 +2,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Nito.AsyncEx;
-using Odin.Core.Identity;
-using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 
 namespace Odin.Services.Tenant.BackgroundService;
 
 #nullable enable
 
-public abstract class AbstractTenantBackgroundService(Tenant tenant)
+public abstract class AbstractTenantBackgroundService
 {
-    protected readonly OdinContext OdinContext = new()
-    {
-        Tenant = (OdinId)tenant.Name,
-        Caller = new CallerContext(default, null, SecurityGroupType.Anonymous)
-    };
-
     private readonly AsyncAutoResetEvent _pulseEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
