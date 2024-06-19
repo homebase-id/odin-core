@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -38,8 +39,8 @@ namespace Odin.Services.Drives.FileSystem.Base
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
-        // private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
-        private readonly KeyedAsyncLock<string> _updateTransferHistoryLock = new KeyedAsyncLock<string>();
+        private readonly AsyncLock _updateTransferHistoryLock = new AsyncLock();
+        // private readonly KeyedAsyncLock<string> _updateTransferHistoryLock = new KeyedAsyncLock<string>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -917,8 +918,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var timeout = TimeSpan.FromSeconds(5);
-            using (await _updateTransferHistoryLock.LockAsync($"fileId:{file.FileId}-driveId:{file.DriveId}", timeout))
+            // var timeout = TimeSpan.FromSeconds(5);
+            // using (await _updateTransferHistoryLock.LockAsync($"fileId:{file.FileId}-driveId:{file.DriveId}", timeout))
+            using (await _updateTransferHistoryLock.LockAsync())
             {
                 var header = await this.GetServerFileHeader(file, odinContext, cn);
 
