@@ -25,7 +25,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     {
         private readonly ILogger<PeerDriveIncomingTransferService> _logger;
         private readonly PushNotificationService _pushNotificationService;
-        private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
+        private readonly TransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;

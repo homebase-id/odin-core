@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var inboxItem = items?.FirstOrDefault();
                 if (inboxItem == null)
                 {
-                    logger.LogDebug("Processing Inbox -> Getting Pending Items returned: 0");
+                    logger.LogDebug("Processing Inbox -> ");
                     return GetPendingCount(targetDrive, cn, driveId);
                 }
 
@@ -99,13 +99,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else
                     {
-                        var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender,
-                            odinContext, cn, overrideHack: true);
-                        var sharedSecret =
-                            icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey())
-                                .SharedSecret;
-                        var decryptedKeyHeader =
-                            inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+                        var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, cn, overrideHack: true);
+                        var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
+                        var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
                         var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                         {
@@ -156,22 +152,37 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             catch (OdinFileWriteException ofwe)
             {
                 logger.LogError(ofwe,
-                    "File was missing for inbox item.  the inbox item will be removed.  marker/popStamp: [{marker}]",
+                    "Issue Writing a file.  Action: Marking Complete. marker/popStamp: [{marker}]",
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
             }
+            catch (LockConflictException lce)
+            {
+                logger.LogWarning(lce,
+                    "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
+                    inboxItem.InstructionType,
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
+            }
+            catch (TimeoutException te)
+            {
+                logger.LogWarning(te,
+                    "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
+                    inboxItem.InstructionType,
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
+            }
             catch (Exception e)
             {
-                logger.LogError(e, 
-                    "Processing Inbox -> Catch-all Exception: Failed with " +
-                    "File:{f}\n inbox item gtid: {gtid} (gtid as hex x'{gtidHex}').  Action: Marking Complete",
+                logger.LogError(e,
+                    "Processing Inbox -> Inbox InstructionType: {instructionType}. " +
+                    "Catch-all Exception: Failed with Temp File:{f}. " +
+                    "Inbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                    "PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
+                    inboxItem.InstructionType,
                     tempFile,
                     inboxItem.GlobalTransitId,
-                    Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()));
-
-                logger.LogError(
-                    "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
-                    e.GetType().Name,
+                    Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
 
