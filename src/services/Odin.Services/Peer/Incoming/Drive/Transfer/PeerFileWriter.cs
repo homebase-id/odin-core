@@ -150,21 +150,43 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
-                item.GlobalTransitId, odinContext, cn,
+                item.GlobalTransitId,
+                odinContext,
+                cn,
                 excludePreviewThumbnail: false,
                 includeTransferHistory: true);
 
             if (null == header)
             {
-                throw new OdinFileWriteException($"No file found with specified global transit Id ({item.GlobalTransitId}) on driveId({item.DriveId})");
+                throw new OdinFileWriteException($"No file found with specified global transit Id ({item.GlobalTransitId}) " +
+                                                 $"on driveId({item.DriveId}) (this should have been detected before adding this item to the inbox)");
             }
 
-            var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
-
-            if (!recordExists || transferHistoryItem == null)
+            if (header.FileState == FileState.Deleted)
             {
-                throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
+                logger.LogWarning("MarkFileAsRead -> Attempted to mark a deleted file as read");
             }
+
+            if (header.ServerMetadata.TransferHistory == null)
+            {
+                logger.LogWarning("MarkFileAsRead -> TransferHistory is null.  File created: {created} and " +
+                                  "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
+            }
+            else
+            {
+                var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
+
+                if (!recordExists || transferHistoryItem == null)
+                {
+                    throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
+                }
+            }
+
+            // logger.LogDebug("MarkFileAsRead -> Target File: Created:{created}\t TransitCreated:{tc}\t Updated:{updated}\t TransitUpdated: {tcu}",
+            //     header.FileMetadata.Created,
+            //     header.FileMetadata.TransitCreated,
+            //     header.FileMetadata.Updated,
+            //     header.FileMetadata.TransitUpdated);
 
             var update = new UpdateTransferHistoryData()
             {
@@ -176,7 +198,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileId = header.FileId,
                 DriveId = item.DriveId
             };
-            
+
             await fs.Storage.UpdateTransferHistory(
                 file,
                 item.Sender,

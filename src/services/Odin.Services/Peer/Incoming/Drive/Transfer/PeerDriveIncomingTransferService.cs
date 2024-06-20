@@ -171,7 +171,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<PeerTransferResponse> MarkFileAsRead(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
             IOdinContext odinContext, DatabaseConnection cn)
         {
-
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
 
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext, cn);
