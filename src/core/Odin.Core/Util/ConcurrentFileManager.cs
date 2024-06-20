@@ -218,6 +218,21 @@ public class ConcurrentFileManager(
         // Note: Lock release is managed by the LockManagedFileStream when it is disposed
     }
 
+    public async Task WriteFileAsync(string filePath, Func<string, Task> writeAction)
+    {
+        logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);
+        EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
+
+        try
+        {
+            await writeAction(filePath);
+        }
+        finally
+        {
+            ExitLock(filePath);
+        }
+    }
+
     public Task WriteFile(string filePath, Action<string> writeAction)
     {
         logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);

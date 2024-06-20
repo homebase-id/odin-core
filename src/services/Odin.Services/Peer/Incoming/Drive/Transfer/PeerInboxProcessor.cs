@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var inboxItem = items?.FirstOrDefault();
                 if (inboxItem == null)
                 {
-                    logger.LogDebug("Processing Inbox -> Getting Pending Items returned: 0");
+                    logger.LogDebug("Processing Inbox -> ");
                     return GetPendingCount(targetDrive, cn, driveId);
                 }
 
@@ -156,9 +156,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             catch (OdinFileWriteException ofwe)
             {
                 logger.LogError(ofwe,
-                    "File was missing for inbox item.  the inbox item will be removed.  marker/popStamp: [{marker}]",
+                    "Issue Writing a file.  Action: Marking Complete. marker/popStamp: [{marker}]",
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+            }
+            catch (OdinAcquireLockException te)
+            {
+                logger.LogWarning(te,
+                    "Action: Marking Failure; retry later: [{marker}]",
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
             }
             catch (Exception e)
             {
