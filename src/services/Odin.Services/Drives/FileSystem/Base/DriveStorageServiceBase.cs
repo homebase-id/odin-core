@@ -977,16 +977,16 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-                await TryRetry.WithDelayAsync(
+                await TryRetry.WithBackoffAsync(
                     attempts: attempts,
-                    delay: TimeSpan.FromMilliseconds(delayMs),
+                    exponentialBackoff: TimeSpan.FromMilliseconds(delayMs), 
                     CancellationToken.None,
                     async () => { header = await TryLockAndUpdate(); });
             }
             catch (TryRetryException)
             {
                 _logger.LogError("Failed to Lock and Update Transfer History after {attempts} " +
-                                 "attempts with delay {delay}ms",
+                                 "attempts with exponentialBackoff {delay}ms",
                     attempts,
                     delayMs);
                 throw;
