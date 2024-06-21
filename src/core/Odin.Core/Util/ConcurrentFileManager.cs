@@ -153,7 +153,7 @@ public class ConcurrentFileManager(
             stopwatch.Stop();
             if (stopwatch.ElapsedMilliseconds > 100)
             {
-                logger.LogDebug($"fileLock.Wait() waited for {stopwatch.ElapsedMilliseconds}ms.");
+                logger.LogDebug($"fileLock.Wait() waited for {stopwatch.ElapsedMilliseconds}ms for file {filePath}");
             }
 
             LogLockStackTrace(filePath, lockType, referenceCount);
