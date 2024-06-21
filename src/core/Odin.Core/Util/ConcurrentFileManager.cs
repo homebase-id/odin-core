@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
+using Serilog.Core;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
@@ -83,7 +84,7 @@ public class ConcurrentFileManager(
     //private int _debugCount = 42;
     //private StringBuilder _sb = new StringBuilder();
 
-    private const int _threadTimeout = 1000;
+    private const int _threadTimeout = 10000;
     internal readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
 
 
@@ -134,6 +135,7 @@ public class ConcurrentFileManager(
             referenceCount = fileLock.ReferenceCount;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         if (fileLock.Lock.Wait(_threadTimeout) == false)
         {
             lock (_dictionaryLocks)
@@ -147,7 +149,15 @@ public class ConcurrentFileManager(
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
         else
+        {
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > 100)
+            {
+                logger.LogDebug($"fileLock.Wait() waited for {stopwatch.ElapsedMilliseconds}ms.");
+            }
+
             LogLockStackTrace(filePath, lockType, referenceCount);
+        }
     }
 
     /// <summary>
