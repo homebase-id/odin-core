@@ -143,7 +143,7 @@ public class ConcurrentFileManager(
                     _dictionaryLocks.Remove(filePath);
             }
 
-            throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
+            throw new OdinAcquireLockException($"Timeout waiting for lock for file {filePath}");
         }
         else
         {
