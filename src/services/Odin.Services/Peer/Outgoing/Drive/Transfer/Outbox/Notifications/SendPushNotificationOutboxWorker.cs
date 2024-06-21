@@ -18,7 +18,7 @@ public class SendPushNotificationOutboxWorker(
     OutboxFileItem fileItem,
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService,
-    IPeerOutbox peerOutbox)
+    PeerOutbox peerOutbox)
 {
     public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {

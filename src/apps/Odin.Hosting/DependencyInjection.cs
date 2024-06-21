@@ -171,7 +171,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
             
             cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
             cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();

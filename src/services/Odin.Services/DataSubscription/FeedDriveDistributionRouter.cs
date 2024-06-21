@@ -42,7 +42,7 @@ namespace Odin.Services.DataSubscription
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
         private readonly PublicPrivateKeyService _pkService;
         private readonly PeerOutboxProcessorAsync _peerOutboxProcessorAsync;
-        private readonly IPeerOutbox _peerOutbox;
+        private readonly PeerOutbox _peerOutbox;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
 
@@ -59,7 +59,7 @@ namespace Odin.Services.DataSubscription
             ILogger<FeedDriveDistributionRouter> logger,
             PublicPrivateKeyService pkService,
             PeerOutboxProcessorAsync peerOutboxProcessorAsync,
-            IPeerOutbox peerOutbox)
+            PeerOutbox peerOutbox)
         {
             _followerService = followerService;
             _peerOutgoingTransferService = peerOutgoingTransferService;
@@ -100,7 +100,7 @@ namespace Odin.Services.DataSubscription
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
                     }
-                    
+
                     await _peerOutboxProcessorAsync.StartOutboxProcessingAsync(odinContext, notification.DatabaseConnection);
                 }
                 else
@@ -132,7 +132,6 @@ namespace Odin.Services.DataSubscription
                         await _peerOutboxProcessorAsync.StartOutboxProcessingAsync(odinContext, notification.DatabaseConnection);
                         return;
                     }
-
                 }
             }
         }
@@ -373,17 +372,28 @@ namespace Odin.Services.DataSubscription
 
         private void AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DatabaseConnection cn)
         {
-            var item = new OutboxFileItem
+            // var item = new OutboxFileItem
+            // {
+            //     Recipient = recipient,
+            //     File = distroItem.SourceFile,
+            //     Priority = 100,
+            //     IsTransientFile = false,
+            //     Type = OutboxItemType.UnencryptedFeedItem,
+            //     RawValue = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
+            // };
+            //
+            // _peerOutbox.AddFeedItem(item, cn, useUpsert: true);
+
+            var item = new OutboxItem()
             {
                 Recipient = recipient,
                 File = distroItem.SourceFile,
                 Priority = 100,
-                IsTransientFile = false,
                 Type = OutboxItemType.UnencryptedFeedItem,
-                RawValue = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
+                Data = OdinSystemSerializer.Serialize(distroItem)
             };
 
-            _peerOutbox.AddFeedItem(item, cn, useUpsert: true);
+            _peerOutbox.AddItem(item, cn, useUpsert: true);
         }
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,

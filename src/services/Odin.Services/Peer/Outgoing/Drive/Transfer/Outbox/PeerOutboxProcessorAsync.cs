@@ -17,7 +17,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessorAsync(
-        IPeerOutbox peerOutbox,
+        PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessorAsync> logger,
@@ -35,12 +35,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var cancellationToken = hostApplicationLifetime.ApplicationStopping;
 
-            var item = await peerOutbox.GetNextItem(cn);
+            var item = await peerOutbox.GetNextFileItem(cn);
             while (item != null && cancellationToken.IsCancellationRequested == false)
             {
                 var t = ProcessItem(item, odinContext, cancellationToken);
                 outstandingTasks.Add(t);
-                item = await peerOutbox.GetNextItem(cn);
+                item = await peerOutbox.GetNextFileItem(cn);
             }
         }
 

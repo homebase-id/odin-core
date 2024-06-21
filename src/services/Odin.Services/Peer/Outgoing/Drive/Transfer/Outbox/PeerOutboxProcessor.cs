@@ -16,7 +16,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessor(
-        IPeerOutbox peerOutbox,
+        PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessor> logger,
@@ -26,12 +26,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     {
         public async Task StartOutboxProcessing(IOdinContext odinContext, DatabaseConnection cn)
         {
-            var item = await peerOutbox.GetNextItem(cn);
+            var item = await peerOutbox.GetNextFileItem(cn);
 
             while (item != null)
             {
                 await ProcessItem(item, odinContext, tryDeleteTransient: true, cn);
-                item = await peerOutbox.GetNextItem(cn);
+                item = await peerOutbox.GetNextFileItem(cn);
             }
         }
 
@@ -48,7 +48,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 if (result.TransferResult != TransferResult.Success)
                 {
                     //enqueue into the outbox since it was never added before
-                    await peerOutbox.AddFileItem(item, cn, useUpsert: true); //useUpsert just in-case
+                    await peerOutbox.AddItemClassic(item, cn, useUpsert: true); //useUpsert just in-case
                 }
 
                 //TODO: interim hack

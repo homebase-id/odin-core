@@ -29,7 +29,7 @@ public class SendFileOutboxWorkerAsync(
     OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
     ILogger<SendFileOutboxWorkerAsync> logger,
-    IPeerOutbox peerOutbox,
+    PeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
     IJobManager jobManager

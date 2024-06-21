@@ -26,7 +26,7 @@ public class SendFileOutboxWorker(
     OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
     ILogger<PeerOutboxProcessor> logger,
-    IPeerOutbox peerOutbox,
+    PeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory)
 {

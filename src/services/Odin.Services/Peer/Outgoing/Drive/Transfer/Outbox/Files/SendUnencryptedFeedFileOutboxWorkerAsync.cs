@@ -30,7 +30,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
     ILogger<SendUnencryptedFeedFileOutboxWorkerAsync> logger,
-    IPeerOutbox peerOutbox,
+    PeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
     IJobManager jobManager,

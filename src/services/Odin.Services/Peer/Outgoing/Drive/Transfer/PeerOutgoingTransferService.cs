@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
@@ -18,7 +19,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -29,7 +29,7 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
     public class PeerOutgoingTransferService(
-        IPeerOutbox peerOutbox,
+        PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantContext tenantContext,
         CircleNetworkService circleNetworkService,
@@ -89,48 +89,34 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var result = new Dictionary<string, DeleteLinkedFileStatus>();
 
-            foreach (var recipient in recipients)
+            foreach (var r in recipients)
             {
-                var r = (OdinId)recipient;
+                var recipient = (OdinId)r;
 
-                var clientAccessToken = await ResolveClientAccessToken(r, odinContext, cn);
+                //TODO: i need to resolve the token outside of transit, pass it in as options instead
+                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
-                    fileSystemType: fileTransferOptions.FileSystemType);
-
-                ApiResponse<PeerTransferResponse> httpResponse = null;
-
-                await TryRetry.WithDelayAsync(
-                    odinConfiguration.Host.PeerOperationMaxAttempts,
-                    odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () =>
-                    {
-                        httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileRequest()
-                        {
-                            RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
-                            FileSystemType = fileTransferOptions.FileSystemType
-                        });
-                    });
-
-                if (httpResponse.IsSuccessStatusCode)
+                var item = new OutboxItem()
                 {
-                    var transitResponse = httpResponse.Content;
-                    switch (transitResponse.Code)
+                    Recipient = recipient,
+                    Priority = 100,
+                    Type = OutboxItemType.DeleteFile,
+                    File = new InternalDriveFileId()
                     {
-                        case PeerResponseCode.AcceptedIntoInbox:
-                        case PeerResponseCode.AcceptedDirectWrite:
-                            result.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
-                            break;
+                        FileId = remoteGlobalTransitIdentifier.GlobalTransitId,
+                        DriveId = odinContext.PermissionsContext.GetDriveId(remoteGlobalTransitIdentifier.TargetDrive)
+                    },
+                    EncryptedClientAuthToken = encryptedClientAccessToken,
+                    DependencyFileId = default,
+                    Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
+                    {
+                        RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
+                        FileSystemType = fileTransferOptions.FileSystemType
+                    })
+                };
 
-                        default:
-                            throw new ArgumentOutOfRangeException();
-                    }
-                }
-                else
-                {
-                    result.Add(recipient, DeleteLinkedFileStatus.RemoteServerFailed);
-                }
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
 
             return result;
@@ -387,7 +373,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddFileItem(item, cn, useUpsert: true);
+                await peerOutbox.AddItemClassic(item, cn, useUpsert: true);
             }
 
             await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
@@ -400,11 +386,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext, priority, cn);
 
+            //Note: good place for a transaction here around UpdateTransferHistory and AddFileSendItem
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddFileItem(item, cn);
+                await peerOutbox.AddItemClassic(item, cn);
             }
 
             return await MapOutboxCreationResult(outboxStatus);
