@@ -922,8 +922,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 ServerFileHeader header = null;
 
+                _logger.LogDebug("UpdateTransferHistory trying to lock filePath:{filePath}", filePath);
+
                 await concurrentFileManager.WriteFileAsync(filePath, async _ =>
                 {
+                    _logger.LogDebug("UpdateTransferHistory Successful Lock on:{filePath}", filePath);
+
                     //
                     // Get and validate the header
                     //
@@ -954,7 +958,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     header.ServerMetadata.TransferHistory = history;
 
                     _logger.LogDebug(
-                        "Updating transfer history on file:{file} for recipient:{recipient} \n Version:{versionTag}\t Status:{status}\t InOutbox:{outbox}\t isRead: {isRead}",
+                        "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
                         file,
                         recipient,
                         updateData.VersionTag,
@@ -983,9 +987,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     CancellationToken.None,
                     async () => { header = await TryLockAndUpdate(); });
             }
-            catch (TryRetryException)
+            catch (TryRetryException t)
             {
-                _logger.LogError("Failed to Lock and Update Transfer History after {attempts} " +
+                _logger.LogError(t, "Failed to Lock and Update Transfer History after {attempts} " +
                                  "attempts with exponentialBackoff {delay}ms",
                     attempts,
                     delayMs);
@@ -1031,15 +1035,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var json = OdinSystemSerializer.Serialize(header);
+            var jsonBytes = Encoding.UTF8.GetBytes(json);
 
             var payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
             var thumbnailDiskUsage = header.FileMetadata.Payloads?
                 .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
                 .Sum(pp => pp.BytesWritten) ?? 0;
-            header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + Encoding.UTF8.GetBytes(json).Length;
+            header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
 
-            json = OdinSystemSerializer.Serialize(header);
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            var stream = new MemoryStream(jsonBytes);
 
             var mgr = await GetLongTermStorageManager(header.FileMetadata.File.DriveId, cn);
             await mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream, byPassInternalFileLocking);
