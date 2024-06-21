@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -917,52 +918,79 @@ namespace Odin.Services.Drives.FileSystem.Base
             var mgr = await GetLongTermStorageManager(file.DriveId, cn);
             var filePath = await mgr.GetServerFileHeaderPath(file.FileId);
 
-            ServerFileHeader header = null;
-            await concurrentFileManager.WriteFileAsync(filePath, async _ =>
+            async Task<ServerFileHeader> TryLockAndUpdate()
             {
-                //
-                // Get and validate the header
-                //
-                header = await mgr.GetServerFileHeader(file.FileId);
-                AssertValidFileSystemType(header.ServerMetadata);
+                ServerFileHeader header = null;
 
-                //
-                // update the transfer history record
-                //
-                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                await concurrentFileManager.WriteFileAsync(filePath, async _ =>
                 {
-                    recipientItem = new RecipientTransferHistoryItem();
-                    history.Recipients.Add(recipient, recipientItem);
-                }
+                    //
+                    // Get and validate the header
+                    //
+                    header = await mgr.GetServerFileHeader(file.FileId);
+                    AssertValidFileSystemType(header.ServerMetadata);
 
-                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-                recipientItem.LastUpdated = UnixTimeUtc.Now();
-                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
-                {
-                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-                }
+                    //
+                    // update the transfer history record
+                    //
+                    var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+                    history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
-                header.ServerMetadata.TransferHistory = history;
+                    if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                    {
+                        recipientItem = new RecipientTransferHistoryItem();
+                        history.Recipients.Add(recipient, recipientItem);
+                    }
 
-                _logger.LogDebug(
-                    "Updating transfer history on file:{file} for recipient:{recipient} \n Version:{versionTag}\t Status:{status}\t InOutbox:{outbox}\t isRead: {isRead}",
-                    file,
-                    recipient,
-                    updateData.VersionTag,
-                    updateData.LatestTransferStatus,
-                    updateData.IsInOutbox,
-                    updateData.IsReadByRecipient);
+                    recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+                    recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+                    recipientItem.LastUpdated = UnixTimeUtc.Now();
+                    recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+                    if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
+                    {
+                        recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
+                    }
 
-                //
-                // write to disk
-                //
-                await WriteFileHeaderInternal(header, cn, keepSameVersionTag: true, byPassInternalFileLocking: true);
-            });
+                    header.ServerMetadata.TransferHistory = history;
+
+                    _logger.LogDebug(
+                        "Updating transfer history on file:{file} for recipient:{recipient} \n Version:{versionTag}\t Status:{status}\t InOutbox:{outbox}\t isRead: {isRead}",
+                        file,
+                        recipient,
+                        updateData.VersionTag,
+                        updateData.LatestTransferStatus,
+                        updateData.IsInOutbox,
+                        updateData.IsReadByRecipient);
+
+                    //
+                    // write to disk
+                    //
+                    await WriteFileHeaderInternal(header, cn, keepSameVersionTag: true, byPassInternalFileLocking: true);
+                });
+
+                return header;
+            }
+
+            ServerFileHeader header = null;
+            var attempts = 7;
+            var delayMs = 200;
+
+            try
+            {
+                await TryRetry.WithBackoffAsync(
+                    attempts: attempts,
+                    exponentialBackoff: TimeSpan.FromMilliseconds(delayMs), 
+                    CancellationToken.None,
+                    async () => { header = await TryLockAndUpdate(); });
+            }
+            catch (TryRetryException)
+            {
+                _logger.LogError("Failed to Lock and Update Transfer History after {attempts} " +
+                                 "attempts with exponentialBackoff {delay}ms",
+                    attempts,
+                    delayMs);
+                throw;
+            }
 
             if (await ShouldRaiseDriveEvent(file, cn))
             {
@@ -976,7 +1004,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
         }
-
 
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
         {
