@@ -57,6 +57,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
                         ContentType = t.ContentType,
                         PixelHeight = t.PixelHeight,
                         PixelWidth = t.PixelWidth,
+                        BytesWritten = t.BytesWritten
                     }).ToList();
 
                 return new PayloadDescriptor()

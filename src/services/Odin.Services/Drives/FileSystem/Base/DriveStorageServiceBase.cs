@@ -979,7 +979,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await TryRetry.WithBackoffAsync(
                     attempts: attempts,
-                    exponentialBackoff: TimeSpan.FromMilliseconds(delayMs), 
+                    exponentialBackoff: TimeSpan.FromMilliseconds(delayMs),
                     CancellationToken.None,
                     async () => { header = await TryLockAndUpdate(); });
             }
@@ -1030,12 +1030,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
-            var file = header.FileMetadata.File;
             var json = OdinSystemSerializer.Serialize(header);
 
-            var lts = await GetLongTermStorageManager(file.DriveId, cn);
-            var payloadDiskUsage = await lts.GetPayloadDiskUsage(file.FileId);
-            header.ServerMetadata.FileByteCount = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
+            var payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
+            var thumbnailDiskUsage = header.FileMetadata.Payloads?
+                .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
+                .Sum(pp => pp.BytesWritten) ?? 0;
+            header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + Encoding.UTF8.GetBytes(json).Length;
 
             json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
