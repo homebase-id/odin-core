@@ -111,20 +111,19 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 {
                     if (IsPayloadPart(section))
                     {
-                        await ProcessPayloadSection(section, metadata, cn);
+                        var payloadKey = await ProcessPayloadSection(section, metadata, cn);
                     }
 
                     if (IsThumbnail(section))
                     {
-                        await ProcessThumbnailSection(section, metadata, cn);
+                        var thumbnailKey = await ProcessThumbnailSection(section, metadata, cn);
                     }
 
                     section = await reader.ReadNextSectionAsync();
                 }
             }
 
-            //
-
+           
             return await _incomingTransferService.FinalizeTransfer(this._stateItemId, metadata, WebOdinContext, cn);
         }
 
@@ -147,11 +146,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
         {
             await AssertIsValidCaller();
-            
+
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection();
-            
+
             return await perimeterService.MarkFileAsRead(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,
@@ -228,7 +227,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return metadata;
         }
 
-        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
+        private async Task<string> ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
@@ -242,9 +241,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
             await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream, WebOdinContext,
                 cn);
+
+            return extension;
         }
 
-        private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
+        private async Task<string> ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
         {
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out _);
 
@@ -268,6 +269,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
             await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension, fileSection.FileStream,
                 WebOdinContext, cn);
+
+            return extension;
         }
 
         private void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection, out string payloadKey)

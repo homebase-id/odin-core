@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -68,6 +69,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             DatabaseConnection cn)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
+
+            var shouldExpectPayload = item.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+            // if there are payloads in the descriptor and they should have been sent
+            if (fileMetadata.Payloads.Any() && shouldExpectPayload)
+            {
+                // _fileSystem.Storage.TempFileExists(item.TempFile, )
+                //TODO
+            }
 
             var responseCode = await FinalizeTransferInternal(item, fileMetadata, odinContext, cn);
 

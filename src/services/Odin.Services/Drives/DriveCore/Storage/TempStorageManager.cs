@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic.FileIO;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -46,6 +47,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string filePath = GetTempFilenameAndPath(fileId, extension, true);
             uint bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream);
             return bytesWritten;
+        }
+
+        public async Task<bool> FileExists(Guid fileId, string extension)
+        {
+            string filePath = GetTempFilenameAndPath(fileId, extension, true);
+            return await _driveFileReaderWriter.FileExists(filePath);
         }
 
         /// <summary>

@@ -201,6 +201,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await tsm.WriteStream(file.FileId, extension, stream);
         }
 
+        public async Task<bool> TempFileExists(InternalDriveFileId file, string extension, DatabaseConnection cn)
+        {
+            var tsm = await GetTempStorageManager(file.DriveId, cn);
+            return await tsm.FileExists(file.FileId, extension);
+        }
+
         /// <summary>
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
