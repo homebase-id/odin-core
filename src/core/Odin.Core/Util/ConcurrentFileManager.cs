@@ -80,10 +80,8 @@ public class ConcurrentFileManager(
         }
     }
 
-    //private int _debugCount = 42;
-    //private StringBuilder _sb = new StringBuilder();
-
-    private const int _threadTimeout = 1000;
+    private const int millisecondLoggingThreshold = 100;
+    private const int _threadTimeout = 10000;
     internal readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
 
 
@@ -134,6 +132,7 @@ public class ConcurrentFileManager(
             referenceCount = fileLock.ReferenceCount;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         if (fileLock.Lock.Wait(_threadTimeout) == false)
         {
             lock (_dictionaryLocks)
@@ -144,10 +143,18 @@ public class ConcurrentFileManager(
                     _dictionaryLocks.Remove(filePath);
             }
 
-            throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
+            throw new OdinAcquireLockException($"Timeout waiting for lock for file {filePath}");
         }
         else
+        {
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+            {
+                logger.LogDebug($"CFM.EnterLock() waited for {stopwatch.ElapsedMilliseconds}ms for lock on file {filePath}");
+            }
+
             LogLockStackTrace(filePath, lockType, referenceCount);
+        }
     }
 
     /// <summary>
@@ -180,11 +187,12 @@ public class ConcurrentFileManager(
         LogUnlockStackTrace(filePath);
     }
 
-    public Task ReadFile(string filePath, Action<string> readAction)
+    public Task ReadFile(string filePath, Action<string> readAction, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         logger.LogTrace("ReadFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             readAction(filePath);
@@ -192,6 +200,11 @@ public class ConcurrentFileManager(
         finally
         {
             ExitLock(filePath);
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+            {
+                logger.LogDebug($"CFM.ReadFile() used {stopwatch.ElapsedMilliseconds}ms for file {filePath} called via {file} line {line}");
+            }
         }
 
         return Task.CompletedTask;
@@ -218,11 +231,12 @@ public class ConcurrentFileManager(
         // Note: Lock release is managed by the LockManagedFileStream when it is disposed
     }
 
-    public async Task WriteFileAsync(string filePath, Func<string, Task> writeAction)
+    public async Task WriteFileAsync(string filePath, Func<string, Task> writeAction, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             await writeAction(filePath);
@@ -230,14 +244,20 @@ public class ConcurrentFileManager(
         finally
         {
             ExitLock(filePath);
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+            {
+                logger.LogDebug($"CFM.WriteFileAsync() used {stopwatch.ElapsedMilliseconds}ms for file {filePath} called via {file} line {line}");
+            }
         }
     }
 
-    public Task WriteFile(string filePath, Action<string> writeAction)
+    public Task WriteFile(string filePath, Action<string> writeAction, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             writeAction(filePath);
@@ -245,16 +265,22 @@ public class ConcurrentFileManager(
         finally
         {
             ExitLock(filePath);
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+            {
+                logger.LogDebug($"CFM.WriteFile() used {stopwatch.ElapsedMilliseconds}ms for file {filePath} called via {file} line {line}");
+            }
         }
 
         return Task.CompletedTask;
     }
 
-    public Task DeleteFile(string filePath)
+    public Task DeleteFile(string filePath, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         logger.LogTrace("DeleteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             File.Delete(filePath);
@@ -262,12 +288,17 @@ public class ConcurrentFileManager(
         finally
         {
             ExitLock(filePath);
+            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+            {
+                logger.LogDebug($"CFM.DeleteFile() used {stopwatch.ElapsedMilliseconds}ms for file {filePath} called via {file} line {line}");
+            }
         }
 
         return Task.CompletedTask;
     }
 
-    public Task MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
+    public Task MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         logger.LogTrace("MoveFile Lock requested on source file {sourcePath}", sourcePath);
         // Lock destination first to avoid deadlocks
@@ -277,6 +308,7 @@ public class ConcurrentFileManager(
         {
             logger.LogTrace("MoveFile Lock requested on destination file {destinationPath}", destinationPath);
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 moveAction(sourcePath, destinationPath);
@@ -284,6 +316,11 @@ public class ConcurrentFileManager(
             finally
             {
                 ExitLock(sourcePath);
+                stopwatch.Stop();
+                if (stopwatch.ElapsedMilliseconds > millisecondLoggingThreshold)
+                {
+                    logger.LogDebug($"CFM.MoveFile() used {stopwatch.ElapsedMilliseconds}ms for file {sourcePath} {destinationPath} called via {file} line {line}");
+                }
             }
         }
         finally
