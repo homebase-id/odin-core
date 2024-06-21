@@ -51,10 +51,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task WriteHeaderStream(Guid fileId, Stream stream)
+        public async Task WriteHeaderStream(Guid fileId, Stream stream, bool byPassInternalFileLocking)
         {
             string filePath = await GetFilenameAndPath(fileId, FilePart.Header, true);
-            var bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream);
+            var bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream, byPassInternalFileLocking);
 
             if (bytesWritten != stream.Length)
             {
@@ -263,6 +263,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
+        }
+
+        public async Task<string> GetServerFileHeaderPath(Guid fileId)
+        {
+            return await GetFilenameAndPath(fileId, FilePart.Header);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
