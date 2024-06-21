@@ -164,7 +164,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
             }
-            catch (TimeoutException te)
+            catch (OdinAcquireLockException te)
             {
                 logger.LogWarning(te,
                     "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
