@@ -1043,6 +1043,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 .Sum(pp => pp.BytesWritten) ?? 0;
             header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
 
+            //re-serlialize the json since we updated it
+            json = OdinSystemSerializer.Serialize(header);
+            jsonBytes = Encoding.UTF8.GetBytes(json);
             var stream = new MemoryStream(jsonBytes);
 
             var mgr = await GetLongTermStorageManager(header.FileMetadata.File.DriveId, cn);
