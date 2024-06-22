@@ -71,6 +71,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
             var shouldExpectPayload = item.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+           
             // if there are payloads in the descriptor and they should have been sent
             if (fileMetadata.Payloads.Any() && shouldExpectPayload)
             {
