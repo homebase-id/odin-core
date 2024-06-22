@@ -41,9 +41,11 @@ public class SendFileOutboxWorkerAsync(
 
         try
         {
-            logger.LogDebug("Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
+            logger.LogDebug("Start: Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
 
             var (versionTag, globalTransitId) = await SendOutboxFileItemAsync(fileItem, odinContext, cn, cancellationToken);
+    
+            logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
 
             var update = new UpdateTransferHistoryData()
             {
@@ -53,10 +55,14 @@ public class SendFileOutboxWorkerAsync(
                 VersionTag = versionTag
             };
 
+            logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
+
             await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
 
-            logger.LogDebug("Successful transfer of {gtid} to {recipient} - Action: " +
-                            "Marking Complete (popStamp:{marker})",
+            logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
+
+            logger.LogDebug("Successful transfer of {gtid} to {recipient} - " +
+                            "Action: Marking Complete (popStamp:{marker})",
                 globalTransitId,
                 fileItem.Recipient,
                 fileItem.Marker);
@@ -140,7 +146,7 @@ public class SendFileOutboxWorkerAsync(
 
             default:
                 logger.LogWarning(e, "Unhandled Transfer Status: {transferStatus}", e.TransferStatus);
-                break;
+                throw new ArgumentOutOfRangeException();
         }
 
         await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);

@@ -69,9 +69,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         throw new ArgumentOutOfRangeException();
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException oce)
             {
                 // Expected when using cancellation token
+                logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
             }
             catch (Exception e)
             {
