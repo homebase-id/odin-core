@@ -12,4 +12,5 @@ public class PackageThumbnailDescriptor
     public string ContentType { get; set; }
 
     public string PayloadKey { get; set; }
+    public uint BytesWritten { get; set; }
 }
