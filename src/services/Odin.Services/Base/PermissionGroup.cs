@@ -105,7 +105,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
             //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
             if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
-                Log.Debug(
+                Log.Verbose(
                     "Grant for drive {permissionDrive} with permission value ({permission}) has null key store key:{kskNull} and null key store key encrypted storage key: {kskstoragekey}",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
 
@@ -118,7 +118,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
             {
                 var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
 
-                Log.Debug(
+                Log.Verbose(
                     "Grant for drive {permissionDrive} with permission value ({permission}) returned the storage key",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission);
                 
