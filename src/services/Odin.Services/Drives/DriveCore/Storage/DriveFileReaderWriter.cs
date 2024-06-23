@@ -85,7 +85,7 @@ public sealed class DriveFileReaderWriter(
                     if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
                         logger.LogDebug("WriteStream - using CFM locking");
-                        await concurrentFileManager.WriteFile(filePath,
+                        await concurrentFileManager.WriteFileAsync(filePath,
                             async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
                     }
                     else
