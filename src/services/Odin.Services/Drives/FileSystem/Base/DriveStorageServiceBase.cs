@@ -934,7 +934,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     //
                     // Get and validate the header
                     //
-                    header = await mgr.GetServerFileHeader(file.FileId);
+                    header = await mgr.GetServerFileHeader(file.FileId, byPassInternalFileLocking: true);
                     AssertValidFileSystemType(header.ServerMetadata);
 
                     if (stopwatch.ElapsedMilliseconds > 100)

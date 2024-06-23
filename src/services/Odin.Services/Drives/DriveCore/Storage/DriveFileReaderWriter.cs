@@ -84,11 +84,13 @@ public sealed class DriveFileReaderWriter(
                 {
                     if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
+                        logger.LogDebug("WriteStream - using CFM locking");
                         await concurrentFileManager.WriteFile(filePath,
                             async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
                     }
                     else
                     {
+                        logger.LogDebug("WriteStream - using OS locking");
                         bytesWritten = await WriteStreamInternalAsync(filePath, stream);
                     }
                 });
@@ -106,7 +108,7 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task<byte[]> GetAllFileBytes(string filePath)
+    public async Task<byte[]> GetAllFileBytes(string filePath, bool byPassInternalFileLocking = false)
     {
         byte[] bytes = null;
 
@@ -118,12 +120,14 @@ public sealed class DriveFileReaderWriter(
                 CancellationToken.None,
                 async () =>
                 {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
+                        logger.LogDebug("GetAllFileBytes - using CFM locking");
                         await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
                     }
                     else
                     {
+                        logger.LogDebug("GetAllFileBytes - using OS locking");
                         bytes = await File.ReadAllBytesAsync(filePath);
                     }
                 });
