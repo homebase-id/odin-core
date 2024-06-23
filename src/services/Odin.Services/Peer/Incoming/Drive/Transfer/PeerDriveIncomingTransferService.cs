@@ -59,7 +59,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
-            // Notice here: we always create a new file Id when receiving a new file.
+            // Notice here: we always create a new fileId when receiving a new file.
             var file = await _fileSystem.Storage.CreateInternalFileId(driveId, cn);
             _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
 
@@ -81,7 +81,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var uploadedKeys = new List<string>();
             var shouldExpectPayload = _transferState.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
 
-            // if there are payloads in the descriptor and they should have been sent
+            // if there are payloads in the descriptor, and they should have been sent
             if (fileMetadata.Payloads.Any() && shouldExpectPayload)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
@@ -93,9 +93,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     
                     foreach(var expectedThumbnail in expectedPayload.Thumbnails)
                     {
-                        if (uploadedKeys.All(k => k != expectedThumbnail.Key))
+                        var thumbnailKey = expectedThumbnail.
+                        if (uploadedKeys.All(k => k != thumbnailKey))
                         {
-                            
+                            throw new OdinClientException("Not all payloads received");                            
                         }
                     }
                 }

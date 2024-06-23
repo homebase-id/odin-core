@@ -322,7 +322,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
 
-            //Note: calling to get the file header so we can ensure the caller can read this file
+            //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext, cn);
             DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, versionTag);
 
