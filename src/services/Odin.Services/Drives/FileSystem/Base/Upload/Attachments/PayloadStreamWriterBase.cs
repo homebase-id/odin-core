@@ -132,14 +132,15 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight);
 
-        await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext, cn);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext, cn);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
             ContentType = contentType,
-            PayloadKey = result.PayloadKey
+            PayloadKey = result.PayloadKey,
+            BytesWritten = bytesWritten
         });
     }
 

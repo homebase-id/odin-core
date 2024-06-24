@@ -13,8 +13,10 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     /// The Mime Type of the thumbnail
     /// </summary>
     public string ContentType { get; set; }
-    
-    
+
+    public uint BytesWritten { get; set; }
+
+
     public bool Equals(ThumbnailDescriptor other)
     {
         if (ReferenceEquals(null, other)) return false;

@@ -131,7 +131,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
                     {
-                        _logger.LogInformation(
+                        _logger.LogTrace(
                             $"Auth Token with Id: [{authToken.Id}] Access granted to drive [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias} | type: {x.PermissionedDrive.Drive.Type})");
                     }
                 }

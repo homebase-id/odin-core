@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var inboxItem = items?.FirstOrDefault();
                 if (inboxItem == null)
                 {
-                    logger.LogDebug("Processing Inbox -> ");
+                    logger.LogDebug("Processing Inbox -> No inbox item");
                     return GetPendingCount(targetDrive, cn, driveId);
                 }
 
@@ -99,6 +99,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else
                     {
+                        logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
+
                         var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, cn, overrideHack: true);
                         var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
                         var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
@@ -110,7 +112,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                 odinContext, cn);
                         });
 
-                        logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
+                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId, handleFileMs);
                     }
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
