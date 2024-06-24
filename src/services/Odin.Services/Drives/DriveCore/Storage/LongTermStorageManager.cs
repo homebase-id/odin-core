@@ -281,10 +281,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return await GetFilenameAndPath(fileId, FilePart.Header);
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
+        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, bool byPassInternalFileLocking = false)
         {
             string headerFilepath = await GetFilenameAndPath(fileId, FilePart.Header);
-            var bytes = await _driveFileReaderWriter.GetAllFileBytes(headerFilepath);
+            var bytes = await _driveFileReaderWriter.GetAllFileBytes(headerFilepath, byPassInternalFileLocking);
             if (bytes == null)
             {
                 return null;
