@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -934,11 +935,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     _logger.LogDebug("UpdateTransferHistory Successful Lock on:{filePath}", filePath);
 
+                    var stopwatch = Stopwatch.StartNew();
+
                     //
                     // Get and validate the header
                     //
-                    header = await mgr.GetServerFileHeader(file.FileId);
+                    header = await mgr.GetServerFileHeader(file.FileId, byPassInternalFileLocking: true);
                     AssertValidFileSystemType(header.ServerMetadata);
+
+                    if (stopwatch.ElapsedMilliseconds > 100)
+                        _logger.LogDebug("UpdateTransferHistory Read header used {ms}", stopwatch.ElapsedMilliseconds);
+                    stopwatch.Restart();
 
                     //
                     // update the transfer history record
@@ -972,10 +979,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                         updateData.IsInOutbox,
                         updateData.IsReadByRecipient);
 
+                    if (stopwatch.ElapsedMilliseconds > 100)
+                        _logger.LogDebug("UpdateTransferHistory manage json used {ms}", stopwatch.ElapsedMilliseconds);
+                    stopwatch.Restart();
+
                     //
                     // write to disk
                     //
                     await WriteFileHeaderInternal(header, cn, keepSameVersionTag: true, byPassInternalFileLocking: true);
+
+                    if (stopwatch.ElapsedMilliseconds > 100)
+                        _logger.LogDebug("UpdateTransferHistory write header file internal used {ms}", stopwatch.ElapsedMilliseconds);
                 });
 
                 return header;
