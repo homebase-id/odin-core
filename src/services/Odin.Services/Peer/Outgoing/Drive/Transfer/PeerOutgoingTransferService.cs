@@ -23,6 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Tenant.BackgroundService.Services;
 using Odin.Services.Util;
 using Refit;
 
@@ -39,7 +40,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
         PeerOutboxProcessor outboxProcessor,
-        PeerOutboxProcessorAsync outboxProcessorAsync
+        PeerOutboxProcessorAsync outboxProcessorAsync,
+        OutboxBackgroundService outboxBackgroundService
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
@@ -387,7 +389,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.Add(item, cn, useUpsert: true);
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            // await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxBackgroundService.Pulse();
 
             return await MapOutboxCreationResult(outboxStatus);
         }
