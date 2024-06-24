@@ -70,7 +70,7 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task<uint> WriteStream(string filePath, Stream stream)
+    public async Task<uint> WriteStream(string filePath, Stream stream, bool byPassInternalFileLocking = false)
     {
         uint bytesWritten = 0;
 
@@ -82,7 +82,7 @@ public sealed class DriveFileReaderWriter(
                 CancellationToken.None,
                 async () =>
                 {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
                         await concurrentFileManager.WriteFile(filePath,
                             async path => bytesWritten = await WriteStreamInternalAsync(path, stream));

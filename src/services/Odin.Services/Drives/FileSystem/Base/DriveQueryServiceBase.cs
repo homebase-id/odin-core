@@ -383,7 +383,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         {
                             if (!options.IncludeTransferHistory && header.ServerMetadata != null)
                             {
-                                _logger.LogDebug("CreateClientFileHeaders -> setting transfer history to null");
+                                // _logger.LogDebug("CreateClientFileHeaders -> setting transfer history to null");
                                 header.ServerMetadata.TransferHistory = null;
                             }
                         }

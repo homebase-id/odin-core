@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -17,9 +18,9 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 public class CommentFileStorageService : DriveStorageServiceBase
 {
     public CommentFileStorageService( ILoggerFactory loggerFactory, IMediator mediator,
-        IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, OdinConfiguration odinConfiguration,
+        IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, ConcurrentFileManager concurrentFileManager,
         DriveFileReaderWriter driveFileReaderWriter) :
-        base( loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
+        base( loggerFactory, mediator, driveAclAuthorizationService, driveManager, concurrentFileManager, driveFileReaderWriter)
     {
     }
 

@@ -13,6 +13,7 @@ using Serilog;
 namespace Odin.Services.Drives.DriveCore.Storage
 {
     using System;
+    using System.Diagnostics;
 
     public class LongTermStorageManager
     {
@@ -51,10 +52,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task WriteHeaderStream(Guid fileId, Stream stream)
+        public async Task WriteHeaderStream(Guid fileId, Stream stream, bool byPassInternalFileLocking)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             string filePath = await GetFilenameAndPath(fileId, FilePart.Header, true);
-            var bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream);
+
+            if (stopwatch.ElapsedMilliseconds > 100)
+                _logger.LogDebug("WriteHeaderStream GetFilenameAndPath() used {ms}", stopwatch.ElapsedMilliseconds);
+            stopwatch.Restart();
+
+            var bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream, byPassInternalFileLocking);
+
+            if (stopwatch.ElapsedMilliseconds > 100)
+                _logger.LogDebug("WriteHeaderStream WriteStream() used {ms}", stopwatch.ElapsedMilliseconds);
 
             if (bytesWritten != stream.Length)
             {
@@ -263,6 +274,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
+        }
+
+        public async Task<string> GetServerFileHeaderPath(Guid fileId)
+        {
+            return await GetFilenameAndPath(fileId, FilePart.Header);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
