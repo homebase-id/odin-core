@@ -230,6 +230,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             UploadFileMetadata fileMetadata,
             UploadManifest uploadManifest,
             List<TestPayloadDefinition> payloads,
+            TransitOptions transitOptions = null,
             FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
@@ -245,9 +246,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 Drive = targetDrive,
             },
-            TransitOptions = new TransitOptions()
-            {
-            },
+            TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
 
@@ -612,10 +611,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
-        
+
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        
+
         var sw = Stopwatch.StartNew();
         while (true)
         {
@@ -639,7 +638,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             await Task.Delay(100);
         }
     }
-    
+
     public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -666,7 +665,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var results = await this.QueryBatch(request, fst);
         return results;
     }
-    
+
     public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -678,5 +677,4 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         return response;
     }
-    
 }

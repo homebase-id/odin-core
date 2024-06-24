@@ -36,6 +36,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly IDriveFileSystem _fileSystem;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IMediator _mediator;
+        private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public PeerDriveIncomingTransferService(
             ILogger<PeerDriveIncomingTransferService> logger,
@@ -68,17 +69,37 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream, odinContext, cn);
         }
 
-
-        public async Task AcceptPart(MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext,
+        public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext,
             DatabaseConnection cn)
         {
+            await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
+        }
+
+        public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            _uploadedKeys.TryAdd(key, new List<string>());
+            await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
+        }
+
+        public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
+            {
+                thumbnailKeys = new List<string>();
+                _uploadedKeys.Add(payloadKey, thumbnailKeys);
+            }
+            
+            thumbnailKeys.Add(thumbnailKey);
+            _uploadedKeys[payloadKey] = thumbnailKeys;
+
             await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var uploadedKeys = new List<string>();
             var shouldExpectPayload = _transferState.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
 
             // if there are payloads in the descriptor, and they should have been sent
@@ -86,22 +107,21 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
-                    if (uploadedKeys.All(k => k != expectedPayload.Key))
+                    var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.Key, out var thumbnailKeys);
+                    if (!hasPayload)
                     {
                         throw new OdinClientException("Not all payloads received");
                     }
-                    
-                    foreach(var expectedThumbnail in expectedPayload.Thumbnails)
+
+                    foreach (var expectedThumbnail in expectedPayload.Thumbnails)
                     {
-                        var thumbnailKey = expectedThumbnail.
-                        if (uploadedKeys.All(k => k != thumbnailKey))
+                        var thumbnailKey = expectedThumbnail.CreateTransitKey(expectedPayload.Key);
+                        if (thumbnailKeys.All(k => k != thumbnailKey))
                         {
-                            throw new OdinClientException("Not all payloads received");                            
+                            throw new OdinClientException("Not all payloads received");
                         }
                     }
                 }
-                // _fileSystem.Storage.TempFileExists(item.TempFile, )
-                //TODO
             }
 
             var responseCode = await FinalizeTransferInternal(_transferState, fileMetadata, odinContext, cn);

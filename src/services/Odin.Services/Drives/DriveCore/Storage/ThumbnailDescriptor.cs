@@ -1,5 +1,6 @@
 using System;
 using Odin.Core.Time;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -35,5 +36,15 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     public override int GetHashCode()
     {
         return HashCode.Combine(PixelWidth, PixelHeight, ContentType);
+    }
+
+    public string CreateTransitKey(string payloadKey)
+    {
+        return
+            $"{payloadKey}" +
+            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{this.PixelWidth}" +
+            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{this.PixelHeight}";
     }
 }

@@ -246,13 +246,7 @@ public class SendFileOutboxWorkerAsync(
                         await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
                             odinContext, cn);
 
-                    var thumbnailKey =
-                        $"{payloadKey}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelWidth}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelHeight}";
-
+                    var thumbnailKey = thumb.CreateTransitKey(payloadKey);
                     additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
@@ -319,7 +313,7 @@ public class SendFileOutboxWorkerAsync(
         {
             return LatestTransferStatus.RecipientIdentityReturnedBadRequest;
         }
-
+        
         return LatestTransferStatus.RecipientIdentityReturnedServerError;
     }
 

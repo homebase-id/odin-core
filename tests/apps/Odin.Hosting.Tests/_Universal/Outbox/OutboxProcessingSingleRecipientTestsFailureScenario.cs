@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -30,15 +31,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
+
             var env = new Dictionary<string, string>
             {
                 { "Job__BackgroundJobStartDelaySeconds", "0" },
                 { "Job__CronProcessingInterval", "1" },
-                {"Job__EnableJobBackgroundService", "true"},
-                {"Job__Enabled", "true"},
+                { "Job__EnableJobBackgroundService", "true" },
+                { "Job__Enabled", "true" },
             };
-        
+
             _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
@@ -95,7 +96,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                // validate recipient got the file
+                // validate recipient never got the file
 
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
@@ -157,7 +158,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                // validate recipient got the file
+                // validate recipient never got the file
 
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
@@ -223,7 +224,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                // validate recipient got the file
+                // validate recipient never got the file
 
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
@@ -243,13 +244,133 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
                 Assert.IsTrue(recipientStatus.IsInOutbox, "file should remain in outbox");
                 Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution, $"status was: {recipientStatus.LatestTransferStatus}");
+                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution,
+                    $"status was: {recipientStatus.LatestTransferStatus}");
                 Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
 
                 //Note: there should also be a job set to rerun this time; not sure how to test this - however.
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task RecipientTransferHistoryOnSenderIsUpdated_WhenPartialPayloadIncludedButFullPayloadExpected(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId],
+                Schedule = ScheduleOptions.SendAsync
+            };
+
+            var payloadDataRaw = "{payload:true, image:'b64 data'}";
+            var testPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadDataRaw.ToUtf8ByteArray(),
+                    Thumbnails = new List<ThumbnailContent>()
+                }
+            };
+
+            var (uploadResponse, _, _, _) = await UploadEncryptedFile(senderOwnerClient, targetDrive, transitOptions, testPayloads, allowDistribution: true);
+
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            var uploadResult = uploadResponse.Content;
+            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+
+            await callerContext.Initialize(senderOwnerClient);
+
+            // var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+            // await driveClient.WaitForEmptyOutbox(targetDrive);
+
+            // The outbox will never go empty in this test so we just
+            // need to sleep for a bit to give it a chance to process
+            // eww
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            if (expectedStatusCode == HttpStatusCode.OK)
+            {
+                // validate recipient never got the file
+
+                await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+                var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                Assert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
+
+                //
+                // Validate the transfer history was updated correctly
+                //
+                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+                var uploadedFile1 = uploadedFileResponse1.Content;
+
+                Assert.IsTrue(
+                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                Assert.IsFalse(recipientStatus.IsInOutbox, "file should be removed from outbox");
+                Assert.IsFalse(recipientStatus.IsReadByRecipient);
+                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedBadRequest,
+                    $"status was: {recipientStatus.LatestTransferStatus}");
+                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+
+                //Note: there should also be a job set to rerun this time; not sure how to test this - however.
+            }
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        private async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult> uploadedThumbnails,
+            List<EncryptedAttachmentUploadResult> uploadedPayloads)> UploadEncryptedFile(OwnerApiClientRedux senderOwnerClient,
+            TargetDrive targetDrive,
+            TransitOptions transitOptions,
+            List<TestPayloadDefinition> testPayloads,
+            bool allowDistribution = true)
+        {
+            const string uploadedContent = "pie";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = allowDistribution,
+                IsEncrypted = true,
+                AppData = new()
+                {
+                    Content = uploadedContent,
+                    FileType = default,
+                    GroupId = default,
+                    Tags = default
+                },
+                AccessControlList = AccessControlList.Connected
+            };
+
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            return await senderOwnerClient.DriveRedux.UploadNewEncryptedFile(
+                targetDrive,
+                fileMetadata,
+                uploadManifest,
+                testPayloads,
+                transitOptions
+            );
         }
 
         private async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadEncryptedMetadata(OwnerApiClientRedux senderOwnerClient,
