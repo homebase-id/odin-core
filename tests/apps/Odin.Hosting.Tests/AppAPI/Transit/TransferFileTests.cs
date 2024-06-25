@@ -332,7 +332,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsNotNull(recipientFileRecord);
 
             // Sender should now delete the file
-            await _scaffold.AppApi.DeleteFile(senderAppContext, firstFileSent, new List<TestAppContext>() { recipientAppContext });
+            await _scaffold.AppApi.DeleteFile(senderAppContext, firstFileSent, [recipientAppContext]);
+
+            
 
             //
             // sender server: Should still be in index and marked as deleted
@@ -343,7 +345,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
             OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true,
-                SecurityGroupType.Connected); //security group should be cause that's how we sent it
+                SecurityGroupType.Connected); //security group should because that's how we sent it
 
             // recipient server: Should still be in index and marked as deleted
 

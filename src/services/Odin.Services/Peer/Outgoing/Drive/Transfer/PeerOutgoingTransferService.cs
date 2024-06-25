@@ -124,7 +124,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 };
 
                 await peerOutbox.AddItem(item, cn, useUpsert: true);
-                result.Add(recipient.DomainName, DeleteLinkedFileStatus.RequestAccepted);
+                result.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
             return result;
