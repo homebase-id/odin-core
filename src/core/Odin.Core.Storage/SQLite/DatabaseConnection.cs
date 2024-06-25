@@ -1,11 +1,10 @@
 ﻿using Microsoft.Data.Sqlite;
-using Odin.Core.Util;
 using System;
 using System.Data;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Tasks;
 
@@ -36,9 +35,9 @@ namespace Odin.Core.Storage.SQLite
         ~DatabaseConnection()
         {
 #if DEBUG
-            throw new Exception("aiai boom, a LogicalThreadConnection was not disposed, catastrophe, data wont get written");
+            throw new Exception("aiai boom, a DatabaseConnection was not disposed");
 #else
-                Serilog.Log.Error("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
+            Serilog.Log.Error("aiai boom, a DatabaseConnection was not disposed");
 #endif
         }
 
@@ -57,8 +56,9 @@ namespace Odin.Core.Storage.SQLite
 
         private void BeginTransaction()
         {
-            Debug.Assert(_transaction == null);
-            Debug.Assert(_connection != null);
+            ArgumentNullException.ThrowIfNull(_connection);
+            if (_transaction != null)
+                throw new ArgumentException("transaction already in use on this connection.");
             _transaction = _connection.BeginTransaction();
         }
 
@@ -82,7 +82,7 @@ namespace Odin.Core.Storage.SQLite
                     return false;
                 }
 
-                Interlocked.Increment(ref _transactionCount);
+                _transactionCount++;
 
                 if (commit)
                 {
@@ -117,18 +117,26 @@ namespace Odin.Core.Storage.SQLite
         /// </summary>
         /// <returns>LogicCommitUnit disposable object</returns>
 
-        public void CreateCommitUnitOfWork(Action actions)
+        [SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
+        public void CreateCommitUnitOfWork(Action actions,
+            [CallerMemberName] string caller = null,
+            [CallerFilePath] string filePath = null,
+            [CallerLineNumber] int lineNumber = 0)
         {
             CreateCommitUnitOfWorkAsync(() =>
             {
                 actions();
                 return Task.CompletedTask;
-            }).BlockingWait();
+            }, caller, filePath, lineNumber).BlockingWait();
         }
 
         //
 
-        public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
+        public async Task CreateCommitUnitOfWorkAsync(
+            Func<Task> actions,
+            [CallerMemberName] string caller = null,
+            [CallerFilePath] string filePath = null,
+            [CallerLineNumber] int lineNumber = 0)
         {
             var commit = false;
 
@@ -138,17 +146,18 @@ namespace Odin.Core.Storage.SQLite
                 {
                     if (++_nestedCounter == 1)
                     {
+                        if (Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Verbose))
+                        {
+                            Serilog.Log.Verbose(
+                                "CreateCommitUnitOfWorkAsync: {caller} BeginTransaction ({filePath}:{lineNumber})",
+                                caller, Path.GetFileName(filePath), lineNumber);
+                        }
                         BeginTransaction();
                     }
                 }
 
                 await actions();
                 commit = true;
-            }
-            catch (Exception e)
-            {
-                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync exception: {error}", e.Message);
-                throw;
             }
             finally
             {
@@ -157,6 +166,17 @@ namespace Odin.Core.Storage.SQLite
                     if (--_nestedCounter == 0)
                     {
                         EndTransaction(commit);
+                        if (Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Verbose))
+                        {
+                            Serilog.Log.Verbose(
+                                "CreateCommitUnitOfWorkAsync: {caller} EndTransaction({commit}) ({filePath}:{lineNumber})",
+                                caller, commit, Path.GetFileName(filePath), lineNumber);
+                        }
+                    }
+                    else if (_nestedCounter < 0)
+                    {
+                        // Sanity - this should never happen
+                        Serilog.Log.Error("CreateCommitUnitOfWorkAsync: {_nestedCounter}", _nestedCounter);
                     }
                 }
             }

@@ -79,7 +79,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<TransitFileReceivedNotification>>()
+                .As<INotificationHandler<InboxItemReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
@@ -172,7 +172,9 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
+            
             cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
+            cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
@@ -194,7 +196,7 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
+            cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 

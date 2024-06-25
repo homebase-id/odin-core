@@ -36,7 +36,6 @@ public enum OdinClientErrorCode
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,
-    CannotUseGlobalTransitIdOnTransientFile = 4103,
     DriveSecurityAndAclMismatch = 4104,
     ExistingFileWithUniqueId = 4105,
     FileNotFound = 4106,
@@ -86,6 +85,8 @@ public enum OdinClientErrorCode
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerTransitRejected = 7900,
     InvalidTransitOptions = 7901,
+    FileDoesNotHaveSender = 7902,
+    MissingGlobalTransitId = 7903,
 
     RegistrationStatusNotReadyForFinalization = 8001,
 

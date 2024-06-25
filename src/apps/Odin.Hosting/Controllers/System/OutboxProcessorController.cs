@@ -11,6 +11,8 @@ using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
+// SEB:REVIEW this class should be removed. Outbox processing should be a BackgroundService
+
 namespace Odin.Hosting.Controllers.System
 {
     /// <summary>
@@ -23,6 +25,7 @@ namespace Odin.Hosting.Controllers.System
         OdinConfiguration config,
         IPeerOutbox outbox,
         PeerOutboxProcessor outboxProcessor,
+        PeerOutboxProcessorAsync outboxProcessorAsync,
         TenantSystemStorage tenantSystemStorage,
         TransitInboxBoxStorage inbox) : OdinControllerBase
     {
@@ -34,6 +37,15 @@ namespace Odin.Hosting.Controllers.System
             return true;
         }
 
+        [HttpPost("process-async")]
+        public async Task<bool> ProcessOutboxAsync()
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            await outboxProcessorAsync.StartOutboxProcessingAsync(WebOdinContext, cn);
+            return true;
+        }
+        
+        
         [HttpPost("reconcile")]
         public async Task<IActionResult> ReconcileInboxOutbox()
         {

@@ -82,7 +82,6 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 TransitOptions = new()
                 {
                     Recipients = recipientContexts.Keys.Select(k => k.ToString()).ToList(),
-                    UseGlobalTransitId = true,
                     IsTransient = false
                 }
             };
@@ -108,7 +107,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
 
             var originalFileSendResult = await _scaffold.AppApi.TransferFile(senderTestContext, recipientContexts, instructionSet, fileMetadata, options);
             Assert.IsNotNull(originalFileSendResult);
-            Assert.IsNotNull(originalFileSendResult.GlobalTransitId, "There should be a GlobalTransitId since we set transit options UseGlobalTransitId = true");
+            Assert.IsNotNull(originalFileSendResult.GlobalTransitId);
 
             var command = new CommandMessage()
             {

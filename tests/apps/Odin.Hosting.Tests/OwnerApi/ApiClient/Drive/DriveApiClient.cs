@@ -207,7 +207,6 @@ public class DriveApiClient
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = true
             },
             Manifest = manifest
         };
@@ -282,7 +281,6 @@ public class DriveApiClient
             },
             TransitOptions = new TransitOptions()
             {
-                UseGlobalTransitId = true
             }
         };
 

@@ -14,13 +14,13 @@ public enum ClientNotificationType
     DeviceConnected = 606,
     DeviceDisconnected = 707,
     ConnectionRequestAccepted = 808,
-    TransitFileReceived = 909,
+    InboxItemReceived = 909,
     NewFollower = 1001,
     StatisticsChanged = 1002,
     ReactionContentAdded = 2003,
     ReactionContentDeleted = 2004,
     AllReactionsByFileDeleted = 2005,
     AppNotificationAdded = 3001,
-
+    
     Error = 0xBADBEEF,
 }

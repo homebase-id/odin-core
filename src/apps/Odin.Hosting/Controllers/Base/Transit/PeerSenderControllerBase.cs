@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+    public abstract class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
         : DriveUploadControllerBase
     {
         /// <summary>
@@ -152,7 +152,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 TransitOptions = new TransitOptions()
                 {
                     IsTransient = true,
-                    UseGlobalTransitId = true,
                     SendContents = SendContents.All,
 
                     //TODO: OMG HACK

@@ -126,6 +126,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
+        public virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
+        {
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (odinHashId,appId,circleId,data) " +
+                                             "VALUES (@odinHashId,@appId,@circleId,@data)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@odinHashId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@appId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@circleId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam4);
+                _insertParam1.Value = item.odinHashId.ToByteArray();
+                _insertParam2.Value = item.appId.ToByteArray();
+                _insertParam3.Value = item.circleId.ToByteArray();
+                _insertParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = conn.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                   _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
+                 }
+                return count;
+            } // Using
+        }
+
         public virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())

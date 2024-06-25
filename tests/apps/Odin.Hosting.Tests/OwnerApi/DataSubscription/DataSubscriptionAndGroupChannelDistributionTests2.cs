@@ -342,7 +342,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var uploadResponse = await client.DriveRedux.UploadNewEncryptedFile(targetDrive, fileMetadata, uploadManifest, testPayloads, true);
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedFile(targetDrive, fileMetadata, uploadManifest, testPayloads);
         var uploadResult = uploadResponse.response.Content;
         return (uploadResult, uploadResponse.encryptedJsonContent64, uploadResponse.uploadedPayloads.First().EncryptedContent64);
     }

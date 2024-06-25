@@ -6,7 +6,7 @@ using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Cdn
 {
-    public class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public abstract class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         /// <summary>
         /// Creates a static file which contents match the query params.  Accessible to the public

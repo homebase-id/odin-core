@@ -52,7 +52,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, cn);
             var drive = await driveManager.GetDrive(driveId2.GetValueOrDefault(), cn);
 
-            Log.Information(
+            Log.Debug(
                 "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Looking up Internal file",
                 odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive.Name, driveId2);
 
@@ -69,7 +69,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                 if (null == fileId)
                 {
-                    Log.Information(
+                    Log.Debug(
                         "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Creating a new file",
                         odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
@@ -84,6 +84,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
+
+                    // Clearing the UID for any files that go into the feed drive because the feed drive 
+                    // comes from multiple channel drives from many different identities so there could be a clash
+                    request.FileMetadata.AppData.UniqueId = null;
+
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, cn);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, cn, raiseEvent: true);
@@ -97,7 +102,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 }
                 else
                 {
-                    Log.Information(
+                    Log.Debug(
                         "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Updating existing file",
                         odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
@@ -285,17 +290,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 EncryptedFeedPayload = request.EncryptedPayload
             };
 
-            //write the file to disk
             await inboxBoxStorage.Add(item, cn);
 
-            await mediator.Publish(new TransitFileReceivedNotification()
+            await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = SystemDriveConstants.FeedDrive,
-                    FileId = item.FileId
-                },
-
+                TargetDrive = SystemDriveConstants.FeedDrive,
                 TransferFileType = item.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.TransferInstructionSet.FileSystemType,
                 OdinContext = odinContext,
@@ -304,8 +303,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             return new PeerTransferResponse
             {
-                Code = PeerResponseCode.AcceptedIntoInbox,
-                Message = null
+                Code = PeerResponseCode.AcceptedIntoInbox
             };
         }
     }

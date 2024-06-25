@@ -47,17 +47,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
             }
 
             Manifest?.AssertIsValid();
-
-            //Removed because this conflicts with AllowDistribution flag.
-            //Having UseGlobalTransitId with a transient file does not hurt anything;  
-            //it's just illogical because the file is going to be deleted
-            // if (TransitOptions != null)
-            // {
-            //     if (TransitOptions.IsTransient && TransitOptions.UseGlobalTransitId)
-            //     {
-            //         throw new OdinClientException("Cannot use GlobalTransitId on a transient file.", OdinClientErrorCode.CannotUseGlobalTransitIdOnTransientFile);
-            //     }
-            // }
         }
 
         public static UploadInstructionSet WithRecipients(TargetDrive drive, IEnumerable<string> recipients)

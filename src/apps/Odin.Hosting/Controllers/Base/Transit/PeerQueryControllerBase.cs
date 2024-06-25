@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public class PeerQueryControllerBase(PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public abstract class PeerQueryControllerBase(PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("batchcollection")]

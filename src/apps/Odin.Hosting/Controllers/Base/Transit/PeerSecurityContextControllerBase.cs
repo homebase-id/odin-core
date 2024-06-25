@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public class PeerSecurityContextControllerBase(
+    public abstract class PeerSecurityContextControllerBase(
         PeerDriveQueryService peerDriveQueryService,
         TenantSystemStorage tenantSystemStorage
         ) : OdinControllerBase

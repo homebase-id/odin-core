@@ -882,7 +882,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile.FileState == FileState.Active);
         Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
-        Assert.IsTrue(theFile.FileMetadata.AppData.UniqueId == uniqueId);
+        Assert.IsTrue(theFile.FileMetadata.AppData.UniqueId == null, "feed uniqueId should be null");
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -1186,7 +1186,8 @@ public class DataSubscriptionAndDistributionTests1
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-
+        // await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
@@ -1276,7 +1277,7 @@ public class DataSubscriptionAndDistributionTests1
             AccessControlList = AccessControlList.Connected
         };
 
-        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);
         var uploadResult = uploadResponse.response.Content;
         return (uploadResult, uploadResponse.encryptedJsonContent64, "");
     }

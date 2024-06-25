@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.DataSubscription.Follower;

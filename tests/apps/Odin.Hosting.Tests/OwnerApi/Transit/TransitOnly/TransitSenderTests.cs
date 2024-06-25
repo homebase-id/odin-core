@@ -679,11 +679,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             if (encrypted)
             {
                 (uploadResponse, encryptedJsonContent64) =
-                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);
             }
             else
             {
-                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata);
             }
 
             return (uploadResponse.Content, encryptedJsonContent64);

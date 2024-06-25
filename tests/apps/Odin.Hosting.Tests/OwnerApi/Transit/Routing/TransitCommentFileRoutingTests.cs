@@ -565,7 +565,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             {
                 Recipients = new List<string>() { recipient.OdinId },
                 IsTransient = true,
-                UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default,
             };
@@ -690,12 +689,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             if (encrypted)
             {
                 (uploadResponse, encryptedJsonContent64) =
-                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);
                 // (uploadResult, encryptedJsonContent64, _) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
             }
             else
             {
-                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata);
                 // uploadResult = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
             }
 

@@ -11,7 +11,7 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
-    public class CircleNetworkRequestsControllerBase : OdinControllerBase
+    public abstract class CircleNetworkRequestsControllerBase : OdinControllerBase
     {
         private readonly CircleNetworkRequestService _requestService;
         private readonly TenantSystemStorage _tenantSystemStorage;

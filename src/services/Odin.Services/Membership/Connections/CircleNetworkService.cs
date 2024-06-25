@@ -741,11 +741,6 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            logger.LogInformation("Creating permission context for caller [{caller}] in auth context [{authContext}]; applyAppCircleGrants:[{applyAppGrants}]",
-                odinContext.Caller?.OdinId ?? "no caller",
-                odinContext.AuthContext,
-                applyAppCircleGrants);
-
             // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
 
             var (grants, enabledCircles) =

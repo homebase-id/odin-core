@@ -209,8 +209,7 @@ public class Feed_Comment_Tests
         friendsFile.AllowDistribution = true;
         var (friendsFileUploadResponse, encryptedJsonContent64) = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
-            friendsFile,
-            useGlobalTransitId: true);
+            friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode);
 
