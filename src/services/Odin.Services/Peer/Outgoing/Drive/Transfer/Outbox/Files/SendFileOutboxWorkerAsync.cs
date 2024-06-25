@@ -37,7 +37,7 @@ public class SendFileOutboxWorkerAsync(
 {
     public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
-        var fs = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
+        var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
 
         try
         {
@@ -70,7 +70,7 @@ public class SendFileOutboxWorkerAsync(
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
 
             // Try to clean up the transient file
-            if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
+            if (fileItem.State.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
             {
                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
                 await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
@@ -159,9 +159,10 @@ public class SendFileOutboxWorkerAsync(
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
-        var options = outboxFileItem.OriginalTransitOptions;
+        var options = outboxFileItem.State.OriginalTransitOptions;
 
-        var fileSystem = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
+        var instructionSet = fileItem.State.TransferInstructionSet;
+        var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -179,20 +180,20 @@ public class SendFileOutboxWorkerAsync(
         }
 
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-        var decryptedClientAuthTokenBytes = outboxFileItem.EncryptedClientAuthToken;
+        var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
         if (options.UseAppNotification)
         {
-            outboxFileItem.TransferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
+            instructionSet.AppNotificationOptions = options.AppNotificationOptions;
         }
 
         var redactedAcl = header.ServerMetadata.AccessControlList;
         redactedAcl?.OdinIdList?.Clear();
-        outboxFileItem.TransferInstructionSet.OriginalAcl = redactedAcl;
+        instructionSet.OriginalAcl = redactedAcl;
 
-        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(outboxFileItem.TransferInstructionSet).ToUtf8ByteArray();
+        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
         var transferKeyHeaderStream = new StreamPart(
             new MemoryStream(transferInstructionSetBytes),
             "transferInstructionSet.encrypted", "application/json",

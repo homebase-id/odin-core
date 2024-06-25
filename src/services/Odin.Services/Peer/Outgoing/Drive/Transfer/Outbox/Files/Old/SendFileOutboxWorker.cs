@@ -42,9 +42,9 @@ public class SendFileOutboxWorker(
             {
                 if(tryDeleteTransient)
                 {
-                    if (fileItem.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
+                    if (fileItem.State.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
                     {
-                        var fs = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
+                        var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
                         await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
                     }
                 }
@@ -90,9 +90,10 @@ public class SendFileOutboxWorker(
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
-        var options = outboxFileItem.OriginalTransitOptions;
+        var options = outboxFileItem.State.OriginalTransitOptions;
 
-        var fileSystem = fileSystemResolver.ResolveFileSystem(fileItem.TransferInstructionSet.FileSystemType);
+        var instructionSet = fileItem.State.TransferInstructionSet;
+        var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
 
@@ -110,10 +111,10 @@ public class SendFileOutboxWorker(
         // }
 
         //look up transfer key
-        var transferInstructionSet = outboxFileItem.TransferInstructionSet;
+        var transferInstructionSet = outboxFileItem.State.TransferInstructionSet;
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
 
-        var decryptedClientAuthTokenBytes = outboxFileItem.EncryptedClientAuthToken;
+        var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 

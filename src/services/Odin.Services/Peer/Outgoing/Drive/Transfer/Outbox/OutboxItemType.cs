@@ -4,11 +4,9 @@ public enum OutboxItemType
 {
     File = 100,
 
-    Reaction = 200,
-
     PushNotification = 300,
 
     UnencryptedFeedItem = 500,
 
-    DeleteFile = 700
+    DeleteRemoteFile = 700
 }

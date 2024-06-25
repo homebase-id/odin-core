@@ -35,12 +35,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var cancellationToken = hostApplicationLifetime.ApplicationStopping;
 
-            var item = await peerOutbox.GetNextFileItem(cn);
+            var item = await peerOutbox.GetNextItem(cn);
             while (item != null && cancellationToken.IsCancellationRequested == false)
             {
                 var t = ProcessItem(item, odinContext, cancellationToken);
                 outstandingTasks.Add(t);
-                item = await peerOutbox.GetNextFileItem(cn);
+                item = await peerOutbox.GetNextItem(cn);
             }
         }
 
@@ -68,9 +68,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         await SendUnencryptedFeedItem(fileItem, odinContext, cancellationToken);
                         break;
 
-                    // case OutboxItemType.Reaction:
-                    //     return await SendReactionItem(item, odinContext);
-
+                    case OutboxItemType.DeleteRemoteFile:
+                        await SendDeleteFileRequest(fileItem, odinContext, cancellationToken);
+                        break;
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -106,8 +107,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
 
         private async Task SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
-        {
+        { 
+            var workLogger = loggerFactory.CreateLogger<SendPushNotificationOutboxWorker>();
             var worker = new SendPushNotificationOutboxWorker(fileItem,
+                workLogger,
                 appRegistrationService,
                 pushNotificationService,
                 peerOutbox);
@@ -127,6 +130,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinHttpClientFactory,
                 jobManager,
                 driveAcl
+            );
+
+            using var connection = tenantSystemStorage.CreateConnection();
+            await worker.Send(odinContext, connection, cancellationToken);
+        }
+        
+        private async Task SendDeleteFileRequest(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();
+            var worker = new SendDeleteFileRequestOutboxWorkerAsync(fileItem,
+                workLogger,
+                peerOutbox,
+                odinConfiguration,
+                odinHttpClientFactory,
+                jobManager
             );
 
             using var connection = tenantSystemStorage.CreateConnection();

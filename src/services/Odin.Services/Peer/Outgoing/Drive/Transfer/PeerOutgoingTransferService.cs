@@ -97,23 +97,30 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                 var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
-                var item = new OutboxItem()
+                var item = new OutboxFileItem()
                 {
                     Recipient = recipient,
                     Priority = 100,
-                    Type = OutboxItemType.DeleteFile,
+                    Type = OutboxItemType.DeleteRemoteFile,
                     File = new InternalDriveFileId()
                     {
                         FileId = remoteGlobalTransitIdentifier.GlobalTransitId,
                         DriveId = odinContext.PermissionsContext.GetDriveId(remoteGlobalTransitIdentifier.TargetDrive)
                     },
-                    EncryptedClientAuthToken = encryptedClientAccessToken,
                     DependencyFileId = default,
-                    Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
+                    State = new OutboxItemState
                     {
-                        RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
-                        FileSystemType = fileTransferOptions.FileSystemType
-                    })
+                        Recipient = null,
+                        IsTransientFile = false,
+                        TransferInstructionSet = null,
+                        OriginalTransitOptions = null,
+                        EncryptedClientAuthToken = encryptedClientAccessToken,
+                        Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
+                        {
+                            RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
+                            FileSystemType = fileTransferOptions.FileSystemType
+                        }).ToUtf8ByteArray()
+                    }
                 };
 
                 await peerOutbox.AddItem(item, cn, useUpsert: true);
@@ -326,29 +333,32 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 try
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
-
                     //TODO: apply encryption before storing in the outbox
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new OutboxFileItem()
                     {
-                        Marker = default, //marker is added when actually store the item
                         Priority = priority,
                         Type = OutboxItemType.File,
-                        IsTransientFile = options.IsTransient,
                         File = internalFile,
                         Recipient = recipient,
-                        OriginalTransitOptions = options,
-                        EncryptedClientAuthToken = encryptedClientAccessToken,
                         DependencyFileId = options.OutboxDependencyFileId,
-                        TransferInstructionSet = CreateTransferInstructionSet(
-                            keyHeader,
-                            clientAuthToken,
-                            targetDrive,
-                            fileTransferOptions.TransferFileType,
-                            fileTransferOptions.FileSystemType,
-                            options)
+                        State = new OutboxItemState()
+                        {
+                            IsTransientFile = options.IsTransient,
+                            Attempts = { },
+                            OriginalTransitOptions = options,
+                            EncryptedClientAuthToken = encryptedClientAccessToken,
+                            TransferInstructionSet = CreateTransferInstructionSet(
+                                keyHeader,
+                                clientAuthToken,
+                                targetDrive,
+                                fileTransferOptions.TransferFileType,
+                                fileTransferOptions.FileSystemType,
+                                options),
+                            Data = []
+                        }
                     });
 
                     status.Add(recipient, true);
@@ -371,9 +381,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
             {
-                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddItemClassic(item, cn, useUpsert: true);
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
 
             await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
@@ -389,9 +399,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //Note: good place for a transaction here around UpdateTransferHistory and AddFileSendItem
             foreach (var item in outboxItems)
             {
-                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddItemClassic(item, cn);
+                await peerOutbox.AddItem(item, cn);
             }
 
             return await MapOutboxCreationResult(outboxStatus);

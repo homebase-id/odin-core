@@ -8,33 +8,26 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.DataSubscription;
-using Odin.Services.DataSubscription.SendingHost;
-using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.JobManagement;
-using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
-public class SendUnencryptedFeedFileOutboxWorkerAsync(
+public class SendDeleteFileRequestOutboxWorkerAsync(
     OutboxFileItem fileItem,
-    FileSystemResolver fileSystemResolver,
-    ILogger<SendUnencryptedFeedFileOutboxWorkerAsync> logger,
+    ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     PeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
-    IJobManager jobManager,
-    IDriveAclAuthorizationService driveAcl
+    IJobManager jobManager
 )
 
 {
@@ -42,14 +35,14 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     {
         try
         {
-            logger.LogDebug("SendFeedItem -> Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
+            logger.LogDebug("SendDeleteFileRequest -> Sending request for file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
 
-            var (versionTag, globalTransitId) = await HandleFeedItem(fileItem, odinContext, cn, cancellationToken);
+            var globalTransitId = await HandleRequest(fileItem, cancellationToken);
 
-            logger.LogDebug("SendFeedItem -> Successful transfer of {gtid} (version:{version}) to {recipient} - Action: " +
+            logger.LogDebug("SendDeleteFileRequest -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
                 globalTransitId,
-                versionTag,
+                "no version info",
                 fileItem.Recipient,
                 fileItem.Marker);
 
@@ -57,7 +50,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
         catch (OdinFileReadException fileReadException)
         {
-            logger.LogError(fileReadException, "SendFeedItem -> Failed sending file to {recipient}. " +
+            logger.LogError(fileReadException, "SendDeleteFileRequest -> Failed sending file to {recipient}. " +
                                                "Action: Marking Complete (popStamp:{marker})",
                 fileItem.Recipient,
                 fileItem.Marker);
@@ -138,67 +131,47 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> HandleFeedItem(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-        DatabaseConnection cn, CancellationToken cancellationToken)
+    private async Task<Guid> HandleRequest(OutboxFileItem outboxItem, CancellationToken cancellationToken)
     {
-        OdinId recipient = outboxFileItem.Recipient;
-        var file = outboxFileItem.File;
+        OdinId recipient = outboxItem.Recipient;
+        var file = outboxItem.File;
 
-        var distroItem = OdinSystemSerializer.Deserialize<FeedDistributionItem>(outboxFileItem.State.Data.ToStringFromUtf8Bytes());
-        var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
-        var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
+        var request = OdinSystemSerializer.Deserialize<DeleteRemoteFileRequest>(outboxItem.State.Data.ToStringFromUtf8Bytes());
 
-        if (header == null)
+        var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
+        var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
+        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+
+        async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            throw new OdinFileReadException($"File Source {file} file does not exist");
+            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+                recipient, 
+                clientAuthToken,
+                request.FileSystemType);
+
+            return await client.DeleteLinkedFile(request);
         }
-
-        var versionTag = header.FileMetadata.VersionTag;
-        var globalTransitId = header.FileMetadata.GlobalTransitId;
-
-        var authorized = await driveAcl.IdentityHasPermission(recipient,
-            header.ServerMetadata.AccessControlList, odinContext, cn);
-
-        if (!authorized)
-        {
-            throw new OdinOutboxProcessingException("Failed sending to recipient")
-            {
-                TransferStatus = LatestTransferStatus.SourceFileDoesNotAllowDistribution,
-                VersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
-                Recipient = recipient,
-                GlobalTransitId = header.FileMetadata.GlobalTransitId,
-                File = file
-            };
-        }
-
+        
         try
         {
-            ApiResponse<PeerTransferResponse> response;
-            switch (distroItem.DriveNotificationType)
-            {
-                case DriveNotificationType.FileAdded:
-                case DriveNotificationType.FileModified:
-                    response = await SendFile(header, distroItem, recipient, cancellationToken);
-                    break;
+            ApiResponse<PeerTransferResponse> response = null;
 
-                case DriveNotificationType.FileDeleted:
-                    response = await DeleteFile(header, recipient, distroItem.FileSystemType, cancellationToken);
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                cancellationToken,
+                async () => { response = await TrySendFile(); });
 
             if (response.IsSuccessStatusCode)
             {
-                return (versionTag.GetValueOrDefault(), globalTransitId.GetValueOrDefault());
+                return request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
             }
 
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                VersionTag = versionTag.GetValueOrDefault(),
-                GlobalTransitId = globalTransitId,
+                VersionTag = default,
+                GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,
                 File = file
             };
@@ -213,9 +186,9 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             throw new OdinOutboxProcessingException("Failed sending to recipient")
             {
                 TransferStatus = status,
-                VersionTag = versionTag.GetValueOrDefault(),
+                VersionTag = default,
+                GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,
-                GlobalTransitId = globalTransitId,
                 File = file
             };
         }
@@ -256,88 +229,4 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         return UnixTimeUtc.Now().AddSeconds(30);
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem, OdinId recipient,
-        CancellationToken cancellationToken)
-    {
-        var request = new UpdateFeedFileMetadataRequest()
-        {
-            FileId = new GlobalTransitIdFileIdentifier()
-            {
-                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
-            },
-            UniqueId = header.FileMetadata.AppData.UniqueId,
-            FileMetadata = header.FileMetadata,
-            FeedDistroType = distroItem.FeedDistroType,
-            EncryptedPayload = distroItem.EncryptedPayload
-        };
-
-        var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
-        ApiResponse<PeerTransferResponse> httpResponse = null;
-
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.PeerOperationMaxAttempts,
-            odinConfiguration.Host.PeerOperationDelayMs,
-            cancellationToken,
-            async () => { httpResponse = await client.SendFeedFileMetadata(request); });
-
-        return httpResponse;
-    }
-
-    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient, FileSystemType fileSystemType,
-        CancellationToken cancellationToken)
-    {
-        var request = new DeleteFeedFileMetadataRequest()
-        {
-            FileId = new GlobalTransitIdFileIdentifier()
-            {
-                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
-            },
-            UniqueId = header.FileMetadata.AppData.UniqueId,
-        };
-
-        var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
-        ApiResponse<PeerTransferResponse> httpResponse = null;
-
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.PeerOperationMaxAttempts,
-            odinConfiguration.Host.PeerOperationDelayMs,
-            cancellationToken,
-            async () => { httpResponse = await client.DeleteFeedMetadata(request); });
-
-        return httpResponse;
-    }
-
-    bool IsSuccess(ApiResponse<PeerTransferResponse> httpResponse)
-    {
-        if (null == httpResponse)
-        {
-            logger.LogError("httpResponse is null");
-        }
-
-        if (httpResponse?.IsSuccessStatusCode ?? false)
-        {
-            var transitResponse = httpResponse.Content;
-
-            if (null == transitResponse)
-            {
-                logger.LogWarning("TransitResponse is missing the Code property; perhaps the identity's domain expired?");
-                return false;
-            }
-
-            return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
-        }
-
-        return false;
-    }
-
-    private void HandleTryRetryException(TryRetryException ex)
-    {
-        var e = ex.InnerException;
-        if (e is TaskCanceledException || e is HttpRequestException || e is OperationCanceledException)
-        {
-            throw new OdinClientException("Failed while calling remote identity", e);
-        }
-    }
 }

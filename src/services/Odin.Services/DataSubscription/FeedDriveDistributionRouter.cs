@@ -372,25 +372,16 @@ namespace Odin.Services.DataSubscription
 
         private void AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DatabaseConnection cn)
         {
-            // var item = new OutboxFileItem
-            // {
-            //     Recipient = recipient,
-            //     File = distroItem.SourceFile,
-            //     Priority = 100,
-            //     IsTransientFile = false,
-            //     Type = OutboxItemType.UnencryptedFeedItem,
-            //     RawValue = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
-            // };
-            //
-            // _peerOutbox.AddFeedItem(item, cn, useUpsert: true);
-
-            var item = new OutboxItem()
+            var item = new OutboxFileItem()
             {
                 Recipient = recipient,
                 File = distroItem.SourceFile,
                 Priority = 100,
                 Type = OutboxItemType.UnencryptedFeedItem,
-                Data = OdinSystemSerializer.Serialize(distroItem)
+                State = new OutboxItemState()
+                {
+                    Data = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
+                }
             };
 
             _peerOutbox.AddItem(item, cn, useUpsert: true);
