@@ -20,7 +20,16 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory) : ILinkMetaExtr
         var meta = Parser.Parse(content);
         if(meta.Count == 0)
             throw new Exception("No meta tags found");
-        return LinkMeta.FromMetaData(meta, url);
+
+        var linkMeta =  LinkMeta.FromMetaData(meta, url);
+        if (linkMeta.ImageUrl != null)
+        {
+            // Download the image and convert it into base64
+            var image = await client.GetByteArrayAsync(linkMeta.ImageUrl);
+            linkMeta.ImageUrl = Convert.ToBase64String(image);
+        }
+
+        return linkMeta;
     }
     
 }
