@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -434,25 +433,26 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
         {
             var recipients2 = recipients ?? new List<TestAppContext>();
             var client = this.CreateAppApiHttpClient(testAppContext);
+
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
+            var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
             {
-                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
-                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
-                {
-                    File = fileId,
-                    Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
-                });
+                File = fileId,
+                Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
+            });
 
-                Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-                var deleteStatus = deleteFileResponse.Content;
-                Assert.IsNotNull(deleteStatus);
-                Assert.IsFalse(deleteStatus.LocalFileNotFound);
-                Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
+            Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+            var deleteStatus = deleteFileResponse.Content;
+            Assert.IsNotNull(deleteStatus);
+            Assert.IsFalse(deleteStatus.LocalFileNotFound);
+            Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
 
-                foreach (var (key, value) in deleteStatus.RecipientStatus)
-                {
-                    Assert.IsTrue(value == DeleteLinkedFileStatus.RequestAccepted, $"Delete request failed for {key}");
-                }
+            foreach (var (key, value) in deleteStatus.RecipientStatus)
+            {
+                Assert.IsTrue(value == DeleteLinkedFileStatus.Enqueued, $"Delete request failed for {key}");
             }
+
+            await this._ownerApi.ProcessOutbox(testAppContext.Identity, 100);
 
             //process the instructions on the recipients servers
             if (recipients2.Any())

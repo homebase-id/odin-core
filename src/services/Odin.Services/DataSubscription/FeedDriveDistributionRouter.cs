@@ -349,15 +349,12 @@ namespace Odin.Services.DataSubscription
                     recipients.Select(r => r.DomainName).ToList(),
                     odinContext,
                     cn);
-
-                //TODO: how to handle map?
-
+                
                 foreach (var (recipient, status) in map)
                 {
-                    if (status == DeleteLinkedFileStatus.RemoteServerFailed)
+                    if (status == DeleteLinkedFileStatus.EnqueueFailed)
                     {
-                        //TODO: How to handle this in feed distributor?
-                        //the issue is that we have no fall back queue.
+                        _logger.LogWarning("Enqueuing failed for recipient: {recipient}", recipient);
                     }
                 }
             }
