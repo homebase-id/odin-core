@@ -46,6 +46,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
             Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
+            Reactions2 = new UniversalDriveReactionClient2(identity.OdinId, factory);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
@@ -68,6 +69,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public UniversalFollowerApiClient Follower { get; }
 
         public UniversalDriveReactionClient Reactions { get; }
+        public UniversalDriveReactionClient2 Reactions2 { get; }
 
         public UniversalPeerQueryApiClient PeerQuery { get; }
 

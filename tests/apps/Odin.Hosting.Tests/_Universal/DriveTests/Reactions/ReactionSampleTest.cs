@@ -79,7 +79,7 @@ public class ReactionSampleTest
         var ss = getHeaderResponse.Content;
         Assert.IsTrue(ss.FileMetadata.AppData.Content == postContent);
 
-        SEB:HERE!
+        // SEB:HERE!
     }
 
 }

@@ -92,7 +92,7 @@ public abstract class ReactionController(
 
     // SEB:NOTE not called by frontend
     [HttpPost("deleteall")]
-    public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest2 request)
+    public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] DeleteAllReactionsRequest2 request)
     {
         if (request.AuthorOdinId == WebOdinContext.Tenant) // Local
         {
@@ -123,7 +123,7 @@ public abstract class ReactionController(
     //
 
     [HttpPost("list")]
-    public async Task<GetReactionsResponse2> GetAllReactions2([FromBody] GetReactionsRequest2 request)
+    public async Task<GetReactionsResponse2> GetReactions2([FromBody] GetReactionsRequest2 request)
     {
         if (request.AuthorOdinId == WebOdinContext.Tenant) // Local
         {

@@ -9,6 +9,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
+    // SEB:TODO delete this
     public interface IUniversalDriveReactionHttpClient
     {
         private const string ReactionRootEndpoint = "/drive/files/reactions";

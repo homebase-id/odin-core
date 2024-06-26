@@ -5,16 +5,10 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.Reactions.DTOs;
 
-public class GetReactionsByIdentityRequest2
+public class DeleteAllReactionsRequest2
 {
     /// <summary>
-    /// Identity of the user whose reactions are being fetched
-    /// </summary>
-    [Required]
-    public OdinId Identity { get; set; }
-
-    /// <summary>
-    /// Author of the file being reacted to
+    /// Author of the file the reaction is being deleted from
     /// </summary>
     [Required]
     public OdinId AuthorOdinId { get; set; }
@@ -26,17 +20,14 @@ public class GetReactionsByIdentityRequest2
     public TargetDrive TargetDrive { get; set; }
 
     /// <summary>
-    /// FileId of the file being reacted to
+    /// FileId of the file the reaction is being deleted from
     /// </summary>
     [Required]
     public Guid FileId { get; set; }
 
     /// <summary>
-    /// GlobalTransitId of the file being reacted to
+    /// GlobalTransitId of the file the reaction is being deleted from
     /// </summary>
     [Required]
     public Guid GlobalTransitId { get; set; }
-
-    public int Cursor { get; set; }
-    public int MaxRecords { get; set; }
 }

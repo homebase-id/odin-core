@@ -17,7 +17,8 @@ namespace Odin.Services.Authorization.Acl
     {
         public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
-            ThrowWhenFalse(await CallerHasPermission(acl,odinContext));
+            var callerHasPermission = await CallerHasPermission(acl, odinContext);
+            ThrowWhenFalse(callerHasPermission);
         }
 
         public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, DatabaseConnection cn)
