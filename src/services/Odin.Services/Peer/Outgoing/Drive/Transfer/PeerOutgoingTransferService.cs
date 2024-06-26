@@ -106,7 +106,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     File = new InternalDriveFileId()
                     {
                         FileId = remoteGlobalTransitIdentifier.GlobalTransitId,
-                        DriveId = odinContext.PermissionsContext.GetDriveId(remoteGlobalTransitIdentifier.TargetDrive)
+                        DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
                     },
                     DependencyFileId = default,
                     State = new OutboxItemState
@@ -127,6 +127,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItem(item, cn, useUpsert: true);
                 result.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
+
+            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
             return result;
         }
@@ -374,7 +376,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return (status, outboxItems);
         }
-        
+
 
         private SendReadReceiptResultStatus MapPeerErrorResponseFromHttpStatus(ApiResponse<PeerTransferResponse> response)
         {
