@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -55,11 +56,19 @@ public class DeviceSocket
     {
         if (null == this.Socket)
         {
-            return;
+            throw new OdinSystemException("Socket is null during EnqueueMessage");
         }
 
         this._messageQueue.Enqueue(json);
-        await this.ProcessBatch(cancellationToken);
+        if (this._messageQueue.Count >= this.BatchSize)
+        {
+            await this.ProcessBatch(cancellationToken);
+            ResetTimeout();
+        }
+        else if (_messageQueue.Count == 1)
+        {
+            StartTimeout(cancellationToken);
+        }
     }
 
     private async Task ProcessBatch(CancellationToken cancellationToken)
@@ -69,24 +78,15 @@ public class DeviceSocket
             return;
         }
 
-        if (this._messageQueue.Count >= this.BatchSize)
+        while (_messageQueue.Count > 0)
         {
-            while (_messageQueue.Count > 0)
-            {
-                var message = _messageQueue.Dequeue();
-                var jsonBytes = message.ToUtf8ByteArray();
-                await this.Socket.SendAsync(
-                    buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
-                    messageType: WebSocketMessageType.Text,
-                    messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
-                    cancellationToken: cancellationToken);
-            }
-
-            ResetTimeout();
-        }
-        else if (_messageQueue.Count == 1)
-        {
-            StartTimeout(cancellationToken);
+            var message = _messageQueue.Dequeue();
+            var jsonBytes = message.ToUtf8ByteArray();
+            await this.Socket.SendAsync(
+                buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
+                messageType: WebSocketMessageType.Text,
+                messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
+                cancellationToken: cancellationToken);
         }
     }
 
