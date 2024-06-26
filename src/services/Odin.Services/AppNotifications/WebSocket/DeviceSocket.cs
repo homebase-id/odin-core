@@ -50,19 +50,18 @@ public class DeviceSocket
     /// Milliseconds interval to push the batch even if it's not reached the batchsize
     /// </summary>
     public TimeSpan ForcePushInterval { get; set; }
-
-
+    
     public async Task EnqueueMessage(string json, CancellationToken cancellationToken)
     {
-        if (null == this.Socket)
+        if (null == Socket)
         {
             throw new OdinSystemException("Socket is null during EnqueueMessage");
         }
 
-        this._messageQueue.Enqueue(json);
-        if (this._messageQueue.Count >= this.BatchSize)
+        _messageQueue.Enqueue(json);
+        if (_messageQueue.Count >= BatchSize)
         {
-            await this.ProcessBatch(cancellationToken);
+            await ProcessBatch(cancellationToken);
             ResetTimeout();
         }
         else if (_messageQueue.Count == 1)
@@ -73,7 +72,7 @@ public class DeviceSocket
 
     private async Task ProcessBatch(CancellationToken cancellationToken)
     {
-        if (null == this.Socket)
+        if (null == Socket)
         {
             return;
         }
@@ -82,7 +81,7 @@ public class DeviceSocket
         {
             var message = _messageQueue.Dequeue();
             var jsonBytes = message.ToUtf8ByteArray();
-            await this.Socket.SendAsync(
+            await Socket.SendAsync(
                 buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
                 messageType: WebSocketMessageType.Text,
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
@@ -93,14 +92,11 @@ public class DeviceSocket
     private void StartTimeout(CancellationToken cancellationToken)
     {
         _cancelTimeoutToken = new CancellationTokenSource();
-        _ = Task.Delay(this.ForcePushInterval, cancellationToken).ContinueWith(async t =>
+        _ = Task.Delay(ForcePushInterval, cancellationToken).ContinueWith(async t =>
         {
-            if (!t.IsCanceled)
+            if (!t.IsCanceled && _messageQueue.Count > 0)
             {
-                if (this._messageQueue.Count > 0)
-                {
-                    await ProcessBatch(cancellationToken);
-                }
+                await ProcessBatch(cancellationToken);
             }
         }, cancellationToken).Unwrap();
     }
