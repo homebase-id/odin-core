@@ -51,7 +51,6 @@ public class DefaultCronSchedule(
 public class DefaultCronJob(
     ICorrelationContext correlationContext,
     ILogger<DefaultCronJob> logger,
-    ILoggerFactory loggerFactory,
     ServerSystemStorage serverSystemStorage,
     OdinConfiguration config,
     ISystemHttpClient systemHttpClient) : AbstractJob(correlationContext)
