@@ -193,7 +193,8 @@ public class App_DataSubscriptionAndDistributionTests2
         // The owner deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
-
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         //
         // Sam's feed drive no longer has the header
         // Sam can not get the payload via transit query
@@ -210,7 +211,7 @@ public class App_DataSubscriptionAndDistributionTests2
         await pippinOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
         await _scaffold.Scenarios.DisconnectHobbits();
     }
-    
+
 
     private async Task AssertPayloadIs404(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
