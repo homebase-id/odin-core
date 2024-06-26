@@ -23,7 +23,7 @@ public class OwnerApiClientFactory : IApiClientFactory
 
     public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = WebScaffold.CreateHttpClient<OwnerApiTestUtils>();
+        var client = WebScaffold.CreateHttpClient<OwnerApiClientFactory>();
 
         //
         // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.
