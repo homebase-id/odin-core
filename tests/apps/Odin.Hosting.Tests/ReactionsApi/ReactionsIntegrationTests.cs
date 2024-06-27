@@ -4,13 +4,13 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.Reactions.DTOs;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -40,7 +40,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Owner_PublicPost_CanGetEmptyReactionList()
+    public async Task PublicPost_CanGetEmptyReactionList_As_OwnerUser()
     {
         // Arrange
         var frodo = TestIdentities.Frodo;
@@ -59,7 +59,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Connection_PublicPost_CanGetEmptyReactionList()
+    public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser()
     {
         // Arrange
         await ConnectHobbits();
@@ -67,11 +67,17 @@ public class ReactionsIntegrationTests
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPost(frodo, "hello world");
 
-        var sam = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(sam);
+        // SystemAppConstants.FeedAppId
 
-        // Act
-        var response = await ownerApiClient.Reactions2.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        var sam = TestIdentities.Samwise;
+        var samsOwnerApi = _scaffold.CreateOwnerApiClientRedux(sam);
+
+        var (samsAppToken, samsAppSharedSecret) = await samsOwnerApi.AppManager.RegisterAppClient(SystemAppConstants.FeedAppId);
+
+        var reactionClient = new UniversalDriveReactionClient2(sam.OdinId, new AppApiClientFactory(samsAppToken, samsAppSharedSecret));
+
+        var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+
 
         // Assert
         Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
@@ -82,36 +88,12 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Anonymous_PublicPost_CanGetEmptyReactionList()
+    public async Task PublicPost_CanGetEmptyReactionList_As_AnonymousUser()
     {
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPost(frodo, "hello world");
 
-        var url = "https://frodo.dotyou.cloud:8443/api/guest/v1/unified-reactions/list";
-
-        var request = new GetReactionsRequest2
-        {
-            AuthorOdinId = frodo.OdinId,
-            TargetDrive = postFile.File.TargetDrive,
-            FileId = postFile.File.FileId,
-            GlobalTransitId = postFile.GlobalTransitIdFileIdentifier.GlobalTransitId,
-            Cursor = 0,
-            MaxRecords = int.MaxValue
-        };
-
-        var json = OdinSystemSerializer.Serialize(request);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var client = new HttpClient();
-        var r3 = await client.PostAsync(url, content);
-        var c = await r3.Content.ReadAsStringAsync();
-
-        var t = _scaffold.OldOwnerApi.GetOwnerAuthContext(frodo.OdinId).GetAwaiter().GetResult();
-        var factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
         var reactionClient = new UniversalDriveReactionClient2(frodo.OdinId, new GuestApiClientFactory());
-        
-        // var reactionClient = new UniversalDriveReactionClient2(frodo.OdinId, new GuestApiClientFactory());
-
         var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
 
         // Assert
@@ -126,7 +108,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Owner_PublicPost_CanCreateReactionsAndDeleteThemAgain()
+    public async Task PublicPost_CanCreateReactionsAndDeleteThemAgain_As_OwnerUser()
     {
         // Arrange
         var frodo = TestIdentities.Frodo;
@@ -175,7 +157,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Owner_PublicPost_CanGetReactionsSummary()
+    public async Task PublicPost_CanGetReactionsSummary_As_OwnerUser()
     {
         // Arrange
         var frodo = TestIdentities.Frodo;
@@ -206,7 +188,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task Owner_PublicPost_CanGetReactionsByIdentity()
+    public async Task PublicPost_CanGetReactionsByIdentity_As_OwnerUser()
     {
         // Arrange
         var frodo = TestIdentities.Frodo;
