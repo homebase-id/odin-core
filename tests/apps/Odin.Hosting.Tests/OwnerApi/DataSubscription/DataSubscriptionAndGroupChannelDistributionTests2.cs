@@ -197,6 +197,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
 
         //
         // Sam's feed drive no longer has the header
