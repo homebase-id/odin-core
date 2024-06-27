@@ -113,6 +113,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);
 
+            if (null == header)
+            {
+                throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
+            }
+
             var remoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
