@@ -25,10 +25,7 @@ public class SendReadReceiptResultRecipientStatusItem
 
 public enum SendReadReceiptResultStatus
 {
-    RequestAcceptedIntoInbox = 1,
-    RecipientIdentityReturnedAccessDenied = 3,
     NotConnectedToOriginalSender = 6,
-    LocalIdentityReturnedBadRequest = 7,
     FileDoesNotExist = 8,
     FileDoesNotHaveSender = 9,
     MissingGlobalTransitId = 10,

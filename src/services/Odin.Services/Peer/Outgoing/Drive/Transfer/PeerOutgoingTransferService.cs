@@ -240,7 +240,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return new SendReadReceiptResultRecipientStatusItem()
             {
-                Recipient = null,
+                Recipient = recipient,
                 Status = SendReadReceiptResultStatus.Enqueued
             };
         }
