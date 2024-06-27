@@ -719,7 +719,7 @@ public class DataSubscriptionAndDistributionTests1
         var (transitResult, _) = await samOwnerClient.Transit.TransferEncryptedFileHeader(
             FileSystemType.Comment,
             commentFile,
-            recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
+            recipients: [frodoOwnerClient.Identity.OdinId],
             remoteTargetDrive: frodoChannelDrive,
             overwriteGlobalTransitFileId: null,
             thumbnail: null
