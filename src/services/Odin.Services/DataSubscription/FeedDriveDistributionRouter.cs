@@ -334,7 +334,11 @@ namespace Odin.Services.DataSubscription
             {
                 //send the deleted file
                 var map = await _peerOutgoingTransferService.SendDeleteFileRequest(
-                    header.FileMetadata.File,
+                    new GlobalTransitIdFileIdentifier()
+                    {
+                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        TargetDrive = SystemDriveConstants.FeedDrive
+                    },
                     fileTransferOptions: new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
@@ -353,7 +357,7 @@ namespace Odin.Services.DataSubscription
                 }
             }
         }
-        
+
         private async Task<bool> SupportsSubscription(Guid driveId, DatabaseConnection cn)
         {
             var drive = await _driveManager.GetDrive(driveId, cn);

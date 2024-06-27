@@ -193,7 +193,7 @@ public class App_DataSubscriptionAndDistributionTests2
         // The owner deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
-        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
         
         //
         // Sam's feed drive no longer has the header
