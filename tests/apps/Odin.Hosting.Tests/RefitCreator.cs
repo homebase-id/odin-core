@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http;
 using Odin.Core;
 using Refit;
@@ -16,6 +17,13 @@ public static class RefitCreator
     /// </summary>
     public static T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
     {
+        var ss = sharedSecret.GetKey();
+
+        if (ss == null || ss.All(b => b == 0))
+        {
+            return RestService.For<T>(client);
+        }
+
         var settings = new RefitSettings(new SharedSecretSystemTextJsonContentSerializer(sharedSecret)/*, new SharedSecretUrlParameterFormatter(sharedSecret)*/);
         return RestService.For<T>(client, settings);
     }
