@@ -321,8 +321,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var file = new InternalDriveFileId()
             {
-                DriveId = driveId,
-                FileId = request.File.FileId
+                FileId = request.File.FileId,
+                DriveId = driveId
             };
 
             var result = new DeleteFileResult()
@@ -342,16 +342,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var recipients = requestRecipients ?? new List<string>();
-            if (recipients.Any() && header.FileMetadata.GlobalTransitId.HasValue)
+            if (recipients.Any())
             {
-                var remoteGlobalTransitIdentifier = new GlobalTransitIdFileIdentifier()
-                {
-                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    TargetDrive = request.File.TargetDrive
-                };
-
                 //send the deleted file
-                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(file,
                     new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,

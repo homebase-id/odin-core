@@ -85,53 +85,43 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return outboxStatus;
         }
 
-        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
-            FileTransferOptions fileTransferOptions, IEnumerable<string> recipients, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
+            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<string> recipients,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
         {
-            var result = new Dictionary<string, DeleteLinkedFileStatus>();
-
-            foreach (var r in recipients)
+            var fileId = new InternalDriveFileId()
             {
-                var recipient = (OdinId)r;
+                FileId = remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
+            };
 
-                //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
-                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
-
-                var item = new OutboxFileItem()
-                {
-                    Recipient = recipient,
-                    Priority = 100,
-                    Type = OutboxItemType.DeleteRemoteFile,
-                    File = new InternalDriveFileId()
-                    {
-                        FileId = remoteGlobalTransitIdentifier.GlobalTransitId,
-                        DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
-                    },
-                    DependencyFileId = default,
-                    State = new OutboxItemState
-                    {
-                        Recipient = null,
-                        IsTransientFile = false,
-                        TransferInstructionSet = null,
-                        OriginalTransitOptions = null,
-                        EncryptedClientAuthToken = encryptedClientAccessToken,
-                        Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
-                        {
-                            RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
-                            FileSystemType = fileTransferOptions.FileSystemType
-                        }).ToUtf8ByteArray()
-                    }
-                };
-
-                await peerOutbox.AddItem(item, cn, useUpsert: true);
-                result.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
-            }
-
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
 
             return result;
         }
+
+        public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
+            InternalDriveFileId fileId,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<string> recipients,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
+            var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);
+
+            var remoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                TargetDrive = odinContext.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId)
+            };
+
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
+        }
+
 
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
@@ -213,6 +203,54 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         // 
+
+        private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
+            GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+            FileTransferOptions fileTransferOptions,
+            IEnumerable<string> recipients,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var results = new Dictionary<string, DeleteLinkedFileStatus>();
+
+            foreach (var r in recipients)
+            {
+                var recipient = (OdinId)r;
+
+                //TODO: i need to resolve the token outside of transit, pass it in as options instead
+                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+
+                var item = new OutboxFileItem()
+                {
+                    Recipient = recipient,
+                    Priority = 100,
+                    Type = OutboxItemType.DeleteRemoteFile,
+                    File = fileId,
+                    DependencyFileId = default,
+                    State = new OutboxItemState
+                    {
+                        Recipient = null,
+                        IsTransientFile = false,
+                        TransferInstructionSet = null,
+                        OriginalTransitOptions = null,
+                        EncryptedClientAuthToken = encryptedClientAccessToken,
+                        Data = OdinSystemSerializer.Serialize(new DeleteRemoteFileRequest()
+                        {
+                            RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdFileIdentifier,
+                            FileSystemType = fileTransferOptions.FileSystemType
+                        }).ToUtf8ByteArray()
+                    }
+                };
+
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
+                results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
+            }
+
+            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+
+            return results;
+        }
 
         private async Task<SendReadReceiptResultRecipientStatusItem> SendReadReceiptToRecipient(ServerFileHeader header,
             InternalDriveFileId fileId, IOdinContext odinContext,

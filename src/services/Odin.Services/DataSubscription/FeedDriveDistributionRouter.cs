@@ -334,11 +334,7 @@ namespace Odin.Services.DataSubscription
             {
                 //send the deleted file
                 var map = await _peerOutgoingTransferService.SendDeleteFileRequest(
-                    new GlobalTransitIdFileIdentifier()
-                    {
-                        TargetDrive = SystemDriveConstants.FeedDrive,
-                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    },
+                    header.FileMetadata.File,
                     fileTransferOptions: new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
@@ -347,7 +343,7 @@ namespace Odin.Services.DataSubscription
                     recipients.Select(r => r.DomainName).ToList(),
                     odinContext,
                     cn);
-                
+
                 foreach (var (recipient, status) in map)
                 {
                     if (status == DeleteLinkedFileStatus.EnqueueFailed)
@@ -357,8 +353,7 @@ namespace Odin.Services.DataSubscription
                 }
             }
         }
-
-
+        
         private async Task<bool> SupportsSubscription(Guid driveId, DatabaseConnection cn)
         {
             var drive = await _driveManager.GetDrive(driveId, cn);
