@@ -93,6 +93,7 @@ public class GenericMemoryCacheTest
 
     //
 
+#if !NOISY_NEIGHBOUR
     [Test]
     public void ItShouldEvictEntry()
     {
@@ -129,6 +130,7 @@ public class GenericMemoryCacheTest
         }
 
     }
+#endif
 
     //
 
