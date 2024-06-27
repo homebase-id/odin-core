@@ -11,24 +11,41 @@ public interface IGenericMemoryCache
     bool TryGet(byte[] key, out object? value);
     bool TryGet<T>(string key, out T? value);
     bool TryGet<T>(byte[] key, out T? value);
-    void Set(string key, object value, TimeSpan lifespan);
-    void Set(byte[] key, object value, TimeSpan lifespan);
+    void Set(string key, object? value, TimeSpan lifespan);
+    void Set(byte[] key, object? value, TimeSpan lifespan);
     object? Remove(string key);
     object? Remove(byte[] key);
     bool Contains(string key);
     bool Contains(byte[] key);
 }
 
+//
+
 public class GenericMemoryCache(string name = "generic-memory-cache") : IGenericMemoryCache
 {
+    private static readonly object NullValue = new ();
     private readonly MemoryCache _cache = new(name);
 
     //
 
     public bool TryGet(string key, out object? value)
     {
-        value = _cache.Get(key);
-        return value != null;
+        var result = _cache.Get(key);
+
+        if (result == null)
+        {
+            value = default;
+            return false;
+        }
+
+        if (result == NullValue)
+        {
+            value = default;
+            return true;
+        }
+
+        value = result;
+        return true;
     }
 
     //
@@ -44,17 +61,25 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
     {
         var result = _cache.Get(key);
 
-        switch (result)
+        if (result == null)
         {
-            case null:
-                value = default;
-                return false;
-            case T typedValue:
-                value = typedValue;
-                return true;
-            default:
-                throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
+            value = default;
+            return false;
         }
+
+        if (result == NullValue)
+        {
+            value = default;
+            return true;
+        }
+
+        if (result.GetType() == typeof(T))
+        {
+            value = (T)result;
+            return true;
+        }
+
+        throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
     }
 
     //
@@ -66,15 +91,15 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     //
 
-    public void Set(string key, object value, TimeSpan lifespan)
+    public void Set(string key, object? value, TimeSpan lifespan)
     {
         var policy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.Add(lifespan) };
-        _cache.Set(new CacheItem(key, value), policy);
+        _cache.Set(new CacheItem(key, value ?? NullValue), policy);
     }
 
     //
 
-    public void Set(byte[] key, object value, TimeSpan lifespan)
+    public void Set(byte[] key, object? value, TimeSpan lifespan)
     {
         Set(Convert.ToBase64String(key), value, lifespan);
     }

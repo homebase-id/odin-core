@@ -6,6 +6,8 @@ using Odin.Core.Cache;
 
 namespace Odin.Core.Tests.Cache;
 
+#nullable enable
+
 public class GenericMemoryCacheTest
 {
     [Test]
@@ -44,6 +46,50 @@ public class GenericMemoryCacheTest
         }
 
     }
+
+    //
+
+    [Test]
+    public void ItShouldInsertAndRetrieveANullValue()
+    {
+        var cache = new GenericMemoryCache();
+
+        cache.Set("foo", null, TimeSpan.FromSeconds(10));
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.IsNull(value);
+        }
+
+        cache.Set("foo", null, TimeSpan.FromSeconds(10));
+        {
+            var hit = cache.TryGet<SampleValue>("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.IsNull(value);
+        }
+    }
+
+    //
+
+    [Test]
+    public void ItShouldNotFindAnything()
+    {
+        var cache = new GenericMemoryCache();
+
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        {
+            var hit = cache.TryGet<SampleValue>("foo", out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+    }
+
+
 
     //
 
@@ -120,7 +166,7 @@ public class GenericMemoryCacheTest
     //
 
     [Test]
-    public void ItShouldRemoveAnKey()
+    public void ItShouldRemoveAKey()
     {
         // Arrange
         var cache = new GenericMemoryCache();
