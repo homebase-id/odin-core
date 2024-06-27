@@ -71,7 +71,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     case OutboxItemType.DeleteRemoteFile:
                         await SendDeleteFileRequest(fileItem, odinContext, cancellationToken);
                         break;
-                    
+
+                    case OutboxItemType.ReadReceipt:
+                        await SendReadReceipt(fileItem, odinContext, cancellationToken);
+                        break;
+
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -84,11 +88,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             catch (Exception e)
             {
                 logger.LogError(e, "Unhandled exception occured while processing an outbox " +
-                                   "item (type: {itemType}).  File:{file}\t Marker:{marker}", 
+                                   "item (type: {itemType}).  File:{file}\t Marker:{marker}",
                     fileItem.Type,
-                    fileItem.File, 
+                    fileItem.File,
                     fileItem.Marker);
             }
+        }
+
+        private async Task SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendReadReceiptOutboxWorker>();
+            var worker = new SendReadReceiptOutboxWorker(fileItem,
+                workLogger,
+                peerOutbox,
+                odinConfiguration,
+                odinHttpClientFactory,
+                jobManager);
+
+            using var connection = tenantSystemStorage.CreateConnection();
+            await worker.Send(odinContext, connection, cancellationToken);
+            
         }
 
         private async Task SendFileOutboxItem(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
@@ -107,7 +126,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
 
         private async Task SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
-        { 
+        {
             var workLogger = loggerFactory.CreateLogger<SendPushNotificationOutboxWorker>();
             var worker = new SendPushNotificationOutboxWorker(fileItem,
                 workLogger,
@@ -135,7 +154,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             using var connection = tenantSystemStorage.CreateConnection();
             await worker.Send(odinContext, connection, cancellationToken);
         }
-        
+
         private async Task SendDeleteFileRequest(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();

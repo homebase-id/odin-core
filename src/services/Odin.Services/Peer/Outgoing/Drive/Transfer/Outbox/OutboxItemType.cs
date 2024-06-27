@@ -8,5 +8,7 @@ public enum OutboxItemType
 
     UnencryptedFeedItem = 500,
 
-    DeleteRemoteFile = 700
+    DeleteRemoteFile = 700,
+    
+    ReadReceipt = 900
 }
