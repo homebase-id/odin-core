@@ -11,6 +11,4 @@ public interface IDriveFileSystem
 
     public DriveStorageServiceBase Storage { get; }
 
-    public DriveCommandServiceBase Commands { get; }
-
 }

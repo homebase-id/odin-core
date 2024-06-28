@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
@@ -529,7 +532,6 @@ public class DriveApiClientRedux
     public async Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdList(DeleteFilesByGroupIdBatchRequest batch,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
@@ -604,6 +606,41 @@ public class DriveApiClientRedux
 
             var response = await svc.GetBatchCollection(request);
             return response;
+        }
+    }
+
+    public async Task<RecipientTransferHistoryItem> WaitForTransferStatus(ExternalFileIdentifier file, OdinId recipient, LatestTransferStatus expectedStatus,
+        FileSystemType fst = FileSystemType.Standard,
+        TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret, fst);
+        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetFileHeaderAsPost(file);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving file to wait for transfer status");
+            }
+
+            var header = response.Content;
+            if (header.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient, out var status)
+                && status.LatestTransferStatus == expectedStatus)
+            {
+                return status;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException($"timeout occured while waiting for a matching update " +
+                                           $"to the transfer history.  latest status was {status?.LatestTransferStatus}");
+            }
+
+            await Task.Delay(100);
         }
     }
 }

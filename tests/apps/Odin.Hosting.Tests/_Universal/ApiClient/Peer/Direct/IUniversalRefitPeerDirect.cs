@@ -1,18 +1,17 @@
 ﻿using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Peer
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct
 {
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IUniversalRefitOwnerTransitSender
+    public interface IUniversalRefitPeerDirect
     {
-        private const string RootEndpoint = OwnerApiPathConstants.PeerSenderV1;
+        private const string RootEndpoint = "/transit/sender";
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]

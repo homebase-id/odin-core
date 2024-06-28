@@ -17,7 +17,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 
-namespace Odin.Hosting.Tests._Universal.DriveTests.Status
+namespace Odin.Hosting.Tests._Universal.Outbox
 {
     public class OutboxStatusTests
     {
@@ -94,8 +94,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Status
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                // Priority = PriorityOptions.High,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
             };
 
@@ -109,11 +107,13 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Status
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.DeliveredToInbox);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+
+            // Issue here is that the outbox processes superfast, so we probably need
+            // to loaded it up with a bunch of items and not wait on it.  Then we can 
+            // check if it has many > 0 items
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
             
-            //
-            // TODO: need to decide how to test this.. after we put in the correct outbox processing
-            //
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
             var getStatusResponse = await driveClient.GetDriveStatus(targetDrive);

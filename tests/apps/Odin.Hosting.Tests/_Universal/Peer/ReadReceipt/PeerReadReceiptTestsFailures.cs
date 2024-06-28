@@ -19,7 +19,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.Tests._Universal.Peer
+namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 {
     public class PeerReadReceiptTestsFailures
     {
@@ -84,8 +84,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -152,8 +151,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -226,8 +224,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -319,8 +316,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (senderUploadResult, _, recipientFiles) =

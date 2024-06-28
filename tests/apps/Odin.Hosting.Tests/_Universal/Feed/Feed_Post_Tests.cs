@@ -99,13 +99,11 @@ public class Feed_Post_Tests
         });
 
         // Grant frodo access to friends only
-        await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, new List<GuidId>() { circleId });
-        await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { });
+        await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, [circleId]);
+        await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, []);
 
         //at this point we follow sam 
-        var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
-            FollowerNotificationType.AllNotifications,
-            new List<TargetDrive>() { });
+        var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId, FollowerNotificationType.AllNotifications, []);
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
@@ -132,7 +130,7 @@ public class Feed_Post_Tests
         Assert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
         await ownerSam.Cron.DistributeFeedFiles();
-        await ownerSam.Cron.ProcessTransitOutbox();
+        await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
         await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
@@ -250,7 +248,7 @@ public class Feed_Post_Tests
         Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
         await ownerSam.Cron.DistributeFeedFiles();
-        await ownerSam.Cron.ProcessTransitOutbox();
+        await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
         //validate sam can see his file
 

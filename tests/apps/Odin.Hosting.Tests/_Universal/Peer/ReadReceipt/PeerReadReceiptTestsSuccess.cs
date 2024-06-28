@@ -20,7 +20,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.Tests._Universal.Peer
+namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 {
     public class PeerReadReceiptTestsSuccess
     {
@@ -84,8 +84,7 @@ namespace Odin.Hosting.Tests._Universal.Peer
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
@@ -154,15 +153,13 @@ namespace Odin.Hosting.Tests._Universal.Peer
             var (senderUploadResult1, _, recipientFiles1) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive,
                 new TransitOptions()
                 {
-                    Recipients = [recipientOwnerClient.Identity.OdinId],
-                    Schedule = ScheduleOptions.SendAsync
+                    Recipients = [recipientOwnerClient.Identity.OdinId]
                 });
 
             var (senderUploadResult2, _, recipientFiles2) = await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive,
                 new TransitOptions()
                 {
-                    Recipients = [recipientOwnerClient.Identity.OdinId],
-                    Schedule = ScheduleOptions.SendAsync
+                    Recipients = [recipientOwnerClient.Identity.OdinId]
                 });
 
             await callerContext.Initialize(recipientOwnerClient);

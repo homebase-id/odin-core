@@ -24,11 +24,6 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         /// <summary>
-        /// Options for when to send the file(s)
-        /// </summary>
-        public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
-
-        /// <summary>
         /// Specifies which parts of the file to send
         /// </summary>
         public SendContents SendContents { get; set; } = SendContents.All;
@@ -66,24 +61,5 @@ namespace Odin.Services.Peer.Outgoing.Drive
         Header = 1,
         Payload = 2,
         All = Header | Payload
-    }
-
-    public enum ScheduleOptions
-    {
-        /// <summary>
-        /// Sends file now; blocks the return of the thread until a response is received from the all recipients.
-        /// </summary>
-        SendNowAwaitResponse = 1,
-
-        /// <summary>
-        /// Sends immediately from the same thread as the caller but spawns a new thread so the caller's request
-        /// instantly returns.  For each failed recipient, the file is moved to ScheduleOptions.SendLater 
-        /// </summary>
-        SendLater = 2,
-
-        /// <summary>
-        /// Uses new outbox processing method
-        /// </summary>
-        SendAsync = 3
     }
 }

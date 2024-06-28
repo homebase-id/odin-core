@@ -7,14 +7,12 @@ namespace Odin.Services.Drives.FileSystem.Standard;
 
 public class StandardFileSystem : IDriveFileSystem
 {
-    public StandardFileSystem(StandardFileDriveStorageService storageService, StandardFileDriveQueryService queryService, StandardDriveCommandService commandService)
+    public StandardFileSystem(StandardFileDriveStorageService storageService, StandardFileDriveQueryService queryService)
     {
         Storage = storageService;
         Query = queryService;
-        Commands = commandService;
     }
     
     public DriveQueryServiceBase Query { get; }
     public DriveStorageServiceBase Storage { get; }
-    public DriveCommandServiceBase Commands { get; }
 }

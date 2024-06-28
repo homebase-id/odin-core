@@ -76,8 +76,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
@@ -138,8 +137,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
@@ -199,8 +197,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId],
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions, allowDistribution: false);

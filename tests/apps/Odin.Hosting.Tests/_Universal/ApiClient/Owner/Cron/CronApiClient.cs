@@ -37,6 +37,7 @@ public class CronApiClient
         }
     }
 
+    [Obsolete]
     public async Task<ApiResponse<HttpContent>> ProcessTransitOutbox()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

@@ -5,7 +5,6 @@ using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authentication.YouAuth;
@@ -127,7 +126,6 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
@@ -173,7 +171,6 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
             
-            cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
             cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
@@ -197,8 +194,6 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
-
-            cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
