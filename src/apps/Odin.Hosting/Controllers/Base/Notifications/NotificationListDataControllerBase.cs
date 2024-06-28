@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpGet("list/counts-by-appid")]
-        public async Task<NotificationsCountResult> GetCountsByApp()
+        public async Task<NotificationsCountResult> GetUnreadCounts()
         {
             using var cn = tenantSystemStorage.CreateConnection();
             return await notificationService.GetUnreadCounts(WebOdinContext, cn);
