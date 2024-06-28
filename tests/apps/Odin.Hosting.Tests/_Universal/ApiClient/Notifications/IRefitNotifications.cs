@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Services.AppNotifications.Data;
 using Odin.Core.Time;
 using Refit;
@@ -17,8 +18,14 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
         [Get(RootPath)]
         Task<ApiResponse<NotificationsListResult>> GetList([Query] int count, [Query] Int64? cursor);
 
+        [Get(RootPath + "/counts-by-appid")]
+        Task<ApiResponse<NotificationsCountResult>> GetUnreadCounts();
+
         [Put(RootPath)]
         Task<ApiResponse<HttpContent>> Update([Body] UpdateNotificationListRequest request);
+
+        [Post(RootPath + "/mark-read-by-appid")]
+        Task<ApiResponse<HttpContent>> MarkReadByAppId(Guid appId);
 
         [Delete(RootPath)]
         Task<ApiResponse<HttpContent>> DeleteNotification([Body] DeleteNotificationsRequest request);

@@ -9,8 +9,6 @@ using NUnit.Framework;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 
@@ -111,7 +109,214 @@ public class NotificationListTests
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
+    public async Task CanGetCountOfNotificationsPerAppId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive", "", true);
+
+        var appId = Guid.NewGuid();
+        var options1 = new AppNotificationOptions()
+        {
+            AppId = appId,
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+
+        var options2 = new AppNotificationOptions()
+        {
+            AppId = appId,
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+
+        var response2 = await ownerApiClient.AppNotifications.AddNotification(options2);
+        Assert.IsTrue(response2.IsSuccessStatusCode);
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await client.GetList(10);
+
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var results = response.Content?.Results;
+            Assert.IsNotNull(results);
+            Assert.IsTrue(results.Count == 2);
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
+        }
+
+        await ownerApiClient.AppNotifications.Delete([response1.Content.NotificationId, response2.Content.NotificationId]);
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
     public async Task CanMarkNotificationsRead(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
+
+        var options = new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
+
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+        var notificationId = response1.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var updates = new List<UpdateNotificationRequest>()
+        {
+            new()
+            {
+                Id = notificationId,
+                Unread = false
+            }
+        };
+
+        var response = await client.Update(updates);
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
+            var results = getListResponse.Content.Results;
+            Assert.IsNotNull(results);
+            var notification = results.SingleOrDefault(n => n.Id == notificationId);
+            Assert.IsNotNull(notification);
+            Assert.IsTrue(notification.Unread == false);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanMarkNotificationsReadByAppId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
+
+        var appId = Guid.NewGuid();
+
+        var options = new AppNotificationOptions()
+        {
+            AppId = appId,
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+        var notificationId = response1.Content.NotificationId;
+
+        var notifyDiffAppResponse = await ownerApiClient.AppNotifications.AddNotification(new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        });
+
+        Assert.IsTrue(notifyDiffAppResponse.IsSuccessStatusCode);
+        var diffAppNotificationId = notifyDiffAppResponse.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await client.MarkReadByAppId(appId);
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
+            var results = getListResponse.Content.Results;
+            Assert.IsNotNull(results);
+
+            var notification1 = results.SingleOrDefault(n => n.Id == notificationId);
+            Assert.IsNotNull(notification1);
+            Assert.IsFalse(notification1.Unread);
+
+            var notificationDiffApp = results.SingleOrDefault(n => n.Id == diffAppNotificationId);
+            Assert.IsNotNull(notificationDiffApp);
+            Assert.IsTrue(notificationDiffApp.Unread);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanGetNotificationCountByAppId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
+
+        var app1Options = new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(app1Options);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+
+        var app2Options = new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
+        };
+
+        var response2 = await ownerApiClient.AppNotifications.AddNotification(app2Options);
+
+        Assert.IsTrue(response2.IsSuccessStatusCode);
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await client.GetUnreadCounts();
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var getCountsResponse = await ownerApiClient.AppNotifications.GetUnreadCounts();
+            var results = getCountsResponse.Content;
+            Assert.IsNotNull(results);
+
+            Assert.IsTrue(results.UnreadCounts[app1Options.AppId] == 1);
+            Assert.IsTrue(results.UnreadCounts[app2Options.AppId] == 1);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanMarkNotificationsReadPerApp(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
         var identity = TestIdentities.Samwise;
