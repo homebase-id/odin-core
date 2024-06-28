@@ -194,7 +194,9 @@ public class App_DataSubscriptionAndDistributionTests2
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-        
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive); // just in case
+
         //
         // Sam's feed drive no longer has the header
         // Sam can not get the payload via transit query
@@ -290,7 +292,9 @@ public class App_DataSubscriptionAndDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
+        Assert.IsTrue(batch.SearchResults.Count() == 1, "too many files returned");
+        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted), "deleted file not found");
+        Assert.IsNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Active), "Active file was found; should have been deleted");
     }
 
     private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(
