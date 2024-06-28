@@ -127,7 +127,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Turn off the flag that allows authenticated identities to react
             //
-            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, false.ToString());
+            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives,
+                false.ToString());
 
             const string reactionContent = "I dunno and stuff";
             var request = new PeerAddReactionRequest()
@@ -162,7 +163,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Ensure the flag that allows authenticated identities to react is true
             //
-            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, true.ToString());
+            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives,
+                true.ToString());
 
             const string reactionContent = "I dunno and stuff";
             var request = new PeerAddReactionRequest()
@@ -200,7 +202,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Ensure the flag that allows authenticated identities to comment is true
             //
-            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives, true.ToString());
+            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives,
+                true.ToString());
 
             var recipients = new List<string>() { pippinOwnerClient.Identity.OdinId };
             var commentFileMetadata = new UploadFileMetadata()
@@ -220,13 +223,17 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             // Upload the comment via transit
             //
 
-            var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, targetFile.uploadResult.File.TargetDrive, fileSystemType: FileSystemType.Comment);
+            var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, targetFile.uploadResult.File.TargetDrive,
+                fileSystemType: FileSystemType.Comment);
             Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
 
+            var c = _scaffold.CreateOwnerApiClientRedux(merryAppClient.Identity);
+            await c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            
             //
             // Get the comment on pippin's identity and test it
             //
-            
+
             var remoteFile = new TransitExternalFileIdentifier()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
@@ -238,7 +245,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             Assert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
         }
 
-        
+
         [Test]
         public async Task AppCan_AddCommentOn_AnonymousDrive_With_CommentPermission_and_ConnectedIdentity()
         {
@@ -249,7 +256,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //Notice: no circles since we're only testing what can be done by connected identities on an anonymous drive
             await pippinOwnerClient.Network.SendConnectionRequestTo(TestIdentities.Merry, new List<GuidId>() { });
             await merryOwnerClient.Network.AcceptConnectionRequest(TestIdentities.Pippin, new List<GuidId>() { });
-            
+
             var remoteDrive = await pippinOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some target drive", "", allowAnonymousReads: true);
 
             // Pippin uploads file
@@ -258,7 +265,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Ensure the flag that allows authenticated identities to comment is true
             //
-            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives, true.ToString());
+            await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives,
+                true.ToString());
 
             var recipients = new List<string>() { pippinOwnerClient.Identity.OdinId };
             var commentFileMetadata = new UploadFileMetadata()
@@ -280,11 +288,15 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             var remoteTargetDrive = targetFile.uploadResult.File.TargetDrive;
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
-            var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, remoteTargetDrive, fileSystemType: FileSystemType.Comment);
+            var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, remoteTargetDrive,
+                fileSystemType: FileSystemType.Comment);
             Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
             var transitResult = response.Content;
             Assert.IsNotNull(transitResult);
             Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+
+            var c = _scaffold.CreateOwnerApiClientRedux(merryAppClient.Identity);
+            await c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
             //
             // Merry uses transit query to get all files of that file type
@@ -316,8 +328,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             await pippinOwnerClient.Network.DisconnectFrom(merryOwnerClient.Identity);
         }
-        
-        
+
+
         private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)
         {
             var appId = Guid.NewGuid();
