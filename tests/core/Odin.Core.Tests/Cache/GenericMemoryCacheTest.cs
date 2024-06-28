@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using NUnit.Framework;
 using Odin.Core.Cache;
@@ -165,8 +166,6 @@ public class GenericMemoryCacheTest
 
     //
 
-    //
-
     [Test]
     public void ItShouldRemoveAKey()
     {
@@ -189,6 +188,39 @@ public class GenericMemoryCacheTest
         Assert.IsFalse(exists);
     }
 
+    //
+
+    [Test]
+    public void ItShouldCreateKeyFromStringArray()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+        var strings = new [] { "one", "two", "three" };
+
+        var key = cache.GenerateKey("foo", strings);
+        Assert.AreEqual("foo:one:two:three", key);
+    }
+
+    //
+
+    [Test]
+    public void ItShouldCreateKeyFromByteArrays()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+        var strings = new [] { "foo", "bar", "baz" };
+
+        var byteArrays = new byte[strings.Length][];
+        for (var idx = 0; idx < strings.Length; idx++)
+        {
+            byteArrays[idx] = Encoding.UTF8.GetBytes(strings[idx]);
+        }
+
+        var key = cache.GenerateKey("foo", byteArrays);
+        Assert.AreEqual("foo:Zm9v:YmFy:YmF6", key);
+    }
+
+    //
 
     private class SampleValue
     {

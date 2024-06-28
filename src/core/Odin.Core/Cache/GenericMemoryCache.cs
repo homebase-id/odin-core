@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.NetworkInformation;
 using System.Runtime.Caching;
+using System.Text;
 
 namespace Odin.Core.Cache;
 
@@ -17,6 +21,8 @@ public interface IGenericMemoryCache
     object? Remove(byte[] key);
     bool Contains(string key);
     bool Contains(byte[] key);
+    string GenerateKey(string prefix, params string[] values);
+    string GenerateKey(string prefix, params byte[][] values);
 }
 
 //
@@ -131,5 +137,50 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
     {
         return Contains(Convert.ToBase64String(key));
     }
+
+    //
+
+    public string GenerateKey(string prefix, params string[] values)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix, nameof(prefix));
+
+        if (values.Length == 0)
+        {
+            return prefix;
+        }
+
+        // SEB:NOTE random guestimate on the sweet spot for when to use string.Join vs StringBuilder
+        if (values.Length < 5)
+        {
+            return $"{prefix}:{string.Join(":", values)}";
+        }
+
+        var capacity = prefix.Length + 1 + values.Sum(v => v.Length + 1);
+        var sb = new StringBuilder(capacity);
+        sb.Append(prefix);
+
+        foreach (var value in values)
+        {
+            sb.Append(':').Append(value);
+        }
+
+        return sb.ToString();
+    }
+
+    //
+
+    public string GenerateKey(string prefix, params byte[][] values)
+    {
+        var strings = new string[values.Length];
+
+        for (var idx = 0; idx < values.Length; idx++)
+        {
+            strings[idx] = Convert.ToBase64String(values[idx]);
+        }
+
+        return GenerateKey(prefix, strings);
+    }
+
+    //
 
 }
