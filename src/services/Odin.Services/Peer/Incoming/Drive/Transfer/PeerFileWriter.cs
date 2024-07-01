@@ -108,10 +108,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             metadata!.SenderOdinId = sender;
             switch (transferFileType)
             {
-                case TransferFileType.CommandMessage:
-                    logger.LogWarning("Command message received yet no longer supported (it must be stuck in a queue)");
-                    break;
-
                 case TransferFileType.Normal:
                     await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;

@@ -85,8 +85,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var uploadedContent = "I'm Hungry!";
         var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent, acl: AccessControlList.Anonymous);
 
-        //Tell Pippin's identity to process the feed outbox
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+        await pippinOwnerClient.Transit.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Get the post from Sam's feed drive, validate we got it
@@ -101,11 +100,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent);
 
-        // Tell Pippin's identity to process the feed outbox
-        // doing this again in unit tests because we added a reaction
-        // which caused the summary to change; which means we have to re-distribute
-        // the changes
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+ 
+        await pippinOwnerClient.Transit.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Sam queries across Transit to get all reactions
@@ -136,11 +132,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
 
-        // Tell Pippin's identity to process the feed outbox
-        // doing this again in unit tests because we added a reaction
-        // which caused the summary to change; which means we have to re-distribute
-        // the changes
-        await pippinOwnerClient.Cron.DistributeFeedFiles();
+        await pippinOwnerClient.Transit.WaitForEmptyOutbox(pippinChannelDrive);
 
         //
         // Get the post from sam's feed drive again, it should have the header updated
