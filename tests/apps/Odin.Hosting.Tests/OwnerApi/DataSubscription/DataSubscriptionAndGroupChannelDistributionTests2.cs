@@ -106,7 +106,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
         // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -188,7 +188,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
         // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam

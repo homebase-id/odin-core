@@ -28,7 +28,10 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Refit;
 using WebPush;
 
@@ -38,14 +41,13 @@ public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
     TenantSystemStorage storage,
-    ServerSystemStorage serverSystemStorage,
-    TenantContext tenantContext,
     PublicPrivateKeyService keyService,
     TenantSystemStorage tenantSystemStorage,
     NotificationListService notificationListService,
     IHttpClientFactory httpClientFactory,
     ICertificateCache certificateCache,
-    OdinConfiguration configuration)
+    OdinConfiguration configuration,
+    IJobManager jobManager)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
 {
@@ -339,10 +341,14 @@ public class PushNotificationService(
             cn
         );
 
-        serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
-            CronJobType.PendingTransitTransfer,
-            tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
-            UnixTimeUtc.Now());
+        // serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
+        //     CronJobType.PendingTransitTransfer,
+        //     tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
+        //     UnixTimeUtc.Now());
+
+        var nextRunTime = UnixTimeUtc.Now();
+        await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(odinContext.Tenant, nextRunTime));
+        logger.LogDebug("Scheduled PushNotification. NextRunTime (popStamp:{nextRunTime})", nextRunTime);
 
         await _pushNotificationOutbox.Add(item, odinContext, cn);
         return true;

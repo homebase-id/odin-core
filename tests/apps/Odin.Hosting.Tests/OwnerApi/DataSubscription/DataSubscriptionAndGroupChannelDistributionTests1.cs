@@ -134,7 +134,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             versionTag: firstUploadResult.NewVersionTag);
 
         //Tell frodo's identity to process the outbox due to feed distribution
-        await groupIdentityOwnerClient.Transit.ProcessOutbox(1);
+        await groupIdentityOwnerClient.Transit.WaitForEmptyOutbox(groupChannelDrive);
 
         //Process the outbox since we're sending an encrypted file
         await groupIdentityOwnerClient.Cron.DistributeFeedFiles();
@@ -295,7 +295,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -349,7 +349,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
@@ -564,7 +564,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 

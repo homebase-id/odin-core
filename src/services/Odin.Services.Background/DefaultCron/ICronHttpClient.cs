@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Services.Authentication.Owner;
@@ -9,6 +10,7 @@ namespace Odin.Services.Background.DefaultCron
     {
         private const string TransitRootEndpoint = $"{OwnerApiPathConstants.PeerV1}/outbox/processor";
 
+        [Obsolete]
         [Post(TransitRootEndpoint + "/process")]
         Task<ApiResponse<HttpContent>> ProcessOutbox();
         

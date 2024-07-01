@@ -65,7 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
             });
 
-            logger.LogInformation("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+            logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
 
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -109,7 +109,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             switch (transferFileType)
             {
                 case TransferFileType.CommandMessage:
-                    await StoreCommandMessage(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, odinContext, cn);
+                    logger.LogWarning("Command message received yet no longer supported (it must be stuck in a queue)");
                     break;
 
                 case TransferFileType.Normal:
@@ -121,7 +121,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 default:
-                    throw new OdinFileWriteException("Invalid TransferFileType");
+                    throw new OdinFileWriteException($"Invalid TransferFileType: {transferFileType}");
             }
         }
 
@@ -219,8 +219,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFs || !fileId.HasValue)
             {
-                //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                throw new OdinClientException("Referenced file missing or caller does not have access");
             }
 
             //
@@ -248,18 +247,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return targetAcl;
         }
-
-        /// <summary>
-        /// Stores an incoming command message and updates the queue
-        /// </summary>
-        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, odinContext: odinContext, ignorePayload: false, cn: cn);
-            await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, [tempFile.FileId], cn);
-        }
-
 
         private async Task WriteNewFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
@@ -307,13 +294,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If we can, then the gtid is the winner and decides the matching file
             //
 
-            // TODO: Use tblMainIndex.GetByGlobalTransitId() rather than QB()
             header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
             // If there is no file matching the gtid, let's check if the UID might point to one
             if (header == null && metadata.AppData.UniqueId.HasValue)
             {
-                // TODO: Use tblMainIndex.GetByClientUniqueId() rather than QB()
                 header = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
             }
 
@@ -327,7 +312,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // The header new points to a file by either gtid or uid (in this priority)
             //
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 
@@ -364,7 +349,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 

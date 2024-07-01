@@ -83,11 +83,6 @@ public class DefaultCronJob(
     private async Task<(CronRecord record, bool success)> ProcessRecord(CronRecord record)
     {
         var success = false;
-        if (record.type == (Int32)CronJobType.PendingTransitTransfer)
-        {
-            var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-            success = await ProcessPeerTransferOutbox(identity);
-        }
 
         if (record.type == (Int32)CronJobType.FeedDistribution)
         {
@@ -124,20 +119,4 @@ public class DefaultCronJob(
         return false;
     }
 
-    private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)
-    {
-        var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        try
-        {
-            var response = await svc.ProcessOutbox();
-            return response.IsSuccessStatusCode;
-        }
-        catch (HttpRequestException e)
-        {
-            logger.LogDebug("Process peer transfer: {identity}. Error: {error}", identity, e.Message);
-        }
-
-        return false;
-    }
-    
 }

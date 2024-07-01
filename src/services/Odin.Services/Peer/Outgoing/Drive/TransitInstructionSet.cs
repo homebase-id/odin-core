@@ -26,11 +26,6 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public TargetDrive RemoteTargetDrive { get; set; }
         
         /// <summary>
-        /// Options for when to send the file(s)
-        /// </summary>
-        public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
-
-        /// <summary>
         /// Optionally specified if you are overwriting a remote file
         /// </summary>
         public Guid? OverwriteGlobalTransitFileId { get; set; }
