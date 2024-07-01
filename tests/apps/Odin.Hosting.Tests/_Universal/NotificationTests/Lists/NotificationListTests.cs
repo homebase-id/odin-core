@@ -218,18 +218,18 @@ public class NotificationListTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
 
-        var appId = Guid.NewGuid();
+        var appIdToBeMarkedAsRead = Guid.NewGuid();
 
         var options = new AppNotificationOptions()
         {
-            AppId = appId,
+            AppId = appIdToBeMarkedAsRead,
             TypeId = Guid.NewGuid(),
             TagId = Guid.NewGuid()
         };
 
-        var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
-        var notificationId = response1.Content.NotificationId;
+        var addNotificationResponse = await ownerApiClient.AppNotifications.AddNotification(options);
+        Assert.IsTrue(addNotificationResponse.IsSuccessStatusCode);
+        var notificationToBeMarkedAsRead = addNotificationResponse.Content.NotificationId;
 
         var notifyDiffAppResponse = await ownerApiClient.AppNotifications.AddNotification(new AppNotificationOptions()
         {
@@ -244,18 +244,23 @@ public class NotificationListTests
         // Act
         await callerContext.Initialize(ownerApiClient);
         var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
-        var response = await client.MarkReadByAppId(appId);
+        var response = await client.MarkReadByAppId(appIdToBeMarkedAsRead);
 
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
+            var unreadCountsResponse2 = await ownerApiClient.AppNotifications.GetUnreadCounts();
+            Assert.IsTrue(unreadCountsResponse2.IsSuccessStatusCode);
+            Assert.IsTrue(unreadCountsResponse2.Content.UnreadCounts.TryGetValue(appIdToBeMarkedAsRead, out var counts));
+            Assert.IsTrue(counts == 0);
+
             var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
             var results = getListResponse.Content.Results;
             Assert.IsNotNull(results);
 
-            var notification1 = results.SingleOrDefault(n => n.Id == notificationId);
+            var notification1 = results.SingleOrDefault(n => n.Id == notificationToBeMarkedAsRead);
             Assert.IsNotNull(notification1);
             Assert.IsFalse(notification1.Unread);
 

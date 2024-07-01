@@ -100,18 +100,17 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         var results = _storage.PagingByCreated(cn, int.MaxValue, null, out _);
 
         var list = results.Select(r => new AppNotification()
-            {
-                Id = r.notificationId,
-                SenderId = r.senderId,
-                Unread = r.unread == 1,
-                Created = r.created.ToUnixTimeUtc(),
-                Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
-            })
-            .Where(n => n.Unread);
+        {
+            Id = r.notificationId,
+            SenderId = r.senderId,
+            Unread = r.unread == 1,
+            Created = r.created.ToUnixTimeUtc(),
+            Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
+        });
 
         return Task.FromResult(new NotificationsCountResult()
         {
-            UnreadCounts = list.GroupBy(n => (n.Options?.AppId).GetValueOrDefault()).ToDictionary(g => g.Key, g => g.Count())
+            UnreadCounts = list.GroupBy(n => (n.Options?.AppId).GetValueOrDefault()).ToDictionary(g => g.Key, g => g.Count(n => n.Unread))
         });
     }
 
