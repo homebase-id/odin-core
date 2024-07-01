@@ -91,6 +91,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
 
+                if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
+                {
+                    logger.LogInformation("Found inbox item of type CommandMessage; these are now obsolete; Action: Marking Complete");
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+                    return;
+                }
+
                 if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                 {
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)

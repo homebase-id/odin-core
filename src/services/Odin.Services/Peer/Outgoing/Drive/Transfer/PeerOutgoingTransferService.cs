@@ -119,10 +119,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
         }
-
-
-        public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files,
-            IOdinContext odinContext,
+        
+        public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
             FileSystemType fileSystemType)
         {
@@ -160,7 +158,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         // 
-
+        
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
             IOdinContext odinContext,
             DatabaseConnection cn,
@@ -244,8 +242,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 Status = SendReadReceiptResultStatus.Enqueued
             };
         }
-
-
+        
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
