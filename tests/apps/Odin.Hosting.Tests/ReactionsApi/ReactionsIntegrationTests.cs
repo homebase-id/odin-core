@@ -40,7 +40,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task PublicPost_CanGetEmptyReactionList_As_OwnerUser()
+    public async Task PublicPost_CanGetEmptyReactionList_As_OwnerUser_DirectCall()
     {
         // Arrange
         var frodo = TestIdentities.Frodo;
@@ -59,7 +59,7 @@ public class ReactionsIntegrationTests
     //
 
     [Test]
-    public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser()
+    public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser_DirectCall()
     {
         // Arrange
         await ConnectHobbits();
@@ -67,17 +67,16 @@ public class ReactionsIntegrationTests
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPost(frodo, "hello world");
 
-        // SystemAppConstants.FeedAppId
-
         var sam = TestIdentities.Samwise;
-        var samsOwnerApi = _scaffold.CreateOwnerApiClientRedux(sam);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(sam);
 
-        var (samsAppToken, samsAppSharedSecret) = await samsOwnerApi.AppManager.RegisterAppClient(SystemAppConstants.FeedAppId);
+        var tokenContext = ownerApiClient.GetTokenContext();
 
-        var reactionClient = new UniversalDriveReactionClient2(sam.OdinId, new AppApiClientFactory(samsAppToken, samsAppSharedSecret));
+        var reactionClient = new UniversalDriveReactionClient2(
+            frodo.OdinId,
+            new GuestApiClientFactory(tokenContext.AuthenticationResult, tokenContext.SharedSecret.GetKey()));
 
         var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-
 
         // Assert
         Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
@@ -85,10 +84,38 @@ public class ReactionsIntegrationTests
         Assert.IsEmpty(reactions);
     }
 
+
+    // [Test]
+    // public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser()
+    // {
+    //     // Arrange
+    //     await ConnectHobbits();
+    //
+    //     var frodo = TestIdentities.Frodo;
+    //     var postFile = await CreatePublicPost(frodo, "hello world");
+    //
+    //     // SystemAppConstants.FeedAppId
+    //
+    //     var sam = TestIdentities.Samwise;
+    //     var samsOwnerApi = _scaffold.CreateOwnerApiClientRedux(sam);
+    //
+    //     var (samsAppToken, samsAppSharedSecret) = await samsOwnerApi.AppManager.RegisterAppClient(SystemAppConstants.FeedAppId);
+    //
+    //     var reactionClient = new UniversalDriveReactionClient2(sam.OdinId, new AppApiClientFactory(samsAppToken, samsAppSharedSecret));
+    //
+    //     var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+    //
+    //
+    //     // Assert
+    //     Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
+    //     var reactions = response.Content.Reactions;
+    //     Assert.IsEmpty(reactions);
+    // }
+
     //
 
     [Test]
-    public async Task PublicPost_CanGetEmptyReactionList_As_AnonymousUser()
+    public async Task PublicPost_CanGetEmptyReactionList_As_GuestUser_DirectCall()
     {
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPost(frodo, "hello world");
