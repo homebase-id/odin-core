@@ -6,19 +6,13 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
-using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer;
 using Odin.Core.Storage;
-using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -165,11 +159,8 @@ public class DataSubscriptionAndDistributionTests2
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        var x = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
-
         await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
             allowSubscriptions: true);
-        var x2 = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
 
         //
         // Frodo creates a circle named Mordor and puts Sam in it
@@ -200,6 +191,9 @@ public class DataSubscriptionAndDistributionTests2
         // The owner deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
 
         //
         // Sam's feed drive no longer has the header
@@ -257,7 +251,7 @@ public class DataSubscriptionAndDistributionTests2
         });
 
         Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
-        Assert.IsNotNull(payloadResponse.Content);
+        Assert.IsNotNull(payloadResponse.Content, "payload content is null");
         var bytes = await payloadResponse.Content.ReadAsByteArrayAsync();
         Assert.IsTrue(bytes.Length > 0);
         Assert.IsTrue(bytes.ToBase64() == encryptedPayloadContent64);
