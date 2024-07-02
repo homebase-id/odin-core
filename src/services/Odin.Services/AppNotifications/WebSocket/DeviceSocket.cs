@@ -31,6 +31,7 @@ public class DeviceSocket
 {
     private CancellationTokenSource _cancelTimeoutToken = null!;
     private readonly Queue<string> _messageQueue = new();
+    private DateTime _lastSentTime = DateTime.MinValue;
 
     public Guid Key { get; set; }
     public System.Net.WebSockets.WebSocket? Socket { get; set; }
@@ -50,7 +51,12 @@ public class DeviceSocket
     /// Milliseconds interval to push the batch even if it's not reached the batchsize
     /// </summary>
     public TimeSpan ForcePushInterval { get; set; }
-    
+
+    private bool LongTimeNoSee()
+    {
+        return (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
+    }
+
     public async Task EnqueueMessage(string json, CancellationToken cancellationToken)
     {
         if (null == Socket)
@@ -59,14 +65,14 @@ public class DeviceSocket
         }
 
         _messageQueue.Enqueue(json);
-        if (_messageQueue.Count >= BatchSize)
+        if (_messageQueue.Count >= BatchSize || this.LongTimeNoSee())
         {
             await ProcessBatch(cancellationToken);
             ResetTimeout();
         }
         else if (_messageQueue.Count == 1)
         {
-            StartTimeout(cancellationToken);
+            await StartTimeout(cancellationToken);
         }
     }
 
@@ -87,18 +93,25 @@ public class DeviceSocket
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                 cancellationToken: cancellationToken);
         }
+
+        _lastSentTime = DateTime.UtcNow;
     }
 
-    private void StartTimeout(CancellationToken cancellationToken)
+    private async Task StartTimeout(CancellationToken cancellationToken)
     {
         _cancelTimeoutToken = new CancellationTokenSource();
-        _ = Task.Delay(ForcePushInterval, cancellationToken).ContinueWith(async t =>
+        try
         {
-            if (!t.IsCanceled && _messageQueue.Count > 0)
+            await Task.Delay(ForcePushInterval, _cancelTimeoutToken.Token);
+            if (_messageQueue.Count > 0 && LongTimeNoSee())
             {
                 await ProcessBatch(cancellationToken);
             }
-        }, cancellationToken).Unwrap();
+        }
+        catch (TaskCanceledException)
+        {
+            //gulp
+        }
     }
 
     private void ResetTimeout()
