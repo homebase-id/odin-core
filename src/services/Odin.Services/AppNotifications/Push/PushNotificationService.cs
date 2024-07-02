@@ -29,6 +29,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
@@ -46,14 +47,13 @@ public class PushNotificationService(
     ICertificateCache certificateCache,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
-    PeerOutboxProcessorAsync outboxProcessorAsync)
-    : INotificationHandler<ConnectionRequestAccepted>,
-        INotificationHandler<ConnectionRequestReceived>
+    IMediator mediator) :
+    INotificationHandler<ConnectionRequestAccepted>,
+    INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
-
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
@@ -299,7 +299,7 @@ public class PushNotificationService(
         }
     }
 
-    //
+//
 
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
@@ -362,8 +362,11 @@ public class PushNotificationService(
 
         await peerOutbox.AddItem(item, cn);
 
-        await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
-
+        await mediator.Publish(new PushNotificationEnqueuedNotification()
+        {
+            OdinContext = odinContext,
+            DatabaseConnection = cn,
+        });
         return true;
     }
 }

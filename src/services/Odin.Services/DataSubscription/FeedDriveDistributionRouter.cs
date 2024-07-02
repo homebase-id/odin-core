@@ -151,7 +151,7 @@ namespace Odin.Services.DataSubscription
                 var recipients = await GetFollowers(notification.File.DriveId, newContext, cn);
                 foreach (var recipient in recipients)
                 {
-                    AddToFeedOutbox(recipient, item, cn);
+                    await AddToFeedOutbox(recipient, item, cn);
                 }
             }
         }
@@ -230,7 +230,7 @@ namespace Odin.Services.DataSubscription
                             cn);
                     }
 
-                    AddToFeedOutbox(recipient, new FeedDistributionItem()
+                    await AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {
                             DriveNotificationType = notification.DriveNotificationType,
                             SourceFile = notification.ServerFileHeader.FileMetadata!.File,
@@ -364,7 +364,7 @@ namespace Odin.Services.DataSubscription
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 
-        private void AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DatabaseConnection cn)
+        private async Task AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DatabaseConnection cn)
         {
             var item = new OutboxFileItem()
             {
@@ -378,7 +378,7 @@ namespace Odin.Services.DataSubscription
                 }
             };
 
-            _peerOutbox.AddItem(item, cn, useUpsert: true);
+            await _peerOutbox.AddItem(item, cn, useUpsert: true);
         }
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,
