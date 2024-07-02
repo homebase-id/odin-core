@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +31,9 @@ public class EstablishConnectionOptions
 public class DeviceSocket
 {
     private CancellationTokenSource _cancelTimeoutToken = null!;
-    private readonly Queue<string> _messageQueue = new();
+
+    // private readonly Queue<Tuple<Guid, string>> _messageQueue = new();
+    private readonly OrderedDictionary _messageQueue = new();
     private DateTime _lastSentTime = DateTime.MinValue;
 
     public Guid Key { get; set; }
@@ -57,22 +60,24 @@ public class DeviceSocket
         return (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
     }
 
-    public async Task EnqueueMessage(string json, CancellationToken cancellationToken)
+
+    public async Task EnqueueMessage(string json, Guid? groupId = null, CancellationToken? cancellationToken = null)
     {
         if (null == Socket)
         {
             throw new OdinSystemException("Socket is null during EnqueueMessage");
         }
 
-        _messageQueue.Enqueue(json);
+        _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
+
         if (_messageQueue.Count >= BatchSize || this.LongTimeNoSee())
         {
-            await ProcessBatch(cancellationToken);
+            await ProcessBatch(cancellationToken.GetValueOrDefault(CancellationToken.None));
             ResetTimeout();
         }
         else if (_messageQueue.Count == 1)
         {
-            await StartTimeout(cancellationToken);
+            await StartTimeout(cancellationToken.GetValueOrDefault(CancellationToken.None));
         }
     }
 
@@ -82,10 +87,10 @@ public class DeviceSocket
         {
             return;
         }
-
-        while (_messageQueue.Count > 0)
+        
+        foreach (var value in _messageQueue.Values)
         {
-            var message = _messageQueue.Dequeue();
+            var message = (string)value;
             var jsonBytes = message.ToUtf8ByteArray();
             await Socket.SendAsync(
                 buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),

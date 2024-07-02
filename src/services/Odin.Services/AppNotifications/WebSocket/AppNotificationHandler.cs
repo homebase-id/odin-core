@@ -34,7 +34,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly DriveManager _driveManager;
         private readonly ILogger<AppNotificationHandler> _logger;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        
+
         public AppNotificationHandler(
             PeerInboxProcessor peerInboxProcessor,
             DriveManager driveManager,
@@ -221,7 +221,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         Data = translated.GetClientData()
                     });
 
-                    await SendMessageAsync(deviceSocket, json, cancellationToken);
+                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
                 }
             }
         }
@@ -281,7 +281,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken, bool encrypt = true)
+        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
+            bool encrypt = true, Guid? groupId = null)
         {
             var socket = deviceSocket.Socket;
 
@@ -316,9 +317,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                     IsEncrypted = encrypt,
                     Payload = message
                 };
-                
+
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.EnqueueMessage(json, cancellationToken);
+                await deviceSocket.EnqueueMessage(json, groupId, cancellationToken);
             }
             catch (OperationCanceledException)
             {
