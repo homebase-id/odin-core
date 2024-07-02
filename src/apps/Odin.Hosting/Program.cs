@@ -363,7 +363,7 @@ namespace Odin.Hosting
             // Sanity #2
             if (null == certificate)
             {
-                  Log.Error($"No certificate configured for {hostName}");
+                Log.Error($"No certificate configured for {hostName}");
             }
 
             return (certificate, requireClientCertificate);
