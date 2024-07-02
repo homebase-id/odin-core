@@ -29,6 +29,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
@@ -46,7 +47,7 @@ public class PushNotificationService(
     ICertificateCache certificateCache,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
-    PeerOutboxProcessorAsync outboxProcessorAsync)
+    IMediator mediator)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
 {
@@ -361,9 +362,13 @@ public class PushNotificationService(
         };
 
         await peerOutbox.AddItem(item, cn);
-
-        await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
-
+        
+        await mediator.Publish(new PushNotificationEnqueuedNotification()
+        {
+            OdinContext = odinContext,
+            DatabaseConnection = cn,
+        });
+        
         return true;
     }
 }
