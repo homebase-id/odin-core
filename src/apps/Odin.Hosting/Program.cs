@@ -96,7 +96,9 @@ namespace Odin.Hosting
 
             Log.Information($"Loading configuration at [{configPath}]");
 
-            var configBuilder = new ConfigurationBuilder().AddJsonFile(configPath, optional: false);
+            var configBuilder = new ConfigurationBuilder()
+                .AddJsonFile(configPath, optional: false)
+                .AddJsonFile(Path.Combine(configFolder, "appsettings.local.json"), optional: true); // not in source control
             if (includeEnvVars)
             {
                 configBuilder.AddEnvironmentVariables();

@@ -182,8 +182,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Sender = odinContext.GetCallerOdinIdOrFail(),
                 InstructionType = TransferInstructionType.ReadReceipt,
                 DriveId = driveId,
-                TransferFileType = TransferFileType.Normal,
-                
+                TransferFileType = TransferFileType.ReadReceipt,
                 FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint since we can have multiple senders sending a read receipt for the same gtid
                 GlobalTransitId = globalTransitId,
                 FileSystemType = fileSystemType,
