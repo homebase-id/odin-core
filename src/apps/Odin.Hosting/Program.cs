@@ -96,7 +96,9 @@ namespace Odin.Hosting
 
             Log.Information($"Loading configuration at [{configPath}]");
 
-            var configBuilder = new ConfigurationBuilder().AddJsonFile(configPath, optional: false);
+            var configBuilder = new ConfigurationBuilder()
+                .AddJsonFile(configPath, optional: false)
+                .AddJsonFile(Path.Combine(configFolder, "appsettings.local.json"), optional: true); // not in source control
             if (includeEnvVars)
             {
                 configBuilder.AddEnvironmentVariables();
@@ -361,7 +363,7 @@ namespace Odin.Hosting
             // Sanity #2
             if (null == certificate)
             {
-                Log.Error($"No certificate configured for {hostName}");
+                  Log.Error($"No certificate configured for {hostName}");
             }
 
             return (certificate, requireClientCertificate);
