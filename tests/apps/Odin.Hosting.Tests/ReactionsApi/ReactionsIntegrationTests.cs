@@ -11,6 +11,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -240,6 +241,32 @@ public class ReactionsIntegrationTests
     }
 
 
+    [Test]
+    public async Task PublicPost_CanGetReactionsByIdentity_As_AuthenticatedUser()
+    {
+        // Arrange
+        var frodo = TestIdentities.Frodo;
+        var sam = TestIdentities.Samwise;
+        var frodoOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(frodo);
+        var samOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(sam);
+
+        // frodo and sam connect
+        // await frodoOwnerApiClient.Connections.SendConnectionRequest(sam.OdinId, []);
+        // await samOwnerApiClient.Connections.AcceptConnectionRequest(frodo.OdinId, []);
+
+        // sam follows frodo
+        await samOwnerApiClient.Follower.FollowIdentity(frodo.OdinId, FollowerNotificationType.AllNotifications);
+
+        var postFile = await CreatePublicPost(frodo, "hello world");
+
+        // wait for post to be distributed to sam
+        await frodoOwnerApiClient.DriveRedux.WaitForEmptyOutbox(postFile.File.TargetDrive);
+
+        //Prepare an app on sam's identity
+        var samApp = await PrepareAnotherApp(samOwnerApiClient);
+
+        // ...
+    }
     //
 
     [Test]
@@ -312,6 +339,24 @@ public class ReactionsIntegrationTests
                 }
             },
             PermissionSet = new PermissionSet()
+        };
+
+        var circles = new List<Guid>();
+        var circlePermissions = new PermissionSetGrantRequest();
+        await ownerClient.AppManager.RegisterApp(appId, permissions, circles, circlePermissions);
+
+        var (appToken, appSharedSecret) = await ownerClient.AppManager.RegisterAppClient(appId);
+        return new AppApiClientFactory(appToken, appSharedSecret);
+    }
+
+    private async Task<AppApiClientFactory> PrepareAnotherApp(OwnerApiClientRedux ownerClient)
+    {
+        // Prepare the app
+        Guid appId = Guid.NewGuid();
+        var permissions = new PermissionSetGrantRequest()
+        {
+            Drives = [],
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitRead)
         };
 
         var circles = new List<Guid>();
