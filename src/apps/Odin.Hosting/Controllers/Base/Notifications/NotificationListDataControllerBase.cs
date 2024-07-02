@@ -56,7 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpPost("list/mark-read-by-appid")]
-        public async Task<IActionResult> UpdateNotification(Guid appId)
+        public async Task<IActionResult> UpdateNotification([FromBody] Guid appId)
         {
             using var cn = tenantSystemStorage.CreateConnection();
             await notificationService.MarkReadByApp(appId, WebOdinContext, cn);
