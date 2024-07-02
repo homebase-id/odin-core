@@ -14,10 +14,8 @@ public class PushNotificationOutboxAdapter(
 {
     public async Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
-        if (notificationEnqueuedNotification.Type == OutboxItemType.PushNotification)
-        {
-            logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-            await outboxProcessorAsync.StartOutboxProcessingAsync(notificationEnqueuedNotification.OdinContext, notificationEnqueuedNotification.DatabaseConnection);
-        }
+        logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
+        await outboxProcessorAsync.StartOutboxProcessingAsync(notificationEnqueuedNotification.OdinContext,
+            notificationEnqueuedNotification.DatabaseConnection);
     }
 }

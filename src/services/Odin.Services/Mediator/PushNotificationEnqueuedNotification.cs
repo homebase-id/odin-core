@@ -6,5 +6,4 @@ namespace Odin.Services.Mediator;
 public class PushNotificationEnqueuedNotification : MediatorNotificationBase
 {
     public DatabaseConnection DatabaseConnection { get; init; }
-    public OutboxItemType Type { get; set; }
 }
