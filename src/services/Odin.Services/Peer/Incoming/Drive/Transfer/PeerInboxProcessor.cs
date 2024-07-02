@@ -93,7 +93,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                 {
-                    if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
+                    if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
+                    {
+                        logger.LogInformation(
+                            "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} instrutiontype:{it}); Action: Marking Complete",
+                            inboxItem.GlobalTransitId, inboxItem.InstructionType);
+
+                        await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+                    }
+                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
                     {
                         await ProcessFeedInboxItem(odinContext, inboxItem, writer, tempFile, fs, cn);
                     }

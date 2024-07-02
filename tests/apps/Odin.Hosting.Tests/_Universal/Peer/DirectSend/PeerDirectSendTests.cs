@@ -577,6 +577,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
                 [recipient.OdinId]);
 
+            await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
             //
             // See the comment is deleted
             //

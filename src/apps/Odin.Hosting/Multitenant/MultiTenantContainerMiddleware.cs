@@ -59,7 +59,7 @@ namespace Odin.Hosting.Multitenant
                 scope = _container.Container().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
                 context.RequestServices = new AutofacServiceProvider(scope);
                 await _next(context);
-             }
+            }
             finally
             {
                 scope?.Dispose();

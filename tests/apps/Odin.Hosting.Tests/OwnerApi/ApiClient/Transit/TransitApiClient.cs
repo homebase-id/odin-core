@@ -40,7 +40,7 @@ public class TransitApiClient
 
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
-        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);

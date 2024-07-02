@@ -23,7 +23,8 @@ namespace Odin.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(
         OdinConfiguration config,
-        IPeerOutbox outbox,
+        PeerOutbox outbox,
+
         PeerOutboxProcessorAsync outboxProcessorAsync,
         TenantSystemStorage tenantSystemStorage,
         TransitInboxBoxStorage inbox) : OdinControllerBase

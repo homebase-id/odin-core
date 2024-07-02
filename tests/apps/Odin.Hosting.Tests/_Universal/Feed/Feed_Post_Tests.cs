@@ -128,8 +128,7 @@ public class Feed_Post_Tests
             friendsFile);
 
         Assert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
-
-        await ownerSam.Cron.DistributeFeedFiles();
+        
         await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
         await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -247,7 +246,6 @@ public class Feed_Post_Tests
             friendsFile);
         Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
-        await ownerSam.Cron.DistributeFeedFiles();
         await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
         //validate sam can see his file
