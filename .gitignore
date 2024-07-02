@@ -40,3 +40,7 @@ dist/
 # examples stuffs dependencies
 node_modules/
 
+# local settings file
+appsettings.local.json
+
+

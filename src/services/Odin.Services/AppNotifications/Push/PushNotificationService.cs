@@ -45,7 +45,8 @@ public class PushNotificationService(
     IHttpClientFactory httpClientFactory,
     ICertificateCache certificateCache,
     OdinConfiguration configuration,
-    PeerOutbox peerOutbox)
+    PeerOutbox peerOutbox,
+    PeerOutboxProcessorAsync outboxProcessorAsync)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
 {
@@ -360,6 +361,8 @@ public class PushNotificationService(
         };
 
         await peerOutbox.AddItem(item, cn);
+
+        await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
         return true;
     }

@@ -96,8 +96,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
                     {
                         logger.LogInformation(
-                            "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid}); Action: Marking Complete",
-                            inboxItem.GlobalTransitId);
+                            "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} instrutiontype:{it}); Action: Marking Complete",
+                            inboxItem.GlobalTransitId, inboxItem.InstructionType);
 
                         await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                     }
