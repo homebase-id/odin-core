@@ -26,7 +26,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveStorageControllerBase(
         // ILogger logger,
-        FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
         // private readonly ILogger _logger = logger;
@@ -290,7 +289,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
+            await GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
             return Ok();
         }
 

@@ -33,8 +33,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
         ConcurrentFileManager concurrentFileManager,
-        DriveFileReaderWriter driveFileReaderWriter)
-        : RequirePermissionsBase
+        DriveFileReaderWriter driveFileReaderWriter) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
