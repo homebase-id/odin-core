@@ -19,19 +19,13 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
-using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Hosting.Controllers.OwnerToken.Transit;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
-using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -47,15 +41,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
+
             var env = new Dictionary<string, string>
             {
                 { "Job__BackgroundJobStartDelaySeconds", "0" },
                 { "Job__CronProcessingInterval", "1" },
-                {"Job__EnableJobBackgroundService", "true"},
-                {"Job__Enabled", "true"},
+                { "Job__EnableJobBackgroundService", "true" },
+                { "Job__Enabled", "true" },
             };
-        
+
             _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
@@ -94,7 +88,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: new List<int>(),
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -103,7 +97,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -131,14 +125,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = [recipient.OdinId]
                 },
                 Manifest = new UploadManifest()
                 {
-                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
-                    {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
-                    }
+                    PayloadDescriptors = [WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)]
                 }
             };
 
@@ -193,7 +184,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
@@ -305,7 +296,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
             instructionSet.TransitOptions = null;
 
-            await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true);
+            await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData);
 
 
             //
@@ -352,7 +343,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: new List<int>(),
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -361,7 +352,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: new List<int>(),
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -371,8 +362,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
-                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
-                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                    CircleIdsGrantedToRecipient = [senderCircleDef.Id],
+                    CircleIdsGrantedToSender = [recipientCircleDef.Id]
                 });
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -473,8 +464,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
-            
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
+
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
             {
@@ -733,7 +724,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -742,7 +733,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -752,8 +743,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
-                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
-                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                    CircleIdsGrantedToRecipient = [senderCircleDef.Id],
+                    CircleIdsGrantedToSender = [recipientCircleDef.Id]
                 });
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -770,15 +761,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = [recipient.OdinId]
                 },
                 Manifest = new UploadManifest()
                 {
-                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
-                    {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
-                    }
+                    PayloadDescriptors = [WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)]
                 }
             };
 
@@ -794,7 +781,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AllowDistribution = true,
                     AppData = new()
                     {
-                        Tags = new List<Guid>() { fileTag },
+                        Tags = [fileTag],
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = true,
@@ -820,17 +807,25 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
-                var transferResult = response.Content;
+                var uploadResult = response.Content;
 
-                Assert.That(transferResult.File, Is.Not.Null);
-                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                Assert.That(uploadResult.File, Is.Not.Null);
+                Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                foreach (var r in instructionSet.TransitOptions.Recipients)
-                {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
-                }
+                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+                Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+
+                var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
+                await newApi.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+                // query the file
+                var getFileResponse = await newApi.DriveRedux.GetFileHeader(uploadResult.File);
+                Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
+                var theCommentFile = getFileResponse.Content;
+                Assert.IsNotNull(theCommentFile);
+                Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+                Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
             }
         }
 
@@ -850,7 +845,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -859,7 +854,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -967,7 +962,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
@@ -1107,7 +1102,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1116,7 +1111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1212,7 +1207,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             // upload and send the file 
             //
-            Guid senderUploadVersionTag;
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
@@ -1230,7 +1224,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
-                senderUploadVersionTag = transferResult.NewVersionTag;
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
@@ -1239,7 +1232,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
@@ -1479,7 +1472,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1488,7 +1481,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1533,8 +1526,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = [recipient.OdinId]
                 },
                 Manifest = new UploadManifest()
                 {
@@ -1575,27 +1567,34 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             // upload and send the file 
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
-                Assert.That(response.IsSuccessStatusCode, Is.True);
-                Assert.That(response.Content, Is.Not.Null);
-                var transferResult = response.Content;
+            var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+            var response = await transitSvc.Upload(
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
-                Assert.That(transferResult.File, Is.Not.Null);
-                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+            Assert.That(response.IsSuccessStatusCode, Is.True);
+            Assert.That(response.Content, Is.Not.Null);
+            var uploadResult = response.Content;
 
-                foreach (var r in instructionSet.TransitOptions.Recipients)
-                {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
-                }
-            }
+            Assert.That(uploadResult.File, Is.Not.Null);
+            Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+            Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+
+            Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+
+            await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
+
+            // query the file
+            var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
+            var getFileResponse = await newApi.DriveRedux.GetFileHeader(uploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
+            var theCommentFile = getFileResponse.Content;
+            Assert.IsNotNull(theCommentFile);
+            Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+            Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
@@ -1604,13 +1603,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
         [Test]
         public async Task FailToTransferCommentFileWith_InvalidGlobalTransitId()
         {
-            _scaffold.SetAssertLogEventsAction(logEvents =>
-            {
-                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                Assert.That(errorLogs[0].Exception!.Message, Is.EqualTo("Remote identity host failed: Referenced file missing or caller does not have access"));
-            });
-
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
@@ -1624,7 +1616,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1633,7 +1625,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -1643,8 +1635,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
-                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
-                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                    CircleIdsGrantedToRecipient = [senderCircleDef.Id],
+                    CircleIdsGrantedToSender = [recipientCircleDef.Id]
                 });
 
             //upload a post on sam's side on which frodo can comment
@@ -1684,15 +1676,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = [recipient.OdinId]
                 },
                 Manifest = new UploadManifest()
                 {
-                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
-                    {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)
-                    }
+                    PayloadDescriptors = [WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)]
                 }
             };
 
@@ -1720,7 +1708,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AllowDistribution = true,
                     AppData = new()
                     {
-                        Tags = new List<Guid>() { fileTag },
+                        Tags = [fileTag],
                         Content = encryptedJsonContent64
                     },
                     IsEncrypted = true,
@@ -1737,30 +1725,35 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             // upload and send the comment file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(originalPayloadCipherBytes, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+            var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+            var response = await transitSvc.Upload(
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(originalPayloadCipherBytes, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                    Enum.GetName(MultipartUploadParts.Thumbnail)));
 
-                Assert.That(response.IsSuccessStatusCode, Is.True);
-                Assert.That(response.Content, Is.Not.Null);
-                var transferResult = response.Content;
+            Assert.That(response.IsSuccessStatusCode, Is.True);
+            Assert.That(response.Content, Is.Not.Null);
+            var uploadResult = response.Content;
 
-                Assert.That(transferResult.File, Is.Not.Null);
-                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+            Assert.That(uploadResult.File, Is.Not.Null);
+            Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+            Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+            
+            Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
 
-                foreach (var r in instructionSet.TransitOptions.Recipients)
-                {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TotalRejectionClientShouldRetry,
-                        $"message should have been delivered to {r}");
-                }
-            }
+            var senderApiRedux = _scaffold.CreateOwnerApiClientRedux(sender);
+            await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+
+            // query the file
+            var getFileResponse = await senderApiRedux.DriveRedux.GetFileHeader(uploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
+            var theCommentFile = getFileResponse.Content;
+            Assert.IsNotNull(theCommentFile);
+            Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+            Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedBadRequest);
 
             keyHeader.AesKey.Wipe();
             key.Wipe();
@@ -1804,7 +1797,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var senderCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDriveReadOnly,
@@ -1814,7 +1807,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //grant sender access to the drives
             var recipientCircleDef =
                 await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: [],
                     drives: new List<PermissionedDrive>()
                     {
                         new()

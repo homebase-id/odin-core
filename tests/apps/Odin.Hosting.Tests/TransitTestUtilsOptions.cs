@@ -4,8 +4,6 @@
     {
         public static TransitTestUtilsOptions Default = new TransitTestUtilsOptions()
         {
-            ProcessOutbox = false,
-            ProcessTransitBox = false,
             DisconnectIdentitiesAfterTransfer = true
         };
 
@@ -21,7 +19,7 @@
         /// <summary>
         /// Indicates if the process incoming transfers should be called after sending a transfer
         /// </summary>
-        public bool ProcessTransitBox { get; set; }
+        public bool ProcessInboxBox { get; set; }
         
         /// <summary>
         /// The data to be uploaded as the payload

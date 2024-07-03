@@ -98,8 +98,7 @@ public class App_DataSubscriptionAndDistributionTests2
         var (firstUploadResult, encryptedJsonContent64, encryptedPayloadContent64) =
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
-        // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -180,7 +179,7 @@ public class App_DataSubscriptionAndDistributionTests2
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
         // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -194,6 +193,9 @@ public class App_DataSubscriptionAndDistributionTests2
         // The owner deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive); // just in case
 
         //
         // Sam's feed drive no longer has the header
@@ -211,7 +213,7 @@ public class App_DataSubscriptionAndDistributionTests2
         await pippinOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
         await _scaffold.Scenarios.DisconnectHobbits();
     }
-    
+
 
     private async Task AssertPayloadIs404(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
@@ -290,7 +292,9 @@ public class App_DataSubscriptionAndDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
+        Assert.IsTrue(batch.SearchResults.Count() == 1, "too many files returned");
+        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted), "deleted file not found");
+        Assert.IsNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Active), "Active file was found; should have been deleted");
     }
 
     private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(

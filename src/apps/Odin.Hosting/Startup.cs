@@ -456,16 +456,13 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                if (config.Job.Enabled)
+                // if (config.Job.Enabled)
                 {
                     var jobManager = services.GetRequiredService<IJobManager>();
                     jobManager.Initialize(async () =>
                     {
                         await services.UnscheduleCronJobs();
-                        if (config.Job.EnableJobBackgroundService)
-                        {
-                            await services.ScheduleCronJobs();
-                        }
+                        await services.ScheduleCronJobs();
                     }).Wait();
                 }
             });

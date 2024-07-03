@@ -49,7 +49,6 @@ public class AppTransitSenderApiClient : AppApiClientBase
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,
             Manifest = new UploadManifest()
         };

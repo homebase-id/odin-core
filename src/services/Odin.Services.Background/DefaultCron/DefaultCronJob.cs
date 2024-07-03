@@ -12,7 +12,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
-using Odin.Services.Background.FeedDistributionApp;
 using Odin.Services.JobManagement;
 using Quartz;
 
@@ -52,7 +51,6 @@ public class DefaultCronSchedule(
 public class DefaultCronJob(
     ICorrelationContext correlationContext,
     ILogger<DefaultCronJob> logger,
-    ILoggerFactory loggerFactory,
     ServerSystemStorage serverSystemStorage,
     OdinConfiguration config,
     ISystemHttpClient systemHttpClient) : AbstractJob(correlationContext)
@@ -83,17 +81,6 @@ public class DefaultCronJob(
     private async Task<(CronRecord record, bool success)> ProcessRecord(CronRecord record)
     {
         var success = false;
-        if (record.type == (Int32)CronJobType.PendingTransitTransfer)
-        {
-            var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-            success = await ProcessPeerTransferOutbox(identity);
-        }
-
-        if (record.type == (Int32)CronJobType.FeedDistribution)
-        {
-            var job = new FeedDistributionJob(loggerFactory.CreateLogger<FeedDistributionJob>(), config, systemHttpClient);
-            success = await job.Execute(record);
-        }
 
         if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
         {
@@ -124,20 +111,4 @@ public class DefaultCronJob(
         return false;
     }
 
-    private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)
-    {
-        var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        try
-        {
-            var response = await svc.ProcessOutbox();
-            return response.IsSuccessStatusCode;
-        }
-        catch (HttpRequestException e)
-        {
-            logger.LogDebug("Process peer transfer: {identity}. Error: {error}", identity, e.Message);
-        }
-
-        return false;
-    }
-    
 }
