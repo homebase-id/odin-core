@@ -4,7 +4,6 @@ using NUnit.Framework;
 using Odin.Services.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
@@ -31,7 +30,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly DriveApiClient _driveApiClient;
         private readonly DriveApiClientRedux _driveApiClientRedux;
         private readonly OwnerFollowerApiClient _ownerFollowerApiClient;
-        private readonly CronApiClient _cronApiClient;
         private readonly SecurityApiClient _securityApiClient;
         private readonly PublicPrivateKeyApiClient _publicPrivateKey;
         private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
@@ -48,7 +46,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _driveApiClient = new DriveApiClient(ownerApi, identity);
             _driveApiClientRedux = new DriveApiClientRedux(ownerApi, identity);
             _ownerFollowerApiClient = new OwnerFollowerApiClient(ownerApi, identity);
-            _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
             _publicPrivateKey = new PublicPrivateKeyApiClient(ownerApi, identity);
             _circleMembershipApiClient = new CircleMembershipApiClient(ownerApi, identity);
@@ -71,8 +68,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public AppsApiClient Apps => _appsApiClient;
 
         public SecurityApiClient Security => _securityApiClient;
-
-        public CronApiClient Cron => _cronApiClient;
 
         public OwnerFollowerApiClient OwnerFollower => _ownerFollowerApiClient;
 

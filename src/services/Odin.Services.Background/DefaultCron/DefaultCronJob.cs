@@ -12,7 +12,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
-using Odin.Services.Background.FeedDistributionApp;
 using Odin.Services.JobManagement;
 using Quartz;
 
@@ -52,7 +51,6 @@ public class DefaultCronSchedule(
 public class DefaultCronJob(
     ICorrelationContext correlationContext,
     ILogger<DefaultCronJob> logger,
-    ILoggerFactory loggerFactory,
     ServerSystemStorage serverSystemStorage,
     OdinConfiguration config,
     ISystemHttpClient systemHttpClient) : AbstractJob(correlationContext)
@@ -83,12 +81,6 @@ public class DefaultCronJob(
     private async Task<(CronRecord record, bool success)> ProcessRecord(CronRecord record)
     {
         var success = false;
-
-        if (record.type == (Int32)CronJobType.FeedDistribution)
-        {
-            var job = new FeedDistributionJob(loggerFactory.CreateLogger<FeedDistributionJob>(), config, systemHttpClient);
-            success = await job.Execute(record);
-        }
 
         if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
         {

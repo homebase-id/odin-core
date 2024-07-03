@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -16,32 +16,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(TenantSystemStorage tenantSystemStorage) : IPeerOutbox
+    public class PeerOutbox(TenantSystemStorage tenantSystemStorage)
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task Add(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
+        public Task AddItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
         {
-            var state = OdinSystemSerializer.Serialize(new OutboxItemState()
-            {
-                Recipient = fileItem.Recipient,
-                IsTransientFile = fileItem.IsTransientFile,
-                Attempts = { },
-                TransferInstructionSet = fileItem.TransferInstructionSet,
-                OriginalTransitOptions = fileItem.OriginalTransitOptions,
-                EncryptedClientAuthToken = fileItem.EncryptedClientAuthToken
-            }).ToUtf8ByteArray();
-
             var record = new OutboxRecord()
             {
                 driveId = fileItem.File.DriveId,
                 recipient = fileItem.Recipient,
                 fileId = fileItem.File.FileId,
                 dependencyFileId = fileItem.DependencyFileId,
-                type = (int)OutboxItemType.File,
+                type = (int)fileItem.Type,
                 priority = fileItem.Priority,
-                value = state
+                value = OdinSystemSerializer.Serialize(fileItem.State).ToUtf8ByteArray()
             };
 
             if (useUpsert)
@@ -86,25 +76,25 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 return await Task.FromResult<OutboxFileItem>(null);
             }
 
-            var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+            OutboxItemState state;
+            state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+
             var item = new OutboxFileItem()
             {
-                Recipient = (OdinId)record.recipient,
-                Priority = record.priority,
-                IsTransientFile = state.IsTransientFile,
-                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
-                Type = (OutboxItemType)record.type,
-                TransferInstructionSet = state.TransferInstructionSet,
                 File = new InternalDriveFileId()
                 {
                     DriveId = record.driveId,
                     FileId = record.fileId
                 },
+
+                Recipient = (OdinId)record.recipient,
+                Priority = record.priority,
+                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
+                Type = (OutboxItemType)record.type,
+
                 AttemptCount = record.checkOutCount,
-                OriginalTransitOptions = state.OriginalTransitOptions,
-                EncryptedClientAuthToken = state.EncryptedClientAuthToken,
                 Marker = record.checkOutStamp.GetValueOrDefault(),
-                RawValue = record.value
+                State = state
             };
 
             return await Task.FromResult(item);

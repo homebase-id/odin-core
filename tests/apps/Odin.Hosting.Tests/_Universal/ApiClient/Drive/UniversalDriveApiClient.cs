@@ -611,7 +611,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
-        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
         
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
