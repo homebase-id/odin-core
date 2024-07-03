@@ -54,7 +54,7 @@ public class GroupChannelFeedDistribution
 
 
     [Test]
-    [Ignore("need to fix guest access bug")]
+    // [Ignore("need to fix guest access bug")]
     public async Task FeedDistributionSucceedsWhenGuestPostsToGroupChannel()
     {
         // Group channel is hosted by frodo
@@ -175,7 +175,7 @@ public class GroupChannelFeedDistribution
         };
 
         var keys = new TestPermissionKeyList([PermissionKeys.SendOnBehalfOfOwner]);
-        var guestAccess = new GuestAccess(author.OdinId, driveGrants, [], keys);
+        var guestAccess = new GuestAccess(author.OdinId, driveGrants, circles: [], keys);
         await guestAccess.Initialize(_scaffold.CreateOwnerApiClientRedux(groupIdentity));
         var guestDriveClient = new UniversalDriveApiClient(groupIdentity.OdinId, guestAccess.GetFactory());
 

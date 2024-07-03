@@ -388,6 +388,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
+        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
+            var header = await GetServerFileHeaderInternal(file, odinContext, cn);
+
+            if (header == null)
+            {
+                return null;
+            }
+
+            AssertValidFileSystemType(header.ServerMetadata);
+            return header;
+        }
+
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
         /// permission; allowing you to determine the file system type when you don't have it.
@@ -450,7 +464,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
 
-            var existingHeader = await this.GetServerFileHeader(file, odinContext, cn);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, cn);
 
             await WriteDeletedFileHeader(existingHeader, odinContext, cn);
         }
@@ -1004,7 +1018,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             catch (TryRetryException t)
             {
                 _logger.LogError(t, "Failed to Lock and Update Transfer History after {attempts} " +
-                                 "attempts with exponentialBackoff {delay}ms",
+                                    "attempts with exponentialBackoff {delay}ms",
                     attempts,
                     delayMs);
                 throw;

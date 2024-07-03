@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -332,9 +331,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = await fileSystemResolver.ResolveFileSystem(file, WebOdinContext, cn);
+            //TODO: consider - this requires the caller for delete to have read access to get the file
+            // when in-fact the caller only needs write access to delete a file.
 
-            var header = await fs.Storage.GetServerFileHeader(file, WebOdinContext, cn);
+            // var patchedContext = OdinContextUpgrades.UpgradeForFileDelete(WebOdinContext, file.DriveId);
+            // var fs = await fileSystemResolver.ResolveFileSystem(file, WebOdinContext, cn);
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var header = await fs.Storage.GetServerFileHeaderForWriting(file, WebOdinContext, cn);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
