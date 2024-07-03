@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
         Task<ApiResponse<HttpContent>> Update([Body] UpdateNotificationListRequest request);
 
         [Post(RootPath + "/mark-read-by-appid")]
-        Task<ApiResponse<HttpContent>> MarkReadByAppId(Guid appId);
+        Task<ApiResponse<HttpContent>> MarkReadByAppId([Body] Guid appId);
 
         [Delete(RootPath)]
         Task<ApiResponse<HttpContent>> DeleteNotification([Body] DeleteNotificationsRequest request);

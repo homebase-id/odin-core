@@ -121,7 +121,7 @@ public class DeviceSocket
 
     private void ResetTimeout()
     {
-        _cancelTimeoutToken.Cancel();
+        _cancelTimeoutToken?.Cancel();
     }
 
     private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
