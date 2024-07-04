@@ -712,11 +712,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public async Task OverwriteMetadata(InternalDriveFileId targetFile, FileMetadata newMetadata, ServerMetadata newServerMetadata,
+        public async Task OverwriteMetadata(byte[] newKeyHeaderIv, InternalDriveFileId targetFile, FileMetadata newMetadata, ServerMetadata newServerMetadata,
             IOdinContext odinContext, DatabaseConnection cn)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext, cn);
 
+            if (!ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
+            {
+                throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
+            }
+            
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext, cn);
             if (null == existingServerHeader)
             {
@@ -739,6 +744,17 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
+            // Critical Note: if this new key header's AES key does not match the
+            // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
+            var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var newKeyHeader = new KeyHeader()
+            {
+                Iv = newKeyHeaderIv,
+                AesKey = existingDecryptedKeyHeader.AesKey
+            };
+            existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
+            
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
 

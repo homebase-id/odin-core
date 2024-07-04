@@ -95,6 +95,59 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         }
     }
 
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UpdateExistingEncryptedMetadata(ExternalFileIdentifier file,
+        KeyHeader keyHeader,
+        UploadFileMetadata fileMetadata,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+        UploadInstructionSet instructionSet = new UploadInstructionSet()
+        {
+            TransferIv = transferIv,
+            StorageOptions = new()
+            {
+                Drive = file.TargetDrive,
+                OverwriteFileId = file.FileId,
+                StorageIntent = StorageIntent.MetadataOnly
+            },
+            TransitOptions = new TransitOptions() { }
+        };
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.Content = encryptedJsonContent64;
+            fileMetadata.IsEncrypted = true;
+
+            var redactedKeyHeader = new KeyHeader()
+            {
+                Iv = keyHeader.Iv,
+                AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray())
+            };
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(redactedKeyHeader, instructionSet.TransferIv, ref sharedSecret),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+            List<StreamPart> parts =
+            [
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            ];
+
+            var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
+            ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
+
+            return (response, encryptedJsonContent64);
+        }
+    }
+
     public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag, UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -184,11 +237,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-            List<StreamPart> parts = new()
-            {
+            List<StreamPart> parts =
+            [
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-            };
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            ];
 
             var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
             ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
@@ -227,6 +280,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult> uploadedThumbnails,
             List<EncryptedAttachmentUploadResult> uploadedPayloads)>
         UploadNewEncryptedFile(TargetDrive targetDrive,
+            KeyHeader keyHeader,
             UploadFileMetadata fileMetadata,
             UploadManifest uploadManifest,
             List<TestPayloadDefinition> payloads,
@@ -236,7 +290,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var uploadedPayloads = new List<EncryptedAttachmentUploadResult>();
 
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        var keyHeader = KeyHeader.NewRandom16();
 
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
@@ -291,8 +344,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
                 foreach (var thumbnail in payloadDefinition.Thumbnails)
                 {
                     var thumbnailCipher = keyHeader.EncryptDataAesAsStream(thumbnail.Content);
-                    parts.Add(new StreamPart(thumbnailCipher, thumbnail.GetFilename(), thumbnail.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    parts.Add(new StreamPart(thumbnailCipher, thumbnailKey, thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                     uploadedThumbnails.Add(new EncryptedAttachmentUploadResult()
                     {
@@ -612,10 +665,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
-        
+
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        
+
         var sw = Stopwatch.StartNew();
         while (true)
         {
@@ -639,7 +692,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             await Task.Delay(100);
         }
     }
-    
+
     public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -666,7 +719,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var results = await this.QueryBatch(request, fst);
         return results;
     }
-    
+
     public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -678,5 +731,4 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         return response;
     }
-    
 }
