@@ -87,10 +87,10 @@ public class DirectDriveGeneralFileTests_Encrypted
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppReadWriteAllowed))]
-    [TestCaseSource(nameof(AppWriteOnlyForbidden))]
     [TestCaseSource(nameof(GuestWriteOnlyForbidden))]
     [TestCaseSource(nameof(GuestReadOnlyForbidden))]
+    [TestCaseSource(nameof(AppWriteOnlyForbidden))]
+    [TestCaseSource(nameof(AppReadWriteAllowed))]
     public async Task CanUpdateEncryptedMetadataWithStorageIntent_MetadataOnly(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup

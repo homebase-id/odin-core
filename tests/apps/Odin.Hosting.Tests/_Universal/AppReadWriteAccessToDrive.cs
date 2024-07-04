@@ -30,7 +30,7 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = TargetDrive,
-                        Permission = DrivePermission.Write
+                        Permission = DrivePermission.ReadWrite
                     }
                 }
             },
