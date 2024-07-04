@@ -768,7 +768,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var lts = await GetLongTermStorageManager(targetFile.DriveId, cn);
             var existingHeader = await lts.GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
-            await WriteFileHeaderInternal(existingHeader, cn);
+            await WriteFileHeaderInternal(existingHeader, cn, keepSameVersionTag: true);
 
             //clean up temp storage
             var tsm = await GetTempStorageManager(targetFile.DriveId, cn);
