@@ -98,6 +98,8 @@ public class DeviceSocket
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                 cancellationToken: cancellationToken);
         }
+        
+        _messageQueue.Clear();
 
         _lastSentTime = DateTime.UtcNow;
     }
