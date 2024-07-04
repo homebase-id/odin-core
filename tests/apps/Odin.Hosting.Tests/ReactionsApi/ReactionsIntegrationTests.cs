@@ -8,6 +8,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -413,7 +414,7 @@ public class ReactionsIntegrationTests
         var targetDrive = SystemDriveConstants.PublicPostsChannelDrive;
 
         // Upload post
-        var uploadedFileMetadata = SampleMetadataData.CreateWithContent(fileType: 100, postContent);
+        var uploadedFileMetadata = SampleMetadataData.CreateWithContent(fileType: 100, postContent, AccessControlList.Anonymous);
         uploadedFileMetadata.AllowDistribution = true;
         
         var uploadPostContentResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
