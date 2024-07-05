@@ -157,7 +157,7 @@ public class PeerReactionSenderService(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
-                async () => { await client.GetReactionsByIdentity(payload); });
+                async () => { await client.DeleteAllReactionsOnFile(payload); });
         }
         catch (TryRetryException ex)
         {
