@@ -221,7 +221,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         Data = translated.GetClientData()
                     });
 
-                    await SendMessageAsync(deviceSocket, json, cancellationToken);
+                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
                 }
             }
         }
@@ -281,7 +281,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken, bool encrypt = true)
+        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
+            bool encrypt = true, Guid? groupId = null)
         {
             var socket = deviceSocket.Socket;
 
@@ -311,19 +312,14 @@ namespace Odin.Services.AppNotifications.WebSocket
                     message = OdinSystemSerializer.Serialize(encryptedPayload);
                 }
 
-                var json = OdinSystemSerializer.Serialize(new ClientNotificationPayload()
+                var payload = new ClientNotificationPayload()
                 {
                     IsEncrypted = encrypt,
                     Payload = message
-                });
+                };
 
-                var jsonBytes = json.ToUtf8ByteArray();
-
-                await socket.SendAsync(
-                    buffer: new ArraySegment<byte>(jsonBytes, 0, json.Length),
-                    messageType: WebSocketMessageType.Text,
-                    messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
-                    cancellationToken: cancellationToken);
+                var json = OdinSystemSerializer.Serialize(payload);
+                await deviceSocket.EnqueueMessage(json, groupId, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -351,19 +347,24 @@ namespace Odin.Services.AppNotifications.WebSocket
                     try
                     {
                         var drives = new List<Guid>();
-                        var drivesRequest = OdinSystemSerializer.Deserialize<List<TargetDrive>>(command.Data);
-                        if (drivesRequest != null)
+                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ?? new EstablishConnectionOptions()
                         {
-                            foreach (var td in drivesRequest)
-                            {
-                                var driveId = odinContext.PermissionsContext.GetDriveId(td);
-                                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-                                drives.Add(driveId);
-                            }
+                            WaitTimeMs = 100,
+                            BatchSize = 100,
+                            Drives = []
+                        };
+
+                        foreach (var td in options.Drives)
+                        {
+                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            drives.Add(driveId);
                         }
 
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
+                        deviceSocket.ForcePushInterval = TimeSpan.FromMilliseconds(options.WaitTimeMs);
+                        deviceSocket.BatchSize = options.BatchSize;
                     }
                     catch (OdinSecurityException e)
                     {
@@ -409,25 +410,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
-        }
-
-        //
-
-        private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
-        {
-            var flags = WebSocketMessageFlags.None;
-
-            if (endOfMessage)
-            {
-                flags |= WebSocketMessageFlags.EndOfMessage;
-            }
-
-            if (!compressMessage)
-            {
-                flags |= WebSocketMessageFlags.DisableCompression;
-            }
-
-            return flags;
         }
 
         //
