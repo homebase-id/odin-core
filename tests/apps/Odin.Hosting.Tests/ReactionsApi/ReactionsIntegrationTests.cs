@@ -66,7 +66,7 @@ public class ReactionsIntegrationTests
     public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser_DirectCall()
     {
         // Arrange
-        await ConnectHobbits();
+        // await ConnectHobbits();
 
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPostAndDistribute(frodo, "hello world");
@@ -158,126 +158,67 @@ public class ReactionsIntegrationTests
 
     //
     
-    
     [Test]
-    // [TestCase("frodo.dotyou.cloud")] // frodo is owner
-    // [TestCase("sam.dotyou.cloud")]   // sam is guest
-    public async Task PublicPost_CanCreateReactionsAndDeleteThemAgain_As_AppUser()
+    [TestCase("frodo.dotyou.cloud")] // frodo is owner
+    [TestCase("sam.dotyou.cloud")]   // sam is guest
+    public async Task PublicPost_CanCreateReactionsAndDeleteThemAgain_As_AppUser(string appUserOdindId)
     {
         // TODD:HELP!
-        // - frodo and sam are connected
-        // - sam follows frodo
-        // - frodo creates a public post
-        // - sam creates a (feed) app 
-        // - sam adds reactions to the post using the app
-        // ABOVE throws "I'm throwing because it's false!" at frodo's side because inside CallerHasPermission,
-        //   the ACL on the drive says RequiredSecurityGroup == Owner
+        // when running as frodo, the first AddReaction fails in HasDrivePermission() because frodo for some reason
+        // does not have access to access hos own drive through the appClient
+        // (as opposed to through ownerApiClient up in PublicPost_CanCreateReactionsAndDeleteThemAgain_As_OwnerUser_DirectCall())
         
         // Arrange
-        var frodo = TestIdentities.Frodo;
-        var sam = TestIdentities.Samwise;
+        var postAuthor = TestIdentities.Frodo;
+        var appUser = TestIdentities.All[appUserOdindId];
 
-        await ConnectFrodoAndSam(samFollowsFrodo: true);
+        //await ConnectFrodoAndSam(samFollowsFrodo: true);
         
-        var postFile = await CreatePublicPostAndDistribute(frodo, "hello world");
+        var postFile = await CreatePublicPostAndDistribute(postAuthor, "hello world");
 
         // setup the feed app and grant access to the feed
-        var samOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(sam);        
-        var samAppFactory = await PrepareAnApp(samOwnerApiClient);
-        var samAppClient = new UniversalDriveReactionClient2(sam.OdinId, samAppFactory);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(appUser);        
+        var appFactory = await PrepareAnApp(ownerApiClient);
+        var appClient = new UniversalDriveReactionClient2(appUser.OdinId, appFactory);
 
         // Act - create reactions
-        var r1 = await samAppClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        var r1 = await appClient.AddReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
         Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-        var r2 = await samAppClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like2");
+        var r2 = await appClient.AddReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like2");
         Assert.AreEqual(r2.StatusCode, HttpStatusCode.NoContent);
-        var r3 = await samAppClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
+        var r3 = await appClient.AddReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
         Assert.AreEqual(r3.StatusCode, HttpStatusCode.NoContent);
 
         // Act - Already exists
-        var r4 = await samAppClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        var r4 = await appClient.AddReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
         Assert.AreEqual(r4.StatusCode, HttpStatusCode.NoContent);
 
         // Assert get
-        var reactions = await GetReactions(samAppClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        var reactions = await GetReactions(appClient, postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.That(reactions.Count, Is.EqualTo(3));
         Assert.That(reactions.Exists(x => x.ReactionContent == "like1"), Is.True);
         Assert.That(reactions.Exists(x => x.ReactionContent == "like2"), Is.True);
         Assert.That(reactions.Exists(x => x.ReactionContent == "like3"), Is.True);
 
         // Delete "like1"
-        r1 = await samAppClient.DeleteReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        r1 = await appClient.DeleteReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
         Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-        reactions = await GetReactions(samAppClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        reactions = await GetReactions(appClient, postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.That(reactions.Count, Is.EqualTo(2));
         Assert.That(reactions.Exists(x => x.ReactionContent == "like1"), Is.False);
 
-        // Delete the test
-        r1 = await samAppClient.DeleteAllReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        // Delete the rest
+        r1 = await appClient.DeleteAllReactions(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-        reactions = await GetReactions(samAppClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        reactions = await GetReactions(appClient, postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.That(reactions.Count, Is.EqualTo(0));
 
         // No-op
-        r1 = await samAppClient.DeleteReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
+        r1 = await appClient.DeleteReaction(postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
         Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-        reactions = await GetReactions(samAppClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        reactions = await GetReactions(appClient, postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.That(reactions.Count, Is.EqualTo(0));
     }
-    
-    // private async Task CreateReactionsThenDeleteThem(
-    //     UniversalDriveReactionClient2 apiClient,
-    //     TestIdentity ownerOfPost, 
-    //     UploadResult post)
-    // {
-    //     // Arrange
-    //     var appUser = TestIdentities.All[appUserOdindId];
-    //     var frodo = TestIdentities.Frodo;
-    //     var postFile = await CreatePublicPost(frodo, "hello world");
-    //
-    //     // setup the feed app and grant access to the feed
-    //     var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(appUser);
-    //     var appFactory = await PrepareAnApp(ownerApiClient, postFile.File.TargetDrive);
-    //     var appClient = new UniversalDriveReactionClient2(appUser.OdinId, appFactory);
-    //
-    //     // Act - create reactions
-    //     var r1 = await appClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
-    //     Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-    //     var r2 = await appClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like2");
-    //     Assert.AreEqual(r2.StatusCode, HttpStatusCode.NoContent);
-    //     var r3 = await appClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
-    //     Assert.AreEqual(r3.StatusCode, HttpStatusCode.NoContent);
-    //
-    //     // Act - Already exists
-    //     var r4 = await appClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
-    //     Assert.AreEqual(r4.StatusCode, HttpStatusCode.NoContent);
-    //
-    //     // Assert get
-    //     var reactions = await GetReactions(appClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-    //     Assert.That(reactions.Count, Is.EqualTo(3));
-    //     Assert.That(reactions.Exists(x => x.ReactionContent == "like1"), Is.True);
-    //     Assert.That(reactions.Exists(x => x.ReactionContent == "like2"), Is.True);
-    //     Assert.That(reactions.Exists(x => x.ReactionContent == "like3"), Is.True);
-    //
-    //     // Delete "like1"
-    //     r1 = await appClient.DeleteReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
-    //     Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-    //     reactions = await GetReactions(appClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-    //     Assert.That(reactions.Count, Is.EqualTo(2));
-    //     Assert.That(reactions.Exists(x => x.ReactionContent == "like1"), Is.False);
-    //
-    //     // Delete the test
-    //     r1 = await appClient.DeleteAllReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-    //     Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-    //     reactions = await GetReactions(appClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-    //     Assert.That(reactions.Count, Is.EqualTo(0));
-    //
-    //     // No-op
-    //     r1 = await appClient.DeleteReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
-    //     Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
-    //     reactions = await GetReactions(appClient, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
-    //     Assert.That(reactions.Count, Is.EqualTo(0));
-    // }    
     
     //
     
@@ -377,33 +318,31 @@ public class ReactionsIntegrationTests
     
     //
 
-    private async Task ConnectHobbits()
-    {
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
-    }
 
     //
     
-    private async Task ConnectFrodoAndSam(bool frodoFollowsSam = false, bool samFollowsFrodo = false)
+    private async Task ConnectHobbits(TestIdentity a, TestIdentity b, bool aFollowsB, bool bFollowsA)
     {
-        var frodo = TestIdentities.Frodo;
-        var sam = TestIdentities.Samwise;
-        var frodoOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(frodo);
-        var samOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(sam);
+        var aOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(a);
+        var bOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(b);
         
-        await frodoOwnerApiClient.Connections.SendConnectionRequest(sam.OdinId, []);
-        await samOwnerApiClient.Connections.AcceptConnectionRequest(frodo.OdinId, []);
+        await aOwnerApiClient.Connections.SendConnectionRequest(b.OdinId, []);
+        await bOwnerApiClient.Connections.AcceptConnectionRequest(a.OdinId, []);
 
-        if (frodoFollowsSam)
+        if (aFollowsB)
         {
-            await frodoOwnerApiClient.Follower.FollowIdentity(sam.OdinId, FollowerNotificationType.AllNotifications);    
+            await aOwnerApiClient.Follower.FollowIdentity(b.OdinId, FollowerNotificationType.AllNotifications);    
         }
         
-        if (samFollowsFrodo)
+        if (bFollowsA)
         {
-            await samOwnerApiClient.Follower.FollowIdentity(frodo.OdinId, FollowerNotificationType.AllNotifications);    
+            await bOwnerApiClient.Follower.FollowIdentity(a.OdinId, FollowerNotificationType.AllNotifications);    
         }
+    }
+    
+    private Task ConnectFrodoAndSam(bool frodoFollowsSam = false, bool samFollowsFrodo = false)
+    {
+        return ConnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise, frodoFollowsSam, samFollowsFrodo);
     }
     
     //
