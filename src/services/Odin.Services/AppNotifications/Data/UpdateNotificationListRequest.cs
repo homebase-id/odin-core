@@ -21,9 +21,9 @@ public class AppNotification
     public Guid Id { get; set; }
     public string SenderId { get; set; }
     public bool Unread { get; set; }
-    
+
     public UnixTimeUtc Created { get; set; }
-    
+
     public AppNotificationOptions Options { get; set; }
 }
 
@@ -32,16 +32,23 @@ public class AddNotificationResult
     public Guid NotificationId { get; set; }
 }
 
+public class NotificationsCountResult
+{
+    public Dictionary<Guid, int> UnreadCounts { get; set; }
+}
+
 public class NotificationsListResult
 {
     public UnixTimeUtcUnique? Cursor { get; set; }
     public List<AppNotification> Results { get; set; }
-    
 }
 
 public class GetNotificationListRequest
 {
+    public Guid? AppId { get; set; }
+
     public int Count { get; set; }
+
     public UnixTimeUtcUnique? Cursor { get; set; }
 }
 
@@ -51,11 +58,11 @@ public class AddNotificationRequest
     public long Timestamp { get; set; }
 }
 
-
 public class DeleteNotificationsRequest
 {
     public List<Guid> IdList { get; set; }
 }
+
 public class UpdateNotificationListRequest
 {
     public List<UpdateNotificationRequest> Updates { get; set; }
