@@ -24,14 +24,22 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpGet("list")]
-        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor)
+        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor, [FromQuery] Guid? appId)
         {
             using var cn = tenantSystemStorage.CreateConnection();
             return await notificationService.GetList(new GetNotificationListRequest()
             {
+                AppId = appId,
                 Count = count,
                 Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
             }, WebOdinContext, cn);
+        }
+
+        [HttpGet("list/counts-by-appid")]
+        public async Task<NotificationsCountResult> GetUnreadCounts()
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            return await notificationService.GetUnreadCounts(WebOdinContext, cn);
         }
 
         [HttpPut("list")]
@@ -44,6 +52,14 @@ namespace Odin.Hosting.Controllers.Base.Notifications
 
             using var cn = tenantSystemStorage.CreateConnection();
             await notificationService.UpdateNotifications(request, WebOdinContext, cn);
+            return Ok();
+        }
+
+        [HttpPost("list/mark-read-by-appid")]
+        public async Task<IActionResult> UpdateNotification([FromBody] Guid appId)
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            await notificationService.MarkReadByApp(appId, WebOdinContext, cn);
             return Ok();
         }
 
