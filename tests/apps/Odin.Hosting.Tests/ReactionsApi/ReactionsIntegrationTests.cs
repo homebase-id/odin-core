@@ -65,9 +65,11 @@ public class ReactionsIntegrationTests
     [Test]
     public async Task PublicPost_CanGetEmptyReactionList_As_AuthenticatedUser_DirectCall()
     {
-        // Arrange
-        // await ConnectHobbits();
-
+        // TODD:HELP!
+        // This was the one we looked at the other day.
+        // Sam wants to see the reactions on Frodo's post, directly on Frodo's site, but he can't.
+        // Sam is authenticated, but I guess he has to be authenticated through YouAuth for this to work?
+        
         var frodo = TestIdentities.Frodo;
         var postFile = await CreatePublicPostAndDistribute(frodo, "hello world");
 
@@ -76,9 +78,10 @@ public class ReactionsIntegrationTests
 
         var tokenContext = ownerApiClient.GetTokenContext();
 
-        var reactionClient = new UniversalDriveReactionClient2(
-            frodo.OdinId,
-            new GuestApiClientFactory(tokenContext.AuthenticationResult, tokenContext.SharedSecret.GetKey()));
+        var guestFactory =
+            new GuestApiClientFactory(tokenContext.AuthenticationResult, tokenContext.SharedSecret.GetKey());
+        
+        var reactionClient = new UniversalDriveReactionClient2(frodo.OdinId, guestFactory);
 
         var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
 
@@ -99,6 +102,29 @@ public class ReactionsIntegrationTests
         var reactionClient = new UniversalDriveReactionClient2(frodo.OdinId, new GuestApiClientFactory());
         var response = await reactionClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
 
+        // Assert
+        Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
+        var reactions = response.Content!.Reactions;
+        Assert.IsEmpty(reactions);
+    }
+    
+    //
+    
+    [Test]
+    [TestCase("frodo.dotyou.cloud")] // frodo is owner, call is direct
+    [TestCase("sam.dotyou.cloud")]   // sam is guest, call is through transit
+    public async Task PublicPost_CanGetEmptyReactionList_As_AppUser(string appUserOdinId)
+    {
+        var frodo = TestIdentities.Frodo;
+        var appUser = TestIdentities.All[appUserOdinId];
+        var postFile = await CreatePublicPostAndDistribute(frodo, "hello world");
+        
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(appUser);        
+        var appFactory = await PrepareAnApp(ownerApiClient);
+        var appClient = new UniversalDriveReactionClient2(appUser.OdinId, appFactory);
+       
+        var response = await appClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        
         // Assert
         Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
         var reactions = response.Content!.Reactions;
@@ -159,18 +185,22 @@ public class ReactionsIntegrationTests
     //
     
     [Test]
-    [TestCase("frodo.dotyou.cloud")] // frodo is owner
-    [TestCase("sam.dotyou.cloud")]   // sam is guest
-    public async Task PublicPost_CanCreateReactionsAndDeleteThemAgain_As_AppUser(string appUserOdindId)
+    [TestCase("frodo.dotyou.cloud")] // frodo is owner, call is direct
+    [TestCase("sam.dotyou.cloud")]   // sam is guest, call is through transit
+    public async Task PublicPost_CanCreateReactionsAndDeleteThemAgain_As_AppUser(string appUserOdinId)
     {
         // TODD:HELP!
         // when running as frodo, the first AddReaction fails in HasDrivePermission() because frodo for some reason
-        // does not have access to access hos own drive through the appClient
+        // does not have access to access his own drive through the appClient
         // (as opposed to through ownerApiClient up in PublicPost_CanCreateReactionsAndDeleteThemAgain_As_OwnerUser_DirectCall())
+        //
+        // Also note that PublicPost_CanGetEmptyReactionList_As_AppUser() works fine for frodo, apparently because it
+        // only needs read-access
+        //
         
         // Arrange
         var postAuthor = TestIdentities.Frodo;
-        var appUser = TestIdentities.All[appUserOdindId];
+        var appUser = TestIdentities.All[appUserOdinId];
 
         //await ConnectFrodoAndSam(samFollowsFrodo: true);
         
@@ -218,6 +248,56 @@ public class ReactionsIntegrationTests
         Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
         reactions = await GetReactions(appClient, postAuthor, postFile.File, postFile.GlobalTransitIdFileIdentifier);
         Assert.That(reactions.Count, Is.EqualTo(0));
+    }
+    
+    //
+    
+    [Test]
+    public async Task PublicPost_CannotCreateReactionsAndDeleteThemAgain_As_AnonymousUser_DirectCall()
+    {
+        // Arrange
+        var frodo = TestIdentities.Frodo;
+        var postFile = await CreatePublicPostAndDistribute(frodo, "hello world");
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        // Owner creates some reactions
+        var r1 = await ownerApiClient.Reactions2.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        Assert.AreEqual(r1.StatusCode, HttpStatusCode.NoContent);
+        var r2 = await ownerApiClient.Reactions2.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like2");
+        Assert.AreEqual(r2.StatusCode, HttpStatusCode.NoContent);
+        var r3 = await ownerApiClient.Reactions2.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like3");
+        Assert.AreEqual(r3.StatusCode, HttpStatusCode.NoContent);
+
+        // Assert get
+        var reactions = await GetReactions(ownerApiClient.Reactions2, frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        Assert.That(reactions.Count, Is.EqualTo(3));
+        Assert.That(reactions.Exists(x => x.ReactionContent == "like1"), Is.True);
+        Assert.That(reactions.Exists(x => x.ReactionContent == "like2"), Is.True);
+        Assert.That(reactions.Exists(x => x.ReactionContent == "like3"), Is.True);
+
+        //
+        // Anonymous user from here
+        // 
+        
+        var anonClient = new UniversalDriveReactionClient2(frodo.OdinId, new GuestApiClientFactory());
+
+        // Anonymous user can read reactions
+        var response = await anonClient.GetReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        Assert.AreEqual(response.StatusCode, HttpStatusCode.OK);
+        reactions = response.Content!.Reactions;
+        Assert.That(reactions.Count, Is.EqualTo(3));
+        
+        // Anonymous user cannot add reactions
+        r1 = await anonClient.AddReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        Assert.AreEqual(r1.StatusCode, HttpStatusCode.Forbidden);
+
+        // Anonymous user cannot delete reaction
+        r1 = await anonClient.DeleteReaction(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier, "like1");
+        Assert.AreEqual(r1.StatusCode, HttpStatusCode.Forbidden);
+
+        // Anonymous user cannot delete all reactions
+        r1 = await anonClient.DeleteAllReactions(frodo, postFile.File, postFile.GlobalTransitIdFileIdentifier);
+        Assert.AreEqual(r1.StatusCode, HttpStatusCode.Forbidden);
     }
     
     //
