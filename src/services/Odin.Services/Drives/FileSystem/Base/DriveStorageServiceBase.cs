@@ -33,8 +33,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
         ConcurrentFileManager concurrentFileManager,
-        DriveFileReaderWriter driveFileReaderWriter)
-        : RequirePermissionsBase
+        DriveFileReaderWriter driveFileReaderWriter) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
@@ -388,6 +387,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
+        public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
+            var header = await GetServerFileHeaderInternal(file, odinContext, cn);
+
+            if (header == null)
+            {
+                return null;
+            }
+
+            AssertValidFileSystemType(header.ServerMetadata);
+            return header;
+        }
+
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
         /// permission; allowing you to determine the file system type when you don't have it.
@@ -450,7 +463,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
 
-            var existingHeader = await this.GetServerFileHeader(file, odinContext, cn);
+            var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext, cn);
 
             await WriteDeletedFileHeader(existingHeader, odinContext, cn);
         }
@@ -755,7 +768,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var lts = await GetLongTermStorageManager(targetFile.DriveId, cn);
             var existingHeader = await lts.GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
-            await WriteFileHeaderInternal(existingHeader, cn);
+            await WriteFileHeaderInternal(existingHeader, cn, keepSameVersionTag: true);
 
             //clean up temp storage
             var tsm = await GetTempStorageManager(targetFile.DriveId, cn);
@@ -1004,7 +1017,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             catch (TryRetryException t)
             {
                 _logger.LogError(t, "Failed to Lock and Update Transfer History after {attempts} " +
-                                 "attempts with exponentialBackoff {delay}ms",
+                                    "attempts with exponentialBackoff {delay}ms",
                     attempts,
                     delayMs);
                 throw;
