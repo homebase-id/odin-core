@@ -171,7 +171,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                   "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
             }
             else
-            { 
+            {
                 var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
                 if (!recordExists || transferHistoryItem == null)
