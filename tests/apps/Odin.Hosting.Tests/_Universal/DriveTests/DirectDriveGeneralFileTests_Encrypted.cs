@@ -190,10 +190,10 @@ public class DirectDriveGeneralFileTests_Encrypted
         var uploadResult = response.Content;
         Assert.IsNotNull(uploadResult);
 
-        // get the file from the server
-        var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
-        var uploadedFile1 = getHeaderResponse1.Content;
+        // Get the file from the server
+        var getOriginalHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
+        Assert.IsTrue(getOriginalHeaderResponse.IsSuccessStatusCode);
+        var uploadedFile1 = getOriginalHeaderResponse.Content;
 
         //
         // Now, Change just header
@@ -224,26 +224,29 @@ public class DirectDriveGeneralFileTests_Encrypted
             Assert.IsTrue(getUpdatedHeaderResponse.IsSuccessStatusCode);
             var updatedHeaderResponse = getUpdatedHeaderResponse.Content;
             Assert.IsNotNull(updatedHeaderResponse);
-            Assert.IsTrue(updatedHeaderResponse.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
+            Assert.IsTrue(updatedHeaderResponse.FileMetadata.AppData.Content != uploadedFileMetadata.AppData.Content);
             Assert.IsTrue(updatedHeaderResponse.FileMetadata.Payloads.Count() == testPayloads.Count);
 
             // Get the payloads
             var definition = testPayloads.First();
             var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
             Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadResponse.ContentHeaders.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            
+            Assert.IsTrue(getPayloadResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
+
+            //
+            // Validate that I can still decrypt using the original AES key
+            //
             var payloadDescriptor = updatedHeaderResponse.FileMetadata.Payloads.Single(p => p.Key == payloadKeyValues.First());
             var payloadKeyHeader = new KeyHeader()
             {
                 Iv = payloadDescriptor.Iv,
-                AesKey = newKeyHeader.AesKey
+                AesKey = new SensitiveByteArray(originalKeyHeader.AesKey.GetKey())
             };
 
             var encryptedPayloadContent = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
-            var decryptedContent = payloadKeyHeader.Decrypt(encryptedPayloadContent);
-            CollectionAssert.AreEqual(decryptedContent, definition.Content);
-            
+            var decryptedPayloadContent = payloadKeyHeader.Decrypt(encryptedPayloadContent);
+            Assert.IsTrue(decryptedPayloadContent.ToStringFromUtf8Bytes() == definition.Content.ToStringFromUtf8Bytes());
+
             // Check all the thumbnails
             var thumbnail = definition.Thumbnails.First();
 
@@ -254,7 +257,7 @@ public class DirectDriveGeneralFileTests_Encrypted
 
             var encryptedThumbnailContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
             var decryptedThumbnailContent = payloadKeyHeader.Decrypt(encryptedThumbnailContent);
-            CollectionAssert.AreEqual(decryptedThumbnailContent, thumbnail.Content);
+            Assert.IsTrue(decryptedThumbnailContent.ToStringFromUtf8Bytes() == thumbnail.Content.ToStringFromUtf8Bytes());
         }
     }
 }
