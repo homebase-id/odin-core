@@ -206,19 +206,18 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var deviceOdinContext = deviceSocket.DeviceOdinContext;
                     var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
 
-                    var data = OdinSystemSerializer.Serialize(new
+                    var o = new ClientDriveNotification
                     {
                         TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null
-                    });
-
-                    var translated = new TranslatedClientNotification(notification.NotificationType, data);
+                    };
+                    
                     var json = OdinSystemSerializer.Serialize(new
                     {
                         notification.NotificationType,
-                        Data = translated.GetClientData()
+                        Data = OdinSystemSerializer.Serialize(o)
                     });
 
                     await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);

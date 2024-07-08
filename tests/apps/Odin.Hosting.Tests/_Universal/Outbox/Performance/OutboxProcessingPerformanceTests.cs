@@ -1,14 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Castle.Components.DictionaryAdapter.Xml;
+using Microsoft.AspNetCore.Connections.Features;
 using Nito.AsyncEx;
 using NUnit.Framework;
-using Odin.Core.Identity;
+using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -22,8 +28,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         private WebScaffold _scaffold;
 
         private int _fileSendAttempts = 0;
-        private readonly object _sentFilesLock = new();
-        private readonly List<GlobalTransitIdFileIdentifier> _sentFiles = new();
+        private readonly List<Guid> _filesSentByFrodo = new();
+
+        private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
+        private readonly List<Guid> _filesReceivedBySam = new();
+        private readonly List<Guid> _readReceiptsSentBySam = new();
 
         private readonly ReadReceiptSocketHandler _frodoSocketHandler = new();
         private readonly ReadReceiptSocketHandler _samSocketHandler = new();
@@ -53,7 +62,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
 
         [Test]
-        public async Task AnUncertainTest()
+        public async Task ChatSpamTestEndToEnd_AllSuccessScenarios()
         {
             /*
              * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
@@ -63,28 +72,83 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
              */
 
             // Setup
-            // frodo and sam are connected; target drive is SystemDriveConstants.ChatDrive
-
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-            await PrepareScenario(frodo, [sam]);
-            
-            await _frodoSocketHandler.ConnectAsync(frodo);
-            await _samSocketHandler.ConnectAsync(sam);
+            await PrepareScenario(frodo, sam);
+            await SetupSockets(frodo, sam);
 
             // Act
             await SendBarrage(frodo, sam);
 
-            // process the inbox when messages come in
-            // await ProcessInbox(sam);
-
             //
             // Wait for outbox to empty
             //
-            await WaitForEmptyOutboxes(TimeSpan.FromSeconds(30), frodo, sam);
+            // await WaitForEmptyOutboxes(TimeSpan.FromSeconds(30), frodo, sam);
+            await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive);
+            await sam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive);
 
-            await this.DeleteScenario(frodo, [sam]);
+            Console.WriteLine($"Sent Files: {_filesSentByFrodo.Count}");
+            Console.WriteLine($"Received Files:{_filesReceivedBySam.Count}");
+            Console.WriteLine($"Read-receipts Sent: {_readReceiptsSentBySam.Count}");
+            Console.WriteLine($"Read-receipts received: {_readReceiptsReceivedByFrodo.Count}");
+
+            CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
+            CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
+                "mismatch in number of read-receipts send by sam to the files received");
+            
+            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
+            
+
+            // Console.WriteLine($"SentFiles: {_sentFiles.Count}\t Modified (frodo) Files:{_filesModifiedOnFrodo.Count}");
+            // CollectionAssert.AreEquivalent(_sentFiles, _filesModifiedOnFrodo);
+
+            await Shutdown(frodo, sam);
+        }
+
+        private async Task SetupSockets(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)
+        {
+            await _samSocketHandler.ConnectAsync(sam);
+            _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;
+
+            await _frodoSocketHandler.ConnectAsync(frodo);
+            _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
+        }
+
+        private void FrodoSocketHandlerOnFileModified(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
+        {
+            //validate sam marked ita s ready
+            if (e.header.ServerMetadata.TransferHistory.Recipients.TryGetValue(TestIdentities.Samwise.OdinId, out var value))
+            {
+                if (value.IsReadByRecipient)
+                {
+                    _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                }
+            }
+        }
+
+        private void SamSocketHandlerOnFileAdded(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
+        {
+            _filesReceivedBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+
+            var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            var file = new ExternalFileIdentifier()
+            {
+                TargetDrive = e.targetDrive,
+                FileId = e.header.FileId
+            };
+
+            var response = sam.DriveRedux.SendReadReceipt([file]).GetAwaiter().GetResult();
+            if (response.IsSuccessStatusCode)
+            {
+                _readReceiptsSentBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+            }
+        }
+
+
+        private async Task Shutdown(OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
+        {
+            await this.DeleteScenario(sender, recipient);
             await this._frodoSocketHandler.DisconnectAsync();
             await this._samSocketHandler.DisconnectAsync();
         }
@@ -94,18 +158,29 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int iterations)
             {
                 long[] timers = new long[iterations];
-                var result = await SendChatMessage("hi", sender, recipient);
-                if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
-                {
-                    _sentFiles.Add(result.GlobalTransitIdFileIdentifier);
-                }
+                var sw = new Stopwatch();
 
-                // timers[count] = sw.ElapsedMilliseconds;
+                for (int count = 0; count < iterations; count++)
+                {
+                    sw.Restart();
+
+                    string message = "hi";
+                    // var bytes = message.ToUtf8ByteArray().Length;
+                    var result = await SendChatMessage(message, sender, recipient);
+                    if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
+                    {
+                        _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                    }
+
+                    timers[count] = sw.ElapsedMilliseconds;
+                    // If you want to introduce a delay be sure to use: await Task.Delay(1);
+                    await Task.Delay(100);
+                }
 
                 return (0, timers);
             }
 
-            await PerformanceFramework.ThreadedTestAsync(maxThreads: 1, iterations: 10, Func);
+            await PerformanceFramework.ThreadedTestAsync(maxThreads: 2, iterations: 20, Func);
         }
 
         private async Task WaitForEmptyOutboxes(TimeSpan timeout, params OwnerApiClientRedux[] clients)
@@ -168,41 +243,22 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         }
 
 
-        private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, List<OwnerApiClientRedux> recipients)
+        private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
-            foreach (var recipient in recipients)
-            {
-                //
-                // Sender sends connection request
-                //
-                await senderOwnerClient.Connections.SendConnectionRequest(recipient.Identity.OdinId, []);
-                await SetupRecipient(recipient, senderOwnerClient.Identity.OdinId);
-            }
-        }
+            await senderOwnerClient.Connections.SendConnectionRequest(recipient.Identity.OdinId, []);
 
-        private static async Task SetupRecipient(OwnerApiClientRedux recipient, OdinId sender)
-        {
             //
             // Recipient accepts; grants access to circle
             //
-            await recipient.Connections.AcceptConnectionRequest(sender, []);
+            await recipient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, []);
 
-            // 
-            // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
-
-            var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(sender);
-
+            var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
             Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
-            var senderConnectionInfo = getConnectionInfoResponse.Content;
         }
 
-        private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, List<OwnerApiClientRedux> recipients)
+        private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
-            foreach (var recipient in recipients)
-            {
-                await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.Identity.OdinId);
-            }
+            await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.Identity.OdinId);
         }
     }
 }

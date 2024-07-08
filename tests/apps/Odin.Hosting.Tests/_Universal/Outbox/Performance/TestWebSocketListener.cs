@@ -1,16 +1,13 @@
 using System;
 using System.Net;
 using System.Net.WebSockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Hosting.Authentication.YouAuth;
-using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
@@ -28,6 +25,8 @@ public sealed class TestWebSocketListener
     private readonly ClientWebSocket _clientWebSocket = new();
     private Task _receivingTask;
 
+    private OwnerAuthTokenContext _authTokenContext;
+
     private async Task OnNotificationReceived(TestClientNotification message)
     {
         if (this.NotificationReceived != null)
@@ -38,12 +37,11 @@ public sealed class TestWebSocketListener
 
     public async Task ConnectAsync(OdinId identity, OwnerAuthTokenContext tokenContext, EstablishConnectionOptions options)
     {
-        ClientAuthenticationToken clientAuthToken = tokenContext.AuthenticationResult;
-        byte[] sharedSecret = tokenContext.SharedSecret.GetKey();
+        _authTokenContext = tokenContext;
 
         _clientWebSocket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(YouAuthConstants.AppCookieName, clientAuthToken.ToString())
+        var cookie = new Cookie(OwnerAuthConstants.CookieName, _authTokenContext.AuthenticationResult.ToString())
         {
             Domain = identity
         };
@@ -53,7 +51,7 @@ public sealed class TestWebSocketListener
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{OwnerApiPathConstants.NotificationsV1}/ws");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
         //
@@ -67,7 +65,7 @@ public sealed class TestWebSocketListener
 
         var ssp = SharedSecretEncryptedPayload.Encrypt(
             OdinSystemSerializer.Serialize(request).ToUtf8ByteArray(),
-            sharedSecret.ToSensitiveByteArray());
+            _authTokenContext.SharedSecret);
         var sendBuffer = OdinSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
         await _clientWebSocket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, tokenSource.Token);
 
@@ -84,11 +82,7 @@ public sealed class TestWebSocketListener
         var array = receiveBuffer.Array;
         Array.Resize(ref array, receiveResult.Count);
 
-        var json = array.ToStringFromUtf8Bytes();
-        var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
-        var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, sharedSecret.ToSensitiveByteArray());
-        var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
-
+        var response = DecryptClientNotificationPayload<EstablishConnectionResponse>(array);
         if (response.NotificationType != ClientNotificationType.DeviceHandshakeSuccess)
         {
             throw new Exception("Did not receive a valid handshake");
@@ -99,20 +93,25 @@ public sealed class TestWebSocketListener
 
     public async Task DisconnectAsync()
     {
-        await _cancellationTokenSource.CancelAsync();
-        await _receivingTask;
-        _clientWebSocket.Dispose();
+        try
+        {
+            await _cancellationTokenSource.CancelAsync();
+            await _receivingTask;
+            _clientWebSocket.Dispose();
+        }
+        catch (TaskCanceledException e)
+        {
+            //expected
+        }
     }
 
     private void StartReceiving()
     {
         _receivingTask = Task.Run(async () =>
         {
-            var buffer = new byte[1024 * 4];
-
             while (_clientWebSocket.State == WebSocketState.Open)
             {
-                var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 3]);
+                var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 4]);
                 var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, _cancellationTokenSource.Token);
 
                 if (receiveResult.MessageType == WebSocketMessageType.Close)
@@ -123,13 +122,23 @@ public sealed class TestWebSocketListener
                 {
                     var array = receiveBuffer.Array;
                     Array.Resize(ref array, receiveResult.Count);
-
-                    var message = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
-                    var notification = OdinSystemSerializer.Deserialize<TestClientNotification>(message);
-
-                    await OnNotificationReceived(notification);
+                    await OnNotificationReceived(DecryptClientNotificationPayload<TestClientNotification>(array));
                 }
             }
         });
+    }
+
+    private T DecryptClientNotificationPayload<T>(byte[] array)
+    {
+        var json = array.ToStringFromUtf8Bytes();
+        var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
+        if(n.IsEncrypted)
+        {
+            var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, _authTokenContext.SharedSecret);
+            var response = OdinSystemSerializer.Deserialize<T>(decryptedResponse);
+            return response;
+        }
+
+        return OdinSystemSerializer.Deserialize<T>(n.Payload);
     }
 }

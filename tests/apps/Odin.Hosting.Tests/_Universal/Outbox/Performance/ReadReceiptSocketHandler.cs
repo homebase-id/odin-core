@@ -1,7 +1,9 @@
-using System.Runtime.CompilerServices;
+using System;
 using System.Threading.Tasks;
+using Odin.Core.Serialization;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Apps;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
@@ -11,6 +13,8 @@ public class ReadReceiptSocketHandler
     private readonly TestWebSocketListener _socketListener = new();
 
     private OwnerApiClientRedux _client;
+    public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
+    public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileModified;
 
     public async Task ConnectAsync(OwnerApiClientRedux client)
     {
@@ -35,22 +39,29 @@ public class ReadReceiptSocketHandler
         switch (notification.NotificationType)
         {
             case ClientNotificationType.InboxItemReceived:
-                await this.ProcessInbox();
+                await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, 2000);
+                // Console.WriteLine($"Identity: {_client.Identity.OdinId}. Notification: InboxItemReceived");
                 break;
-            
+
             case ClientNotificationType.FileAdded:
+                await HandleFileAdded(notification);
                 break;
-            
+
             case ClientNotificationType.FileModified:
-                break;
-            
-            case ClientNotificationType.FileDeleted:
+                HandleFileModified(notification);
                 break;
         }
     }
 
-    private async Task ProcessInbox()
+    private void HandleFileModified(TestClientNotification notification)
     {
-        await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, 2000);
+        var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(notification.Data);
+        this.FileModified?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
+    }
+
+    private async Task HandleFileAdded(TestClientNotification notification)
+    {
+        var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(notification.Data);
+        this.FileAdded?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
     }
 }
