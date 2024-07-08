@@ -333,15 +333,15 @@ public class SendFileOutboxWorkerAsync(
             {
                 case LatestTransferStatus.RecipientIdentityReturnedServerError:
                 case LatestTransferStatus.RecipientServerNotResponding:
-                    return UnixTimeUtc.Now().AddSeconds(60);
+                    return UnixTimeUtc.Now().AddSeconds(1);
 
                 case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
-                    return UnixTimeUtc.Now().AddMinutes(2);
+                    return UnixTimeUtc.Now().AddSeconds(1);
                 default:
-                    return UnixTimeUtc.Now().AddMinutes(10);
+                    return UnixTimeUtc.Now().AddSeconds(1);
             }
         }
 
-        return UnixTimeUtc.Now().AddSeconds(30);
+        return UnixTimeUtc.Now().AddSeconds(1);
     }
 }

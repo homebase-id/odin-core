@@ -35,6 +35,7 @@ public class DeviceSocket
     // private readonly Queue<Tuple<Guid, string>> _messageQueue = new();
     private readonly OrderedDictionary _messageQueue = new();
     private DateTime _lastSentTime = DateTime.MinValue;
+    private readonly object _lock = new object();
 
     public Guid Key { get; set; }
     public System.Net.WebSockets.WebSocket? Socket { get; set; }
@@ -68,7 +69,10 @@ public class DeviceSocket
             throw new OdinSystemException("Socket is null during EnqueueMessage");
         }
 
-        _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
+        lock (_lock)
+        {
+            _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
+        }
 
         if (_messageQueue.Count >= BatchSize || this.LongTimeNoSee())
         {
@@ -87,8 +91,19 @@ public class DeviceSocket
         {
             return;
         }
-        
-        foreach (var value in _messageQueue.Values)
+
+        string[] valuesArray = null;
+        lock (_lock)
+        {
+            valuesArray = new string[_messageQueue.Values.Count];
+            if (_messageQueue?.Values?.Count > 0)
+            {
+                _messageQueue.Values.CopyTo(valuesArray, 0);
+                _messageQueue.Clear();
+            }
+        }
+
+        foreach (var value in valuesArray)
         {
             var message = (string)value;
             var jsonBytes = message.ToUtf8ByteArray();
@@ -98,8 +113,7 @@ public class DeviceSocket
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                 cancellationToken: cancellationToken);
         }
-        
-        _messageQueue.Clear();
+
 
         _lastSentTime = DateTime.UtcNow;
     }
