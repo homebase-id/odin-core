@@ -12,7 +12,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
+public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
 {
     private readonly TestPermissionKeyList _keys = keys;
     private GuestApiClientFactory _factory;
@@ -34,7 +34,7 @@ public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermission
                         PermissionedDrive = new()
                         {
                             Drive = TargetDrive,
-                            Permission = DrivePermission.Write
+                            Permission = DrivePermission.Read
                         }
                     }
                 },

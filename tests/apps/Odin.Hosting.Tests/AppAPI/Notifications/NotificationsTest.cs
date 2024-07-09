@@ -8,12 +8,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Services.AppNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Authentication.YouAuth;
-using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 
 namespace Odin.Hosting.Tests.AppAPI.Notifications;
@@ -94,7 +92,12 @@ public class NotificationsTest
         var request = new SocketCommand
         {
             Command = SocketCommandType.EstablishConnectionRequest,
-            Data = OdinSystemSerializer.Serialize(new List<TargetDrive>() { testAppContext.TargetDrive })
+            Data = OdinSystemSerializer.Serialize(new EstablishConnectionOptions
+            {
+                Drives = [testAppContext.TargetDrive],
+                BatchSize = 1,
+                WaitTimeMs = 1
+            })
         };
 
         var ssp = SharedSecretEncryptedPayload.Encrypt(
