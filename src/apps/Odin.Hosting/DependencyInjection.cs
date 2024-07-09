@@ -43,6 +43,7 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -63,10 +64,10 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
+            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
 
             cb.RegisterType<PushNotificationOutboxAdapter>()
                 .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
-
                 .AsSelf().SingleInstance();
 
             cb.RegisterType<FeedNotificationMapper>()
