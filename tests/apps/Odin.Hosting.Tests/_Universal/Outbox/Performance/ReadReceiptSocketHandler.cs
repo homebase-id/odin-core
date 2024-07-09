@@ -8,7 +8,7 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
 
-public class ReadReceiptSocketHandler
+public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificationBatchSize, int notificationWaitTime)
 {
     private readonly TestWebSocketListener _socketListener = new();
 
@@ -24,8 +24,8 @@ public class ReadReceiptSocketHandler
         await _socketListener.ConnectAsync(_client.Identity.OdinId, _client.GetTokenContext(), new EstablishConnectionOptions()
         {
             Drives = [SystemDriveConstants.ChatDrive],
-            BatchSize = 1,
-            WaitTimeMs = 1
+            BatchSize = notificationBatchSize,
+            WaitTimeMs = notificationWaitTime
         });
     }
 
@@ -39,7 +39,7 @@ public class ReadReceiptSocketHandler
         switch (notification.NotificationType)
         {
             case ClientNotificationType.InboxItemReceived:
-                await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, 2000);
+                await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, processInboxBatchSize);
                 // Console.WriteLine($"Identity: {_client.Identity.OdinId}. Notification: InboxItemReceived");
                 break;
 

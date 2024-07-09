@@ -58,7 +58,8 @@ public class DeviceSocket
 
     private bool LongTimeNoSee()
     {
-        return (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
+        var v = (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
+        return v;
     }
 
 
@@ -103,9 +104,8 @@ public class DeviceSocket
             }
         }
 
-        foreach (var value in valuesArray)
+        foreach (var message in valuesArray)
         {
-            var message = (string)value;
             var jsonBytes = message.ToUtf8ByteArray();
             await Socket.SendAsync(
                 buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
@@ -114,6 +114,7 @@ public class DeviceSocket
                 cancellationToken: cancellationToken);
         }
 
+        AppNotificationHandlerCounters.ProcessBatchCount++;
 
         _lastSentTime = DateTime.UtcNow;
     }

@@ -1,25 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Castle.Components.DictionaryAdapter.Xml;
-using Microsoft.AspNetCore.Connections.Features;
-using Nito.AsyncEx;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
+using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 {
@@ -27,15 +22,18 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
     {
         private WebScaffold _scaffold;
 
-        private int _fileSendAttempts = 0;
         private readonly List<Guid> _filesSentByFrodo = new();
 
         private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
         private readonly List<Guid> _filesReceivedBySam = new();
         private readonly List<Guid> _readReceiptsSentBySam = new();
 
-        private readonly ReadReceiptSocketHandler _frodoSocketHandler = new();
-        private readonly ReadReceiptSocketHandler _samSocketHandler = new();
+        private const int ProcessInboxBatchSize = 10;
+        private const int NotificationBatchSize = 10;
+        private const int NotificationWaitTime = 10;
+
+        private readonly ReadReceiptSocketHandler _frodoSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
+        private readonly ReadReceiptSocketHandler _samSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -81,27 +79,30 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             // Act
             await SendBarrage(frodo, sam);
 
-            //
-            // Wait for outbox to empty
-            //
-            // await WaitForEmptyOutboxes(TimeSpan.FromSeconds(30), frodo, sam);
-            await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive);
-            await sam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive);
+            await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
 
-            Console.WriteLine($"Sent Files: {_filesSentByFrodo.Count}");
-            Console.WriteLine($"Received Files:{_filesReceivedBySam.Count}");
-            Console.WriteLine($"Read-receipts Sent: {_readReceiptsSentBySam.Count}");
-            Console.WriteLine($"Read-receipts received: {_readReceiptsReceivedByFrodo.Count}");
+            Console.WriteLine("App Notifications:");
+            Console.WriteLine($"\tBatch Size: {NotificationBatchSize}");
+            Console.WriteLine($"\tWait Time (ms): {NotificationWaitTime}");
+            Console.WriteLine($"\t{nameof(AppNotificationHandlerCounters.ProcessBatchCount)}: {AppNotificationHandlerCounters.ProcessBatchCount}");
 
+            Console.WriteLine("Outbox:");
+            Console.WriteLine($"\t{nameof(OutboxProcessorCounters.ItemsStarted)}: {OutboxProcessorCounters.ItemsStarted}");
+
+            Console.WriteLine("Inbox:");
+            Console.WriteLine($"\tProcess Batch Size: {ProcessInboxBatchSize}");
+            
+            Console.WriteLine("Test Metrics:");
+            Console.WriteLine($"\tSent Files: {_filesSentByFrodo.Count}");
+            Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
+            Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
+            Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
+            
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
                 "mismatch in number of read-receipts send by sam to the files received");
-            
-            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
-            
 
-            // Console.WriteLine($"SentFiles: {_sentFiles.Count}\t Modified (frodo) Files:{_filesModifiedOnFrodo.Count}");
-            // CollectionAssert.AreEquivalent(_sentFiles, _filesModifiedOnFrodo);
+            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
 
             await Shutdown(frodo, sam);
         }
@@ -183,16 +184,14 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await PerformanceFramework.ThreadedTestAsync(maxThreads: 2, iterations: 20, Func);
         }
 
-        private async Task WaitForEmptyOutboxes(TimeSpan timeout, params OwnerApiClientRedux[] clients)
+        private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
         {
-            var tasks = clients.Select(c => c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout));
-            await tasks.WhenAll();
+            await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
         }
 
         private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
         {
-            _fileSendAttempts++;
-
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
