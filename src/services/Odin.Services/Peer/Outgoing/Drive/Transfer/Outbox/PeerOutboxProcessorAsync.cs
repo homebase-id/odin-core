@@ -16,11 +16,6 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
-    public class OutboxProcessorCounters
-    {
-        public static int ItemsStarted;
-    }
-
     public class PeerOutboxProcessorAsync(
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -56,8 +51,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
-            OutboxProcessorCounters.ItemsStarted++;
-            
             try
             {
                 switch (fileItem.Type)
@@ -99,7 +92,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     fileItem.File,
                     fileItem.Marker);
             }
-            
+
             // OutboxProcessorCounters.ItemsCompleted++;
         }
 

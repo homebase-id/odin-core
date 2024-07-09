@@ -21,6 +21,7 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
+using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -43,7 +44,11 @@ public class SendFileOutboxWorkerAsync(
         {
             logger.LogDebug("Start: Sending file: {file} to {recipient}", fileItem.File, fileItem.Recipient);
 
-            var (versionTag, globalTransitId) = await SendOutboxFileItemAsync(fileItem, odinContext, cn, cancellationToken);
+            Guid versionTag = default;
+            Guid globalTransitId = default;
+
+            await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync",
+                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(fileItem, odinContext, cn, cancellationToken); });
 
             logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
 
@@ -55,25 +60,31 @@ public class SendFileOutboxWorkerAsync(
                 VersionTag = versionTag
             };
 
-            logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
+            logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} " +
+                            "with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
 
             await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
 
-            logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
+            logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
+                            "with gtid: {gtid}", fileItem.File, fileItem.Recipient, globalTransitId);
 
             logger.LogDebug("Successful transfer of {gtid} to {recipient} - " +
-                            "Action: Marking Complete (popStamp:{marker})",
-                globalTransitId,
-                fileItem.Recipient,
-                fileItem.Marker);
+                            "Action: Marking Complete (popStamp:{marker})", globalTransitId, fileItem.Recipient, fileItem.Marker);
 
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
 
-            // Try to clean up the transient file
-            if (fileItem.State.IsTransientFile && !await peerOutbox.HasOutboxFileItem(fileItem, cn))
+            if (fileItem.State.IsTransientFile)
             {
-                logger.LogDebug("File was transient and all other outbox records sent; deleting");
-                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
+                await PerformanceCounter.MeasureExecutionTime("Outbox CleanupIfTransientFile",
+                    async () =>
+                    {
+                        // Try to clean up the transient file
+                        if (!await peerOutbox.HasOutboxFileItem(fileItem, cn))
+                        {
+                            logger.LogDebug("File was transient and all other outbox records sent; deleting");
+                            await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, cn);
+                        }
+                    });
             }
         }
         catch (OdinOutboxProcessingException e)

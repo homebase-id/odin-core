@@ -63,5 +63,6 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
     {
         var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(notification.Data);
         this.FileAdded?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
+        await Task.CompletedTask;
     }
 }

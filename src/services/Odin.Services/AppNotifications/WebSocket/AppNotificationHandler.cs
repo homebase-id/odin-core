@@ -23,14 +23,6 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
-    public static class AppNotificationHandlerCounters
-    {
-        /// <summary>
-        /// Number of times the process batch was sent
-        /// </summary>
-        public static int ProcessBatchCount { get; set; }
-    }
-
     public class AppNotificationHandler(
         PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
@@ -208,7 +200,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null
                     };
-                    
+
                     var json = OdinSystemSerializer.Serialize(new
                     {
                         notification.NotificationType,

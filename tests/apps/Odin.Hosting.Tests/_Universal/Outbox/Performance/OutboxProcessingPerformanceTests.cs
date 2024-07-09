@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
-using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -14,13 +14,14 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 {
     public class OutboxProcessingPerformanceTests
     {
         private WebScaffold _scaffold;
+
+        private static readonly object _lock = new();
 
         private readonly List<Guid> _filesSentByFrodo = new();
 
@@ -77,27 +78,27 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await SetupSockets(frodo, sam);
 
             // Act
-            await SendBarrage(frodo, sam);
+            await SendBarrage(frodo, sam, maxThreads: 5, iterations: 50);
 
             await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
 
-            Console.WriteLine("App Notifications:");
-            Console.WriteLine($"\tBatch Size: {NotificationBatchSize}");
-            Console.WriteLine($"\tWait Time (ms): {NotificationWaitTime}");
-            Console.WriteLine($"\t{nameof(AppNotificationHandlerCounters.ProcessBatchCount)}: {AppNotificationHandlerCounters.ProcessBatchCount}");
+            Console.WriteLine("Parameters:");
 
-            Console.WriteLine("Outbox:");
-            Console.WriteLine($"\t{nameof(OutboxProcessorCounters.ItemsStarted)}: {OutboxProcessorCounters.ItemsStarted}");
+            Console.WriteLine("\tApp Notifications:");
+            Console.WriteLine($"\t\tBatch Size: {NotificationBatchSize}");
+            Console.WriteLine($"\t\tWait Time (ms): {NotificationWaitTime}");
 
-            Console.WriteLine("Inbox:");
-            Console.WriteLine($"\tProcess Batch Size: {ProcessInboxBatchSize}");
-            
+            Console.WriteLine("\tInbox:");
+            Console.WriteLine($"\t\tProcess Batch Size: {ProcessInboxBatchSize}");
+
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tSent Files: {_filesSentByFrodo.Count}");
             Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
             Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
             Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
-            
+
+            PerformanceCounter.WriteCounters();
+
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
                 "mismatch in number of read-receipts send by sam to the files received");
@@ -154,14 +155,14 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await this._samSocketHandler.DisconnectAsync();
         }
 
-        private async Task SendBarrage(OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
+        private async Task SendBarrage(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations)
         {
-            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int iterations)
+            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
             {
-                long[] timers = new long[iterations];
+                long[] timers = new long[count];
                 var sw = new Stopwatch();
 
-                for (int count = 0; count < iterations; count++)
+                for (int i = 0; i < count; i++)
                 {
                     sw.Restart();
 
@@ -170,10 +171,13 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                     var result = await SendChatMessage(message, sender, recipient);
                     if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
                     {
-                        _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                        lock (_lock)
+                        {
+                            _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                        }
                     }
 
-                    timers[count] = sw.ElapsedMilliseconds;
+                    timers[i] = sw.ElapsedMilliseconds;
                     // If you want to introduce a delay be sure to use: await Task.Delay(1);
                     await Task.Delay(100);
                 }
@@ -181,7 +185,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                 return (0, timers);
             }
 
-            await PerformanceFramework.ThreadedTestAsync(maxThreads: 2, iterations: 20, Func);
+            await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
         }
 
         private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)

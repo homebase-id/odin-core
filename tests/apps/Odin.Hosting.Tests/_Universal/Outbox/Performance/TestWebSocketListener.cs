@@ -99,7 +99,7 @@ public sealed class TestWebSocketListener
             await _receivingTask;
             _clientWebSocket.Dispose();
         }
-        catch (TaskCanceledException e)
+        catch (TaskCanceledException)
         {
             //expected
         }
