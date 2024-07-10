@@ -6,13 +6,13 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Util;
 using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
@@ -21,35 +21,18 @@ public class SendPushNotificationOutboxWorker(
     OutboxFileItem fileItem,
     ILogger<SendPushNotificationOutboxWorker> logger,
     IAppRegistrationService appRegistrationService,
-    PushNotificationService pushNotificationService,
-    PeerOutbox peerOutbox)
+    PushNotificationService pushNotificationService)
 {
-    public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
-        try
-        {
-            await PerformanceCounter.MeasureExecutionTime("Notifications SendPushNotification",
-                async () =>
-                {
-                    var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                    await PushItem(newContext, cn, cancellationToken);
-                });
-            
-            await peerOutbox.MarkComplete(fileItem.Marker, cn);
-        }
-        catch (OdinOutboxProcessingException e)
-        {
-            // var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
-            // await peerOutbox.MarkFailure(item.Marker, nextRun);
-            // we're not going to retry push notifications for now
-            logger.LogDebug(e, "Failed processing push notification: Marking Complete");
-            await peerOutbox.MarkComplete(fileItem.Marker, cn);
-        }
-        catch (Exception e)
-        {
-            logger.LogDebug(e, "Unhandled Exception: Failed processing push notification: Marking Complete");
-            await peerOutbox.MarkComplete(fileItem.Marker, cn);
-        }
+        await PerformanceCounter.MeasureExecutionTime("Notifications SendPushNotification",
+            async () =>
+            {
+                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                await PushItem(newContext, cn, cancellationToken);
+            });
+
+        return (true, UnixTimeUtc.ZeroTime);
     }
 
     private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)

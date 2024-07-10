@@ -108,6 +108,56 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await Shutdown(frodo, sam);
         }
 
+
+        [Test]
+        [Description("Tests that the job manager will kick in if items in the inbox fail to be sent")]
+        public async Task ChatSpamTestEndToEnd_AllowDistributeChangesToFalseDuringTest()
+        {
+            /*
+             * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
+             * As they chat, items are sent out of the outbox to the recipient
+             * As the recipient receives items, the recipient sends back a read-receipt; which also goes into the outbox
+             * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
+             */
+
+            // Setup
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            await PrepareScenario(frodo, sam);
+            await SetupSockets(frodo, sam);
+
+            // Act
+            await SendBarrageWithAllowDistributionErrors(frodo, sam, maxThreads: 5, iterations: 50, errors: 5);
+
+            await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(300));
+
+            Console.WriteLine("Parameters:");
+
+            Console.WriteLine("\tApp Notifications:");
+            Console.WriteLine($"\t\tBatch Size: {NotificationBatchSize}");
+            Console.WriteLine($"\t\tWait Time (ms): {NotificationWaitTime}");
+
+            Console.WriteLine("\tInbox:");
+            Console.WriteLine($"\t\tProcess Batch Size: {ProcessInboxBatchSize}");
+
+            Console.WriteLine("Test Metrics:");
+            Console.WriteLine($"\tSent Files: {_filesSentByFrodo.Count}");
+            Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
+            Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
+            Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
+
+            PerformanceCounter.WriteCounters();
+
+            CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
+            CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
+                "mismatch in number of read-receipts send by sam to the files received");
+
+            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
+
+            await Shutdown(frodo, sam);
+        }
+
         private async Task SetupSockets(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)
         {
             await _samSocketHandler.ConnectAsync(sam);
@@ -168,7 +218,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
                     string message = "hi";
                     // var bytes = message.ToUtf8ByteArray().Length;
-                    var result = await SendChatMessage(message, sender, recipient);
+                    var result = await SendChatMessage(message, sender, recipient, true);
                     if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
                     {
                         lock (_lock)
@@ -188,17 +238,78 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
         }
 
-        private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        private async Task SendBarrageWithAllowDistributionErrors(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations,
+            int errors)
         {
-            await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
-            await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            var randomErrorIntervals = GetRandomNumbers(0, iterations, errors);
+
+            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
+            {
+                long[] timers = new long[count];
+                var sw = new Stopwatch();
+
+                for (int i = 0; i < count; i++)
+                {
+                    sw.Restart();
+
+
+                    string message = "hi";
+                    var disableDistribution = randomErrorIntervals.Contains(i);
+                    var result = await SendChatMessage(message, sender, recipient, allowDistribution: !disableDistribution);
+                    // var bytes = message.ToUtf8ByteArray().Length;
+
+                    if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
+                    {
+                        lock (_lock)
+                        {
+                            _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                        }
+                    }
+
+                    timers[i] = sw.ElapsedMilliseconds;
+                    // If you want to introduce a delay be sure to use: await Task.Delay(1);
+                    await Task.Delay(100);
+                }
+
+                return (0, timers);
+            }
+
+            await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
         }
 
-        private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
+        private List<int> GetRandomNumbers(int start, int end, int count)
+        {
+            if (count > (end - start + 1))
+            {
+                throw new ArgumentException("Count is greater than the range of numbers");
+            }
+
+            Random random = new Random();
+            HashSet<int> randomNumbers = new HashSet<int>();
+
+            while (randomNumbers.Count < count)
+            {
+                int number = random.Next(start, end + 1);
+                randomNumbers.Add(number);
+            }
+
+            return [..randomNumbers];
+        }
+
+        private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        {
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Outbox Wait time: {senderWaitTime.TotalSeconds}sec");
+            
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
+        }
+
+        private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient, bool allowDistribution)
         {
             var fileMetadata = new UploadFileMetadata()
             {
-                AllowDistribution = true,
+                AllowDistribution = allowDistribution,
                 IsEncrypted = true,
                 AppData = new()
                 {
