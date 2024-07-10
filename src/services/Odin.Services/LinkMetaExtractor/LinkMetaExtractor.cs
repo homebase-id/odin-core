@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
 
@@ -16,10 +17,12 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory) : ILinkMetaExtr
         client.DefaultRequestHeaders.Add("User-Agent", "googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
         var response = await client.GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
-
-        var meta = Parser.Parse(content);
-        if(meta.Count == 0)
-            throw new Exception("No meta tags found");
+        
+        // Decode the html content. May contain & as &amp; which breaks the url
+        var decodedHtml = WebUtility.HtmlDecode(content);
+        var meta = Parser.Parse(decodedHtml);
+        if (meta.Count == 0)
+            return null;
 
         var linkMeta =  LinkMeta.FromMetaData(meta, url);
         if (linkMeta.ImageUrl != null)
