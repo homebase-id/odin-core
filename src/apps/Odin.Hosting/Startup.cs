@@ -45,6 +45,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
