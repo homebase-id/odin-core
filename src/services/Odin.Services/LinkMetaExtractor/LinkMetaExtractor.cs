@@ -27,9 +27,25 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory) : ILinkMetaExtr
         var linkMeta =  LinkMeta.FromMetaData(meta, url);
         if (linkMeta.ImageUrl != null)
         {
-            // Download the image and convert it into base64
-            var image = await client.GetByteArrayAsync(linkMeta.ImageUrl);
-            linkMeta.ImageUrl = Convert.ToBase64String(image);
+            // Download the image and convert it into uri data
+            var imageResponse = await client.GetAsync(linkMeta.ImageUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                //TODO(@toddmitchell): Log the error
+                linkMeta.ImageUrl = null;
+            }
+            else
+            {
+                var image = await imageResponse.Content.ReadAsByteArrayAsync();
+                var mimeType = imageResponse.Content.Headers.ContentType?.ToString();
+                if(string.IsNullOrEmpty(mimeType))
+                    mimeType = "image/png"; // Force default the type to png
+            
+                var imageUri = $"data:{mimeType};base64,{Convert.ToBase64String(image)}";
+                linkMeta.ImageUrl = imageUri;
+                
+            }
+           
         }
 
         return linkMeta;
