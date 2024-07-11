@@ -137,6 +137,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
+                logger.LogInformation("Outbox: file {file} had too many attempts to send {attempts}.  Action: Marking Complete",
+                    fileItem.File,
+                    fileItem.AttemptCount);
                 return;
             }
             

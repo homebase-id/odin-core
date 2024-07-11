@@ -37,6 +37,18 @@ public class SendFileOutboxWorkerAsync(
     {
         try
         {
+            if (_fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            {
+                throw new OdinOutboxProcessingException("Too many attempts")
+                {
+                    File = fileItem.File,
+                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
+                    Recipient = default,
+                    VersionTag = default,
+                    GlobalTransitId = default
+                };
+            }
+
             logger.LogDebug("Start: Sending file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
 
             Guid versionTag = default;

@@ -31,6 +31,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, FileSystemResolv
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
             case LatestTransferStatus.UnknownServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
+            case LatestTransferStatus.SendingServerTooManyAttempts:
                 return await HandleUnrecoverableTransferStatus(e, odinContext, cn);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
