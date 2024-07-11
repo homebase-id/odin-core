@@ -109,20 +109,30 @@ public sealed class TestWebSocketListener
     {
         _receivingTask = Task.Run(async () =>
         {
-            while (_clientWebSocket.State == WebSocketState.Open)
+            try
             {
-                var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 4]);
-                var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, _cancellationTokenSource.Token);
+                while (_clientWebSocket.State == WebSocketState.Open)
+                {
+                    var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 4]);
+                    var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, _cancellationTokenSource.Token);
 
-                if (receiveResult.MessageType == WebSocketMessageType.Close)
-                {
-                    await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                    if (receiveResult.MessageType == WebSocketMessageType.Close)
+                    {
+                        await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                    }
+                    else
+                    {
+                        var array = receiveBuffer.Array;
+                        Array.Resize(ref array, receiveResult.Count);
+                        await OnNotificationReceived(DecryptClientNotificationPayload<TestClientNotification>(array));
+                    }
                 }
-                else
+            }
+            catch (WebSocketException e)
+            {
+                if (e.WebSocketErrorCode != WebSocketError.ConnectionClosedPrematurely) //server killed the connection
                 {
-                    var array = receiveBuffer.Array;
-                    Array.Resize(ref array, receiveResult.Count);
-                    await OnNotificationReceived(DecryptClientNotificationPayload<TestClientNotification>(array));
+                    throw; 
                 }
             }
         });
@@ -132,7 +142,7 @@ public sealed class TestWebSocketListener
     {
         var json = array.ToStringFromUtf8Bytes();
         var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
-        if(n.IsEncrypted)
+        if (n.IsEncrypted)
         {
             var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, _authTokenContext.SharedSecret);
             var response = OdinSystemSerializer.Deserialize<T>(decryptedResponse);

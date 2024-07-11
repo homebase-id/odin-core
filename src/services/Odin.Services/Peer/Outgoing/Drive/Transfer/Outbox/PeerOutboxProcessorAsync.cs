@@ -80,8 +80,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinFileReadException fileReadException)
             {
-                logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
+
+                logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
             catch (OdinOutboxProcessingException e)
             {
@@ -109,9 +110,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             try
             {
-                var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
                 if (fileItem.State.IsTransientFile)
                 {
+                    var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
+
                     await PerformanceCounter.MeasureExecutionTime("Outbox CleanupIfTransientFile",
                         async () =>
                         {
@@ -126,12 +128,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Failed to clean up transient file");
+                logger.LogWarning(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
             }
         }
 
         private async Task RescheduleItem(OutboxFileItem fileItem, IOdinContext odinContext, UnixTimeUtc nextRun, DatabaseConnection connection)
         {
+            if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            {
+                await peerOutbox.MarkComplete(fileItem.Marker, connection);
+                return;
+            }
+            
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
 
             try

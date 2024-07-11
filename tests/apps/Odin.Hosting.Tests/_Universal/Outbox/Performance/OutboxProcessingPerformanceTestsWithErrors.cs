@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Security;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -18,12 +17,13 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 {
-    public class OutboxProcessingPerformanceTests
+    public class OutboxProcessingPerformanceTestsWithErrors
     {
         private WebScaffold _scaffold;
 
         private static readonly object _lock = new();
 
+        private readonly List<Guid> _failedFilesSentByFrodo = new();
         private readonly List<Guid> _filesSentByFrodo = new();
 
         private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
@@ -62,7 +62,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
 
         [Test]
-        public async Task ChatSpamTestEndToEnd_AllSuccessScenarios()
+        [Description("Tests that the job manager will kick in if items in the inbox fail to be sent")]
+        public async Task ChatSpamTestEndToEnd_AllowDistributeChangesToFalseDuringTest()
         {
             /*
              * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
@@ -78,8 +79,10 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await PrepareScenario(frodo, sam);
             await SetupSockets(frodo, sam);
 
+            const int errors = 2;
+            const int maxThreads = 1;
             // Act
-            await SendBarrage(frodo, sam, maxThreads: 5, iterations: 50);
+            await SendBarrageWithAllowDistributionErrors(frodo, sam, maxThreads, iterations: 2, errors);
 
             await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
 
@@ -94,6 +97,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tSent Files: {_filesSentByFrodo.Count}");
+            Console.WriteLine($"\tSent File (failures): {_failedFilesSentByFrodo.Count}");
             Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
             Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
             Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
@@ -123,6 +127,16 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             //validate sam marked ita s ready
             if (e.header.ServerMetadata.TransferHistory.Recipients.TryGetValue(TestIdentities.Samwise.OdinId, out var value))
             {
+                if (value.LatestTransferStatus == LatestTransferStatus.Delivered && !value.IsReadByRecipient)
+                {
+                    _filesSentByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                }
+
+                if (value.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution && !value.IsReadByRecipient)
+                {
+                    _failedFilesSentByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                }
+
                 if (value.IsReadByRecipient)
                 {
                     _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
@@ -156,8 +170,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await this._samSocketHandler.DisconnectAsync();
         }
 
-        private async Task SendBarrage(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations)
+        private async Task SendBarrageWithAllowDistributionErrors(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations,
+            int errors)
         {
+            var randomErrorIntervals = GetRandomNumbers(0, iterations, errors);
+
             async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
             {
                 long[] timers = new long[count];
@@ -167,14 +184,17 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                 {
                     sw.Restart();
 
+
                     string message = "hi";
+                    var disableDistribution = randomErrorIntervals.Contains(i);
+                    var result = await SendChatMessage(message, sender, recipient, allowDistribution: !disableDistribution);
                     // var bytes = message.ToUtf8ByteArray().Length;
-                    var result = await SendChatMessage(message, sender, recipient, true);
+
                     if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
                     {
                         lock (_lock)
                         {
-                            _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                            // _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
                         }
                     }
 
@@ -187,6 +207,25 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             }
 
             await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
+        }
+
+        private List<int> GetRandomNumbers(int start, int end, int count)
+        {
+            if (count > (end - start + 1))
+            {
+                throw new ArgumentException("Count is greater than the range of numbers");
+            }
+
+            Random random = new Random();
+            HashSet<int> randomNumbers = new HashSet<int>();
+
+            while (randomNumbers.Count < count)
+            {
+                int number = random.Next(start, end + 1);
+                randomNumbers.Add(number);
+            }
+
+            return [..randomNumbers];
         }
 
         private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
