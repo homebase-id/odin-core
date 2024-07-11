@@ -20,6 +20,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
@@ -717,12 +718,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext, cn);
 
-            if (!ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
             {
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
-            
+
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext, cn);
+
             if (null == existingServerHeader)
             {
                 throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
@@ -731,6 +733,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
             {
                 throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
+            {
+                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
+                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
             }
 
             DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
@@ -744,16 +752,21 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
-            // Critical Note: if this new key header's AES key does not match the
-            // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
-            var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-            var newKeyHeader = new KeyHeader()
+            //only change the IV if the file was encrypted
+            if (existingServerHeader.FileMetadata.IsEncrypted)
             {
-                Iv = newKeyHeaderIv,
-                AesKey = existingDecryptedKeyHeader.AesKey
-            };
-            existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
+                // Critical Note: if this new key header's AES key does not match the
+                // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
+                var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var newKeyHeader = new KeyHeader()
+                {
+                    Iv = newKeyHeaderIv,
+                    AesKey = existingDecryptedKeyHeader.AesKey
+                };
+
+                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
+            }
             
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;

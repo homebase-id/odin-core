@@ -12,7 +12,6 @@ public static class SamplePayloadDefinitions
         new()
         {
             Key = "test_key_1",
-            Iv = ByteArrayUtil.GetRndByteArray(16),
             ContentType = "text/plain",
             Content = "some content for payload key 1".ToUtf8ByteArray(),
             PreviewThumbnail = new ThumbnailContent()
@@ -38,7 +37,6 @@ public static class SamplePayloadDefinitions
         new()
         {
             Key = "test_key_2",
-            Iv = ByteArrayUtil.GetRndByteArray(16),
             ContentType = "text/plain",
             Content = "other types of content for key 2".ToUtf8ByteArray(),
             PreviewThumbnail = new ThumbnailContent()
@@ -64,7 +62,6 @@ public static class SamplePayloadDefinitions
         new()
         {
             Key = "pknt0001",
-            Iv = ByteArrayUtil.GetRndByteArray(16),
             ContentType = "text/plain",
             Content = "a payload of stuff #1".ToUtf8ByteArray(),
             DescriptorContent = "",
@@ -76,7 +73,6 @@ public static class SamplePayloadDefinitions
         new()
         {
             Key = "pknt0002",
-            Iv = ByteArrayUtil.GetRndByteArray(16),
             ContentType = "text/plain",
             Content = "a payload of stuff #2".ToUtf8ByteArray(),
             DescriptorContent = "",
