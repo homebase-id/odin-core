@@ -42,22 +42,6 @@ public static class PerformanceCounter
 #endif
     }
 
-    public static double GetAverageTime(string key)
-    {
-#if DEBUG
-        _timers.TryGetValue(key, out List<long> values);
-        return values?.Average() ?? throw new Exception("Key not found");
-#endif
-    }
-
-    public static long GetCounter(string key)
-    {
-#if DEBUG
-        _counters.TryGetValue(key, out long value);
-        return value;
-#endif
-    }
-
     public static void WriteCounters()
     {
 #if DEBUG
