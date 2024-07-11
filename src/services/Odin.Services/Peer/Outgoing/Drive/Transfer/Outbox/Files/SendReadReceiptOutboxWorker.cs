@@ -22,24 +22,34 @@ public class SendReadReceiptOutboxWorker(
     ILogger<SendReadReceiptOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, null, logger)
+) : OutboxWorkerBase(fileItem, logger)
 {
-    private readonly OutboxFileItem _fileItem = fileItem;
-
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogDebug("SendReadReceipt -> Sending request for file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
+            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            {
+                throw new OdinOutboxProcessingException("Too many attempts")
+                {
+                    File = FileItem.File,
+                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
+                    Recipient = default,
+                    VersionTag = default,
+                    GlobalTransitId = default
+                };
+            }
 
-            var globalTransitId = await HandleRequest(_fileItem, cancellationToken);
+            logger.LogDebug("SendReadReceipt -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
+
+            var globalTransitId = await HandleRequest(FileItem, cancellationToken);
 
             logger.LogDebug("SendReadReceipt -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
                 globalTransitId,
                 "no version info",
-                _fileItem.Recipient,
-                _fileItem.Marker);
+                FileItem.Recipient,
+                FileItem.Marker);
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -124,5 +134,19 @@ public class SendReadReceiptOutboxWorker(
                 File = file
             };
         }
+    }
+
+    protected override Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+        OdinOutboxProcessingException e)
+    {
+        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+        return Task.FromResult((false, nextRunTime));
+    }
+
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
+    {
+        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }
 }

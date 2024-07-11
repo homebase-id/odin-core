@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Security;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -32,7 +31,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
         private const int ProcessInboxBatchSize = 10;
         private const int NotificationBatchSize = 10;
-        private const int NotificationWaitTime = 10;
+        private const int NotificationWaitTime = 30;
 
         private readonly ReadReceiptSocketHandler _frodoSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
         private readonly ReadReceiptSocketHandler _samSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
@@ -41,7 +40,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            _scaffold = new WebScaffold(folder);
+            var fixedSubPath = "logme";
+            _scaffold = new WebScaffold(folder, fixedSubPath);
 
             var env = new Dictionary<string, string>
             {
@@ -180,7 +180,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
                     timers[i] = sw.ElapsedMilliseconds;
                     // If you want to introduce a delay be sure to use: await Task.Delay(1);
-                    await Task.Delay(100);
+                    await Task.Delay(300);
                 }
 
                 return (0, timers);

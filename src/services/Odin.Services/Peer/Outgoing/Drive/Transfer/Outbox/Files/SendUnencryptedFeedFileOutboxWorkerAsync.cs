@@ -30,26 +30,36 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
     IDriveAclAuthorizationService driveAcl
-) : OutboxWorkerBase(fileItem, fileSystemResolver, logger)
+) : OutboxWorkerBase(fileItem, logger)
 
 {
-    private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
-    private readonly OutboxFileItem _fileItem = fileItem;
 
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogDebug("SendFeedItem -> Sending file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
+            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            {
+                throw new OdinOutboxProcessingException("Too many attempts")
+                {
+                    File = FileItem.File,
+                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
+                    Recipient = default,
+                    VersionTag = default,
+                    GlobalTransitId = default
+                };
+            }
+            
+            logger.LogDebug("SendFeedItem -> Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
-            var (versionTag, globalTransitId) = await HandleFeedItem(_fileItem, odinContext, cn, cancellationToken);
+            var (versionTag, globalTransitId) = await HandleFeedItem(FileItem, odinContext, cn, cancellationToken);
 
             logger.LogDebug("SendFeedItem -> Successful transfer of {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
                 globalTransitId,
                 versionTag,
-                _fileItem.Recipient,
-                _fileItem.Marker);
+                FileItem.Recipient,
+                FileItem.Marker);
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -80,7 +90,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var file = outboxFileItem.File;
 
         var distroItem = OdinSystemSerializer.Deserialize<FeedDistributionItem>(outboxFileItem.State.Data.ToStringFromUtf8Bytes());
-        var fs = await _fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
+        var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
         var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
 
         if (header == null)
@@ -207,5 +217,19 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             async () => { httpResponse = await client.DeleteFeedMetadata(request); });
 
         return httpResponse;
+    }
+    
+    protected override Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+        OdinOutboxProcessingException e)
+    {
+        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+        return Task.FromResult((false, nextRunTime));
+    }
+
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
+    {
+        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }
 }

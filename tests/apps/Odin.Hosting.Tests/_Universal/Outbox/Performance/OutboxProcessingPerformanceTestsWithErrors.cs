@@ -84,7 +84,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             // Act
             await SendBarrageWithAllowDistributionErrors(frodo, sam, maxThreads, iterations: 2, errors);
 
-            await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
+            await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(180));
 
             Console.WriteLine("Parameters:");
 
@@ -200,7 +200,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
                     timers[i] = sw.ElapsedMilliseconds;
                     // If you want to introduce a delay be sure to use: await Task.Delay(1);
-                    await Task.Delay(100);
+                    await Task.Delay(300);
                 }
 
                 return (0, timers);

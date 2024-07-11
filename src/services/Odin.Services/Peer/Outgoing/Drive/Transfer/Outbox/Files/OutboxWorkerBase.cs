@@ -11,7 +11,7 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
-public abstract class OutboxWorkerBase(OutboxFileItem fileItem, FileSystemResolver fileSystemResolver, ILogger logger)
+public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
 {
     protected OutboxFileItem FileItem => fileItem;
 
@@ -31,11 +31,15 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, FileSystemResolv
             case LatestTransferStatus.UnknownServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
             case LatestTransferStatus.SendingServerTooManyAttempts:
+                logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
+                PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
                 return await HandleUnrecoverableTransferStatus(e, odinContext, cn);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
+                logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
+                PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
                 return await HandleRecoverableTransferStatus(odinContext, cn, e);
 
             default:
@@ -43,47 +47,12 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, FileSystemResolv
         }
     }
 
-    private async Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
-        OdinOutboxProcessingException e)
-    {
-        PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
+    protected abstract Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+        OdinOutboxProcessingException e);
 
-        var update = new UpdateTransferHistoryData()
-        {
-            IsInOutbox = true,
-            LatestTransferStatus = e.TransferStatus,
-            VersionTag = null
-        };
-
-        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-        logger.LogDebug(e, "Marking Failure (popStamp:{marker})", fileItem.Marker);
-
-        var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
-
-        return (false, nextRunTime);
-    }
-
-    private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected abstract Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn)
-    {
-        PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
-
-        logger.LogDebug(e, "Action: Removing from outbox and marking complete (popStamp:{marker})", fileItem.Marker);
-
-        var update = new UpdateTransferHistoryData()
-        {
-            IsInOutbox = false,
-            LatestTransferStatus = e.TransferStatus,
-            VersionTag = null
-        };
-
-        var fs = fileSystemResolver.ResolveFileSystem(fileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(fileItem.File, fileItem.Recipient, update, odinContext, cn);
-
-        return (false, UnixTimeUtc.ZeroTime);
-    }
+        DatabaseConnection cn);
 
     protected LatestTransferStatus MapPeerErrorResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
     {
@@ -106,12 +75,12 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, FileSystemResolv
         {
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
-                return UnixTimeUtc.Now().AddSeconds(1);
+                return UnixTimeUtc.Now().AddSeconds(15);
 
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
-                return UnixTimeUtc.Now().AddSeconds(1);
+                return UnixTimeUtc.Now().AddSeconds(15);
             default:
-                return UnixTimeUtc.Now().AddSeconds(1);
+                return UnixTimeUtc.Now().AddSeconds(30);
         }
     }
 }

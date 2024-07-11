@@ -1,11 +1,9 @@
 using System;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -15,8 +13,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.JobManagement;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -26,7 +22,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, null, logger)
+) : OutboxWorkerBase(fileItem, logger)
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
@@ -128,5 +124,19 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 File = file
             };
         }
+    }
+    
+    protected override Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+        OdinOutboxProcessingException e)
+    {
+        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+        return Task.FromResult((false, nextRunTime));
+    }
+
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
+    {
+        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }
 }

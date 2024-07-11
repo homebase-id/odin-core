@@ -28,10 +28,8 @@ public class SendFileOutboxWorkerAsync(
     ILogger<SendFileOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, fileSystemResolver, logger)
+) : OutboxWorkerBase(fileItem, logger)
 {
-    private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
-
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
@@ -69,7 +67,7 @@ public class SendFileOutboxWorkerAsync(
             logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} " +
                             "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
-            var fs = _fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+            var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
             await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
 
             logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
@@ -110,7 +108,7 @@ public class SendFileOutboxWorkerAsync(
         var options = outboxFileItem.State.OriginalTransitOptions;
 
         var instructionSet = FileItem.State.TransferInstructionSet;
-        var fileSystem = _fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
+        var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -256,5 +254,43 @@ public class SendFileOutboxWorkerAsync(
                 File = file
             };
         }
+    }
+
+    protected override async Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+        OdinOutboxProcessingException e)
+    {
+        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
+
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = true,
+            LatestTransferStatus = e.TransferStatus,
+            VersionTag = null
+        };
+
+        var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+        var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+
+        return (false, nextRunTime);
+    }
+
+    protected override async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
+    {
+        logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
+
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = false,
+            LatestTransferStatus = e.TransferStatus,
+            VersionTag = null
+        };
+
+        var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+
+        return (false, UnixTimeUtc.ZeroTime);
     }
 }
