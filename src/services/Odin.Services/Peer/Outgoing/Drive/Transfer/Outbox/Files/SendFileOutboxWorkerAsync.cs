@@ -30,18 +30,17 @@ public class SendFileOutboxWorkerAsync(
     IOdinHttpClientFactory odinHttpClientFactory
 ) : OutboxWorkerBase(fileItem, fileSystemResolver, logger)
 {
-    private readonly OutboxFileItem _fileItem = fileItem;
     private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
-            if (_fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 throw new OdinOutboxProcessingException("Too many attempts")
                 {
-                    File = fileItem.File,
+                    File = FileItem.File,
                     TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
                     Recipient = default,
                     VersionTag = default,
@@ -49,15 +48,15 @@ public class SendFileOutboxWorkerAsync(
                 };
             }
 
-            logger.LogDebug("Start: Sending file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
+            logger.LogDebug("Start: Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             Guid versionTag = default;
             Guid globalTransitId = default;
 
             await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync",
-                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(_fileItem, odinContext, cn, cancellationToken); });
+                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(FileItem, odinContext, cn, cancellationToken); });
 
-            logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", _fileItem.File, _fileItem.Recipient, globalTransitId);
+            logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
             var update = new UpdateTransferHistoryData()
             {
@@ -68,16 +67,16 @@ public class SendFileOutboxWorkerAsync(
             };
 
             logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} " +
-                            "with gtid: {gtid}", _fileItem.File, _fileItem.Recipient, globalTransitId);
+                            "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
-            var fs = _fileSystemResolver.ResolveFileSystem(_fileItem.State.TransferInstructionSet.FileSystemType);
-            await fs.Storage.UpdateTransferHistory(_fileItem.File, _fileItem.Recipient, update, odinContext, cn);
+            var fs = _fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+            await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
 
             logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
-                            "with gtid: {gtid}", _fileItem.File, _fileItem.Recipient, globalTransitId);
+                            "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
             logger.LogDebug("Successful transfer of {gtid} to {recipient} - " +
-                            "Action: Marking Complete (popStamp:{marker})", globalTransitId, _fileItem.Recipient, _fileItem.Marker);
+                            "Action: Marking Complete (popStamp:{marker})", globalTransitId, FileItem.Recipient, FileItem.Marker);
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -110,7 +109,7 @@ public class SendFileOutboxWorkerAsync(
         var file = outboxFileItem.File;
         var options = outboxFileItem.State.OriginalTransitOptions;
 
-        var instructionSet = _fileItem.State.TransferInstructionSet;
+        var instructionSet = FileItem.State.TransferInstructionSet;
         var fileSystem = _fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
