@@ -12,10 +12,9 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
     public abstract class DriveQueryByUniqueIdControllerBase(
-        FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
-        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
+        : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
@@ -75,20 +74,20 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             }
 
             return await GetThumbnail(new GetThumbnailRequest()
-            {
-                File = new ExternalFileIdentifier()
                 {
-                    FileId = header.FileId,
-                    TargetDrive = new()
+                    File = new ExternalFileIdentifier()
                     {
-                        Alias = alias,
-                        Type = type
-                    }
+                        FileId = header.FileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Width = width,
+                    Height = height,
+                    PayloadKey = payloadKey
                 },
-                Width = width,
-                Height = height,
-                PayloadKey = payloadKey
-            },
                 cn);
         }
 
@@ -102,7 +101,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 Type = type
             });
 
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext, cn: cn);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext,
+                cn: cn);
             return result;
         }
     }

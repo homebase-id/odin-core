@@ -38,6 +38,15 @@ public class AppNotificationsApiClient
         }
     }
 
+    public async Task<ApiResponse<NotificationsCountResult>> GetUnreadCounts()
+    {
+        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitNotifications>(client, sharedSecret);
+            var response = await svc.GetUnreadCounts();
+            return response;
+        }
+    }
     public async Task<ApiResponse<NotificationsListResult>> GetList(int count, Int64? cursor = null)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
@@ -57,6 +66,16 @@ public class AppNotificationsApiClient
             {
                 Updates = updates
             });
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> MarkReadByAppId(Guid appId)
+    {
+        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitNotifications>(client, sharedSecret);
+            var response = await svc.MarkReadByAppId(appId);
             return response;
         }
     }

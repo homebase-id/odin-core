@@ -14,13 +14,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive.Specialized
     [Route(AppApiPathConstants.DriveQuerySpecializedClientUniqueId)]
     [Route(GuestApiPathConstants.DriveQuerySpecializedClientUniqueId)]
     [AuthorizeValidGuestOrAppToken]
-
     public class ClientTokenDriveQueryByUniqueIdController(
         ILogger<ClientTokenDriveQueryByUniqueIdController> logger,
-        FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
-        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerOutgoingTransferService, tenantSystemStorage)
+        : DriveQueryByUniqueIdControllerBase(peerOutgoingTransferService, tenantSystemStorage)
     {
         private readonly ILogger<ClientTokenDriveQueryByUniqueIdController> _logger = logger;
     }

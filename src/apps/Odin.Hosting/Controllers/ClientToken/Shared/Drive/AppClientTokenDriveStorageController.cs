@@ -21,10 +21,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidAppToken]
     public class AppClientTokenDriveStorageController(
         ILogger<AppClientTokenDriveStorageController> logger,
-        FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
-        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
+        : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         private readonly ILogger<AppClientTokenDriveStorageController> _logger = logger;
 
@@ -149,7 +148,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.DeleteFileIdBatch(request, cn);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/deletegroupidbatch")]
         public async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
@@ -157,7 +156,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.DeleteFilesByGroupIdBatch(request, cn);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
@@ -165,7 +164,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.DeletePayload(request, cn);
         }
-        
+
         /// <summary>
         /// Hard deletes a file which means the file is gone w/o a trace
         /// </summary>
@@ -182,9 +181,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            var result = await base.SendReadReceipt(request , cn);
+            var result = await base.SendReadReceipt(request, cn);
             return new JsonResult(result);
         }
-
     }
 }

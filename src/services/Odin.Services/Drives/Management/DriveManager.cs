@@ -207,6 +207,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(sdb);
+        CacheDrive(drive);
         return await Task.FromResult(drive);
     }
 
@@ -231,6 +232,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(drives.Single());
+        CacheDrive(drive);
         return await Task.FromResult(drive.Id);
     }
 
@@ -324,8 +326,8 @@ public class DriveManager
 
     private void CacheDrive(StorageDrive drive)
     {
-        _logger.LogTrace($"Cached Drive {drive.TargetDriveInfo}");
-        _driveCache.AddOrUpdate(drive.Id, drive, (id, oldDrive) => drive);
+        _logger.LogTrace("Cached Drive {drive}", drive.TargetDriveInfo);
+        _driveCache[drive.Id] = drive;
     }
 
     private void LoadCache(DatabaseConnection cn)
