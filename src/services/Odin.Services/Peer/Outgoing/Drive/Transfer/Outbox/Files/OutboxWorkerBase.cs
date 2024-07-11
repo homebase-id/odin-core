@@ -33,24 +33,26 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
             case LatestTransferStatus.SendingServerTooManyAttempts:
                 logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
-                return await HandleUnrecoverableTransferStatus(e, odinContext, cn);
+                await HandleUnrecoverableTransferStatus(e, odinContext, cn);
+                return (true, UnixTimeUtc.ZeroTime);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
-                return await HandleRecoverableTransferStatus(odinContext, cn, e);
+                var nextRun = await HandleRecoverableTransferStatus(odinContext, cn, e);
+                return (false, nextRun);
 
             default:
                 throw new OdinSystemException("Unhandled LatestTransferStatus");
         }
     }
 
-    protected abstract Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
         OdinOutboxProcessingException e);
 
-    protected abstract Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected abstract Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
         DatabaseConnection cn);
 

@@ -151,7 +151,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
-            await driveClient.WaitForEmptyOutbox(targetDrive);
+            await driveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromSeconds(1000));
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {

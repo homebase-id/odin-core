@@ -125,18 +125,18 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             };
         }
     }
-    
-    protected override Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-        return Task.FromResult((false, nextRunTime));
+        return Task.FromResult(nextRunTime);
     }
 
-    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
         DatabaseConnection cn)
     {
-        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
+        return Task.CompletedTask;
     }
 }

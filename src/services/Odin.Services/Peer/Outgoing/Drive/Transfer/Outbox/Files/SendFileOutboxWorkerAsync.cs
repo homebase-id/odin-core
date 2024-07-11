@@ -256,7 +256,7 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    protected override async Task<(bool, UnixTimeUtc nextRunTime)> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
@@ -272,10 +272,10 @@ public class SendFileOutboxWorkerAsync(
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
 
-        return (false, nextRunTime);
+        return nextRunTime;
     }
 
-    protected override async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
         DatabaseConnection cn)
     {
@@ -290,7 +290,5 @@ public class SendFileOutboxWorkerAsync(
 
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
-
-        return (false, UnixTimeUtc.ZeroTime);
     }
 }

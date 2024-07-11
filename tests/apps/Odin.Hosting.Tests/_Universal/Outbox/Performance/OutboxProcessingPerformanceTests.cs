@@ -62,7 +62,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
 
         [Test]
-        [Ignore("tsting if this is causing ci issues")]
         public async Task ChatSpamTestEndToEnd_AllSuccessScenarios()
         {
             /*
