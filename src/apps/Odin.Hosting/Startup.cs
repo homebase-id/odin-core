@@ -347,6 +347,9 @@ namespace Odin.Hosting
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3004/"); }); });
 
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
+
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
                     homeApp =>
@@ -425,6 +428,24 @@ namespace Odin.Hosting
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(mailPath, "index.html"));
+                            return;
+                        });
+                    });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    communityApp =>
+                    {
+                        var communityPath = Path.Combine(env.ContentRootPath, "client", "apps", "community");
+                        communityApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(communityPath),
+                            RequestPath = "/apps/community"
+                        });
+
+                        communityApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
                             return;
                         });
                     });
