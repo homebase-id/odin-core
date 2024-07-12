@@ -644,6 +644,41 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         }
     }
 
+    public async Task<TimeSpan> WaitForEmptyInbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Inbox.TotalItems == 0)
+            {
+                return sw.Elapsed;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException(
+                    $"timeout occured while waiting for inbox to complete processing " +
+                    $"(wait time: {maxWait.TotalSeconds}sec. " +
+                    $"Total Items: {status.Inbox.TotalItems} " +
+                    $"Checked Out {status.Inbox.PoppedCount})");
+            }
+
+            await Task.Delay(100);
+        }
+    }
+
     public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

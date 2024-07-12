@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -81,10 +82,13 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             const int errors = 2;
             const int maxThreads = 1;
+
             // Act
             await SendBarrageWithAllowDistributionErrors(frodo, sam, maxThreads, iterations: 2, errors);
 
             await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(180));
+
+            await WaitForEmptyInboxes(frodo, sam, TimeSpan.FromSeconds(90));
 
             Console.WriteLine("Parameters:");
 
@@ -104,9 +108,26 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             PerformanceCounter.WriteCounters();
 
-            CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
+            // Wait long enough for all notifications to be flushed
+            await Task.Delay(NotificationWaitTime * 2);
+
             CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
                 "mismatch in number of read-receipts send by sam to the files received");
+
+            CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
+            //see that same received every file
+            foreach (var gtid in _filesSentByFrodo)
+            {
+                var fileByGtid = await sam.DriveRedux.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = gtid,
+                    TargetDrive = SystemDriveConstants.ChatDrive
+                });
+
+                Assert.IsTrue(fileByGtid.IsSuccessStatusCode);
+                var file = fileByGtid.Content.SearchResults.FirstOrDefault();
+                Assert.IsNotNull(file, $"sender does not have file with gtid {gtid}");
+            }
 
             CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
 
@@ -235,6 +256,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
+        }
+
+        private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        {
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
+
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
         private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient, bool allowDistribution)

@@ -83,6 +83,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
 
+            await WaitForEmptyInboxes(frodo, sam, TimeSpan.FromSeconds(90));
+
             Console.WriteLine("Parameters:");
 
             Console.WriteLine("\tApp Notifications:");
@@ -100,6 +102,9 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             PerformanceCounter.WriteCounters();
 
+            // Wait long enough for all notifications to be flushed
+            await Task.Delay(NotificationWaitTime * 2);
+            
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
                 "mismatch in number of read-receipts send by sam to the files received");
@@ -196,6 +201,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
 
             var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
+        }
+        
+        private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        {
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
+
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
         private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient, bool allowDistribution)
