@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
@@ -83,7 +84,7 @@ public class LinkMetaExtractorTests
         {
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
             Assert.ThrowsAsync<InvalidOperationException>(async () => await  linkMetaExtractor.ExtractAsync(""));
-            Assert.ThrowsAsync<HttpRequestException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
+            Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
         }
 
         [Test]

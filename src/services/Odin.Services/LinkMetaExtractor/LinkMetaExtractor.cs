@@ -33,8 +33,9 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
             var linkMeta = LinkMeta.FromMetaData(meta, url);
             if (linkMeta.ImageUrl != null)
             {
+                var cleanedUrl = WebUtility.HtmlDecode(linkMeta.ImageUrl);
                 // Download the image and convert it into uri data
-                var imageResponse = await client.GetAsync(linkMeta.ImageUrl);
+                var imageResponse = await client.GetAsync(cleanedUrl);
                 if (!imageResponse.IsSuccessStatusCode)
                 {
                     logger.LogInformation("Failed to download image from {Url}. Status code: {ImageResponse}",
