@@ -59,7 +59,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
             return linkMeta;
 
         }
-        catch (OperationCanceledException e)
+        catch (OperationCanceledException)
         {
             // Operation was cancelled so ignore
             return null;
