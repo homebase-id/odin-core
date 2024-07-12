@@ -91,10 +91,10 @@ namespace Odin.Hosting.Tests
                 }));
         }
 
-        public WebScaffold(string folder)
+        public WebScaffold(string folder, string fixedSubPath = null)
         {
             this._folder = folder;
-            this._uniqueSubPath = Guid.NewGuid().ToString();
+            this._uniqueSubPath = fixedSubPath ?? Guid.NewGuid().ToString();
             _oldOwnerApi = new OwnerApiTestUtils(SystemProcessApiKey);
         }
 

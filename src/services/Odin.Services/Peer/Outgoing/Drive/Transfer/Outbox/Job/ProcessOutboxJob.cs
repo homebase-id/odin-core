@@ -6,6 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.JobManagement;
 using Quartz;
@@ -35,6 +36,8 @@ public class ProcessOutboxSchedule(OdinId identity, UnixTimeUtc nextRunTime) : A
                 .StartAt(DateTimeOffset.FromUnixTimeMilliseconds(nextRunTime.milliseconds))
         };
 
+        PerformanceCounter.IncrementCounter("Outbox Item Rescheduled");
+        
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
 }
@@ -56,7 +59,9 @@ public class ProcessOutboxJob(
             logger.LogDebug("ProcessOutboxJob running for  {identity}", identity);
             var svc = systemHttpClient.CreateHttps<IOutboxJobSystemHttpClient>((OdinId)identity);
             var response = await svc.ProcessOutboxAsync();
-
+            
+            PerformanceCounter.IncrementCounter("Outbox Item Reschedule Job Processed");
+            
             if (!response.IsSuccessStatusCode)
             {
                 throw new OdinSystemException($"Failed to run job for identity: {identity}");
