@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using NUnit.Framework;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
@@ -82,6 +83,14 @@ public class LinkMetaExtractorTests
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
             Assert.ThrowsAsync<InvalidOperationException>(async () => await  linkMetaExtractor.ExtractAsync(""));
             Assert.ThrowsAsync<HttpRequestException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
+        }
+
+        [Test]
+        public void TestHtmlSanitation()
+        {
+            var html = "<html><head><title>Test</title></head><body><script>alert('test')</script></body></html>";
+            var sanitizedHtml = Parser.Parse(html);
+            Assert.AreEqual("Test", sanitizedHtml["title"]);
         }
         
     
