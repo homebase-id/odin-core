@@ -31,7 +31,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
                 return null;
 
             var linkMeta = LinkMeta.FromMetaData(meta, url);
-            if (linkMeta.ImageUrl != null)
+            if (string.IsNullOrEmpty(linkMeta.ImageUrl))
             {
                 var cleanedUrl = WebUtility.HtmlDecode(linkMeta.ImageUrl);
                 // Download the image and convert it into uri data
