@@ -126,19 +126,18 @@ public class DefaultCronJob(
 
     private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)
     {
-        // var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        // try
-        // {
-        //     var response = await svc.ProcessOutbox();
-        //     return response.IsSuccessStatusCode;
-        // }
-        // catch (HttpRequestException e)
-        // {
-        //     logger.LogDebug("Process peer transfer: {identity}. Error: {error}", identity, e.Message);
-        // }
-        //
-        // return false;
-        return true;
+        var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
+        try
+        {
+            var response = await svc.ProcessOutbox();
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException e)
+        {
+            logger.LogDebug("Process peer transfer: {identity}. Error: {error}", identity, e.Message);
+        }
+
+        return false;
     }
     
 }
