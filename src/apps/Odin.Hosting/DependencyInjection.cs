@@ -5,7 +5,6 @@ using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authentication.YouAuth;
@@ -40,10 +39,12 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Tenant.BackgroundService;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -127,7 +128,6 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
@@ -171,9 +171,8 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
-            
-            cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
+
             cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
@@ -197,8 +196,6 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
-
-            cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 

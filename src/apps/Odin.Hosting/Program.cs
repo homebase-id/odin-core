@@ -48,10 +48,10 @@ namespace Odin.Hosting
                 Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
                 try
                 {
-                    Log.Information("Starting web host");
+                    Log.Information("\n\n\nStarting web host");
                     Log.Information("Identity-host version: {Version}", Extensions.Version.VersionText);
                     CreateHostBuilder(args).Build().Run();
-                    Log.Information("Stopped web host");
+                    Log.Information("Stopped web host\n\n\n");
                 }
                 catch (Exception ex)
                 {
@@ -96,7 +96,9 @@ namespace Odin.Hosting
 
             Log.Information($"Loading configuration at [{configPath}]");
 
-            var configBuilder = new ConfigurationBuilder().AddJsonFile(configPath, optional: false);
+            var configBuilder = new ConfigurationBuilder()
+                .AddJsonFile(configPath, optional: false)
+                .AddJsonFile(Path.Combine(configFolder, "appsettings.local.json"), optional: true); // not in source control
             if (includeEnvVars)
             {
                 configBuilder.AddEnvironmentVariables();

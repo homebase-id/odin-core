@@ -85,8 +85,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList()
             };
 
             var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
@@ -159,8 +158,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
-                Schedule = ScheduleOptions.SendAsync
+                Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList()
             };
 
             var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(

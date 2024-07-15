@@ -70,7 +70,7 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task<uint> WriteStream(string filePath, Stream stream)
+    public async Task<uint> WriteStream(string filePath, Stream stream, bool byPassInternalFileLocking = false)
     {
         uint bytesWritten = 0;
 
@@ -82,13 +82,15 @@ public sealed class DriveFileReaderWriter(
                 CancellationToken.None,
                 async () =>
                 {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
-                        await concurrentFileManager.WriteFile(filePath,
+                        logger.LogDebug("WriteStream - using CFM locking");
+                        await concurrentFileManager.WriteFileAsync(filePath,
                             async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
                     }
                     else
                     {
+                        logger.LogDebug("WriteStream - using OS locking");
                         bytesWritten = await WriteStreamInternalAsync(filePath, stream);
                     }
                 });
@@ -106,7 +108,7 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task<byte[]> GetAllFileBytes(string filePath)
+    public async Task<byte[]> GetAllFileBytes(string filePath, bool byPassInternalFileLocking = false)
     {
         byte[] bytes = null;
 
@@ -118,12 +120,14 @@ public sealed class DriveFileReaderWriter(
                 CancellationToken.None,
                 async () =>
                 {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
                     {
+                        logger.LogDebug("GetAllFileBytes - using CFM locking");
                         await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
                     }
                     else
                     {
+                        logger.LogDebug("GetAllFileBytes - using OS locking");
                         bytes = await File.ReadAllBytesAsync(filePath);
                     }
                 });

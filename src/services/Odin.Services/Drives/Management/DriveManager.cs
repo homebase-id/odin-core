@@ -207,6 +207,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(sdb);
+        CacheDrive(drive);
         return await Task.FromResult(drive);
     }
 
@@ -231,6 +232,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(drives.Single());
+        CacheDrive(drive);
         return await Task.FromResult(drive.Id);
     }
 
@@ -282,7 +284,7 @@ public class DriveManager
         if (_driveCache.Any())
         {
             allDrives = _driveCache.Values.ToList();
-            _logger.LogDebug($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
+            _logger.LogTrace($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
         }
         else
         {
@@ -290,7 +292,7 @@ public class DriveManager
                 .GetByCategory<StorageDriveBase>(cn, _driveDataType)
                 .Select(ToStorageDrive).ToList();
 
-            _logger.LogDebug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
+            _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
         if (odinContext?.Caller?.IsOwner ?? false)
@@ -324,8 +326,8 @@ public class DriveManager
 
     private void CacheDrive(StorageDrive drive)
     {
-        _logger.LogDebug($"Cached Drive {drive.TargetDriveInfo}");
-        _driveCache.AddOrUpdate(drive.Id, drive, (id, oldDrive) => drive);
+        _logger.LogTrace("Cached Drive {drive}", drive.TargetDriveInfo);
+        _driveCache[drive.Id] = drive;
     }
 
     private void LoadCache(DatabaseConnection cn)

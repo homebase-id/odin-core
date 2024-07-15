@@ -30,4 +30,9 @@
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="_Universal\DriveTests\Status\" />
+    <Folder Include="_Universal\NotificationTests\Transit\" />
+  </ItemGroup>
+
 </Project>

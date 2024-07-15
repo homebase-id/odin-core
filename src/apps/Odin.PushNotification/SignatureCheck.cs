@@ -90,7 +90,14 @@ public class SignatureCheck(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error downloading/validating certificate for {Domain}", domain);
+            if (domain.EndsWith(".dotyou.cloud"))
+            {
+                logger.LogWarning(e, "Error downloading/validating certificate for {Domain}", domain);
+            }
+            else
+            {
+                logger.LogError(e, "Error downloading/validating certificate for {Domain}", domain);                
+            }
             return null;
         }
     }

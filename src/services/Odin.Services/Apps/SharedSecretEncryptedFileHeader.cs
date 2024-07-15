@@ -11,23 +11,23 @@ namespace Odin.Services.Apps
     public class SharedSecretEncryptedFileHeader
     {
         public Guid FileId { get; set; }
-        
+
         public TargetDrive TargetDrive { get; set; }
-        
+
         public FileState FileState { get; set; }
-        
-        public FileSystemType FileSystemType { get; set; } 
-        
+
+        public FileSystemType FileSystemType { get; set; }
+
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
 
         public ClientFileMetadata FileMetadata { get; set; }
-        
+
         public ServerMetadata ServerMetadata { get; set; }
-        
+
         public int Priority { get; set; }
-        
+
         public Int64 FileByteCount { get; set; }
-        
+
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)
@@ -36,11 +36,16 @@ namespace Odin.Services.Apps
             }
         }
 
-        public void AssertOriginalSender(OdinId odinId, string message)
+        public void AssertOriginalSender(OdinId odinId)
         {
+            if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
+            {
+                throw new OdinSecurityException($"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive}");
+            }
+
             if (new OdinId(this.FileMetadata.SenderOdinId) != odinId)
             {
-                throw new OdinSecurityException(message);
+                throw new OdinSecurityException("Sender does not match original sender");
             }
         }
     }

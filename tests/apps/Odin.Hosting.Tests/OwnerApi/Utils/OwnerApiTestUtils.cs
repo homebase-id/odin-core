@@ -36,7 +36,6 @@ using Odin.Services.Peer.Incoming;
 using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -54,6 +53,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Apps;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.OwnerApi.Configuration;
@@ -551,21 +551,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         }
 
 
-        public async Task InitializeIdentity(TestIdentity identity, InitialSetupRequest setupConfig)
-        {
-            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
-            {
-                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
-                var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
-                Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
-
-                var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
-                Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
-            }
-        }
-
-        public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
+       public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
         {
             Guid appId = Guid.NewGuid();
             TargetDrive targetDrive = new TargetDrive()
@@ -574,10 +560,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Type = Guid.NewGuid()
             };
             return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
-        }
-
-        public void SetupTestSampleApp(TestIdentity identity, InitialSetupRequest setupConfig)
-        {
         }
 
         public async Task DisconnectIdentities(OdinId odinId1, OdinId odinId2)
@@ -598,16 +580,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
             }
         }
-
-        public async Task ProcessOutbox(OdinId sender, int batchSize = 1)
+        
+        public async Task WaitForEmptyOutbox(OdinId sender, TargetDrive targetDrive)
         {
-            var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
-                var resp = await transitSvc.ProcessOutbox(batchSize);
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-            }
+            var c = new TransitApiClient(this, TestIdentities.All[sender]);
+            await c.WaitForEmptyOutbox(targetDrive);
         }
 
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
@@ -668,22 +645,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
-        }
-
-        public async Task<bool> IsConnected(OdinId sender, OdinId recipient)
-        {
-            var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
-            {
-                var connectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-                var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
-                if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null &&
-                    existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         public async Task CreateDrive(OdinId identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
@@ -850,7 +811,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
-            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            if (options.ProcessInboxBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
                     "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
@@ -861,7 +822,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //Feature added much later in schedule but it means we don't have to thread sleep in our unit tests
             if (options.ProcessOutbox && instructionSet.TransitOptions != null)
             {
-                instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
             }
 
             await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);
@@ -934,7 +894,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 //     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 // }
 
-                if (options is { ProcessTransitBox: true })
+                if (options is { ProcessInboxBox: true })
                 {
                     //wait for process outbox to run
                     // Task.Delay(2000).Wait();

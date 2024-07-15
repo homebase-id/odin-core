@@ -46,7 +46,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
-                return await RouteToInbox(request, odinContext, cn);
+                return await RouteFeedRequestToInbox(request, odinContext, cn);
             }
 
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, cn);
@@ -252,7 +252,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             return fileId;
         }
 
-        private async Task<PeerTransferResponse> RouteToInbox(UpdateFeedFileMetadataRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<PeerTransferResponse> RouteFeedRequestToInbox(UpdateFeedFileMetadataRequest request, IOdinContext odinContext, DatabaseConnection cn)
         {
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 

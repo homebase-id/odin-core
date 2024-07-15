@@ -9,7 +9,6 @@ using Odin.Services.Drives;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
@@ -22,7 +21,7 @@ public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermission
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
-        var domain = new AsciiDomainName("test.org");
+        var domain = new AsciiDomainName($"{Guid.NewGuid():n}-test.org");
 
         var circleId = Guid.NewGuid();
         await ownerApiClient.Network.CreateCircle(circleId, "Circle with valid permissions",
@@ -42,10 +41,19 @@ public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermission
                 PermissionSet = default
             });
 
-        var circles = new List<GuidId>() { circleId };
-        await ownerApiClient.YouAuth.RegisterDomain(domain, circles);
+
+        var registerResponse = await ownerApiClient.YouAuth.RegisterDomain(domain, [circleId]);
+        if (!registerResponse.IsSuccessStatusCode)
+        {
+            throw new Exception($"Failed to initialize scenario; Register domain returned status code: {registerResponse.StatusCode}");
+        }
 
         var registerClientResponse = await ownerApiClient.YouAuth.RegisterClient(domain, "test scenario client");
+
+        if (!registerClientResponse.IsSuccessStatusCode)
+        {
+            throw new Exception($"Failed to initialize scenario; Register client returned status code: {registerClientResponse.StatusCode}");
+        }
 
         var cat = ClientAccessToken.FromPortableBytes(registerClientResponse.Content.Data);
 

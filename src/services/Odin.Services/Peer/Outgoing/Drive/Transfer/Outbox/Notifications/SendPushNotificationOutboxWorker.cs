@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -16,9 +17,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 public class SendPushNotificationOutboxWorker(
     OutboxFileItem fileItem,
+    ILogger<SendPushNotificationOutboxWorker> logger,
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService,
-    IPeerOutbox peerOutbox)
+    PeerOutbox peerOutbox)
 {
     public async Task Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
@@ -28,24 +30,42 @@ public class SendPushNotificationOutboxWorker(
             await PushItem(newContext, cn, cancellationToken);
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
-        catch (OdinOutboxProcessingException)
+        catch (OdinOutboxProcessingException e)
         {
             // var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
             // await peerOutbox.MarkFailure(item.Marker, nextRun);
             // we're not going to retry push notifications for now
+            logger.LogDebug(e, "Failed processing push notification: Marking Complete");
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
-        catch
+        catch (Exception e)
         {
+            logger.LogDebug(e, "Unhandled Exception: Failed processing push notification: Marking Complete");
             await peerOutbox.MarkComplete(fileItem.Marker, cn);
         }
     }
 
-
     private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
-        //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
-        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(fileItem.RawValue.ToStringFromUtf8Bytes());
+        //HACK as I refactor stuff - I should rather deserialize this in the push notification service?
+        var data = fileItem.State.Data?.ToStringFromUtf8Bytes();
+        if (string.IsNullOrEmpty(data))
+        {
+            logger.LogInformation("OutboxItemState.Data was null or empty; this is mostly likely due to an " +
+                                  "old format push notification. (added timestamp (ms): {timestamp}.  Action: Marking Complete",
+                fileItem.AddedTimestamp);
+            return;
+        }
+
+        var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(data);
+
+        if (record == null)
+        {
+            logger.LogInformation("OutboxItemState.Data was null or empty; this is mostly likely due to an " +
+                                  "old format push notification. (added timestamp (ms): {timestamp}.  Action: Marking Complete",
+                fileItem.AddedTimestamp);
+            return;
+        }
 
         var pushContent = new PushNotificationContent()
         {

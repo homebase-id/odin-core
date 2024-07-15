@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -24,7 +23,6 @@ using Odin.Services.Peer.Incoming;
 using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Registry.Registration;
 using Odin.Core.Storage;
@@ -34,6 +32,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -126,7 +125,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
             instructionSet.AssertIsValid();
 
-            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            if (options.ProcessInboxBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
                     "Options not valid. There must be at least one recipient and" +
@@ -228,18 +227,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-
-                        if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToTargetDrive,
-                                $"file was not delivered to {recipient}");
-                        }
-
-                        if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
-                                $"transfer key not created for {recipient}");
-                        }
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued);
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
@@ -247,14 +235,13 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                 if (options is { ProcessOutbox: true })
                 {
-                    await _ownerApi.ProcessOutbox(senderAppContext.Identity, batchSize);
+                    var c = new TransitApiClient(_ownerApi, TestIdentities.All[senderAppContext.Identity]);
+                    await c.WaitForEmptyOutbox(instructionSet.StorageOptions.Drive);
+                    // await _ownerApi.ProcessOutbox(senderAppContext.Identity, batchSize);
                 }
 
-                if (options is { ProcessTransitBox: true })
+                if (options is { ProcessInboxBox: true })
                 {
-                    //wait for process outbox to run
-                    Task.Delay(2000).Wait();
-
                     foreach (var rCtx in recipientContexts)
                     {
                         var rClient = this.CreateAppApiHttpClient(rCtx.Value);
@@ -382,7 +369,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
-            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            if (options.ProcessInboxBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
                     "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
@@ -434,25 +421,26 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
         {
             var recipients2 = recipients ?? new List<TestAppContext>();
             var client = this.CreateAppApiHttpClient(testAppContext);
+
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
+            var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
             {
-                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
-                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
-                {
-                    File = fileId,
-                    Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
-                });
+                File = fileId,
+                Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
+            });
 
-                Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-                var deleteStatus = deleteFileResponse.Content;
-                Assert.IsNotNull(deleteStatus);
-                Assert.IsFalse(deleteStatus.LocalFileNotFound);
-                Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
+            Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+            var deleteStatus = deleteFileResponse.Content;
+            Assert.IsNotNull(deleteStatus);
+            Assert.IsFalse(deleteStatus.LocalFileNotFound);
+            Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
 
-                foreach (var (key, value) in deleteStatus.RecipientStatus)
-                {
-                    Assert.IsTrue(value == DeleteLinkedFileStatus.RequestAccepted, $"Delete request failed for {key}");
-                }
+            foreach (var (key, value) in deleteStatus.RecipientStatus)
+            {
+                Assert.IsTrue(value == DeleteLinkedFileStatus.Enqueued, $"Delete request failed for {key}");
             }
+
+            await this._ownerApi.WaitForEmptyOutbox(testAppContext.Identity, testAppContext.TargetDrive);
 
             //process the instructions on the recipients servers
             if (recipients2.Any())

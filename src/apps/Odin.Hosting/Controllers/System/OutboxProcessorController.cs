@@ -23,20 +23,12 @@ namespace Odin.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(
         OdinConfiguration config,
-        IPeerOutbox outbox,
-        PeerOutboxProcessor outboxProcessor,
+        PeerOutbox outbox,
+
         PeerOutboxProcessorAsync outboxProcessorAsync,
         TenantSystemStorage tenantSystemStorage,
         TransitInboxBoxStorage inbox) : OdinControllerBase
     {
-        [HttpPost("process")]
-        public async Task<bool> ProcessOutbox()
-        {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await outboxProcessor.StartOutboxProcessing(WebOdinContext, cn);
-            return true;
-        }
-
         [HttpPost("process-async")]
         public async Task<bool> ProcessOutboxAsync()
         {
@@ -44,8 +36,8 @@ namespace Odin.Hosting.Controllers.System
             await outboxProcessorAsync.StartOutboxProcessingAsync(WebOdinContext, cn);
             return true;
         }
-        
-        
+
+
         [HttpPost("reconcile")]
         public async Task<IActionResult> ReconcileInboxOutbox()
         {
