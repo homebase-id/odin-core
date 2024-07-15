@@ -15,12 +15,11 @@ using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
-using Odin.Services.Tenant.BackgroundService;
-using Odin.Services.Tenant.BackgroundService.Services;
 using Odin.Services.Tenant.Container;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -214,7 +213,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
-            UnloadRegistration(registration);
+            await UnloadRegistration(registration);
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
@@ -463,17 +462,20 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
 
-        // Create tenant background jobs
-        var backgroundServices = scope.Resolve<ITenantBackgroundServiceManager>();
-        await backgroundServices.StartAsync("foobar", scope.Resolve<DummyBackgroundService>());
-        // await backgroundServices.StartAsync("outbox", scope.Resolve<OutboxBackgroundService>());
-
+        // Start tenant background jobs
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.StartTenantBackgroundServices(scope);
     }
 
-    private void UnloadRegistration(IdentityRegistration registration)
+    private async Task UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
-        // SEB:TODO stop all background services for tenant
+
+        // Stop tenant background services
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.ShutdownAsync();
+
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 

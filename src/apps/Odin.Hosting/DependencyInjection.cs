@@ -43,7 +43,7 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Services.Tenant.BackgroundService;
+using Odin.Services.Background;
 using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting

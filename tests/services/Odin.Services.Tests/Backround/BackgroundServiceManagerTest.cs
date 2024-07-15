@@ -4,19 +4,20 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Services.Tenant.BackgroundService;
+using Odin.Services.Background;
+using Odin.Services.Background.Services;
 using Odin.Test.Helpers.Logging;
 
-namespace Odin.Services.Tests.Tenant.BackgroundService;
+namespace Odin.Services.Tests.Backround;
 
-public class TenantBackgroundServiceManagerTest
+public class BackgroundServiceManagerTest
 {
     [Test]
     public async Task ItShouldStartAndStopAServiceWithoutLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
+        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new TenantBackgroundServiceManager(logger, tenant);
+        var manager = new BackgroundServiceManager(logger, tenant.Name);
 
         var service = new NoOpBackgroundService();
         Assert.False(service.DidInitialize);
@@ -48,9 +49,9 @@ public class TenantBackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopAServiceWithLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
+        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new TenantBackgroundServiceManager(logger, tenant);
+        var manager = new BackgroundServiceManager(logger, tenant.Name);
 
         var service = new LoopingBackgroundService();
         Assert.False(service.DidInitialize);
@@ -86,9 +87,9 @@ public class TenantBackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
+        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new TenantBackgroundServiceManager(logger, tenant);
+        var manager = new BackgroundServiceManager(logger, tenant.Name);
 
         const int serviceCount = 100;
         var services = new List<LoopingBackgroundService>();
@@ -147,9 +148,9 @@ public class TenantBackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoopSleepAndWakeUpManyTimes()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<TenantBackgroundServiceManager>();
+        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
         var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new TenantBackgroundServiceManager(logger, tenant);
+        var manager = new BackgroundServiceManager(logger, tenant.Name);
 
         for (var iteration = 0; iteration < 3; iteration++)
         {
@@ -232,7 +233,7 @@ public class TenantBackgroundServiceManagerTest
 
 }
 
-public abstract class BaseBackgroundService : AbstractTenantBackgroundService, IDisposable
+public abstract class BaseBackgroundService : AbstractBackgroundService, IDisposable
 {
     public volatile bool DidInitialize;
     public volatile bool DidFinish;

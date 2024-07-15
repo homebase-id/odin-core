@@ -5,30 +5,31 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Tasks;
+using Odin.Services.Background.Services;
 
-namespace Odin.Services.Tenant.BackgroundService;
+namespace Odin.Services.Background;
 
 #nullable enable
 
-public interface ITenantBackgroundServiceManager
+public interface IBackgroundServiceManager
 {
-    Task StartAsync(string serviceIdentifier, AbstractTenantBackgroundService backgroundService);
+    Task StartAsync(string serviceIdentifier, AbstractBackgroundService backgroundService);
     Task StopAsync(string serviceIdentifier);
     Task ShutdownAsync();
 }
 
 //
 
-public sealed class TenantBackgroundServiceManager(ILogger<TenantBackgroundServiceManager> logger, Tenant tenant)
-    : ITenantBackgroundServiceManager, IDisposable
+public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> logger, string owner)
+    : IBackgroundServiceManager, IDisposable
 {
     private readonly CancellationTokenSource _stoppingCts = new();
     private readonly AsyncLock _mutex = new();
-    private readonly Dictionary<string, AbstractTenantBackgroundService> _backgroundServices = new();
+    private readonly Dictionary<string, AbstractBackgroundService> _backgroundServices = new();
 
     //
 
-    public async Task StartAsync(string serviceIdentifier, AbstractTenantBackgroundService backgroundService)
+    public async Task StartAsync(string serviceIdentifier, AbstractBackgroundService backgroundService)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceIdentifier);
 
@@ -45,7 +46,7 @@ public sealed class TenantBackgroundServiceManager(ILogger<TenantBackgroundServi
             }
         }
 
-        logger.LogDebug("Starting background service '{serviceIdentifier}' for {tenant}", serviceIdentifier, tenant.Name);
+        logger.LogDebug("Starting background service '{serviceIdentifier}' for owner {owner}", serviceIdentifier, owner);
         await backgroundService.InternalStartAsync(_stoppingCts.Token);
     }
 
@@ -53,14 +54,14 @@ public sealed class TenantBackgroundServiceManager(ILogger<TenantBackgroundServi
 
     public async Task StopAsync(string serviceIdentifier)
     {
-        AbstractTenantBackgroundService? backgroundService;
+        AbstractBackgroundService? backgroundService;
         using (await _mutex.LockAsync())
         {
             _backgroundServices.Remove(serviceIdentifier, out backgroundService);
         }
         if (backgroundService != null)
         {
-            logger.LogDebug("Stopping background service '{serviceIdentifier}' for {tenant}", serviceIdentifier, tenant.Name);
+            logger.LogDebug("Stopping background service '{serviceIdentifier}' for owner {owner}", serviceIdentifier, owner);
             await backgroundService.InternalStopAsync(_stoppingCts.Token);
         }
     }

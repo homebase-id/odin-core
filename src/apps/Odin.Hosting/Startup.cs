@@ -44,8 +44,8 @@ using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Background;
 using Odin.Services.JobManagement;
-using Odin.Services.Tenant.BackgroundService;
 using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
@@ -262,6 +262,9 @@ namespace Odin.Hosting
             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
+            
+            // System background services
+            builder.RegisterSystemBackgroundServices();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -465,6 +468,10 @@ namespace Odin.Hosting
                         await services.ScheduleCronJobs();
                     }).Wait();
                 }
+                
+                // Start system background services
+                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
+                systemBackgroundServiceManager.StartSystemBackgroundServices(services).Wait();
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -481,7 +488,6 @@ namespace Odin.Hosting
                 // Wait for any registered fire-and-forget tasks to complete
                 services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
 
-
                 //
                 // Shutdown all tenant background services
                 //
@@ -491,9 +497,15 @@ namespace Odin.Hosting
                 foreach (var registration in registrations.Results)
                 {
                     var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-                    var backgroundServiceManager = scope.Resolve<ITenantBackgroundServiceManager>();
+                    var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
                     backgroundServiceManager.ShutdownAsync().BlockingWait();
                 }
+                
+                //
+                // Shutdown system background services
+                //
+                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
+                systemBackgroundServiceManager.ShutdownAsync().BlockingWait();
             });
         }
 

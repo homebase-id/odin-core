@@ -3,11 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Nito.AsyncEx;
 
-namespace Odin.Services.Tenant.BackgroundService;
+namespace Odin.Services.Background.Services;
 
 #nullable enable
 
-public abstract class AbstractTenantBackgroundService
+public abstract class AbstractBackgroundService
 {
     private readonly AsyncAutoResetEvent _pulseEvent = new();
     private CancellationTokenSource? _stoppingCts;
