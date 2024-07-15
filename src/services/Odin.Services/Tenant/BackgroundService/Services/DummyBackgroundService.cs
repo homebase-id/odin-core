@@ -14,7 +14,7 @@ public sealed class DummyBackgroundService(ILogger<DummyBackgroundService> logge
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("XXXXXXXXXXXXXXXXXXXXXXX Tenant '{tenant}' is running", _tenant.Name);
+            logger.LogDebug("DummyBackgroundService: Tenant '{tenant}' is running", _tenant.Name);
             await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
         }
     }

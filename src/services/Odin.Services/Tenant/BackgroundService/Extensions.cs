@@ -13,10 +13,10 @@ public static class Extensions
             .As<ITenantBackgroundServiceManager>()
             .SingleInstance();
 
-        cb.RegisterType<OutboxBackgroundService>()
-            .WithParameter(new TypedParameter(typeof(Tenant), tenant))
-            .AsSelf()
-            .SingleInstance();
+        // cb.RegisterType<OutboxBackgroundService>()
+        //     .WithParameter(new TypedParameter(typeof(Tenant), tenant))
+        //     .AsSelf()
+        //     .SingleInstance();
 
         cb.RegisterType<DummyBackgroundService>()
             .WithParameter(new TypedParameter(typeof(Tenant), tenant))

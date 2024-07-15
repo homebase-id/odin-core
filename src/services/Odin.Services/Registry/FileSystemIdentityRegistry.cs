@@ -466,7 +466,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // Create tenant background jobs
         var backgroundServices = scope.Resolve<ITenantBackgroundServiceManager>();
         await backgroundServices.StartAsync("foobar", scope.Resolve<DummyBackgroundService>());
-        await backgroundServices.StartAsync("outbox", scope.Resolve<OutboxBackgroundService>());
+        // await backgroundServices.StartAsync("outbox", scope.Resolve<OutboxBackgroundService>());
 
     }
 
