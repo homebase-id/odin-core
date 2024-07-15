@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -42,13 +42,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 tenantSystemStorage.Outbox.Insert(cn, record);
             }
-
+            
+            PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
+            
             return Task.CompletedTask;
         }
 
         public Task MarkComplete(Guid marker, DatabaseConnection cn)
         {
             tenantSystemStorage.Outbox.CompleteAndRemove(cn, marker);
+            
+            PerformanceCounter.IncrementCounter("Outbox Mark Complete");
+
             return Task.CompletedTask;
         }
 
@@ -58,23 +63,31 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public Task MarkFailure(Guid marker, UnixTimeUtc nextRun, DatabaseConnection cn)
         {
             tenantSystemStorage.Outbox.CheckInAsCancelled(cn, marker, nextRun);
+            
+            PerformanceCounter.IncrementCounter("Outbox Mark Failure");
+
             return Task.CompletedTask;
         }
 
         public Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
             tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(cn, time);
+            
+            PerformanceCounter.IncrementCounter("Outbox Recover Dead");
+
             return Task.CompletedTask;
         }
 
         public async Task<OutboxFileItem> GetNextItem(DatabaseConnection cn)
         {
             var record = tenantSystemStorage.Outbox.CheckOutItem(cn);
-
+            
             if (null == record)
             {
                 return await Task.FromResult<OutboxFileItem>(null);
             }
+
+            PerformanceCounter.IncrementCounter("Outbox Item Checkout");
 
             OutboxItemState state;
             state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -12,11 +10,9 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
-using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -24,7 +20,6 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
-using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -35,7 +30,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         CircleNetworkService circleNetworkService,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
-        OdinConfiguration odinConfiguration,
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
         // SEB:TODO inject OutboxBackgroundService outboxBackgroundService
@@ -43,7 +37,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
-        private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
@@ -127,14 +120,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
         }
-
-
+        
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
             FileSystemType fileSystemType)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
-
             // This is all ugly mapping code but 🤷
             var intermediateResults = new List<(ExternalFileIdentifier File, SendReadReceiptResultRecipientStatusItem StatusItem)>();
             foreach (var fileId in files)
@@ -145,54 +135,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId)
                 };
 
-                var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);
-
-                try
-                {
-                    if (header == null)
-                    {
-                        throw new OdinClientException("Invalid File", OdinClientErrorCode.InvalidFile);
-                    }
-
-                    if (string.IsNullOrEmpty(header.FileMetadata.SenderOdinId) || string.IsNullOrWhiteSpace(header.FileMetadata.SenderOdinId))
-                    {
-                        throw new OdinClientException("File does not have a sender", OdinClientErrorCode.FileDoesNotHaveSender);
-                    }
-
-                    if (header.FileMetadata.GlobalTransitId == null)
-                    {
-                        throw new OdinClientException("File does not have global transit id", OdinClientErrorCode.MissingGlobalTransitId);
-                    }
-
-                    var statusItem = await SendReadReceiptToRecipient(header, fileId, odinContext, cn, fileSystemType);
-                    intermediateResults.Add((externalFile, statusItem));
-                }
-                catch (OdinClientException oce)
-                {
-                    intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
-                    {
-                        Recipient = string.IsNullOrEmpty(header?.FileMetadata?.SenderOdinId) ? null : (OdinId)header.FileMetadata.SenderOdinId,
-                        Status = SendReadReceiptResultStatus.LocalIdentityReturnedBadRequest
-                    }));
-
-                    logger.LogWarning(oce, "A client exception was detected while sending a read receipt for file {file};" +
-                                           "we are logging this client exception since the client is another identity", fileId);
-                }
-                catch (Exception e)
-                {
-                    intermediateResults.Add((externalFile, new SendReadReceiptResultRecipientStatusItem()
-                    {
-                        Recipient = string.IsNullOrEmpty(header?.FileMetadata?.SenderOdinId) ? null : (OdinId)header.FileMetadata.SenderOdinId,
-                        Status = SendReadReceiptResultStatus.SenderServerHadAnInternalError
-                    }));
-
-                    logger.LogWarning(e, "General exception occured while sending a read receipt file:{file}", fileId);
-                }
+                var statusItem = await EnqueueReadReceipt(fileId, odinContext, cn, fileSystemType);
+                intermediateResults.Add((externalFile, statusItem));
             }
 
-            var results = new List<SendReadReceiptResultFileItem>();
+            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
             // This, too, is all ugly mapping code but 🤷
+            var results = new List<SendReadReceiptResultFileItem>();
             foreach (var item in intermediateResults.GroupBy(i => i.File))
             {
                 results.Add(new SendReadReceiptResultFileItem
@@ -209,7 +159,91 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         // 
+        
+        private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
+            IOdinContext odinContext,
+            DatabaseConnection cn,
+            FileSystemType fileSystemType)
+        {
+            var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
+            var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);
 
+            if (header == null)
+            {
+                return new SendReadReceiptResultRecipientStatusItem()
+                {
+                    Recipient = null,
+                    Status = SendReadReceiptResultStatus.FileDoesNotExist
+                };
+            }
+
+            if (string.IsNullOrEmpty(header.FileMetadata.SenderOdinId) || string.IsNullOrWhiteSpace(header.FileMetadata.SenderOdinId))
+            {
+                return new SendReadReceiptResultRecipientStatusItem()
+                {
+                    Recipient = null,
+                    Status = SendReadReceiptResultStatus.FileDoesNotHaveSender
+                };
+            }
+
+            var recipient = (OdinId)header.FileMetadata.SenderOdinId;
+
+
+            if (header.FileMetadata.GlobalTransitId == null)
+            {
+                return new SendReadReceiptResultRecipientStatusItem()
+                {
+                    Recipient = recipient,
+                    Status = SendReadReceiptResultStatus.MissingGlobalTransitId
+                };
+            }
+
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+            if (null == clientAuthToken)
+            {
+                return new SendReadReceiptResultRecipientStatusItem()
+                {
+                    Recipient = recipient,
+                    Status = SendReadReceiptResultStatus.NotConnectedToOriginalSender
+                };
+            }
+
+            var request = new MarkFileAsReadRequest()
+            {
+                GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
+                {
+                    TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId),
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault()
+                },
+                FileSystemType = fileSystemType
+            };
+
+            var outboxItem = new OutboxFileItem
+            {
+                Recipient = recipient,
+                File = header.FileMetadata.File,
+                Priority = 100,
+                Type = OutboxItemType.ReadReceipt,
+                State = new OutboxItemState
+                {
+                    Recipient = null,
+                    IsTransientFile = false,
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    EncryptedClientAuthToken = clientAuthToken.ToPortableBytes(),
+                    Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
+                }
+            };
+
+            await peerOutbox.AddItem(outboxItem, cn, useUpsert: true);
+
+            return new SendReadReceiptResultRecipientStatusItem()
+            {
+                Recipient = recipient,
+                Status = SendReadReceiptResultStatus.Enqueued
+            };
+        }
+        
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
@@ -256,79 +290,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
 
             return results;
-        }
-
-        private async Task<SendReadReceiptResultRecipientStatusItem> SendReadReceiptToRecipient(ServerFileHeader header,
-            InternalDriveFileId fileId, IOdinContext odinContext,
-            DatabaseConnection cn, FileSystemType fileSystemType)
-        {
-            var recipient = (OdinId)header.FileMetadata.SenderOdinId;
-
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
-            if (null == clientAuthToken)
-            {
-                return new SendReadReceiptResultRecipientStatusItem()
-                {
-                    Recipient = recipient,
-                    Status = SendReadReceiptResultStatus.NotConnectedToOriginalSender
-                };
-            }
-
-            async Task<ApiResponse<PeerTransferResponse>> TrySend()
-            {
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient,
-                    clientAuthToken.ToAuthenticationToken(), fileSystemType);
-
-                var response = await client.MarkFileAsRead(new MarkFileAsReadRequest()
-                {
-                    GlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier
-                    {
-                        TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId),
-                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault()
-                    },
-                    FileSystemType = fileSystemType
-                });
-
-                return response;
-            }
-
-            try
-            {
-                ApiResponse<PeerTransferResponse> response = null;
-
-                await TryRetry.WithDelayAsync(
-                    odinConfiguration.Host.PeerOperationMaxAttempts,
-                    odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () => { response = await TrySend(); });
-
-                {
-                    if (response.IsSuccessStatusCode)
-                    {
-                        return new SendReadReceiptResultRecipientStatusItem
-                        {
-                            Recipient = recipient,
-                            Status = SendReadReceiptResultStatus.RequestAcceptedIntoInbox
-                        };
-                    }
-
-                    return new SendReadReceiptResultRecipientStatusItem
-                    {
-                        Recipient = recipient,
-                        Status = MapPeerErrorResponseFromHttpStatus(response)
-                    };
-                }
-            }
-            catch (TryRetryException ex)
-            {
-                var e = ex.InnerException;
-                logger.LogError(e, "Recipient server not responding");
-                return new SendReadReceiptResultRecipientStatusItem
-                {
-                    Recipient = recipient,
-                    Status = SendReadReceiptResultStatus.RecipientIdentityReturnedServerError
-                };
-            }
         }
 
         private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
@@ -419,22 +380,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             return (status, outboxItems);
-        }
-
-
-        private SendReadReceiptResultStatus MapPeerErrorResponseFromHttpStatus(ApiResponse<PeerTransferResponse> response)
-        {
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                return SendReadReceiptResultStatus.RecipientIdentityReturnedAccessDenied;
-            }
-
-            if (response.StatusCode == HttpStatusCode.BadRequest)
-            {
-                return SendReadReceiptResultStatus.RecipientIdentityReturnedBadRequest;
-            }
-
-            return SendReadReceiptResultStatus.RecipientIdentityReturnedServerError;
         }
     }
 }

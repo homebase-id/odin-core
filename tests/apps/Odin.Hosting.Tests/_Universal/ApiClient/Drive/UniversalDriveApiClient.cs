@@ -609,13 +609,13 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return response;
     }
 
-    public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    public async Task<TimeSpan> WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
-        
+
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        
+
         var sw = Stopwatch.StartNew();
         while (true)
         {
@@ -628,18 +628,57 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var status = response.Content;
             if (status.Outbox.TotalItems == 0)
             {
-                return;
+                return sw.Elapsed;
             }
 
             if (sw.Elapsed > maxWait)
             {
-                throw new TimeoutException($"timeout occured while waiting for outbox to complete processing");
+                throw new TimeoutException(
+                    $"timeout occured while waiting for outbox to complete processing " +
+                    $"(wait time: {maxWait.TotalSeconds}sec. " +
+                    $"Total Items: {status.Outbox.TotalItems} " +
+                    $"Checked Out {status.Outbox.CheckedOutCount})");
             }
 
             await Task.Delay(100);
         }
     }
-    
+
+    public async Task<TimeSpan> WaitForEmptyInbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Inbox.TotalItems == 0)
+            {
+                return sw.Elapsed;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException(
+                    $"timeout occured while waiting for inbox to complete processing " +
+                    $"(wait time: {maxWait.TotalSeconds}sec. " +
+                    $"Total Items: {status.Inbox.TotalItems} " +
+                    $"Checked Out {status.Inbox.PoppedCount})");
+            }
+
+            await Task.Delay(100);
+        }
+    }
+
     public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -666,7 +705,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var results = await this.QueryBatch(request, fst);
         return results;
     }
-    
+
     public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -678,5 +717,4 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         return response;
     }
-    
 }
