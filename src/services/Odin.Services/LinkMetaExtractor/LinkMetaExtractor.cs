@@ -19,6 +19,10 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
         // Some sites like Instagram does not return the meta data if no user agent specified
         client.DefaultRequestHeaders.Add("Accept", "text/html");
         client.DefaultRequestHeaders.Add("User-Agent", "googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
+        if (string.IsNullOrEmpty(url))
+        {
+            throw new OdinClientException("Url cannot be empty");
+        }
         try
         {
             var response = await client.GetAsync(url);
@@ -31,7 +35,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
                 return null;
 
             var linkMeta = LinkMeta.FromMetaData(meta, url);
-            if (string.IsNullOrEmpty(linkMeta.ImageUrl))
+            if (!string.IsNullOrEmpty(linkMeta.ImageUrl))
             {
                 var cleanedUrl = WebUtility.HtmlDecode(linkMeta.ImageUrl);
                 // Download the image and convert it into uri data
@@ -66,7 +70,8 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
         }
         catch (HttpRequestException e)
         {
-            throw new OdinClientException(e.Message);
+            logger.LogInformation("Something went wrong fetching information from {Url}. Error: {Error} StatusCode: {Status}", url, e.Message, e.StatusCode);
+            throw new OdinClientException("Failed to fetch information from the url");
         }
        
     }
