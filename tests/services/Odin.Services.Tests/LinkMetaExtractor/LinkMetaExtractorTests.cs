@@ -83,7 +83,7 @@ public class LinkMetaExtractorTests
         public void TestError()
         {
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await  linkMetaExtractor.ExtractAsync(""));
+            Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync(""));
             Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
         }
 
