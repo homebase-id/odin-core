@@ -43,6 +43,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var tasks = new List<Task>();
             while (!stoppingToken.IsCancellationRequested)
             {
+                TimeSpan nextRun;
+                
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {
                     while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
@@ -50,11 +52,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         var task = ProcessItemThread(item, stoppingToken);
                         tasks.Add(task);
                     }
+                    nextRun = await peerOutbox.NextRun(cn);
                 }
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
-                await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken); // SEB:TODO  public UnixTimeUtc? NextScheduledItem(DatabaseConnection conn)
+                await SleepAsync(nextRun, stoppingToken);
             }
             await Task.WhenAll(tasks);
         }

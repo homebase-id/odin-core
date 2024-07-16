@@ -133,5 +133,23 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 NextItemRun = utc
             });
         }
+
+        public async Task<TimeSpan> NextRun(DatabaseConnection cn)
+        {
+            var nextRun = tenantSystemStorage.Outbox.NextScheduledItem(cn);
+            if (nextRun == null)
+            {
+                return await Task.FromResult(TimeSpan.FromHours(1));
+            }
+            
+            var dt = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value.milliseconds);
+            var now = DateTimeOffset.Now;
+            if (dt < now)
+            {
+                return await Task.FromResult(TimeSpan.Zero);
+            }
+            
+            return await Task.FromResult(dt - now);
+        }
     }
 }

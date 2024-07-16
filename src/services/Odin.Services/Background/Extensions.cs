@@ -4,6 +4,7 @@ using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Services.Background.Services.System;
 using Odin.Services.Background.Services.Tenant;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Services.Background;
 
@@ -41,16 +42,16 @@ public static class Extensions
             .As<IBackgroundServiceManager>()
             .SingleInstance();
 
-        // cb.RegisterType<OutboxBackgroundService>()
-        //     .WithParameter(new TypedParameter(typeof(Tenant), tenant))
-        //     .AsSelf()
-        //     .SingleInstance();
-
         cb.RegisterType<DummyTenantBackgroundService>()
             .WithParameter(new TypedParameter(typeof(Tenant.Tenant), tenant))
             .AsSelf()
             .SingleInstance();
         
+        // SEB:TODO also registered in startup/DI. Fix it.
+        cb.RegisterType<PeerOutboxProcessorAsync>()
+            .AsSelf()
+            .SingleInstance();
+       
         // Add more tenant services here
         // ...
         // ...
@@ -62,6 +63,7 @@ public static class Extensions
     public static async Task StartTenantBackgroundServices(this IBackgroundServiceManager bsm, ILifetimeScope scope)
     {
         await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
+        await bsm.StartAsync(nameof(PeerOutboxProcessorAsync), scope.Resolve<PeerOutboxProcessorAsync>());
     }
     
 }
