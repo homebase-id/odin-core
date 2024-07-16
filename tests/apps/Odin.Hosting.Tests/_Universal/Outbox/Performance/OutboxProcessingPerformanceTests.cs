@@ -103,7 +103,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             PerformanceCounter.WriteCounters();
 
             // Wait long enough for all notifications to be flushed
-            await Task.Delay(NotificationWaitTime * 2);
+            await Task.Delay(TimeSpan.FromSeconds(10));
             
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
