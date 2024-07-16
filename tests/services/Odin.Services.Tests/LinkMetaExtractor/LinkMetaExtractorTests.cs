@@ -59,22 +59,18 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.ImageUrl);
         }
 
-        [Test]
+        // Explicit test because it sometimes instagram blocks the request and does not send a static website
+        // The main cause are user-agent headers but sometimes it does not send a SSR page
+        [Test, Explicit]
         public async Task TestInstagramUrl()
         {
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
-            try
-            {
-                var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/C7fhXWKJNeU/");
-                Assert.NotNull(ogp.Title);
-                Assert.NotNull(ogp.Description);
-                Assert.NotNull(ogp.ImageUrl);
-            }
-            catch (Exception e)
-            {
-                // Could be issue with instagram so mocking the request.
-                Assert.Pass();
-            }
+            var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/C7fhXWKJNeU/");
+            Assert.NotNull(ogp.Title);
+            Assert.NotNull(ogp.Description);
+            Assert.NotNull(ogp.ImageUrl);
+
+          
         }
 
         [Test]
