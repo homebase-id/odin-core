@@ -172,7 +172,7 @@ public class DirectDriveGeneralFileTests_Encrypted
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         uploadedFileMetadata.AppData.Content = originalContent;
 
-        var p = SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1;
+        var p = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         p.Iv = ByteArrayUtil.GetRndByteArray(16);
         List<TestPayloadDefinition> testPayloads = [p];
 
