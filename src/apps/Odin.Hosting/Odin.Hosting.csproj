@@ -74,5 +74,9 @@
         <None Update="appsettings.local.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Controllers\APIv2\Peer\" />
     </ItemGroup>    
 </Project>

@@ -59,17 +59,17 @@ public class ApiV2RouteConvention : IApplicationModelConvention
 
         if (flags.HasFlag(RootApiRoutes.Owner))
         {
-            templates.Add("/api/owner/v2");
+            templates.Add(ApiV2PathConstants.OwnerRoot);
         }
 
         if (flags.HasFlag(RootApiRoutes.Apps))
         {
-            templates.Add("/api/apps/v2");
+            templates.Add(ApiV2PathConstants.AppsRoot);
         }
 
         if (flags.HasFlag(RootApiRoutes.Guest))
         {
-            templates.Add("/api/guest/v2");
+            templates.Add(ApiV2PathConstants.GuestRoot);
         }
 
         return templates.ToArray();

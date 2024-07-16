@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
         [HttpPost(ApiV2PathConstants.UploadFile)]
-        public Task<UploadResult> Upload()
+        public Task<UploadResult> UploadFile()
         {
             return Task.FromResult(new UploadResult()
             {
@@ -30,13 +30,23 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
 
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
         [HttpPost(ApiV2PathConstants.UploadPayload)]
-        public Task<UploadResult> Upload2()
+        public Task<UploadResult> UploadPayload()
         {
             return Task.FromResult(new UploadResult()
             {
             });
         }
-        
+
+        [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
+        [HttpDelete(ApiV2PathConstants.DeletePayload)]
+        public Task<UploadResult> DeletePayloadPayload()
+        {
+            return Task.FromResult(new UploadResult()
+            {
+            });
+        }
+
+
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
         [HttpPost(ApiV2PathConstants.SendReadReceipts)]
         public Task<UploadResult> SendReadReceipt(SendReadReceiptRequest request)
@@ -45,10 +55,10 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
             {
             });
         }
-        
+
 
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
-        [HttpPost(ApiV2PathConstants.DeleteFiles)]
+        [HttpDelete(ApiV2PathConstants.DeleteFiles)]
         public Task<UploadResult> Delete([FromBody] DeleteFileRequestV2 request)
         {
             return Task.FromResult(new UploadResult()
@@ -57,7 +67,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         }
 
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
-        [HttpPost(ApiV2PathConstants.GetHeader)]
+        [HttpGet(ApiV2PathConstants.GetHeader)]
         public Task<UploadResult> GetHeader([FromQuery] GetFileRequestV2 request)
         {
             return Task.FromResult(new UploadResult()
@@ -66,7 +76,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         }
 
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
-        [HttpPost(ApiV2PathConstants.GetThumb)]
+        [HttpGet(ApiV2PathConstants.GetThumb)]
         public Task<UploadResult> GetThumb([FromQuery] GetFileRequestV2 request)
         {
             return Task.FromResult(new UploadResult()
@@ -75,7 +85,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         }
 
         [SwaggerOperation(Tags = new[] { "ApiV2 Drive" })]
-        [HttpPost(ApiV2PathConstants.GetPayload)]
+        [HttpGet(ApiV2PathConstants.GetPayload)]
         public Task<UploadResult> GetPayload([FromQuery] GetFileRequestV2 request)
         {
             return Task.FromResult(new UploadResult()
