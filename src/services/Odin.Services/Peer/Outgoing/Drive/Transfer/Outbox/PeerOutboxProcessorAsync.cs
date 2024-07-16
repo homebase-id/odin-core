@@ -2,24 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Background.Services;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
-using Quartz;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
@@ -31,11 +28,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         PushNotificationService pushNotificationService,
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
-        IJobManager jobManager,
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage,
-        IHostApplicationLifetime hostApplicationLifetime,
-        IForgottenTasks outstandingTasks,
+        TenantContext tenantContext,
         IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,7 +39,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             while (!stoppingToken.IsCancellationRequested)
             {
                 TimeSpan nextRun;
-                
+
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {
                     while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
@@ -52,6 +47,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         var task = ProcessItemThread(item, stoppingToken);
                         tasks.Add(task);
                     }
+
                     nextRun = await peerOutbox.NextRun(cn);
                 }
 
@@ -59,9 +55,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 await SleepAsync(nextRun, stoppingToken);
             }
+
             await Task.WhenAll(tasks);
         }
-        
+
         // SEB:TODO remove below code reference
         // public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
         // {
@@ -83,9 +80,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var odinContext = new OdinContext
             {
-                // TODD:TODO create the odin context
+                Tenant = tenantContext.HostOdinId,
+                AuthTokenCreated = null,
+                Caller = new CallerContext(
+                    odinId: (OdinId)"system.domain",
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.System,
+                    circleIds: null,
+                    tokenType: ClientTokenType.Other)
             };
-            
+
+            odinContext.SetPermissionContext(new PermissionContext(null, null, true));
+
             logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
             using var connection = tenantSystemStorage.CreateConnection();
 
@@ -169,24 +175,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
-                logger.LogInformation("Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
+                logger.LogInformation(
+                    "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
                     fileItem.File,
                     fileItem.AttemptCount);
                 return;
             }
-            
-            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
 
-            try
-            {
-                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(odinContext.Tenant, nextRun));
-                logger.LogDebug("Scheduled re-run. NextRunTime (popStamp:{nextRunTime})", nextRun);
-            }
-            catch (JobPersistenceException e)
-            {
-                logger.LogError(e, "Job manager failed to reschedule outbox item");
-            }
+            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,
