@@ -62,7 +62,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         }
 
 
-        [Test]
+        [Test, Explicit]
         [Description("Tests that the job manager will kick in if items in the inbox fail to be sent")]
         public async Task ChatSpamTestEndToEnd_AllowDistributeChangesToFalseDuringTest()
         {

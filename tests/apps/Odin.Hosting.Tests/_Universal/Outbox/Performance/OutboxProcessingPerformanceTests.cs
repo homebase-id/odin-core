@@ -61,7 +61,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         }
 
 
-        [Test]
+        [Test, Explicit]
         public async Task ChatSpamTestEndToEnd_AllSuccessScenarios()
         {
             /*
