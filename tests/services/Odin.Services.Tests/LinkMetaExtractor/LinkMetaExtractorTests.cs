@@ -1,22 +1,23 @@
-using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Test.Helpers.Logging;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
 public class LinkMetaExtractorTests
 {
     private readonly HttpClientFactory _httpClientFactory = new ();
-    private readonly ILogger<Services.LinkMetaExtractor.LinkMetaExtractor> _logger = new Logger<Services.LinkMetaExtractor.LinkMetaExtractor>(new LoggerFactory());
         [Test]
         public async Task TestGithubUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await linkMetaExtractor.ExtractAsync("https://github.com/janhq/jan");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -30,7 +31,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestTwitterUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
 
             // Twitter does not return og tags when a http client fetches the page. We need a headless browser to download the webpage and parse the tags
             var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
@@ -42,7 +45,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestYoutubeUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await   linkMetaExtractor.ExtractAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -52,7 +57,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestLinkedInUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await  linkMetaExtractor.ExtractAsync("https://www.linkedin.com/posts/flutterdevofficial_calling-all-ai-innovators-join-the-gemini-activity-7201613262163984386-MkaU");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -64,7 +71,9 @@ public class LinkMetaExtractorTests
         [Test, Explicit]
         public async Task TestInstagramUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/C7fhXWKJNeU/");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -76,7 +85,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestHtmlUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await  linkMetaExtractor.ExtractAsync("https://simonwillison.net/2024/May/29/training-not-chatting/");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -86,7 +97,9 @@ public class LinkMetaExtractorTests
         [Test]
         public void TestError()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, _logger);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync(""));
             Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
         }
