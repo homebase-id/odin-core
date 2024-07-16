@@ -30,11 +30,11 @@ namespace Odin.Hosting.Controllers.System
         TransitInboxBoxStorage inbox) : OdinControllerBase
     {
         [HttpPost("process-async")]
-        public async Task<bool> ProcessOutboxAsync()
+        public Task<bool> ProcessOutboxAsync()
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await outboxProcessorAsync.StartOutboxProcessingAsync(WebOdinContext, cn);
-            return true;
+            outboxProcessorAsync.Pulse();
+            return Task.FromResult(true);
         }
 
 

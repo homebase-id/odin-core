@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Background.Services;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -34,26 +36,53 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         TenantSystemStorage tenantSystemStorage,
         IHostApplicationLifetime hostApplicationLifetime,
         IForgottenTasks outstandingTasks,
-        IDriveAclAuthorizationService driveAcl)
+        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService
     {
-        public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var cancellationToken = hostApplicationLifetime.ApplicationStopping;
-
-            var item = await peerOutbox.GetNextItem(cn);
-            while (item != null && cancellationToken.IsCancellationRequested == false)
+            var tasks = new List<Task>();
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var t = ProcessItemThread(item, odinContext, cancellationToken);
-                outstandingTasks.Add(t);
-                item = await peerOutbox.GetNextItem(cn);
+                using (var cn = tenantSystemStorage.CreateConnection())
+                {
+                    while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
+                    {
+                        var task = ProcessItemThread(item, stoppingToken);
+                        tasks.Add(task);
+                    }
+                }
+
+                tasks.RemoveAll(t => t.IsCompleted);
+
+                await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken); // SEB:TODO  public UnixTimeUtc? NextScheduledItem(DatabaseConnection conn)
             }
+            await Task.WhenAll(tasks);
         }
+        
+        // SEB:TODO remove below code reference
+        // public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
+        // {
+        //     var cancellationToken = hostApplicationLifetime.ApplicationStopping;
+        //
+        //     var item = await peerOutbox.GetNextItem(cn);
+        //     while (item != null && cancellationToken.IsCancellationRequested == false)
+        //     {
+        //         var t = ProcessItemThread(item, odinContext, cancellationToken);
+        //         outstandingTasks.Add(t);
+        //         item = await peerOutbox.GetNextItem(cn);
+        //     }
+        // }
 
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task ProcessItemThread(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
+        private async Task ProcessItemThread(OutboxFileItem fileItem, CancellationToken cancellationToken)
         {
+            var odinContext = new OdinContext
+            {
+                // TODD:TODO create the odin context
+            };
+            
             logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
             using var connection = tenantSystemStorage.CreateConnection();
 

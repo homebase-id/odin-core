@@ -32,7 +32,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
-        // SEB:TODO inject OutboxBackgroundService outboxBackgroundService
         PeerOutboxProcessorAsync outboxProcessorAsync
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
@@ -74,7 +73,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItem(item, cn);
             }
 
-            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorAsync.Pulse();
 
             return outboxStatus;
         }
@@ -139,7 +138,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorAsync.Pulse();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -287,7 +286,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorAsync.Pulse();
 
             return results;
         }

@@ -12,10 +12,10 @@ public class PushNotificationOutboxAdapter(
     PeerOutboxProcessorAsync outboxProcessorAsync)
     : INotificationHandler<PushNotificationEnqueuedNotification>
 {
-    public async Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
+    public Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
         logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-        await outboxProcessorAsync.StartOutboxProcessingAsync(notificationEnqueuedNotification.OdinContext,
-            notificationEnqueuedNotification.DatabaseConnection);
+        outboxProcessorAsync.Pulse();
+        return Task.CompletedTask;
     }
 }
