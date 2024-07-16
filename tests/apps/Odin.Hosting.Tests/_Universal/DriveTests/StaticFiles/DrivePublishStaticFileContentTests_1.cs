@@ -99,8 +99,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 fileType: section_1_filetype,
                 dataType: 0,
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
-                tags: new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2);
+                tags: [Guid.NewGuid(), Guid.NewGuid()],
+                SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2());
 
             await CreateAnonymousUnEncryptedFile(
                 ownerClient.DriveRedux,
@@ -108,8 +108,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 fileType: section_1_filetype,
                 dataType: 0,
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
-                tags: new List<Guid>() { Guid.NewGuid() },
-                SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1);
+                tags: [Guid.NewGuid()],
+                SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
 
             await CreateAnonymousUnEncryptedFile(
                 ownerClient.DriveRedux,
@@ -117,8 +117,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 fileType: 0,
                 dataType: section_2_datatype,
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "stuff" }),
-                tags: new List<Guid>() { Guid.NewGuid() },
-                SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1);
+                tags: [Guid.NewGuid()],
+                SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1());
 
             var staticFileClient = new UniversalStaticFileApiClient(identity.OdinId, callerContext.GetFactory());
 

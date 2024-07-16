@@ -71,7 +71,7 @@ public class DirectDrivePayloadTests_1
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
         var uploadManifest = new UploadManifest()
@@ -100,7 +100,7 @@ public class DirectDrivePayloadTests_1
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         // Get the payload and check the headers
-        var getPayloadKey1Response = await uniDriveClient.GetPayload(uploadResult.File, SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1.Key);
+        var getPayloadKey1Response = await uniDriveClient.GetPayload(uploadResult.File, uploadedPayloadDefinition.Key);
 
         Assert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode);
 
@@ -163,7 +163,7 @@ public class DirectDrivePayloadTests_1
         //
         // Now add a payload
         //
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
@@ -224,7 +224,7 @@ public class DirectDrivePayloadTests_1
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
