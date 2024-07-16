@@ -67,7 +67,7 @@ public class LinkMetaExtractorTests
         }
 
         // Explicit test because it sometimes instagram blocks the request and does not send a static website
-        // The main cause are user-agent headers but sometimes it does not send a SSR page
+        // The main cause are user-agent headers, but sometimes it does not send an SSR page
         [Test, Explicit]
         public async Task TestInstagramUrl()
         {
