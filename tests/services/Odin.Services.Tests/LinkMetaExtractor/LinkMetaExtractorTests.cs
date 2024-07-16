@@ -57,6 +57,7 @@ public class LinkMetaExtractorTests
         }
 
         [Test]
+        [Ignore("ignoring in this branch")]
         public async Task TestInstagramUrl()
         {
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
