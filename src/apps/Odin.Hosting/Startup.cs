@@ -60,7 +60,7 @@ namespace Odin.Hosting
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
             services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
-           
+
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
 
@@ -93,12 +93,7 @@ namespace Odin.Hosting
             services.AddJobManagementServices(config);
             services.AddCronSchedules();
 
-            services.AddControllers(options =>
-            {
-                options.Conventions.Add(new ApiV2RouteConvention());
-            });
-
-            services.AddControllers()
+            services.AddControllers(options => { options.Conventions.Add(new ApiV2RouteConvention()); })
                 .AddJsonOptions(options =>
                 {
                     foreach (var c in OdinSystemSerializer.JsonSerializerOptions!.Converters)

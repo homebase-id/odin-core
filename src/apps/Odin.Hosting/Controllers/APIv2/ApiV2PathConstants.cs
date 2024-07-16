@@ -2,8 +2,13 @@
 {
     public static class ApiV2PathConstants
     {
-        public const string AppsBasePathV1 = "/api/apps/v2";
-        public const string DriveSuffix = "/drive/files";
-        public const string DriveV2 = AppsBasePathV1 + DriveSuffix;
+        private const string DriveSuffix = "drive/files";
+        public const string UploadFile = DriveSuffix + "/upload";
+        public const string UploadPayload = DriveSuffix + "/upload-payload";
+        public const string GetHeader = DriveSuffix + "/header";
+        public const string GetThumb = DriveSuffix + "/thumb";
+        public const string GetPayload = DriveSuffix + "/payload";
+        public const string SendReadReceipts = DriveSuffix + "/read-receipts";
+        public const string DeleteFiles = DriveSuffix;
     }
 }
