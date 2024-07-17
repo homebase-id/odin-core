@@ -27,6 +27,9 @@ public interface IDriveNotification : INotification
     /// Feed hack so I can ensure certain update events do not get distributed 
     /// </summary>
     public bool IgnoreFeedDistribution { get; set; }
+    
+    public bool IgnoreReactionPreviewCalculation { get; set; }
+
 }
 
 public enum DriveNotificationType
