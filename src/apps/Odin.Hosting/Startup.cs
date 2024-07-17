@@ -149,7 +149,7 @@ namespace Odin.Hosting
                 c.EnableAnnotations();
                 c.SwaggerDoc("v1", new()
                 {
-                    Title = "DotYouCore API",
+                    Title = "Odin API",
                     Version = "v1"
                 });
             });
