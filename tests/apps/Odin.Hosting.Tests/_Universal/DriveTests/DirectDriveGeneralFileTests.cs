@@ -111,8 +111,8 @@ public class DirectDriveGeneralFileTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
         };
 
         var uploadManifest = new UploadManifest()
@@ -195,8 +195,8 @@ public class DirectDriveGeneralFileTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
         };
 
         var uploadManifest = new UploadManifest()

@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="_Universal\DriveTests\Status\" />
     <Folder Include="_Universal\NotificationTests\Transit\" />
   </ItemGroup>
 

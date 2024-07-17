@@ -68,8 +68,8 @@ public class DirectDrivePayload_Notfound_Tests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
         };
 
         var uploadManifest = new UploadManifest()

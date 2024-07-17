@@ -96,7 +96,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
                     {
                         logger.LogInformation(
-                            "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} instrutiontype:{it}); Action: Marking Complete",
+                            "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} InstructionType:{it}); Action: Marking Complete",
                             inboxItem.GlobalTransitId, inboxItem.InstructionType);
 
                         await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
@@ -181,6 +181,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     inboxItem.InstructionType,
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
+            }
+            catch (OdinClientException oce)
+            {
+                logger.LogError(oce,
+                    "Processing Inbox -> UniqueId Conflict: " +
+                    "\nSender: {sender}. " +
+                    "\nInbox InstructionType: {instructionType}. " +
+                    "\nTemp File:{f}. " +
+                    "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                    "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
+                    "\nAction: Marking Complete",
+                    inboxItem.Sender,
+                    inboxItem.InstructionType,
+                    tempFile,
+                    inboxItem.GlobalTransitId,
+                    Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+
+                await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
             }
             catch (Exception e)
             {

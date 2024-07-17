@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -35,6 +36,7 @@ public class DeviceSocket
     // private readonly Queue<Tuple<Guid, string>> _messageQueue = new();
     private readonly OrderedDictionary _messageQueue = new();
     private DateTime _lastSentTime = DateTime.MinValue;
+    private readonly object _lock = new object();
 
     public Guid Key { get; set; }
     public System.Net.WebSockets.WebSocket? Socket { get; set; }
@@ -57,7 +59,8 @@ public class DeviceSocket
 
     private bool LongTimeNoSee()
     {
-        return (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
+        var v = (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
+        return v;
     }
 
 
@@ -68,11 +71,22 @@ public class DeviceSocket
             throw new OdinSystemException("Socket is null during EnqueueMessage");
         }
 
-        _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
+        lock (_lock)
+        {
+            _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
+        }
 
-        if (_messageQueue.Count >= BatchSize || this.LongTimeNoSee())
+        if (LongTimeNoSee())
         {
             await ProcessBatch(cancellationToken.GetValueOrDefault(CancellationToken.None));
+            PerformanceCounter.IncrementCounter("App Notification Process Batch(reason:LongTimeNoSee)");
+            ResetTimeout();
+        }
+
+        if (_messageQueue.Count >= BatchSize)
+        {
+            await ProcessBatch(cancellationToken.GetValueOrDefault(CancellationToken.None));
+            PerformanceCounter.IncrementCounter("App Notification Process Batch(reason: batch full)");
             ResetTimeout();
         }
         else if (_messageQueue.Count == 1)
@@ -87,10 +101,20 @@ public class DeviceSocket
         {
             return;
         }
-        
-        foreach (var value in _messageQueue.Values)
+
+        string[] valuesArray;
+        lock (_lock)
         {
-            var message = (string)value;
+            valuesArray = new string[_messageQueue.Values.Count];
+            if (_messageQueue?.Values?.Count > 0)
+            {
+                _messageQueue.Values.CopyTo(valuesArray, 0);
+                _messageQueue.Clear();
+            }
+        }
+
+        foreach (var message in valuesArray)
+        {
             var jsonBytes = message.ToUtf8ByteArray();
             await Socket.SendAsync(
                 buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
@@ -98,8 +122,8 @@ public class DeviceSocket
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                 cancellationToken: cancellationToken);
         }
-        
-        _messageQueue.Clear();
+
+        PerformanceCounter.IncrementCounter("AppNotification Batch Sent");
 
         _lastSentTime = DateTime.UtcNow;
     }
@@ -112,6 +136,7 @@ public class DeviceSocket
             await Task.Delay(ForcePushInterval, _cancelTimeoutToken.Token);
             if (_messageQueue.Count > 0 && LongTimeNoSee())
             {
+                PerformanceCounter.IncrementCounter("App Notification Process Batch(reason: Timeout)");
                 await ProcessBatch(cancellationToken);
             }
         }

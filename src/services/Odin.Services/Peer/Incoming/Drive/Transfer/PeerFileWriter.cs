@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
 
             FileMetadata metadata = null;
-            var metadataMs = await Benchmark.MillisecondsAsync(async () =>
+            var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
                 var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
 
@@ -171,7 +171,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                   "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
             }
             else
-            { 
+            {
                 var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
                 if (!recordExists || transferHistoryItem == null)
@@ -248,7 +248,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var ms = await Benchmark.MillisecondsAsync(async () =>
+            var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                 await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
@@ -262,11 +262,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-            //one is written any time you save a header)
-            metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-            //note: we also update the key header because it might have been changed by the sender
-            await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
+            {
+                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
+                //one is written any time you save a header)
+                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+                //note: we also update the key header because it might have been changed by the sender
+                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            });
         }
 
         /// <summary>

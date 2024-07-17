@@ -74,16 +74,17 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
     {
         //target is same file because it's set earlier in the upload process
-        //using overwrite here so we can ensure the right event is called
+        //using overwrite here, so we can ensure the right event is called
         var targetFile = package.InternalFile;
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
             await FileSystem.Storage.OverwriteMetadata(
-                targetFile: targetFile,
-                newMetadata: metadata,
-                newServerMetadata: serverMetadata,
-                odinContext: odinContext,
+                keyHeader.Iv,
+                targetFile,
+                metadata,
+                serverMetadata,
+                odinContext,
                 cn);
 
             return;

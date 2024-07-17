@@ -54,7 +54,6 @@ public class PushNotificationService(
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
-
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
@@ -300,7 +299,7 @@ public class PushNotificationService(
         }
     }
 
-    //
+//
 
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
@@ -362,13 +361,11 @@ public class PushNotificationService(
         };
 
         await peerOutbox.AddItem(item, cn);
-        
         await mediator.Publish(new PushNotificationEnqueuedNotification()
         {
             OdinContext = odinContext,
             DatabaseConnection = cn,
         });
-        
         return true;
     }
 }

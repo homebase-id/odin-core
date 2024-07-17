@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Odin.Core;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -8,8 +7,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests;
 
 public static class SamplePayloadDefinitions
 {
-    public static TestPayloadDefinition PayloadDefinitionWithThumbnail1 =
-        new()
+    public static TestPayloadDefinition GetPayloadDefinitionWithThumbnail1()
+    {
+        return new()
         {
             Key = "test_key_1",
             ContentType = "text/plain",
@@ -32,9 +32,11 @@ public static class SamplePayloadDefinitions
                 }
             }
         };
+    }
 
-    public static TestPayloadDefinition PayloadDefinitionWithThumbnail2 =
-        new()
+    public static TestPayloadDefinition GetPayloadDefinitionWithThumbnail2()
+    {
+        return new()
         {
             Key = "test_key_2",
             ContentType = "text/plain",
@@ -57,9 +59,11 @@ public static class SamplePayloadDefinitions
                 }
             }
         };
+    }
 
-    public static TestPayloadDefinition PayloadDefinition1 =
-        new()
+    public static TestPayloadDefinition GetPayloadDefinition1()
+    {
+        return new()
         {
             Key = "pknt0001",
             ContentType = "text/plain",
@@ -68,8 +72,9 @@ public static class SamplePayloadDefinitions
             PreviewThumbnail = default,
             Thumbnails = new List<ThumbnailContent>()
         };
+    }
 
-    public static TestPayloadDefinition PayloadDefinition2 =
+    public static TestPayloadDefinition GetPayloadDefinition2 =
         new()
         {
             Key = "pknt0002",

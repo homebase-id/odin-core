@@ -154,7 +154,6 @@ public class DriveApiClientRedux
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        var keyHeader = KeyHeader.NewRandom16();
 
         fileMetadata.VersionTag = versionTag;
 
@@ -191,8 +190,6 @@ public class DriveApiClientRedux
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
             ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
-
-            keyHeader.AesKey.Wipe();
 
             return response;
         }

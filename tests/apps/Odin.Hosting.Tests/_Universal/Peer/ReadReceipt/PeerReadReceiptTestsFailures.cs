@@ -105,6 +105,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             };
 
             var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            await driveClient.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
 
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
@@ -113,8 +114,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(item, "no record for file");
             var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
-            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.RecipientIdentityReturnedAccessDenied);
+            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+            
 
+            
+            //TODO: there is no way to check the status of an item in the outbox; so the best
+            //we can do is check if the target file is not updated
+            
             //
             // Assert the read receipt was not updated on the sender's file
             //
@@ -259,8 +265,16 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(item, "no record for file");
             var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
-            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.RecipientIdentityReturnedAccessDenied);
+            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
 
+            
+            //TODO: we cannot check if the original sender rejected the read-receipt because this
+            //now in the outbox and there's no mechanism for that; therefore the best we can do is
+            //validate the original sender file was not updated
+            
+            await driveClient.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
+
+            
             //
             // Assert the read receipt was not updated on the sender's file
             //
@@ -337,6 +351,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             };
 
             var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            await driveClient.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
 
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
@@ -344,7 +359,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
             Assert.IsNotNull(item);
             Assert.IsNull(item.Status.Single().Recipient);
-            Assert.IsTrue(item.Status.Single().Status == SendReadReceiptResultStatus.LocalIdentityReturnedBadRequest);
+            Assert.IsTrue(item.Status.Single().Status == SendReadReceiptResultStatus.FileDoesNotHaveSender);
 
             //
             // Assert the read receipt was not updated on the sender's file

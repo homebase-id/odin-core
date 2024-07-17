@@ -17,29 +17,39 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
-public class SendDeleteFileRequestOutboxWorkerAsync(
+public class SendReadReceiptOutboxWorker(
     OutboxFileItem fileItem,
-    ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
-    OdinConfiguration odinConfiguration,
-    IOdinHttpClientFactory odinHttpClientFactory
+    ILogger<SendReadReceiptOutboxWorker> logger,
+    IOdinHttpClientFactory odinHttpClientFactory,
+    OdinConfiguration odinConfiguration
 ) : OutboxWorkerBase(fileItem, logger)
 {
-    private readonly OutboxFileItem _fileItem = fileItem;
-
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogDebug("SendDeleteFileRequest -> Sending request for file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
+            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            {
+                throw new OdinOutboxProcessingException("Too many attempts")
+                {
+                    File = FileItem.File,
+                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
+                    Recipient = default,
+                    VersionTag = default,
+                    GlobalTransitId = default
+                };
+            }
 
-            var globalTransitId = await SendRequest(_fileItem, cancellationToken);
+            logger.LogDebug("SendReadReceipt -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
-            logger.LogDebug("SendDeleteFileRequest -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
+            var globalTransitId = await HandleRequest(FileItem, cancellationToken);
+
+            logger.LogDebug("SendReadReceipt -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
                 globalTransitId,
                 "no version info",
-                _fileItem.Recipient,
-                _fileItem.Marker);
+                FileItem.Recipient,
+                FileItem.Marker);
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -63,12 +73,12 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         }
     }
 
-    private async Task<Guid> SendRequest(OutboxFileItem outboxItem, CancellationToken cancellationToken)
+    private async Task<Guid> HandleRequest(OutboxFileItem outboxItem, CancellationToken cancellationToken)
     {
         OdinId recipient = outboxItem.Recipient;
         var file = outboxItem.File;
 
-        var request = OdinSystemSerializer.Deserialize<DeleteRemoteFileRequest>(outboxItem.State.Data.ToStringFromUtf8Bytes());
+        var request = OdinSystemSerializer.Deserialize<MarkFileAsReadRequest>(outboxItem.State.Data.ToStringFromUtf8Bytes());
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
@@ -81,7 +91,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 clientAuthToken,
                 request.FileSystemType);
 
-            return await client.DeleteLinkedFile(request);
+            return await client.MarkFileAsRead(request);
         }
 
         try
@@ -96,14 +106,14 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 
             if (response.IsSuccessStatusCode)
             {
-                return request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+                return request.GlobalTransitIdFileIdentifier.GlobalTransitId;
             }
 
             throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
                 VersionTag = default,
-                GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                GlobalTransitId = request.GlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,
                 File = file
             };
@@ -119,7 +129,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             {
                 TransferStatus = status,
                 VersionTag = default,
-                GlobalTransitId = request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                GlobalTransitId = request.GlobalTransitIdFileIdentifier.GlobalTransitId,
                 Recipient = recipient,
                 File = file
             };
@@ -133,10 +143,10 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         return Task.FromResult(nextRunTime);
     }
 
-    protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
         DatabaseConnection cn)
     {
-        return Task.CompletedTask;
+        return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }
 }

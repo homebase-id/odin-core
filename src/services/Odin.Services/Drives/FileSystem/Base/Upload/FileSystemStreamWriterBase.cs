@@ -322,7 +322,14 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            return await UnpackForMetadataUpdate(package, uploadDescriptor, odinContext);
+            var (iv, metadata, serverMetadata) = await UnpackForMetadataUpdate(package, uploadDescriptor, odinContext);
+            return (keyHeader: new KeyHeader()
+                {
+                    Iv = iv,
+                    AesKey = new SensitiveByteArray(Guid.Empty.ToByteArray())
+                },
+                metadata,
+                serverMetadata);
         }
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
@@ -382,13 +389,37 @@ public abstract class FileSystemStreamWriterBase
         return (keyHeader, metadata, serverMetadata);
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
+    private async Task<(byte[] iv, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
+        byte[] iv = null;
+
+        if (uploadDescriptor.FileMetadata.IsEncrypted)
         {
-            throw new OdinClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
-                OdinClientErrorCode.MalformedMetadata);
+            var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
+
+            if (null == transferKeyEncryptedKeyHeader)
+            {
+                throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header", OdinClientErrorCode.InvalidKeyHeader);
+            }
+
+            var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
+            KeyHeader keyHeader = transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret);
+
+            if (!ByteArrayUtil.IsStrongKey(keyHeader.Iv))
+            {
+                throw new OdinClientException($"You must specify a new IV when storage intent is {StorageIntent.MetadataOnly}",
+                    OdinClientErrorCode.MalformedMetadata);
+            }
+
+            if (!ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
+            {
+                throw new OdinClientException(
+                    $"You must specify a 16-byte all-zero Aes Key when file is encrypted and  storage intent is {StorageIntent.MetadataOnly}",
+                    OdinClientErrorCode.MalformedMetadata);
+            }
+
+            iv = keyHeader.Iv;
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -407,7 +438,7 @@ public abstract class FileSystemStreamWriterBase
             AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
         };
 
-        return (null, metadata, serverMetadata);
+        return (iv, metadata, serverMetadata);
     }
 
     /// <summary>

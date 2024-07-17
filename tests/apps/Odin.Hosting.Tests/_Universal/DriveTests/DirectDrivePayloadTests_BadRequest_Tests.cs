@@ -79,7 +79,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
@@ -168,7 +168,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         //
         // Now add a payload
         //
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
@@ -201,8 +201,8 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         //Note: the duplicate keys
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1, //Note: the duplicate keys are intentional
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1 //Note: the duplicate keys are intentional
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(), //Note: the duplicate keys are intentional
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1() //Note: the duplicate keys are intentional
         };
 
         var uploadManifest = new UploadManifest()
