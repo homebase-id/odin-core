@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             var key = await _publicKeyService.GetOfflineEccPublicKey(cn);
             var expiration = Math.Min(key.expiration.seconds, 3600);
             Response.Headers.CacheControl = $"public,max-age={expiration}";
-            return key.PublicKeyJwkBase64Url();
+            return key?.PublicKeyJwkBase64Url();
         }
 
         [HttpGet("notifications_pk")]

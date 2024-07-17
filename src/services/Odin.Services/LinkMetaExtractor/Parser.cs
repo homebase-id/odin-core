@@ -1,11 +1,15 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using Ganss.Xss;
 
 namespace Odin.Services.LinkMetaExtractor;
 
 public static class Parser
 {
+    
+    private static readonly HtmlSanitizer Sanitizer = new HtmlSanitizer();
+    
         /// <summary>
         /// Parse content into a dictionary.
         /// </summary>
@@ -35,7 +39,7 @@ public static class Parser
                         {
                             var contentAttribute = meta.GetAttributeValue("content", null);
                             if (contentAttribute == null) continue;
-
+                            contentAttribute = Sanitizer.Sanitize(contentAttribute);
                             if (ogp.ContainsKey(metaAttribute) && !(ogp[metaAttribute] is List<string>))
                             {
                                 ogp[metaBits[0]] = new List<string> { ogp[metaAttribute].ToString(), contentAttribute };
@@ -60,7 +64,7 @@ public static class Parser
                 var match = Regex.Match(content, $"<{basic}>(.*?)</{basic}>", RegexOptions.IgnoreCase);
                 if (match.Success)
                 {
-                    ogp[basic] = match.Groups[1].Value.Trim();
+                    ogp[basic] = Sanitizer.Sanitize(match.Groups[1].Value.Trim());
                 }
             }
 
@@ -71,7 +75,7 @@ public static class Parser
                     var nameAttribute = meta.GetAttributeValue("name", null)?.ToLower();
                     if (nameAttribute == "description")
                     {
-                        ogp["description"] = meta.GetAttributeValue("content", null);
+                        ogp["description"] = Sanitizer.Sanitize(meta.GetAttributeValue("content", null));
                     }
                    
                 }

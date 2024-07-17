@@ -105,6 +105,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             };
 
             var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            await driveClient.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
 
             Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
             var sendReadReceiptResult = sendReadReceiptResponse.Content;
@@ -113,11 +114,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(item, "no record for file");
             var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
-            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+            Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
 
             //
             // Assert the read receipt was updated on the sender's file
             //
+
+            await recipientOwnerClient.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
@@ -182,25 +185,31 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             var samSendReadReceiptResponse = await samDriveClient.SendReadReceipt([fileForReadReceipt1, fileForReadReceipt2]);
 
+            await samDriveClient.WaitForEmptyOutbox(fileForReadReceipt1.TargetDrive);
+            await samDriveClient.WaitForEmptyOutbox(fileForReadReceipt2.TargetDrive);
+
             Assert.IsTrue(samSendReadReceiptResponse.IsSuccessStatusCode);
             var samSendReadReceiptResult = samSendReadReceiptResponse.Content;
             Assert.IsNotNull(samSendReadReceiptResult);
 
             //
-            //Assert both file read-receipt was accepted into the inbox
+            //Assert both files read-receipt was accepted into the inbox
             //
             var item1 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt1);
             Assert.IsNotNull(item1, "no record for file 1");
             var statusItem1 = item1.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem1);
-            Assert.IsTrue(statusItem1.Status == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+            Assert.IsTrue(statusItem1.Status == SendReadReceiptResultStatus.Enqueued);
 
             var item2 = samSendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt2);
             Assert.IsNotNull(item2, "no record for file 2");
             var statusItem2 = item2.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem2);
-            Assert.IsTrue(statusItem2.Status == SendReadReceiptResultStatus.RequestAcceptedIntoInbox);
+            Assert.IsTrue(statusItem2.Status == SendReadReceiptResultStatus.Enqueued);
 
+            await recipientOwnerClient.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt1.TargetDrive);
+            await recipientOwnerClient.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt2.TargetDrive);
+            
             //
             // Assert the read receipt was updated on the sender's file
             //

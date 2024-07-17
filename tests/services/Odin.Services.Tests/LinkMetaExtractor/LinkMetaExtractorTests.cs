@@ -1,19 +1,23 @@
-using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
+using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Services.LinkMetaExtractor;
+using Odin.Test.Helpers.Logging;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
 public class LinkMetaExtractorTests
 {
     private readonly HttpClientFactory _httpClientFactory = new ();
-    
         [Test]
         public async Task TestGithubUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await linkMetaExtractor.ExtractAsync("https://github.com/janhq/jan");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -27,7 +31,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestTwitterUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
 
             // Twitter does not return og tags when a http client fetches the page. We need a headless browser to download the webpage and parse the tags
             var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
@@ -39,7 +45,9 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestYoutubeUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await   linkMetaExtractor.ExtractAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -49,27 +57,37 @@ public class LinkMetaExtractorTests
         [Test]
         public async Task TestLinkedInUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await  linkMetaExtractor.ExtractAsync("https://www.linkedin.com/posts/flutterdevofficial_calling-all-ai-innovators-join-the-gemini-activity-7201613262163984386-MkaU");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.ImageUrl);
         }
 
-        [Test]
+        // Explicit test because it sometimes instagram blocks the request and does not send a static website
+        // The main cause are user-agent headers, but sometimes it does not send an SSR page
+        [Test, Explicit]
         public async Task TestInstagramUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/C7fhXWKJNeU/");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.ImageUrl);
+
+          
         }
 
         [Test]
         public async Task TestHtmlUrl()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await  linkMetaExtractor.ExtractAsync("https://simonwillison.net/2024/May/29/training-not-chatting/");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
@@ -79,9 +97,19 @@ public class LinkMetaExtractorTests
         [Test]
         public void TestError()
         {
-            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory);
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await  linkMetaExtractor.ExtractAsync(""));
-            Assert.ThrowsAsync<HttpRequestException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+            Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync(""));
+            Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
+        }
+
+        [Test]
+        public void TestHtmlSanitation()
+        {
+            var html = "<html><head><title>Test</title></head><body><script>alert('test')</script></body></html>";
+            var sanitizedHtml = Parser.Parse(html);
+            Assert.AreEqual("Test", sanitizedHtml["title"]);
         }
         
     

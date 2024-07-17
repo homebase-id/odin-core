@@ -49,7 +49,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private PeerDriveIncomingTransferService _incomingTransferService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
-        private Guid _stateItemId;
 
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
@@ -95,7 +94,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             //End Optimizations
 
             _incomingTransferService = GetPerimeterService(_fileSystem);
-            _stateItemId = await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
+            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
 
             //
 
@@ -123,9 +122,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 }
             }
 
-            //
 
-            return await _incomingTransferService.FinalizeTransfer(this._stateItemId, metadata, WebOdinContext, cn);
+            return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext, cn);
         }
 
         [HttpPost("deletelinkedfile")]
@@ -147,11 +145,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
         {
             await AssertIsValidCaller();
-            
+
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection();
-            
+
             return await perimeterService.MarkFileAsRead(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,
@@ -224,7 +222,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var json = await new StreamReader(section.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", metadataStream, WebOdinContext, cn);
+            await _incomingTransferService.AcceptMetadata("metadata", metadataStream, WebOdinContext, cn);
             return metadata;
         }
 
@@ -240,7 +238,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream, WebOdinContext,
+            await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext,
                 cn);
         }
 
@@ -266,7 +264,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension, fileSection.FileStream,
+            await _incomingTransferService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
+                fileSection.FileStream,
                 WebOdinContext, cn);
         }
 

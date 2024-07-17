@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
@@ -23,14 +27,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerDriveIncomingTransferService
     {
+        private IncomingTransferStateItem _transferState = null;
+
         private readonly ILogger<PeerDriveIncomingTransferService> _logger;
         private readonly PushNotificationService _pushNotificationService;
-        private readonly TransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IMediator _mediator;
+        private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public PeerDriveIncomingTransferService(
             ILogger<PeerDriveIncomingTransferService> logger,
@@ -47,41 +53,90 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;
-
-            _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem);
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext,
+        public async Task InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet, odinContext, cn);
+            var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+
+            // Notice here: we always create a new fileId when receiving a new file.
+            var file = await _fileSystem.Storage.CreateInternalFileId(driveId, cn);
+            _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
+
+            // Write the instruction set to disk
+            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
+            await _fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream, odinContext, cn);
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext,
+        public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-            await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, fileExtension, data, odinContext, cn);
+            await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
         }
 
-        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata, IOdinContext odinContext,
+        public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
+            _uploadedKeys.TryAdd(key, new List<string>());
+            await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
+        }
 
-            var responseCode = await FinalizeTransferInternal(item, fileMetadata, odinContext, cn);
+        public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
+            {
+                thumbnailKeys = new List<string>();
+                _uploadedKeys.Add(payloadKey, thumbnailKeys);
+            }
+            
+            thumbnailKeys.Add(thumbnailKey);
+            _uploadedKeys[payloadKey] = thumbnailKeys;
+
+            await _fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, cn);
+        }
+
+        public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var shouldExpectPayload = _transferState.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+
+            // if there are payloads in the descriptor, and they should have been sent
+            if (fileMetadata.Payloads.Any() && shouldExpectPayload)
+            {
+                foreach (var expectedPayload in fileMetadata.Payloads)
+                {
+                    var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.Key, out var thumbnailKeys);
+                    if (!hasPayload)
+                    {
+                        throw new OdinClientException("Not all payloads received");
+                    }
+
+                    foreach (var expectedThumbnail in expectedPayload.Thumbnails)
+                    {
+                        var thumbnailKey = expectedThumbnail.CreateTransitKey(expectedPayload.Key);
+                        if (thumbnailKeys.All(k => k != thumbnailKey))
+                        {
+                            throw new OdinClientException("Not all payloads received");
+                        }
+                    }
+                }
+            }
+
+            var responseCode = await FinalizeTransferInternal(_transferState, fileMetadata, odinContext, cn);
 
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
                 //Feed hack (again)
-                if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
-                    item.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
+                if (_transferState.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
+                    _transferState.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                 {
                     //Note: we say new feed item here because comments are never pushed into the feed drive; so any
                     //item going into the feed is new content (i.e. post/image, etc.)
                     await _mediator.Publish(new NewFeedItemReceived
                     {
-                        FileSystemType = item.TransferInstructionSet.FileSystemType,
+                        FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = odinContext,
                         DatabaseConnection = cn
@@ -89,7 +144,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else
                 {
-                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                    var notificationOptions = _transferState.TransferInstructionSet.AppNotificationOptions;
                     if (null != notificationOptions)
                     {
                         var senderId = odinContext.GetCallerOdinIdOrFail();
@@ -98,7 +153,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                 }
 
-                await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new PeerTransferResponse() { Code = responseCode };
             }
 
@@ -182,7 +236,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Sender = odinContext.GetCallerOdinIdOrFail(),
                 InstructionType = TransferInstructionType.ReadReceipt,
                 DriveId = driveId,
-
                 TransferFileType = TransferFileType.ReadReceipt,
                 FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint since we can have multiple senders sending a read receipt for the same gtid
                 GlobalTransitId = globalTransitId,
