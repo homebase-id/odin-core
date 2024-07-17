@@ -101,7 +101,7 @@ namespace Odin.Services.DataSubscription
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
                     }
 
-                    _peerOutboxProcessorAsync.Pulse();
+                    _peerOutboxProcessorAsync.WakeUp();
                 }
                 else
                 {
@@ -111,7 +111,7 @@ namespace Odin.Services.DataSubscription
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
-                            _peerOutboxProcessorAsync.Pulse();
+                            _peerOutboxProcessorAsync.WakeUp();
                             return;
                         }
                     }
@@ -129,7 +129,7 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
-                        _peerOutboxProcessorAsync.Pulse();
+                        _peerOutboxProcessorAsync.WakeUp();
                         return;
                     }
                 }

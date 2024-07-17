@@ -9,7 +9,7 @@ namespace Odin.Services.Background.Services;
 
 public abstract class AbstractBackgroundService
 {
-    private readonly AsyncAutoResetEvent _pulseEvent = new();
+    private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
 
@@ -37,9 +37,10 @@ public abstract class AbstractBackgroundService
     {
         try
         {
-            var pulse = _pulseEvent.WaitAsync(stoppingToken);
+            var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
-            await Task.WhenAny(pulse, delay);
+            await Task.WhenAny(wakeUp, delay);
+            _wakeUpEvent.Reset();
         }
         catch (OperationCanceledException)
         {
@@ -50,9 +51,9 @@ public abstract class AbstractBackgroundService
     //
 
     // Call me from anywhere to wake up the service from SleepAsync
-    public void Pulse()
+    public void WakeUp()
     {
-        _pulseEvent.Set();
+        _wakeUpEvent.Set();
     }
 
     //

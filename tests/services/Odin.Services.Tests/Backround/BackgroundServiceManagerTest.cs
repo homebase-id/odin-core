@@ -183,7 +183,7 @@ public class BackgroundServiceManagerTest
             {
                 foreach (var service in services)
                 {
-                    service.Pulse();
+                    service.WakeUp();
                 }
                 await Task.Delay(200);
             }
@@ -231,6 +231,30 @@ public class BackgroundServiceManagerTest
     }
 #endif
 
+#if !NOISY_NEIGHBOUR    
+    [Test]
+    public async Task WillFailIfBackgroundServiceManagerUsesAutoResetEventInsteadOfManualResetEvent()
+    {
+        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
+        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
+        var manager = new BackgroundServiceManager(logger, tenant.Name);
+        
+        var service = new ResetEventDemo();
+        var sw = Stopwatch.StartNew();
+       
+        await manager.StartAsync("foo", service);
+        Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(1)));
+        
+        await Task.Delay(200);
+        Assert.AreEqual(1, service.Counter);
+        
+        service.WakeUp();
+        await Task.Delay(200);
+        
+        Assert.AreEqual(2, service.Counter);
+    }
+#endif    
+    
 }
 
 public abstract class BaseBackgroundService : AbstractBackgroundService, IDisposable
@@ -302,6 +326,31 @@ public class LoopingBackgroundServiceWithSleepAndWakeUp : BaseBackgroundService
                     Counter++;
                 }
             }
+        }
+        finally
+        {
+            DidFinish = true;
+        }
+    }
+}
+
+public class ResetEventDemo : BaseBackgroundService
+{
+    private int _counter;
+    public int Counter
+    {
+        get => Interlocked.Exchange(ref _counter, _counter);
+        private set => Interlocked.Exchange(ref _counter, value);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await SleepAsync(TimeSpan.FromMilliseconds(100), stoppingToken);
+            Interlocked.Increment(ref _counter);
+            await SleepAsync(TimeSpan.FromMilliseconds(2000), stoppingToken);
+            Interlocked.Increment(ref _counter);
         }
         finally
         {
