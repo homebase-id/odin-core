@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.System
         public Task<bool> ProcessOutboxAsync()
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            outboxProcessorAsync.Pulse();
+            outboxProcessorAsync.WakeUp();
             return Task.FromResult(true);
         }
 

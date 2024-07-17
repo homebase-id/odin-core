@@ -20,6 +20,7 @@ public static class Extensions
         cb.RegisterType<DummySystemBackgroundService>()
             .AsSelf()
             .SingleInstance();
+      
         
         // Add more system services here
         // ...
@@ -30,7 +31,8 @@ public static class Extensions
     
     public static async Task StartSystemBackgroundServices(this IBackgroundServiceManager bsm, IServiceProvider services)
     {
-        await bsm.StartAsync("dummy-system-background-service", services.GetRequiredService<DummySystemBackgroundService>());
+        // await bsm.StartAsync("dummy-system-background-service", services.GetRequiredService<DummySystemBackgroundService>());
+        await Task.CompletedTask;
     }
     
     //
@@ -62,7 +64,7 @@ public static class Extensions
 
     public static async Task StartTenantBackgroundServices(this IBackgroundServiceManager bsm, ILifetimeScope scope)
     {
-        await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
+        // await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
         await bsm.StartAsync(nameof(PeerOutboxProcessorAsync), scope.Resolve<PeerOutboxProcessorAsync>());
     }
     

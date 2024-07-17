@@ -73,7 +73,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItem(item, cn);
             }
 
-            outboxProcessorAsync.Pulse();
+            outboxProcessorAsync.WakeUp();
 
             return outboxStatus;
         }
@@ -138,7 +138,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            outboxProcessorAsync.Pulse();
+            outboxProcessorAsync.WakeUp();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -286,7 +286,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            outboxProcessorAsync.Pulse();
+            outboxProcessorAsync.WakeUp();
 
             return results;
         }

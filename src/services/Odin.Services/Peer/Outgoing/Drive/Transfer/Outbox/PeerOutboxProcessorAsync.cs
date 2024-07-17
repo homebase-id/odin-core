@@ -59,20 +59,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await Task.WhenAll(tasks);
         }
 
-        // SEB:TODO remove below code reference
-        // public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
-        // {
-        //     var cancellationToken = hostApplicationLifetime.ApplicationStopping;
-        //
-        //     var item = await peerOutbox.GetNextItem(cn);
-        //     while (item != null && cancellationToken.IsCancellationRequested == false)
-        //     {
-        //         var t = ProcessItemThread(item, odinContext, cancellationToken);
-        //         outstandingTasks.Add(t);
-        //         item = await peerOutbox.GetNextItem(cn);
-        //     }
-        // }
-
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
@@ -184,6 +170,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
+            WakeUp();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,
