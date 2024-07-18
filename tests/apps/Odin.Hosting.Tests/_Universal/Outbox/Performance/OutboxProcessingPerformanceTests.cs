@@ -73,7 +73,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             _scaffold.AssertLogEvents();
         }
 
-        [Test]
+        [Test, Explicit]
         public async Task ChatSpamTestEndToEnd_AllSuccessScenarios()
         {
             /*

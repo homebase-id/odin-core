@@ -13,20 +13,20 @@ namespace Odin.Services.Peer.Encryption
 
         public SensitiveByteArray Combine()
         {
-            return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
+            return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.AesKey?.GetKey() ?? []));
         }
 
         public Stream EncryptDataAesAsStream(string data)
         {
             return this.EncryptDataAesAsStream(data.ToUtf8ByteArray());
         }
-        
+
         public Stream EncryptDataAesAsStream(byte[] data)
         {
             var cipher = this.EncryptDataAes(data);
             return new MemoryStream(cipher);
         }
-        
+
         public byte[] EncryptDataAes(byte[] data)
         {
             var key = this.AesKey;

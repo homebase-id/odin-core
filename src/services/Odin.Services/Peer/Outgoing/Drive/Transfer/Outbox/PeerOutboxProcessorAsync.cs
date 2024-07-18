@@ -92,12 +92,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 }
                 else
                 {
-                    await RescheduleItem(fileItem, odinContext, nextRun, connection);
+                    await RescheduleItem(fileItem, nextRun, connection);
                 }
             }
             catch (OperationCanceledException oce)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 // Expected when using cancellation token
                 logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
@@ -110,7 +110,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -120,7 +120,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -156,13 +156,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task RescheduleItem(OutboxFileItem fileItem, IOdinContext odinContext, UnixTimeUtc nextRun, DatabaseConnection connection)
+        private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun, DatabaseConnection connection)
         {
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
-                logger.LogInformation(
-                    "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
+                logger.LogInformation("Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
                     fileItem.File,
                     fileItem.AttemptCount);
