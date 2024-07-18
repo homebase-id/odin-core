@@ -50,9 +50,9 @@ public static class Extensions
             .SingleInstance();
         
         // SEB:TODO also registered in startup/DI. Fix it.
-        cb.RegisterType<PeerOutboxProcessorAsync>()
-            .AsSelf()
-            .SingleInstance();
+        // cb.RegisterType<PeerOutboxProcessorAsync>()
+        //     .AsSelf()
+        //     .SingleInstance();
        
         // Add more tenant services here
         // ...
