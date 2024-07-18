@@ -63,6 +63,16 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
         {
             logger.LogDebug("Stopping background service '{serviceIdentifier}' for owner {owner}", serviceIdentifier, owner);
             await backgroundService.InternalStopAsync(_stoppingCts.Token);
+            
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            if (backgroundService is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+            else if (backgroundService is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
     }
 
