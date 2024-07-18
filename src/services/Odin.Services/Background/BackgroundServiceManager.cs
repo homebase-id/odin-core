@@ -15,6 +15,7 @@ public interface IBackgroundServiceManager
 {
     Task StartAsync(string serviceIdentifier, AbstractBackgroundService backgroundService);
     Task StopAsync(string serviceIdentifier);
+    Task StopAllAsync();
     Task ShutdownAsync();
 }
 
