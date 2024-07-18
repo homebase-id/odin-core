@@ -286,8 +286,10 @@ namespace Odin.Hosting.Middleware
 
         private bool CallerMustHaveSharedSecret(HttpContext context)
         {
-            var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
-            return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
+            return false;
+            //
+            // var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
+            // return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
     }
 }

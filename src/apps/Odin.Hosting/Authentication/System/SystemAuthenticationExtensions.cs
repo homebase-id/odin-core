@@ -14,7 +14,7 @@ namespace Odin.Hosting.Authentication.System
 
             return builder.AddScheme<SystemAuthenticationSchemeOptions, SystemAuthenticationHandler>(
                 SystemAuthConstants.SchemeName,
-                op => { });
+                _ => { });
         }
     }
 }

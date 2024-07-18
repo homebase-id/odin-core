@@ -37,6 +37,7 @@ using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Authentication.Unified;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Controllers.APIv2.Base;
@@ -156,7 +157,8 @@ namespace Odin.Hosting
 
             services.AddCorsPolicies();
 
-            services.AddAuthentication(options => { })
+            services.AddAuthentication(o => o.DefaultScheme = UnifiedAuthConstants.SchemeName)
+                .AddUnifiedAuthentication()
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)

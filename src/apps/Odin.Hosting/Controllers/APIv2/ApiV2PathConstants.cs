@@ -1,5 +1,10 @@
 ﻿namespace Odin.Hosting.Controllers.APIv2
 {
+    public static class ApiV2SwaggerLabels
+    {
+        public const string FileManagement = "File Management";
+
+    }
     public static class ApiV2PathConstants
     {
         public const string OwnerRoot = "/api/owner/v2";

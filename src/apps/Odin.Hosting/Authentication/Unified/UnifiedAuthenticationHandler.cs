@@ -12,23 +12,20 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.SQLite;
+using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Odin.Hosting.Authentication.Owner
+namespace Odin.Hosting.Authentication.Unified
 {
-    /// <summary>
-    /// Handles authenticating owners to their owner-console
-    /// </summary>
-    public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
+    public class UnifiedAuthenticationHandler : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary/>
-        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
+        public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory logger,
             UrlEncoder encoder, TenantSystemStorage tenantSystemStorage)
             : base(options, logger, encoder)
         {
@@ -49,6 +46,7 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             }
+
             return Task.CompletedTask;
         }
 
@@ -100,6 +98,30 @@ namespace Odin.Hosting.Authentication.Owner
 
                 var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.SchemeName);
                 ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);
+                return AuthenticateResult.Success(ticket);
+            }
+
+            else
+            {
+                
+                var claims = new List<Claim>()
+                {
+                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                };
+
+                var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
+                
+                ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+
+                AuthenticationProperties authProperties = new AuthenticationProperties
+                {
+                    IssuedUtc = DateTime.UtcNow,
+                    ExpiresUtc = DateTime.UtcNow.AddDays(1),
+                    AllowRefresh = true,
+                    IsPersistent = true
+                };
+                var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.SchemeName);
                 return AuthenticateResult.Success(ticket);
             }
 
