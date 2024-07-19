@@ -53,7 +53,9 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             Data = encryptedBytes.ToBase64()
         };
 
-        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), OdinSystemSerializer.JsonSerializerOptions);
+        var result = JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), OdinSystemSerializer.JsonSerializerOptions);
+        result.Headers.Add("pie", "tasty");
+        return result;
     }
 
     /// <inheritdoc/>

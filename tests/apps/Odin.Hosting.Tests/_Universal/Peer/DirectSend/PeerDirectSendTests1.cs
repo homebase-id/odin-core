@@ -23,7 +23,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
     /// <summary>
     /// Tests to send comment files to another identity w/o storing them locally
     /// </summary>
-    public class PeerDirectSendTests
+    public class PeerDirectSendTests1
     {
         private WebScaffold _scaffold;
 

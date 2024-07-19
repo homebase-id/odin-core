@@ -4,6 +4,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -13,7 +14,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn);
+        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType,
+            StorageIntent storageIntent, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn);
 
         Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(InternalDriveFileId fileId, FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients, IOdinContext odinContext, DatabaseConnection cn);

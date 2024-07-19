@@ -31,7 +31,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
         {
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
@@ -72,21 +72,20 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         TargetDrive remoteTargetDrive,
         UploadFileMetadata fileMetadata,
         List<OdinId> recipients,
-        Guid? overwriteGlobalTransitFileId,
-        UploadManifest uploadManifest,
-        List<TestPayloadDefinition> payloads,
+        UploadManifest uploadManifest = null,
+        List<TestPayloadDefinition> payloads = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
         {
             TransferIv = transferIv,
-            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            OverwriteGlobalTransitFileId = default,
             RemoteTargetDrive = remoteTargetDrive,
             Recipients = recipients.Select(d => d.DomainName).ToList(),
-            Manifest = uploadManifest
+            Manifest = uploadManifest ?? new UploadManifest()
         };
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -106,7 +105,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
             ];
 
-            foreach (var payloadDefinition in payloads)
+            foreach (var payloadDefinition in payloads ?? [])
             {
                 parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
                     Enum.GetName(MultipartUploadParts.Payload)));
@@ -119,8 +118,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
                 }
             }
 
-            var driveSvc = RestService.For<IUniversalRefitPeerDirect>(client);
-            ApiResponse<TransitResult> response = await driveSvc.TransferStream(parts.ToArray());
+            var peerDirectSvc = RestService.For<IUniversalRefitPeerDirect>(client);
+            ApiResponse<TransitResult> response = await peerDirectSvc.TransferStream(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
@@ -128,6 +127,67 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         }
     }
 
+    public async Task<ApiResponse<TransitResult>> UpdateFile(
+        TargetDrive remoteTargetDrive,
+        UploadFileMetadata fileMetadata,
+        List<OdinId> recipients,
+        Guid? overwriteGlobalTransitFileId,
+        StorageIntent storageIntent,
+        UploadManifest uploadManifest = null,
+        List<TestPayloadDefinition> payloads = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        var keyHeader = KeyHeader.NewRandom16();
+
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
+        {
+            TransferIv = transferIv,
+            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            RemoteTargetDrive = remoteTargetDrive,
+            Recipients = recipients.Select(d => d.DomainName).ToList(),
+            Manifest = uploadManifest ?? new UploadManifest(),
+            StorageIntent = storageIntent
+        };
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+            List<StreamPart> parts =
+            [
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            ];
+
+            foreach (var payloadDefinition in payloads ?? [])
+            {
+                parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
+                    Enum.GetName(MultipartUploadParts.Payload)));
+
+                foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
+                {
+                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
+            }
+
+            var peerDirectSvc = RestService.For<IUniversalRefitPeerDirect>(client);
+            ApiResponse<TransitResult> response = await peerDirectSvc.TransferStream(parts.ToArray());
+
+            keyHeader.AesKey.Wipe();
+
+            return response;
+        }
+    }
 
     public async Task DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
         List<OdinId> recipients)
@@ -156,7 +216,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
         {
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,

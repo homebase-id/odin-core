@@ -16,7 +16,9 @@ public static class RefitCreator
     /// </summary>
     public static T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
     {
-        var settings = new RefitSettings(new SharedSecretSystemTextJsonContentSerializer(sharedSecret)/*, new SharedSecretUrlParameterFormatter(sharedSecret)*/);
+        var settings = new RefitSettings(
+            new SharedSecretSystemTextJsonContentSerializer(sharedSecret) /*, new SharedSecretUrlParameterFormatter(sharedSecret)*/);
+
         return RestService.For<T>(client, settings);
     }
 }

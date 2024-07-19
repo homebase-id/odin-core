@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
@@ -40,7 +41,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext,
+            TransitOptions options,
+            TransferFileType transferFileType,
+            StorageIntent storageIntent,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext,
             DatabaseConnection cn)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
@@ -51,7 +56,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var sfo = new FileTransferOptions()
             {
                 TransferFileType = transferFileType,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                StorageIntent = storageIntent
             };
 
             var tenant = tenantContext.HostOdinId;
@@ -360,7 +366,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
             TransferFileType transferFileType,
-            FileSystemType fileSystemType, TransitOptions transitOptions)
+            FileSystemType fileSystemType, StorageIntent storageIntent, TransitOptions transitOptions)
         {
             var sharedSecret = clientAccessToken.SharedSecret;
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -372,6 +378,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
                 ContentsProvided = transitOptions.SendContents,
+                StorageIntent = storageIntent,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
@@ -429,6 +436,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 targetDrive,
                                 fileTransferOptions.TransferFileType,
                                 fileTransferOptions.FileSystemType,
+                                fileTransferOptions.StorageIntent,
                                 options),
                             Data = []
                         }

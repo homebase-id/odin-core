@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Hosting.Controllers;
@@ -14,25 +15,32 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Query
     public interface IUniversalRefitPeerQuery
     {
         private const string RootEndpoint = "/transit/query";
-            
+
         [Post(RootEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResponse>> GetModified(PeerQueryModifiedRequest request);
 
         [Post(RootEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] PeerQueryBatchCollectionRequest request);
-        
+
         [Post(RootEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] PeerQueryBatchRequest request);
 
         [Post(RootEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);
 
+        [Get(RootEndpoint + "/header_byglobaltransitid")]
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGlobalTransitId(
+            [Query] string odinId,
+            [Query] Guid globalTransitId,
+            [Query] Guid alias,
+            [Query] Guid type);
+
         [Post(RootEndpoint + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayload([Body] TransitGetPayloadRequest file);
 
         [Post(RootEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail([Body] TransitGetThumbRequest request);
-        
+
         [Post(RootEndpoint + "/metadata/type")]
         Task<ApiResponse<PagedResult<ClientDriveData>>> GetDrives([Body] TransitGetDrivesByTypeRequest request);
 

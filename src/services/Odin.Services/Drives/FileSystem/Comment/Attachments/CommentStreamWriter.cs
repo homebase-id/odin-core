@@ -4,6 +4,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Services.Drives.FileSystem.Comment.Attachments;
 
@@ -11,9 +12,7 @@ namespace Odin.Services.Drives.FileSystem.Comment.Attachments;
 public class CommentPayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public CommentPayloadStreamWriter(
-        CommentFileSystem fileSystem)
-        : base(fileSystem)
+    public CommentPayloadStreamWriter(CommentFileSystem fileSystem, PeerOutgoingTransferService transferService) : base(fileSystem, transferService)
     {
     }
 

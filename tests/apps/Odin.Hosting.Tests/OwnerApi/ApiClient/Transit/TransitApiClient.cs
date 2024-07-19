@@ -147,7 +147,7 @@ public class TransitApiClient
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
         {
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
@@ -214,7 +214,7 @@ public class TransitApiClient
         var keyHeader = KeyHeader.NewRandom16();
 
 
-        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        PeerDirectInstructionSet instructionSet = new PeerDirectInstructionSet()
         {
             TransferIv = transferIv,
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,

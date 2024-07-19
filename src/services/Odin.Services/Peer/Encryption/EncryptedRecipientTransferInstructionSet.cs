@@ -2,6 +2,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Peer.Encryption
@@ -19,7 +20,7 @@ namespace Odin.Services.Peer.Encryption
         public FileSystemType FileSystemType { get; set; }
 
         /// <summary>
-        /// The file's KeyHeader encrypt4ed with the shared secret indicated by the recipient
+        /// The file's KeyHeader encrypted with the shared secret indicated by the recipient
         /// </summary>
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
 
@@ -31,6 +32,7 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
         
         public AccessControlList OriginalAcl { get; set; }
+        public StorageIntent StorageIntent { get; set; }
 
         public bool IsValid()
         {

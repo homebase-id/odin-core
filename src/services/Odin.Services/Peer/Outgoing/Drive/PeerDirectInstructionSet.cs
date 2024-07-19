@@ -6,9 +6,9 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 namespace Odin.Services.Peer.Outgoing.Drive
 {
     /// <summary>
-    /// Specifies what to do with a file when it is uploaded
+    /// Specifies what to do with a file when it is uploaded to be sent directly to the recipients
     /// </summary>
-    public class TransitInstructionSet
+    public class PeerDirectInstructionSet
     {
         /// <summary>
         /// The transfer initialization vector used to encrypt the KeyHeader
@@ -31,5 +31,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public Guid? OverwriteGlobalTransitFileId { get; set; }
 
         public UploadManifest Manifest { get; set; }
+        
+        public StorageIntent StorageIntent { get; set; }
     }
 }

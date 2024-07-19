@@ -138,6 +138,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("files/uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayload()
         {
+
+            throw new NotImplementedException("wip");
             using var cn = tenantSystemStorage.CreateConnection();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
@@ -175,11 +177,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await writer.FinalizeUpload(WebOdinContext, cn);
+            var status = await writer.FinalizeUpload(WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
             return status;
         }
 
-        
+
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
         [HttpPost("files/deletepayload")]
         public async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
@@ -213,15 +215,16 @@ namespace Odin.Hosting.Controllers.Base.Transit
         private async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
         {
             string json = await new StreamReader(transitInstructionStream).ReadToEndAsync();
-            var transitInstructionSet = OdinSystemSerializer.Deserialize<TransitInstructionSet>(json);
+            var peerInstructionSet = OdinSystemSerializer.Deserialize<PeerDirectInstructionSet>(json);
 
             var uploadInstructionSet = new UploadInstructionSet()
             {
-                TransferIv = transitInstructionSet.TransferIv,
+                TransferIv = peerInstructionSet.TransferIv,
                 StorageOptions = new StorageOptions()
                 {
                     Drive = SystemDriveConstants.TransientTempDrive,
-                    OverwriteFileId = default
+                    OverwriteFileId = default,
+                    StorageIntent = peerInstructionSet.StorageIntent
                 },
                 TransitOptions = new TransitOptions()
                 {
@@ -229,17 +232,17 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     SendContents = SendContents.All,
 
                     //TODO: OMG HACK
-                    OverrideRemoteGlobalTransitId = transitInstructionSet.OverwriteGlobalTransitFileId,
+                    OverrideRemoteGlobalTransitId = peerInstructionSet.OverwriteGlobalTransitFileId,
 
-                    RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
-                    Recipients = transitInstructionSet.Recipients,
+                    RemoteTargetDrive = peerInstructionSet.RemoteTargetDrive,
+                    Recipients = peerInstructionSet.Recipients,
                 },
-                Manifest = transitInstructionSet.Manifest
+                Manifest = peerInstructionSet.Manifest
             };
 
             return uploadInstructionSet;
         }
-        
+
         private async Task<UploadPayloadInstructionSet> RemapUploadInstructionSet(Stream data)
         {
             string json = await new StreamReader(data).ReadToEndAsync();
@@ -249,7 +252,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 TargetFile = new ExternalFileIdentifier()
                 {
-                    FileId = ??
+                    //FileId = ?? 
                     TargetDrive = SystemDriveConstants.TransientTempDrive
                 },
                 Manifest = originalInstructionSet.Manifest,
@@ -259,6 +262,5 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             return instructionSet;
         }
-
     }
 }
