@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -18,11 +22,13 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class PayloadStreamWriterBase
 {
+    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, PeerOutgoingTransferService peerOutgoingTransferService)
     {
+        _peerOutgoingTransferService = peerOutgoingTransferService;
         FileSystem = fileSystem;
     }
 
@@ -147,7 +153,7 @@ public abstract class PayloadStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
         var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext, cn);
 
@@ -157,19 +163,32 @@ public abstract class PayloadStreamWriterBase
 
         var latestVersionTag = await this.UpdatePayloads(_package, serverHeader, odinContext, cn);
 
-        if (_package.InstructionSet.Recipients?.Any() ?? false)
-        {
-            throw new NotImplementedException("TODO: Sending a payload from an existing file not yet supported");
-        }
-
-        //TODO: need to send the new payload to the recipient?
-        // Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
-
+        var recipientStatus = await ProcessPayloadTransitInstructions(_package, odinContext, cn, fileSystemType);
         return new UploadPayloadResult()
         {
             NewVersionTag = latestVersionTag,
-            // RecipientStatus = recipientStatus
+            RecipientStatus = recipientStatus
         };
+    }
+
+    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessPayloadTransitInstructions(PayloadOnlyPackage package,
+        IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
+    {
+        Dictionary<string, TransferStatus> recipientStatus = null;
+        var recipients = package.InstructionSet.Recipients;
+
+        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
+
+        if (recipients?.Any() ?? false)
+        {
+            recipientStatus = await _peerOutgoingTransferService.SendPayload(package.InternalFile,
+                package.InstructionSet,
+                fileSystemType,
+                odinContext,
+                cn);
+        }
+
+        return recipientStatus;
     }
 
     /// <summary>

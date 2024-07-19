@@ -137,13 +137,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
-                logger.LogInformation("Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
+                logger.LogInformation(
+                    "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
                     fileItem.File,
                     fileItem.AttemptCount);
                 return;
             }
-            
+
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
 
             try
@@ -178,9 +179,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, connection, cancellationToken);
 
+                case OutboxItemType.PayloadUpdate:
+                    return await SendPayload(fileItem, odinContext, connection, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPayload(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendPayloadOutboxWorker>();
+            var worker = new SendPayloadOutboxWorker(fileItem, fileSystemResolver, workLogger, odinConfiguration, odinHttpClientFactory);
+            return await worker.Send(odinContext, connection, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,

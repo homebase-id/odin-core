@@ -110,7 +110,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await writer.FinalizeUpload(WebOdinContext, cn);
+            var status = await writer.FinalizeUpload(WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
             return status;
         }
 

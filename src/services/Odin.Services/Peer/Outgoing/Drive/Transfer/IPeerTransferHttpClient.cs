@@ -22,5 +22,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         [Post(DriveRoot + "/mark-file-read")]
         Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest);
+        
+        [Multipart]
+        [Post(DriveRoot + "/update-payloads")]
+        Task<ApiResponse<PeerTransferResponse>> UpdatePayloads(
+            StreamPart header,
+            params StreamPart[] additionalStreamParts);
     }
 }
