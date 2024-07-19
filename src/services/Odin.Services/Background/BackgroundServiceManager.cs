@@ -47,7 +47,7 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
             }
         }
 
-        logger.LogDebug("Starting background service '{serviceIdentifier}' for owner {owner}", serviceIdentifier, owner);
+        logger.LogInformation("Starting background service '{serviceIdentifier}' for {owner}", serviceIdentifier, owner);
         await backgroundService.InternalStartAsync(_stoppingCts.Token);
     }
 
@@ -62,7 +62,7 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
         }
         if (backgroundService != null)
         {
-            logger.LogDebug("Stopping background service '{serviceIdentifier}' for owner {owner}", serviceIdentifier, owner);
+            logger.LogInformation("Stopping background service '{serviceIdentifier}' for {owner}", serviceIdentifier, owner);
             await backgroundService.InternalStopAsync(_stoppingCts.Token);
             
             // SEB:NOTE
