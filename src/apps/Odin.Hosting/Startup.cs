@@ -92,7 +92,6 @@ namespace Odin.Hosting
             // Job stuff
             //
             services.AddJobManagementServices(config);
-            services.AddCronSchedules();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -459,15 +458,8 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                // if (config.Job.Enabled)
-                {
-                    var jobManager = services.GetRequiredService<IJobManager>();
-                    jobManager.Initialize(async () =>
-                    {
-                        await services.UnscheduleCronJobs();
-                        await services.ScheduleCronJobs();
-                    }).Wait();
-                }
+                var jobManager = services.GetRequiredService<IJobManager>();
+                jobManager.Initialize().BlockingWait();
                 
                 // Start system background services
                 var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
@@ -480,10 +472,6 @@ namespace Odin.Hosting
                     config.Host.ShutdownTimeoutSeconds);
 
                 var services = app.ApplicationServices;
-                if (config.Job.Enabled)
-                {
-                    services.UnscheduleCronJobs().Wait();
-                }
 
                 // Wait for any registered fire-and-forget tasks to complete
                 services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
