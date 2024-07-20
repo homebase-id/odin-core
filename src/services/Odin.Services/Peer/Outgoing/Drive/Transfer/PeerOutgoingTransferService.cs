@@ -9,9 +9,9 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -30,9 +30,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         CircleNetworkService circleNetworkService,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
-        ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorAsync outboxProcessorAsync
+        PeerOutboxProcessorAsync outboxProcessorAsync,
+        InboxOutboxReconciliationBackgroundService inboxOutboxReconciliationBackgroundService
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
@@ -52,10 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType
             };
-
-            var tenant = tenantContext.HostOdinId;
-            serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-
+            
             var priority = options.Priority switch
             {
                 OutboxPriority.High => 1000,

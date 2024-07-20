@@ -5,7 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Odin.Services.Background.Services.Tenant;
 
-public sealed class DummyTenantBackgroundService(ILogger<DummyTenantBackgroundService> logger, Odin.Services.Tenant.Tenant tenant)
+public sealed class DummyTenantBackgroundService(
+    ILogger<DummyTenantBackgroundService> logger, 
+    Odin.Services.Tenant.Tenant tenant)
     : AbstractBackgroundService
 {
     private readonly Odin.Services.Tenant.Tenant _tenant = tenant;

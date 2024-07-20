@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Hostname;
 using Odin.Core.Tasks;
 using Odin.Services.Background.Services;
 
@@ -21,12 +24,13 @@ public interface IBackgroundServiceManager
 
 //
 
-public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> logger, string owner)
-    : IBackgroundServiceManager, IDisposable
+public sealed class BackgroundServiceManager(IServiceProvider services, string owner) : IBackgroundServiceManager, IDisposable
 {
     private readonly CancellationTokenSource _stoppingCts = new();
     private readonly AsyncLock _mutex = new();
     private readonly Dictionary<string, AbstractBackgroundService> _backgroundServices = new();
+    private readonly string _correlationId = Guid.NewGuid().ToString();
+    private readonly ILogger<BackgroundServiceManager> _logger = services.GetRequiredService<ILogger<BackgroundServiceManager>>();
 
     //
 
@@ -34,6 +38,8 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceIdentifier);
 
+        UpdateLogContext();
+        
         if (_stoppingCts.IsCancellationRequested)
         {
             throw new InvalidOperationException("The background service is stopping.");
@@ -47,7 +53,7 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
             }
         }
 
-        logger.LogInformation("Starting background service '{serviceIdentifier}' for {owner}", serviceIdentifier, owner);
+        _logger.LogInformation("Starting background service '{serviceIdentifier}'", serviceIdentifier);
         await backgroundService.InternalStartAsync(_stoppingCts.Token);
     }
 
@@ -55,6 +61,8 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
 
     public async Task StopAsync(string serviceIdentifier)
     {
+        UpdateLogContext();
+        
         AbstractBackgroundService? backgroundService;
         using (await _mutex.LockAsync())
         {
@@ -62,11 +70,13 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
         }
         if (backgroundService != null)
         {
-            logger.LogInformation("Stopping background service '{serviceIdentifier}' for {owner}", serviceIdentifier, owner);
+            _logger.LogInformation("Stopping background service '{serviceIdentifier}'", serviceIdentifier);
             await backgroundService.InternalStopAsync(_stoppingCts.Token);
+            _logger.LogInformation("Stopped background service '{serviceIdentifier}'", serviceIdentifier);
             
             // SEB:NOTE
-            // Since BackgroundServiceManager did not create the background service, it is not responsible for disposing it. 
+            // Since BackgroundServiceManager did not create the background service,
+            // therefore it is not responsible for disposing it. 
         }
     }
 
@@ -99,6 +109,23 @@ public sealed class BackgroundServiceManager(ILogger<BackgroundServiceManager> l
     {
         ShutdownAsync().BlockingWait();
         _stoppingCts.Dispose();
+        
+        // SEB:NOTE
+        // Since BackgroundServiceManager did not create the background service,
+        // therefore it is not responsible for disposing it. 
+    }
+    
+    //
+    
+    // This makes sure that we get a new per-tenant correlation-id
+    // and that the correlation-id can sticky hostname is re-applied when
+    // stopping the services from at different async context
+    private void UpdateLogContext()
+    {
+        var correlationIdContext = services.GetRequiredService<ICorrelationContext>();
+        correlationIdContext.Id = _correlationId;
+        var stickyHostnameContext = services.GetRequiredService<IStickyHostname>();
+        stickyHostnameContext.Hostname = $"{owner}&"; // "&": hat-tip to 1977 Bourne shell background job syntax 
     }
 }
 

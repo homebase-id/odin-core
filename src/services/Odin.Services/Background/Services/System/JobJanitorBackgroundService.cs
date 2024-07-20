@@ -7,8 +7,7 @@ using Odin.Services.Base;
 namespace Odin.Services.Background.Services.System;
 
 public class JobJanitorBackgroundService(
-    ILogger<JobJanitorBackgroundService> logger,
-    ServerSystemStorage serverSystemStorage)
+    ILogger<JobJanitorBackgroundService> logger)
     : AbstractBackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -20,7 +19,7 @@ public class JobJanitorBackgroundService(
             // SEB:TODO
             // Delete expired jobs
 
-            await SleepAsync(TimeSpan.FromHours(24), stoppingToken);
+            await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
         }
     }
     

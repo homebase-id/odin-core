@@ -8,7 +8,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Services.Background;
 
-public static class Extensions
+public static class BackgroundServiceExtensions
 {
     public static void RegisterSystemBackgroundServices(this ContainerBuilder cb)
     {
@@ -21,6 +21,13 @@ public static class Extensions
             .AsSelf()
             .SingleInstance();
       
+        cb.RegisterType<JobJanitorBackgroundService>()
+            .AsSelf()
+            .SingleInstance();
+        
+        cb.RegisterType<UpdateCertificatesBackgroundService>()
+            .AsSelf()
+            .SingleInstance();
         
         // Add more system services here
         // ...
@@ -31,8 +38,10 @@ public static class Extensions
     
     public static async Task StartSystemBackgroundServices(this IBackgroundServiceManager bsm, IServiceProvider services)
     {
-        // await bsm.StartAsync("dummy-system-background-service", services.GetRequiredService<DummySystemBackgroundService>());
-        await Task.CompletedTask;
+        // await bsm.StartAsync(nameof(DummySystemBackgroundService), services.GetRequiredService<DummySystemBackgroundService>());
+        await bsm.StartAsync(nameof(JobJanitorBackgroundService), services.GetRequiredService<JobJanitorBackgroundService>());
+        await bsm.StartAsync(nameof(UpdateCertificatesBackgroundService), services.GetRequiredService<UpdateCertificatesBackgroundService>());
+       
     }
     
     //
@@ -46,6 +55,10 @@ public static class Extensions
 
         cb.RegisterType<DummyTenantBackgroundService>()
             .WithParameter(new TypedParameter(typeof(Tenant.Tenant), tenant))
+            .AsSelf()
+            .SingleInstance();
+        
+        cb.RegisterType<InboxOutboxReconciliationBackgroundService>()
             .AsSelf()
             .SingleInstance();
         
@@ -66,6 +79,7 @@ public static class Extensions
     {
         // await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
         await bsm.StartAsync(nameof(PeerOutboxProcessorAsync), scope.Resolve<PeerOutboxProcessorAsync>());
+        await bsm.StartAsync(nameof(InboxOutboxReconciliationBackgroundService), scope.Resolve<InboxOutboxReconciliationBackgroundService>());
     }
     
 }

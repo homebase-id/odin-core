@@ -20,6 +20,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
+    // SEB:TODO rename to PeerOutboxProcessorBackgroundService and move registration to Extensions.cs
     public class PeerOutboxProcessorAsync(
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -38,7 +39,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var tasks = new List<Task>();
             while (!stoppingToken.IsCancellationRequested)
             {
-                TimeSpan nextRun;
+                logger.LogDebug("Processing outbox");
+                
+                TimeSpan? nextRun;
 
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {

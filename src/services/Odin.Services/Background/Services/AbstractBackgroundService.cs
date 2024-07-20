@@ -9,6 +9,7 @@ namespace Odin.Services.Background.Services;
 
 public abstract class AbstractBackgroundService
 {
+    private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
@@ -32,19 +33,39 @@ public abstract class AbstractBackgroundService
 
     //
 
-    // Call me in your ExecuteAsync method to sleep for a while
-    protected async Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
+    // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely until WakeUp is called.
+    protected Task SleepAsync(TimeSpan? duration, CancellationToken stoppingToken)
     {
+        var ts = duration ?? TimeSpan.FromMilliseconds(-1);
+        return SleepAsync(ts, ts, stoppingToken);
+    }
+    
+    //
+    
+    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2
+    protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
+    {
+        if (duration1 > duration2)
+        {
+            throw new ArgumentException("duration1 must be less than or equal to duration2");
+        }
+        
+        var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);
         try
         {
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
+            
+            // Sleep for duration or until WakeUp is signalled
             await Task.WhenAny(wakeUp, delay);
-            _wakeUpEvent.Reset();
         }
         catch (OperationCanceledException)
         {
             // ignore - this is expected and will happen when stoppingToken is cancelled
+        }
+        finally
+        {
+            _wakeUpEvent.Reset();            
         }
     }
 

@@ -3,21 +3,32 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Hostname;
 using Odin.Services.Background;
 using Odin.Services.Background.Services;
-using Odin.Test.Helpers.Logging;
 
-namespace Odin.Services.Tests.Backround;
+namespace Odin.Services.Tests.Background;
 
 public class BackgroundServiceManagerTest
 {
+    private readonly Services.Tenant.Tenant _tenant = new ("frodo.hobbit");
+    private readonly Mock<IServiceProvider> _mockServiceProvider = new ();
+    private readonly Mock<ICorrelationContext> _mockCorrelationContext = new ();
+    private readonly Mock<IStickyHostname> _mockStickyHostName = new ();
+
+    public BackgroundServiceManagerTest()
+    {
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(ICorrelationContext))).Returns(_mockCorrelationContext.Object);
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(IStickyHostname))).Returns(_mockStickyHostName.Object);
+    }
+    
     [Test]
     public async Task ItShouldStartAndStopAServiceWithoutLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
-        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new BackgroundServiceManager(logger, tenant.Name);
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
 
         var service = new NoOpBackgroundService();
         Assert.False(service.DidInitialize);
@@ -49,10 +60,8 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopAServiceWithLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
-        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new BackgroundServiceManager(logger, tenant.Name);
-
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
+        
         var service = new LoopingBackgroundService();
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
@@ -87,10 +96,8 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoop()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
-        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new BackgroundServiceManager(logger, tenant.Name);
-
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
+        
         const int serviceCount = 100;
         var services = new List<LoopingBackgroundService>();
         for (var i = 0; i < serviceCount; i++)
@@ -148,10 +155,8 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoopSleepAndWakeUpManyTimes()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
-        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new BackgroundServiceManager(logger, tenant.Name);
-
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
+        
         for (var iteration = 0; iteration < 3; iteration++)
         {
             const int serviceCount = 100;
@@ -235,9 +240,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task WillFailIfBackgroundServiceManagerUsesAutoResetEventInsteadOfManualResetEvent()
     {
-        var logger = TestLogFactory.CreateConsoleLogger<BackgroundServiceManager>();
-        var tenant = new Services.Tenant.Tenant("frodo.hobbit");
-        var manager = new BackgroundServiceManager(logger, tenant.Name);
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
         
         var service = new ResetEventDemo();
         var sw = Stopwatch.StartNew();
