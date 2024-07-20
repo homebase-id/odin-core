@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Logging.CorrelationId;
@@ -18,11 +19,13 @@ public class BackgroundServiceManagerTest
     private readonly Mock<IServiceProvider> _mockServiceProvider = new ();
     private readonly Mock<ICorrelationContext> _mockCorrelationContext = new ();
     private readonly Mock<IStickyHostname> _mockStickyHostName = new ();
+    private readonly Mock<ILogger<BackgroundServiceManager>> _mockLogger = new ();
 
     public BackgroundServiceManagerTest()
     {
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(ICorrelationContext))).Returns(_mockCorrelationContext.Object);
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(IStickyHostname))).Returns(_mockStickyHostName.Object);
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(ILogger<BackgroundServiceManager>))).Returns(_mockLogger.Object);
     }
     
     [Test]
