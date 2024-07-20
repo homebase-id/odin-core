@@ -31,8 +31,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorAsync outboxProcessorAsync,
-        InboxOutboxReconciliationBackgroundService inboxOutboxReconciliationBackgroundService
+        PeerOutboxProcessorAsync outboxProcessorAsync
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
