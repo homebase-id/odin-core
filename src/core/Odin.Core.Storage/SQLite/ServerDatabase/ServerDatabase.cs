@@ -18,7 +18,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
     public class ServerDatabase : DatabaseBase
     {
-        private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
+        // private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
 
         public ServerDatabase(string databasePath) : base(databasePath)
         {
