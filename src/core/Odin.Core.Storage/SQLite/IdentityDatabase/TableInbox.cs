@@ -284,10 +284,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _popCancelListCommand.Parameters.Add(_pcancellistparam2);
                 _popCancelListCommand.Parameters.Add(_pcancellistparam3);
 
-                _pcancellistparam3 = _popCancelListCommand.CreateParameter();
-                _pcancellistparam3.ParameterName = "$driveId";
-                _popCancelListCommand.Parameters.Add(_pcancellistparam3);
-
                 _pcancellistparam1.Value = popstamp.ToByteArray();
                 _pcancellistparam3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
 
@@ -350,10 +346,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
                 _popCommitListCommand.Parameters.Add(_pcommitlistparam2);
-                _popCommitListCommand.Parameters.Add(_pcommitlistparam3);
-
-                _pcommitlistparam3 = _popCommitListCommand.CreateParameter();
-                _pcommitlistparam3.ParameterName = "$driveId";
                 _popCommitListCommand.Parameters.Add(_pcommitlistparam3);
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();

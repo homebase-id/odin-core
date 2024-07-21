@@ -132,5 +132,5 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return conn.ExecuteNonQuery(_touchCommand);
             }
         }
-    }
+   }
 }
