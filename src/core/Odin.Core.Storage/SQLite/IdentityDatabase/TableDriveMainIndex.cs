@@ -57,7 +57,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return base.Update(conn, item);
         }
         public new int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
-        {
+        { 
             item.identityId = ((IdentityDatabase)conn.db)._identityId;
             return base.Upsert(conn, item);
         }
