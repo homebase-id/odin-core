@@ -64,6 +64,12 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
+
+            cb.RegisterType<PushNotificationOutboxAdapter>()
+                .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
+                .AsSelf().SingleInstance();
 
             cb.RegisterType<FeedNotificationMapper>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
