@@ -19,4 +19,5 @@ public class ReactionPreviewUpdatedNotification : MediatorNotificationBase, IDri
 
     public DatabaseConnection DatabaseConnection { get; init; }
     public bool IgnoreFeedDistribution { get; set; }
+    public bool IgnoreReactionPreviewCalculation { get; set; }
 }

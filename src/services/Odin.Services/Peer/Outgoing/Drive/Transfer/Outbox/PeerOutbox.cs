@@ -69,13 +69,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
+        public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
-            tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(cn, time);
+            var recovered = tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(cn, time);
             
             PerformanceCounter.IncrementCounter("Outbox Recover Dead");
 
-            return Task.CompletedTask;
+            return Task.FromResult(recovered);
         }
 
         public async Task<OutboxFileItem> GetNextItem(DatabaseConnection cn)
@@ -132,6 +132,28 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 TotalItems = totalCount,
                 NextItemRun = utc
             });
+        }
+
+        
+        /// <summary>
+        /// Get time until the next scheduled item should run (if any).
+        /// </summary>
+        public async Task<TimeSpan?> NextRun(DatabaseConnection cn)
+        {
+            var nextRun = tenantSystemStorage.Outbox.NextScheduledItem(cn);
+            if (nextRun == null)
+            {
+                return null;
+            }
+            
+            var dt = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value.milliseconds);
+            var now = DateTimeOffset.Now;
+            if (dt < now)
+            {
+                return await Task.FromResult(TimeSpan.Zero);
+            }
+            
+            return await Task.FromResult(dt - now);
         }
     }
 }

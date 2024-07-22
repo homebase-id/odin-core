@@ -103,8 +103,16 @@ namespace Odin.Services.Certificate
                 {
                     _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
                     x509 = await InternalCreateCertificate(idReg.PrimaryDomainName, idReg.GetSans());
-                    _logger.LogDebug("Completed background renew of {domain} certificate", domain);
-                    return x509 != null;
+                    if (x509 != null)
+                    {
+                        _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+                        return true;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
+                        return false;
+                    }
                 }
                 return false;
             }

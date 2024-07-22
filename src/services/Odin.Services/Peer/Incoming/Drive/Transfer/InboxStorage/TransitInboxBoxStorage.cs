@@ -100,13 +100,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
-        public Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
+        public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
+            var recovered = tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
             
             PerformanceCounter.IncrementCounter("Inbox Recover Dead");
 
-            return Task.CompletedTask;
+            return Task.FromResult(recovered);
         }
     }
 }
