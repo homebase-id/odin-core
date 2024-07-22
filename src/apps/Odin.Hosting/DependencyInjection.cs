@@ -179,8 +179,6 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
 
-            cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
-
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
                 .SingleInstance();
