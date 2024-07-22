@@ -43,6 +43,7 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Background;
 using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
@@ -63,12 +64,6 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
-
-            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
-
-            cb.RegisterType<PushNotificationOutboxAdapter>()
-                .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
-                .AsSelf().SingleInstance();
 
             cb.RegisterType<FeedNotificationMapper>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
@@ -218,19 +213,14 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+
+            // Background services
+            cb.RegisterTenantBackgroundServices(tenant);
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
-            //TODO: add logging back in
-            // var logger = scope.Resolve<ILogger<Startup>>();
-            // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
-
-            var registry = scope.Resolve<IIdentityRegistry>();
-            var tenantContext = scope.Resolve<TenantContext>();
-
-            var tc = registry.CreateTenantContext(tenant.Name);
-            tenantContext.Update(tc);
+            // DEPRECATED - don't do stuff in here.
         }
     }
 }

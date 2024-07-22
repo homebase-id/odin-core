@@ -4,7 +4,7 @@
     {
         public string Generate()
         {
-            return "null";
+            return "system";
         }
     }
 }

@@ -1,26 +1,26 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Background.Services;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
-using Quartz;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
+    // SEB:TODO rename to PeerOutboxProcessorBackgroundService and move registration to Extensions.cs
     public class PeerOutboxProcessorAsync(
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -29,31 +29,58 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         PushNotificationService pushNotificationService,
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
-        IJobManager jobManager,
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage,
-        IHostApplicationLifetime hostApplicationLifetime,
-        IForgottenTasks outstandingTasks,
-        IDriveAclAuthorizationService driveAcl)
+        TenantContext tenantContext,
+        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService
     {
-        public async Task StartOutboxProcessingAsync(IOdinContext odinContext, DatabaseConnection cn)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var cancellationToken = hostApplicationLifetime.ApplicationStopping;
-
-            var item = await peerOutbox.GetNextItem(cn);
-            while (item != null && cancellationToken.IsCancellationRequested == false)
+            var tasks = new List<Task>();
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var t = ProcessItemThread(item, odinContext, cancellationToken);
-                outstandingTasks.Add(t);
-                item = await peerOutbox.GetNextItem(cn);
+                logger.LogDebug("Processing outbox");
+                
+                TimeSpan? nextRun;
+
+                using (var cn = tenantSystemStorage.CreateConnection())
+                {
+                    while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
+                    {
+                        var task = ProcessItemThread(item, stoppingToken);
+                        tasks.Add(task);
+                    }
+
+                    nextRun = await peerOutbox.NextRun(cn);
+                }
+
+                tasks.RemoveAll(t => t.IsCompleted);
+
+                await SleepAsync(nextRun, stoppingToken);
             }
+
+            await Task.WhenAll(tasks);
         }
 
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task ProcessItemThread(OutboxFileItem fileItem, IOdinContext odinContext, CancellationToken cancellationToken)
+        private async Task ProcessItemThread(OutboxFileItem fileItem, CancellationToken cancellationToken)
         {
+            var odinContext = new OdinContext
+            {
+                Tenant = tenantContext.HostOdinId,
+                AuthTokenCreated = null,
+                Caller = new CallerContext(
+                    odinId: (OdinId)"system.domain",
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.System,
+                    circleIds: null,
+                    tokenType: ClientTokenType.Other)
+            };
+
+            odinContext.SetPermissionContext(new PermissionContext(null, null, true));
+
             logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
             using var connection = tenantSystemStorage.CreateConnection();
 
@@ -68,12 +95,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 }
                 else
                 {
-                    await RescheduleItem(fileItem, odinContext, nextRun, connection);
+                    await RescheduleItem(fileItem, nextRun, connection);
                 }
             }
             catch (OperationCanceledException oce)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 // Expected when using cancellation token
                 logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
@@ -86,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -96,7 +123,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                await RescheduleItem(fileItem, odinContext, UnixTimeUtc.Now(), connection);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now(), connection);
 
                 logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -132,7 +159,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task RescheduleItem(OutboxFileItem fileItem, IOdinContext odinContext, UnixTimeUtc nextRun, DatabaseConnection connection)
+        private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun, DatabaseConnection connection)
         {
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
@@ -143,18 +170,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     fileItem.AttemptCount);
                 return;
             }
-            
-            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
 
-            try
-            {
-                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(odinContext.Tenant, nextRun));
-                logger.LogDebug("Scheduled re-run. NextRunTime (popStamp:{nextRunTime})", nextRun);
-            }
-            catch (JobPersistenceException e)
-            {
-                logger.LogError(e, "Job manager failed to reschedule outbox item");
-            }
+            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
+            WakeUp();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,

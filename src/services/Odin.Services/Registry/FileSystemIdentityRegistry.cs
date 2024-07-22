@@ -5,14 +5,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -72,13 +75,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
 
         RegisterCertificateInitializerHttpClient();
-        Initialize();
-    }
-
-
-    public void Initialize()
-    {
-        LoadCache();
+        LoadRegistrations().BlockingWait();
     }
 
     public Guid? ResolveId(string domain)
@@ -216,7 +213,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
-            UnloadRegistration(registration);
+            await UnloadRegistration(registration);
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
@@ -333,7 +330,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         _logger.LogInformation("Write registration file for [{registrationId}]", registration.Id);
 
-        Cache(registration);
+        await LoadIdentity(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -397,7 +394,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
     }
 
-    private void LoadCache()
+    private async Task LoadRegistrations()
     {
         if (!Directory.Exists(RegistrationRoot))
         {
@@ -427,7 +424,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
-                Cache(registration);
+                await LoadIdentity(registration);
             }
             catch (Exception e)
             {
@@ -451,18 +448,34 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private void Cache(IdentityRegistration registration)
+    private async Task LoadIdentity(IdentityRegistration registration)
     {
         RegisterDotYouHttpClient(registration);
 
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
+
+        // Create multitenant scope
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var tenantContext = scope.Resolve<TenantContext>();
+        var tc = CreateTenantContext(registration.PrimaryDomainName);
+        tenantContext.Update(tc);
+
+        // Start tenant background jobs
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.StartTenantBackgroundServices(scope);
     }
 
-    private void UnloadRegistration(IdentityRegistration registration)
+    private async Task UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
+
+        // Stop tenant background services
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.ShutdownAsync();
+
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
