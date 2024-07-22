@@ -10,8 +10,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
 {
     /// <summary />
     [ApiController]
-    [OdinRoute(RootApiRoutes.Owner | RootApiRoutes.Apps | RootApiRoutes.Guest)]
-    [OdinAuthorize(RootApiRoutes.Owner | RootApiRoutes.Apps | RootApiRoutes.Guest)]
+    [OdinAuthorizeRoute(RootApiRoutes.Owner | RootApiRoutes.Apps | RootApiRoutes.Guest)]
     public class DriveFileManagementController : OdinControllerBase
     {
         /// <summary>

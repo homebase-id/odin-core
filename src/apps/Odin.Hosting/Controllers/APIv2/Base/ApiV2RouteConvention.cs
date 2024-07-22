@@ -13,7 +13,7 @@ public class ApiV2RouteConvention : IApplicationModelConvention
     {
         foreach (var controller in application.Controllers)
         {
-            var odinRoute = controller.Attributes.OfType<OdinRouteAttribute>().FirstOrDefault();
+            var odinRoute = controller.Attributes.OfType<OdinAuthorizeRouteAttribute>().FirstOrDefault();
             if (odinRoute != null)
             {
                 var templates = GetTemplates(odinRoute.Flags);
@@ -36,7 +36,7 @@ public class ApiV2RouteConvention : IApplicationModelConvention
 
                     foreach (var template in templates)
                     {
-                        var finalTemplate = $"{template}{odinRoute.Prefix}/{actionTemplate}";
+                        var finalTemplate = $"{template}/{actionTemplate}";
 
                         foreach (var httpMethodAttribute in httpMethodAttributes)
                         {
