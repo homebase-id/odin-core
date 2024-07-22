@@ -461,6 +461,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
+        
+        // Cache certificate
+        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
+        var certificateService = certificateServiceFactory.Create(tenantContext.SslRoot);
+        certificateService.ResolveCertificate(registration.PrimaryDomainName);
 
         // Start tenant background jobs
         var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
