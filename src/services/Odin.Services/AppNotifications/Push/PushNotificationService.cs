@@ -359,6 +359,8 @@ public class PushNotificationService(
                 }).ToUtf8ByteArray()
             }
         };
+        
+        logger.LogDebug("Enqueuing notification. Sender: {senderId}, Recipient: {recipient}", senderId, odinContext.Tenant);
 
         await peerOutbox.AddItem(item, cn);
         await mediator.Publish(new PushNotificationEnqueuedNotification()

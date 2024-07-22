@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -50,6 +51,7 @@ namespace Odin.Core.Time
     /// Simply a Int64 in a fancy class.
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
+    [DebuggerDisplay("dt={System.DateTimeOffset.FromUnixTimeMilliseconds(_milliseconds).ToString(\"yyyy-MM-dd HH:mm:ss.fff\")}")]
     public struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
@@ -170,6 +172,14 @@ namespace Odin.Core.Time
             long millisecondsSinceEpoch = (long)(dateTime - unixEpoch).TotalMilliseconds;
             return new UnixTimeUtc(millisecondsSinceEpoch);
         }
+        
+        public static UnixTimeUtc FromDateTimeOffset(DateTimeOffset dateTime)
+        {
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            long millisecondsSinceEpoch = (long)(dateTime - unixEpoch).TotalMilliseconds;
+            return new UnixTimeUtc(millisecondsSinceEpoch);
+        }
+       
 
         public bool IsBetween(UnixTimeUtc start, UnixTimeUtc end, bool inclusive = true)
         {

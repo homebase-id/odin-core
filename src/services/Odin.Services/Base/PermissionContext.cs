@@ -23,7 +23,7 @@ namespace Odin.Services.Base
             bool isSystem = false)
         {
             SharedSecretKey = sharedSecretKey;
-            PermissionGroups = permissionGroups;
+            PermissionGroups = permissionGroups ?? new Dictionary<string, PermissionGroup>();
             _isSystem = isSystem;
         }
 

@@ -61,6 +61,18 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             _scaffold.RunAfterAnyTests();
         }
 
+        [SetUp]
+        public void Setup()
+        {
+            _scaffold.ClearAssertLogEventsAction();
+            _scaffold.ClearLogEvents();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _scaffold.AssertLogEvents();
+        }
 
         [Test, Explicit]
         [Description("Tests that the job manager will kick in if items in the inbox fail to be sent")]

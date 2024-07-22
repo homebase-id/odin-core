@@ -6,6 +6,7 @@ using Refit;
 
 namespace Odin.Services.Background.DefaultCron
 {
+    // SEB:TODO delete this
     public interface ICronHttpClient
     {
         private const string TransitRootEndpoint = $"{OwnerApiPathConstants.PeerV1}/outbox/processor";

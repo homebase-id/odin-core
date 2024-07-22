@@ -25,16 +25,16 @@ namespace Odin.Hosting.Controllers.System
         OdinConfiguration config,
         PeerOutbox outbox,
 
-        PeerOutboxProcessorAsync outboxProcessorAsync,
+        PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService,
         TenantSystemStorage tenantSystemStorage,
         TransitInboxBoxStorage inbox) : OdinControllerBase
     {
         [HttpPost("process-async")]
-        public async Task<bool> ProcessOutboxAsync()
+        public Task<bool> ProcessOutboxAsync()
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await outboxProcessorAsync.StartOutboxProcessingAsync(WebOdinContext, cn);
-            return true;
+            outboxProcessorBackgroundService.WakeUp();
+            return Task.FromResult(true);
         }
 
 
