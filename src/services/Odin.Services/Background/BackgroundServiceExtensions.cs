@@ -62,10 +62,9 @@ public static class BackgroundServiceExtensions
             .AsSelf()
             .SingleInstance();
         
-        // SEB:TODO also registered in startup/DI. Fix it.
-        // cb.RegisterType<PeerOutboxProcessorAsync>()
-        //     .AsSelf()
-        //     .SingleInstance();
+        cb.RegisterType<PeerOutboxProcessorBackgroundService>()
+            .AsSelf()
+            .SingleInstance();
        
         // Add more tenant services here
         // ...
@@ -78,7 +77,7 @@ public static class BackgroundServiceExtensions
     public static async Task StartTenantBackgroundServices(this IBackgroundServiceManager bsm, ILifetimeScope scope)
     {
         // await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
-        await bsm.StartAsync(nameof(PeerOutboxProcessorAsync), scope.Resolve<PeerOutboxProcessorAsync>());
+        await bsm.StartAsync(nameof(PeerOutboxProcessorBackgroundService), scope.Resolve<PeerOutboxProcessorBackgroundService>());
         await bsm.StartAsync(nameof(InboxOutboxReconciliationBackgroundService), scope.Resolve<InboxOutboxReconciliationBackgroundService>());
     }
     

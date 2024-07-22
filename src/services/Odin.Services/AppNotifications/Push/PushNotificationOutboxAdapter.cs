@@ -9,13 +9,13 @@ namespace Odin.Services.AppNotifications.Push;
 
 public class PushNotificationOutboxAdapter(
     ILogger<PushNotificationOutboxAdapter> logger,
-    PeerOutboxProcessorAsync outboxProcessorAsync)
+    PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService)
     : INotificationHandler<PushNotificationEnqueuedNotification>
 {
     public Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
         logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-        outboxProcessorAsync.WakeUp();
+        outboxProcessorBackgroundService.WakeUp();
         return Task.CompletedTask;
     }
 }

@@ -20,12 +20,11 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
-    // SEB:TODO rename to PeerOutboxProcessorBackgroundService and move registration to Extensions.cs
-    public class PeerOutboxProcessorAsync(
+    public class PeerOutboxProcessorBackgroundService(
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
-        ILogger<PeerOutboxProcessorAsync> logger,
+        ILogger<PeerOutboxProcessorBackgroundService> logger,
         PushNotificationService pushNotificationService,
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
@@ -62,12 +61,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await Task.WhenAll(tasks);
         }
         
-        public override void WakeUp()
-        {
-            logger.LogDebug("Waking up outbox processor");
-            base.WakeUp();
-        }
-
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>

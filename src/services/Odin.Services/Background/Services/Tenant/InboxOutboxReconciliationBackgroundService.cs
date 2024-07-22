@@ -16,7 +16,7 @@ public class InboxOutboxReconciliationBackgroundService(
     TenantSystemStorage tenantSystemStorage,
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
-    PeerOutboxProcessorAsync outboxProcessor)
+    PeerOutboxProcessorBackgroundService outboxProcessor)
     : AbstractBackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

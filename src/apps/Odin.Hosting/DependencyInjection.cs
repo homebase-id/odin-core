@@ -64,6 +64,12 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
+
+            cb.RegisterType<PushNotificationOutboxAdapter>()
+                .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
+                .AsSelf().SingleInstance();
 
             cb.RegisterType<FeedNotificationMapper>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
@@ -172,8 +178,6 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
-
-            cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
