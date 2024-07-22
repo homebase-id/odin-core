@@ -217,7 +217,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertPayloadIs404(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+        var payloadResponse = await client.TransitQuery.GetPayload(new PeerGetPayloadRequest()
         {
             OdinId = identity.OdinId,
             File = uploadResult.File,
@@ -245,7 +245,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertCanGetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult, string encryptedPayloadContent64)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+        var payloadResponse = await client.TransitQuery.GetPayload(new PeerGetPayloadRequest()
         {
             OdinId = identity.OdinId,
             File = uploadResult.File,
@@ -273,7 +273,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertCan_Not_GetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+        var payloadResponse = await client.TransitQuery.GetPayload(new PeerGetPayloadRequest()
         {
             OdinId = identity.OdinId,
             File = uploadResult.File,

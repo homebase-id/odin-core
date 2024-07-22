@@ -645,7 +645,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was sent to the recipient via transit, test it
                 // has the decrypted data content type
                 // can be decrypted using the owner shared secret encrypted key header
-                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitGetPayloadRequest()
+                var getTransitPayloadResponse = await transitQueryService.GetPayload(new PeerGetPayloadRequest()
                 {
                     OdinId = recipient.OdinId,
                     File = uploadedFile,
@@ -1393,7 +1393,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was sent to the recipient via transit, test it
                 // has the decrypted data content type
                 // can be decrypted using the owner shared secret encrypted key header
-                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitGetPayloadRequest()
+                var getTransitPayloadResponse = await transitQueryService.GetPayload(new PeerGetPayloadRequest()
                 {
                     OdinId = recipient.OdinId,
                     File = uploadedFile,

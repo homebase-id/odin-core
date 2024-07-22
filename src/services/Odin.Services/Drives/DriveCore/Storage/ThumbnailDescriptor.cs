@@ -47,4 +47,9 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
             $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
             $"{this.PixelHeight}";
     }
+
+    public string GetUploadKey(string payloadKey)
+    {
+        return $"{payloadKey}{this.PixelWidth}{this.PixelHeight}"; //hulk smash (it all together)
+    }
 }

@@ -16,6 +16,7 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -41,6 +42,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
+            var storageIntent = encryptedRecipientTransferInstructionSet.StorageIntent;
 
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
@@ -109,7 +111,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             switch (transferFileType)
             {
                 case TransferFileType.Normal:
-                    await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
+                    await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, storageIntent, odinContext, cn);
                     break;
 
                 case TransferFileType.EncryptedFileForFeed:
@@ -259,9 +261,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
 
         private async Task UpdateExistingFile(IDriveFileSystem fs, InternalDriveFileId targetFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
-            DatabaseConnection cn)
+            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, StorageIntent storageIntent,
+            IOdinContext odinContext, DatabaseConnection cn)
         {
+            if (storageIntent == StorageIntent.MetadataOnly)
+            {
+                await fs.Storage.OverwriteMetadata(
+                    keyHeader.Iv,
+                    targetFile: targetFile,
+                    newMetadata: metadata,
+                    newServerMetadata: serverMetadata,
+                    odinContext: odinContext, cn);
+
+                return;
+            }
+
+
             await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
             {
                 //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
@@ -276,7 +291,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
+            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, StorageIntent storageIntent, IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
@@ -323,7 +338,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, storageIntent, odinContext, cn);
         }
 
         private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
@@ -364,7 +379,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, cn);
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, cn);
+            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, StorageIntent.NewFileOrOverwrite, odinContext,
+                cn);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,

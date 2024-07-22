@@ -10,7 +10,7 @@ public class TransitGetThumbRequest : GetThumbnailRequest
     public string OdinId { get; set; }
 }
 
-public class TransitGetPayloadRequest : GetPayloadRequest
+public class PeerGetPayloadRequest : GetPayloadRequest
 {  
     public string OdinId { get; set; }
 }

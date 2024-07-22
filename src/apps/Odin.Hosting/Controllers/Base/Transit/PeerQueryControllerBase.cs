@@ -111,7 +111,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] TransitGetPayloadRequest request)
+        public async Task<IActionResult> GetPayloadStream([FromBody] PeerGetPayloadRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             using var cn = tenantSystemStorage.CreateConnection();
@@ -128,7 +128,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             FileChunk chunk = this.GetChunk(null, null);
             return await this.GetPayloadStream(
-                new TransitGetPayloadRequest()
+                new PeerGetPayloadRequest()
                 {
                     OdinId = odinId,
                     File = new ExternalFileIdentifier()

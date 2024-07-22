@@ -1,5 +1,3 @@
-using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -89,7 +87,7 @@ public class UniversalPeerQueryApiClient(OdinId identity, IApiClientFactory fact
         // return apiResponse;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayload(TransitGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> GetPayload(PeerGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fst);
         var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerQuery>(client, sharedSecret);

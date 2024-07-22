@@ -308,7 +308,7 @@ public class TransitApiClient
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-            var response = await svc.GetPayload(new TransitGetPayloadRequest()
+            var response = await svc.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = remoteIdentity,
                 File = file,

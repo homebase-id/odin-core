@@ -110,7 +110,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
             //
             // Test results
             //
@@ -209,7 +209,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
             //
             // Test results
@@ -308,7 +308,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
             //
             // Test results
@@ -434,7 +434,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
             //
             // Test results

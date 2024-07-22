@@ -129,7 +129,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
-            var getBatchResponse = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+            var getBatchResponse = await merryAppClient.TransitQuery.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = TestIdentities.Merry.OdinId,
                 File = new()

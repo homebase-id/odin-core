@@ -293,7 +293,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+            var response = await merryAppClient.TransitQuery.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 File = randomFile.uploadResult.File,

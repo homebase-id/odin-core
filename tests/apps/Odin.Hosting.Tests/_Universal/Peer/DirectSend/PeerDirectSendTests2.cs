@@ -5,20 +5,18 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Storage;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing.Drive;
-using Refit;
 
 namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 {
@@ -54,7 +52,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
         }
 
         [Test]
-        public async Task CanUseStorageIntent_MetadataOnly()
+        public async Task CanUseStorageIntent_MetadataOnly_UnEncrypted()
         {
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
 
@@ -69,7 +67,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             const string fileContent1 = "tabc123";
             var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2043, fileContent1, AccessControlList.Connected);
             fileMetadata.AllowDistribution = true;
-            
+
             // Upload a file with 1 payload
             const string payloadContent = "this is for the biiiirrddss";
             var testPayloads = new List<TestPayloadDefinition>()
@@ -98,206 +96,801 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var transferResult = transferFileResponse.Content;
 
             Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromHours(1));
 
+            // validate recipient got the file and the payload are there
+
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var header1 = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(header1);
+
+            var getPayloadResponse1 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = header1.FileMetadata.Payloads.FirstOrDefault()!.Key,
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header1.FileId,
+                    TargetDrive = recipientTargetDrive
+                }
+            });
+
+            Assert.IsTrue(getPayloadResponse1.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse1.Content.ReadAsStringAsync()) == payloadContent);
+
+
+            //
             // Now: update this file using StorageIntent.Metadata only
+            //
 
-            const string fileContent2 = "098978";
+            const string fileContent2 = "updated content";
             fileMetadata.AppData.Content = fileContent2;
-            var transferFileResponse2 = await senderOwnerClient.PeerDirect.UpdateFile(recipientTargetDrive, fileMetadata,
+            var transferFileResponse2 = await senderOwnerClient.PeerDirect.UpdateRemoteFile(recipientTargetDrive, fileMetadata,
                 [recipient.OdinId],
                 transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 StorageIntent.MetadataOnly);
 
-            // validation: the header can be retrieved with new content
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the header can be retrieved with new content and the payloads are same as before
+            //
 
             Assert.IsTrue(transferFileResponse2.IsSuccessStatusCode);
 
-            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
-            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
-            var header = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsTrue(getRemoteFileHeaderResponse2.IsSuccessStatusCode);
+            var header = getRemoteFileHeaderResponse2.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(header);
             Assert.IsTrue(header.FileMetadata.AppData.Content == fileContent2);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == 1);
+
+            var getPayloadResponse2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = header1.FileMetadata.Payloads.FirstOrDefault()!.Key,
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header1.FileId,
+                    TargetDrive = recipientTargetDrive
+                }
+            });
+
+            Assert.IsTrue(getPayloadResponse2.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse2.Content.ReadAsStringAsync()) == payloadContent);
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         [Test]
-        public async Task CanUpdateRemotePayloadByKey()
+        public async Task CanUseStorageIntent_MetadataOnly_Encrypted()
         {
-            // An encrypted file is first sent via peer direct
-            //  the file has a header and 1 payload
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
 
-            // this payload is updated
-
-            // validation: the payload can be retrieved and decrypted using the original key
-        }
-
-        [Test]
-        public async Task CanAddRemotePayloadByKey()
-        {
-            // An encrypted file is first sent via peer direct
-            //  the file has a header and 1 payload
-
-            // this a new payload is added using the updatepayload endpoint
-
-            // validation: the existing and new payloads can be retrieved and decrypted using the original key
-        }
-
-        [Test]
-        public async Task CanUpdateMultipleRemotePayloadByKeyWhenMultiplePayloadsExist()
-        {
-            // An encrypted file is first sent via peer direct
-            //  the file has a header and 3 payloads
-
-            // the second and third payloads are updated using the updatepayload endpoint
-
-            // validation: the existing and new payloads can be retrieved and decrypted using the original key
-        }
-
-        [Test]
-        public async Task CanTransfer_Unencrypted_Comment()
-        {
-            var sender = TestIdentities.Frodo; //sender is the one who sends the comment
+            var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
-            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
-            const bool standardFileIsEncrypted = false;
-
-            const string commentFileContent = "Srsly!?? =O";
-            const bool commentIsEncrypted = false;
-
             var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
 
-            var (standardFileUploadResult, _) =
-                await UploadStandardFile(recipientOwnerClient, recipientTargetDrive, standardFileContent, standardFileIsEncrypted);
+            const string fileContent1 = "tabc123";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2043, fileContent1, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
 
-            //
-            // Assert that the recipient server has the file by global transit id
-            //
-            var recipientFileByGtidResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(
-                standardFileUploadResult.GlobalTransitIdFileIdentifier);
-
-            var recipientFileByGlobalTransitId = recipientFileByGtidResponse.Content?.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
-
-            // Sender replies with a comment
-            var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
-                standardFileUploadResult.GlobalTransitIdFileIdentifier,
-                uploadedContent: commentFileContent,
-                encrypted: commentIsEncrypted, recipient);
-
-            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
-
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-            //
-            // Test results
-            //
-
-            //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
-            // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
-            //
-
-            // File should be on recipient server and accessible by global transit id
-            var qp = new QueryBatchRequest
+            // Upload a file with 1 payload
+            const string payloadContent = "this is for the biiiirrddss";
+            var testPayloads = new List<TestPayloadDefinition>()
             {
-                QueryParams = new FileQueryParams()
+                new()
                 {
-                    TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                    GlobalTransitId = new List<Guid>()
-                    {
-                        commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId
-                    }
-                },
-                ResultOptionsRequest = new QueryBatchResultOptionsRequest
-                {
-                    MaxRecords = 10,
-                    IncludeMetadataHeader = true,
-                    IncludeTransferHistory = false
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
                 }
             };
 
-            var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
-            var batch = batchResponse.Content;
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
 
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
-            var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            var (transferFileResponse, _, _, uploadedPayloads) =
+                await senderOwnerClient.PeerDirect.TransferNewEncryptedFile(recipientTargetDrive,
+                    fileMetadata,
+                    [recipient.OdinId],
+                    uploadManifest,
+                    testPayloads);
 
-            //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
 
-            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            // validate recipient got the file and the payload are there
+
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var header1 = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(header1);
+
+            var getPayloadResponse1 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = header1.FileMetadata.Payloads.FirstOrDefault()!.Key,
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header1.FileId,
+                    TargetDrive = recipientTargetDrive
+                }
+            });
+
+            Assert.IsTrue(getPayloadResponse1.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse1.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloadContent);
+
+            //
+            // Now: update this file using StorageIntent.Metadata only
+            //
+
+            const string fileContent2 = "updated content";
+            fileMetadata.AppData.Content = fileContent2;
+            var (transferFileResponse2, encryptedJsonContent64_2, _, _) =
+                await senderOwnerClient.PeerDirect.UpdateEncryptedRemoteFile(recipientTargetDrive, fileMetadata,
+                    [recipient.OdinId],
+                    transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                    StorageIntent.MetadataOnly);
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the header can be retrieved with new content and the payloads are same as before
+            //
+
+            Assert.IsTrue(transferFileResponse2.IsSuccessStatusCode);
+
+            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse2.IsSuccessStatusCode);
+            var header = getRemoteFileHeaderResponse2.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(header);
+            Assert.IsTrue(header.FileMetadata.AppData.Content == encryptedJsonContent64_2);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == 1);
+
+            var getPayloadResponse2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = header1.FileMetadata.Payloads.FirstOrDefault()!.Key,
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header1.FileId,
+                    TargetDrive = recipientTargetDrive
+                }
+            });
+
+            Assert.IsTrue(getPayloadResponse2.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse2.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloadContent);
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
-
-        /// <summary>
-        /// Sends a standard file to a single recipient and performs basic assertions required by all tests
-        /// </summary>
-        private async Task<(TransitResult, string encryptedJsonContent64)> TransferComment(
-            OwnerApiClientRedux sender,
-            GlobalTransitIdFileIdentifier referencedFile,
-            string uploadedContent,
-            bool encrypted,
-            TestIdentity recipient,
-            Guid? overwriteFile = null,
-            Guid? versionTag = null)
+        [Test]
+        public async Task CanAddMultipleRemote_EncryptedPayloads_ByKeyWhenMultiplePayloadsExist()
         {
-            var fileMetadata = SampleMetadataData.CreateWithContent(default, uploadedContent, AccessControlList.Connected);
-            fileMetadata.VersionTag = versionTag;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            const string fileContent1 = "filecontent1";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2099, fileContent1, AccessControlList.Connected);
             fileMetadata.AllowDistribution = true;
-            fileMetadata.IsEncrypted = encrypted;
-            fileMetadata.ReferencedFile = referencedFile; //indicates the file about which this file is giving feed back
 
-            var recipients = new List<string> { recipient.OdinId };
-
-            ApiResponse<TransitResult> transitResultResponse;
-
-            string encryptedJsonContent64 = null;
-            if (encrypted)
+            // Upload a file with 1 payload
+            const string payloadContent = "some payload content";
+            var testPayloads = new List<TestPayloadDefinition>()
             {
-                (transitResultResponse, encryptedJsonContent64) = await sender.PeerDirect.TransferEncryptedMetadata(
-                    remoteTargetDrive: referencedFile.TargetDrive,
-                    fileMetadata,
-                    recipients: recipients,
-                    overwriteGlobalTransitFileId: overwriteFile,
-                    fileSystemType: FileSystemType.Comment
-                );
-            }
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
 
-            else
+            var uploadManifest = new UploadManifest()
             {
-                transitResultResponse = await sender.PeerDirect.TransferMetadata(
-                    referencedFile.TargetDrive,
-                    fileMetadata,
-                    recipients: recipients,
-                    overwriteFile,
-                    fileSystemType: FileSystemType.Comment
-                );
-            }
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
 
-            Assert.IsTrue(transitResultResponse.IsSuccessStatusCode);
-            var transitResult = transitResultResponse.Content;
+            var (transferFileResponse, _, _, uploadedPayloads) =
+                await senderOwnerClient.PeerDirect.TransferNewEncryptedFile(recipientTargetDrive,
+                    fileMetadata,
+                    [recipient.OdinId],
+                    uploadManifest,
+                    testPayloads);
+
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
+
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            // validate recipient got the file and the payload are there
 
             //
-            // Basic tests first which apply to all calls
+            // Act: Add a new encrypted payload
             //
-            Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
 
+            var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+            const string p2Content = "aa233;d";
+            const string payload2Key = "p2key";
 
-            await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-            return (transitResult, encryptedJsonContent64);
+            const string p3Content = "3adfas";
+            const string payload3Key = "p3key";
+
+            var newPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = payload2Key,
+                    ContentType = "text/plain",
+                    Content = p2Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                },
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = payload3Key,
+                    ContentType = "text/plain",
+                    Content = p3Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var newUploadsManifest = new UploadManifest()
+            {
+                PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var aesKey = ByteArrayUtil.GetRndByteArray(16);
+
+            var targetVersionTag = Guid.Empty; //TODO?
+            var (uploadPayloadsResponse, encryptedPayloads64) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
+                targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
+
+            Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the existing and new payloads can be retrieved and decrypted using the original key
+            //
+
+            //get the header
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var header = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(header);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == 3);
+
+            var remoteFile = new ExternalFileIdentifier()
+            {
+                FileId = header.FileId,
+                TargetDrive = recipientTargetDrive
+            };
+
+            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload1Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloadContent);
+
+            var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload2Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloads64[payload2Key].ToBase64());
+
+            var getPayload3Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload3Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload3Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload3Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloads64[payload3Key].ToBase64());
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
+
+        [Test]
+        public async Task CanUpdateMultipleRemote_EncryptedPayloads_ByKeyWhenMultiplePayloadsExist()
+        {
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            const string fileContent1 = "filecontent1";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2099, fileContent1, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
+
+            // Upload a file with 1 payload
+            const string payloadContent = "some payload content";
+            var testPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var (transferFileResponse, _, _, uploadedPayloads) =
+                await senderOwnerClient.PeerDirect.TransferNewEncryptedFile(recipientTargetDrive,
+                    fileMetadata,
+                    [recipient.OdinId],
+                    uploadManifest,
+                    testPayloads);
+
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
+
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            // Validate we have one payload 
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
+            var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(remoteHeader);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == 2);
+
+            var remoteFile = new ExternalFileIdentifier()
+            {
+                FileId = remoteHeader.FileId,
+                TargetDrive = recipientTargetDrive
+            };
+
+            var getPayloadResponse = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloadContent);
+
+
+            //
+            // Act: Add a new encrypted payload
+            //
+
+            var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+
+            const string updatedContent = "aa233;d";
+            const string p2Content = "3adfas";
+            const string payload2Key = "p2key";
+
+            var newPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = updatedContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                },
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = payload2Key,
+                    ContentType = "text/plain",
+                    Content = p2Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var newUploadsManifest = new UploadManifest()
+            {
+                PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var aesKey = ByteArrayUtil.GetRndByteArray(16);
+
+            var targetVersionTag = Guid.Empty; //TODO?
+            var (uploadPayloadsResponse, encryptedUpdatedPayloadContent64) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
+                targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
+
+            Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the existing and new payloads can be retrieved and decrypted using the original key
+            //
+
+            //get the header
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(updatedHeader);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 2);
+
+            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload1Response.Content.ReadAsByteArrayAsync()).ToBase64() ==
+                          encryptedUpdatedPayloadContent64[WebScaffold.PAYLOAD_KEY].ToBase64());
+
+            var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload2Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedUpdatedPayloadContent64[payload2Key].ToBase64());
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+        
+        [Test]
+        public async Task CanAddMultipleRemote_Payloads_ByKeyWhenMultiplePayloadsExist()
+        {
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            const string fileContent1 = "filecontent1";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2099, fileContent1, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
+
+            // Upload a file with 1 payload
+            const string payloadContent = "some payload content";
+            var testPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var transferFileResponse = await senderOwnerClient.PeerDirect.TransferNewFile(recipientTargetDrive,
+                fileMetadata,
+                [recipient.OdinId],
+                uploadManifest,
+                testPayloads);
+
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
+
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            // validate recipient got the file and the payload are there
+
+            //
+            // Act: Add a new encrypted payload
+            //
+
+            var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+            const string p2Content = "aa233;d";
+            const string payload2Key = "p2key";
+
+            const string p3Content = "3adfas";
+            const string payload3Key = "p3key";
+
+            var newPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Key = payload2Key,
+                    ContentType = "text/plain",
+                    Content = p2Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                },
+                new()
+                {
+                    Key = payload3Key,
+                    ContentType = "text/plain",
+                    Content = p3Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var newUploadsManifest = new UploadManifest()
+            {
+                PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var targetVersionTag = Guid.Empty; //TODO?
+            var uploadPayloadsResponse = await senderOwnerClient.PeerDirect.UploadPayloads(targetGlobalTransitId,
+                targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
+
+            Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the existing and new payloads can be retrieved and decrypted using the original key
+            //
+
+            //get the header
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var header = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(header);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == 3);
+
+            var remoteFile = new ExternalFileIdentifier()
+            {
+                FileId = header.FileId,
+                TargetDrive = recipientTargetDrive
+            };
+
+            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload1Response.Content.ReadAsByteArrayAsync()).ToBase64() == payloadContent);
+
+            var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload2Response.Content.ReadAsStringAsync()) == p2Content);
+
+            var getPayload3Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload3Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload3Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload3Response.Content.ReadAsStringAsync()) == p3Content);
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        public async Task CanUpdateMultipleRemote_Payloads_ByKeyWhenMultiplePayloadsExist()
+        {
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            const string fileContent1 = "filecontent1";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 2099, fileContent1, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
+
+            // Upload a file with 1 payload
+            const string payloadContent = "some payload content";
+            var testPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var transferFileResponse = await senderOwnerClient.PeerDirect.TransferNewFile(recipientTargetDrive,
+                fileMetadata,
+                [recipient.OdinId],
+                uploadManifest,
+                testPayloads);
+
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
+
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            // Validate we have one payload 
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
+            var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(remoteHeader);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == 2);
+
+            var remoteFile = new ExternalFileIdentifier()
+            {
+                FileId = remoteHeader.FileId,
+                TargetDrive = recipientTargetDrive
+            };
+
+            var getPayloadResponse = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayloadResponse.Content.ReadAsByteArrayAsync()).ToBase64() == payloadContent);
+
+
+            //
+            // Act: Add a new encrypted payload
+            //
+
+            var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+
+            const string updatedContent = "aa233;d";
+            const string p2Content = "some content for payload 2";
+            const string payload2Key = "p2key";
+
+            var newPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = updatedContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                },
+                new()
+                {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Key = payload2Key,
+                    ContentType = "text/plain",
+                    Content = p2Content.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var newUploadsManifest = new UploadManifest()
+            {
+                PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var targetVersionTag = Guid.Empty; //TODO?
+            var uploadPayloadsResponse = await senderOwnerClient.PeerDirect.UploadPayloads(targetGlobalTransitId,
+                targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
+
+            Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+
+            //
+            // Assert: the existing and new payloads can be retrieved and decrypted using the original key
+            //
+
+            //get the header
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(updatedHeader);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 2);
+
+            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload1Response.Content.ReadAsStringAsync()) == updatedContent);
+
+            var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
+            Assert.IsTrue((await getPayload2Response.Content.ReadAsStringAsync()) == p2Content);
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
 
         private async Task<TargetDrive> PrepareScenario(
             OwnerApiClientRedux senderOwnerClient,
@@ -309,13 +902,16 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
             // Recipient creates a target drive
             //
+            Dictionary<string, string> isGroupChannelAttributes = new() { { FeedDriveDistributionRouter.IsCollaborativeChannel, bool.TrueString } };
+
             await recipientOwnerClient.DriveManager.CreateDrive(
                 targetDrive: targetDrive,
                 name: "Target drive on recipient",
                 metadata: "",
                 allowAnonymousReads: false,
                 allowSubscriptions: false,
-                ownerOnly: false);
+                ownerOnly: false,
+                attributes: isGroupChannelAttributes);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -349,28 +945,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, [recipientCircleId]);
 
             return targetDrive;
-        }
-
-        private async Task<(UploadResult, string encryptedJsonContent64)> UploadStandardFile(OwnerApiClientRedux client, TargetDrive targetDrive,
-            string uploadedContent, bool encrypted)
-        {
-            var fileMetadata = SampleMetadataData.CreateWithContent(200, uploadedContent, AccessControlList.Connected);
-            fileMetadata.AllowDistribution = true;
-            fileMetadata.IsEncrypted = encrypted;
-
-            ApiResponse<UploadResult> uploadResponse;
-            string encryptedJsonContent64 = null;
-            if (encrypted)
-            {
-                (uploadResponse, encryptedJsonContent64) =
-                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);
-            }
-            else
-            {
-                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata);
-            }
-
-            return (uploadResponse.Content, encryptedJsonContent64);
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient)

@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload([Body] TransitGetPayloadRequest file);
+        Task<ApiResponse<HttpContent>> GetPayload([Body] PeerGetPayloadRequest file);
 
         [Post(RootEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail([Body] TransitGetThumbRequest request);

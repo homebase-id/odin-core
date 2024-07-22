@@ -74,7 +74,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
             allowSubscriptions: true, attributes: IsGroupChannelAttributes);
 
         var memberCircleId = Guid.NewGuid();
-        ;
+        
         await groupIdentityOwnerClientRedux.Network.CreateCircle(memberCircleId, "group members", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()

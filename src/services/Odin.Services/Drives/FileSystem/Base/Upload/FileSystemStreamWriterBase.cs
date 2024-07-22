@@ -417,7 +417,7 @@ public abstract class FileSystemStreamWriterBase
             if (!ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), Guid.Empty.ToByteArray()))
             {
                 throw new OdinClientException(
-                    $"You must specify a 16-byte all-zero Aes Key when file is encrypted and  storage intent is {StorageIntent.MetadataOnly}",
+                    $"You must specify a 16-byte all-zero Aes Key when file is encrypted and storage intent is {StorageIntent.MetadataOnly}",
                     OdinClientErrorCode.MalformedMetadata);
             }
 

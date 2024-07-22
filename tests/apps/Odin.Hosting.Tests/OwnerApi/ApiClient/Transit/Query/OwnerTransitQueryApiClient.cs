@@ -88,7 +88,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayload(TransitGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> GetPayload(PeerGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {

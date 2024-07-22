@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public List<string> Recipients { get; set; }
         
         /// <summary>
-        /// The target drive on the recipient's identity
+        /// The target drive on the recipient's identity; required
         /// </summary>
         public TargetDrive RemoteTargetDrive { get; set; }
         
@@ -33,5 +33,28 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public UploadManifest Manifest { get; set; }
         
         public StorageIntent StorageIntent { get; set; }
+    }
+    
+    public class PeerUploadPayloadInstructionSet
+    {
+       
+        /// <summary>
+        /// List of identities that should receive this file 
+        /// </summary>
+        public List<string> Recipients { get; set; }
+        
+        /// <summary>
+        /// The target drive on the recipient's identity; required
+        /// </summary>
+        public TargetDrive RemoteTargetDrive { get; set; }
+        
+        /// <summary>
+        /// The globalTransitId of the target file on the remote identity
+        /// </summary>
+        public Guid? OverwriteGlobalTransitFileId { get; set; }
+
+        public UploadManifest Manifest { get; set; }
+        
+        public Guid VersionTag { get; set; }
     }
 }

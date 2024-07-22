@@ -138,8 +138,12 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("files/uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayload()
         {
+            // Rules:
+            // Cannot upload encrypted payload to encrypted file (how can i tell?)
+            // cannot upload encrypted payload to unecnrypted file (how can i tell?)
+            
 
-            throw new NotImplementedException("wip");
+            throw new NotImplementedException("WIP");
             using var cn = tenantSystemStorage.CreateConnection();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
@@ -184,7 +188,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
         [HttpPost("files/deletepayload")]
-        public async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
+        public async Task<DeletePayloadResult> DeletePayload(PeerDeletePayloadRequest request)
         {
             if (null == request)
             {
@@ -246,7 +250,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         private async Task<UploadPayloadInstructionSet> RemapUploadInstructionSet(Stream data)
         {
             string json = await new StreamReader(data).ReadToEndAsync();
-            var originalInstructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
+            var originalInstructionSet = OdinSystemSerializer.Deserialize<PeerUploadPayloadInstructionSet>(json);
 
             var instructionSet = new UploadPayloadInstructionSet()
             {

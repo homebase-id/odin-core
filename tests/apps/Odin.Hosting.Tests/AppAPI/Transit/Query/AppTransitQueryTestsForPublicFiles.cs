@@ -237,7 +237,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             // Pippin uploads file
             var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, uploadedPayload);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
+            var response = await merryAppClient.TransitQuery.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 File = randomFile.uploadResult.File,
