@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -23,6 +22,11 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
 {
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
     {
+        if (notification.IgnoreReactionPreviewCalculation)
+        {
+            return;
+        }
+
         //TODO: handle encrypted content?
         var odinContext = notification.OdinContext;
 
@@ -235,4 +239,3 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
         await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext, notification.DatabaseConnection);
     }
 }
-

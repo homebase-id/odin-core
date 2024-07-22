@@ -289,30 +289,30 @@ namespace Odin.Services.Configuration
             /// <summary>
             /// Toggle if job processing is enabled
             /// </summary>
-            public bool Enabled { get; init; }
+            public bool Enabled { get; init; } // SEB:TODO delete this
 
             /// <summary>
             /// Number of seconds to delay starting background jobs when starting the dotyoucore process
             /// </summary>
-            public int BackgroundJobStartDelaySeconds { get; init; }
+            public int BackgroundJobStartDelaySeconds { get; init; } // SEB:TODO delete this
 
-            public int CronProcessingInterval { get; init; }
+            public int CronProcessingInterval { get; init; } // SEB:TODO delete this
 
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
 
             /// <summary>
             /// The interval in which we check for the validation of certificate order
             /// </summary>
-            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; }
+            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; } // SEB:TODO delete this
 
             /// <summary>
             ///  The number of items to query from the cron queue each time the job runs 
             /// </summary>
-            public int CronBatchSize { get; init; }
+            public int CronBatchSize { get; init; } // SEB:TODO delete this
             
-            public int MaxSchedulerConcurrency { get; init; }
+            public int MaxSchedulerConcurrency { get; init; } // SEB:TODO delete this
 
-            public bool ConnectionPooling { get; init; }
+            public bool ConnectionPooling { get; init; } // SEB:TODO delete this
             public int InboxOutboxReconciliationDelaySeconds { get; init; }
 
             public JobSection()

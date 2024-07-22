@@ -9,9 +9,9 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -32,9 +32,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         CircleNetworkService circleNetworkService,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
-        ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorAsync outboxProcessorAsync
+        PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
@@ -59,10 +58,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 FileSystemType = fileSystemType,
                 StorageIntent = storageIntent
             };
-
-            var tenant = tenantContext.HostOdinId;
-            serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-
+            
             var priority = options.Priority switch
             {
                 OutboxPriority.High => 1000,
@@ -80,7 +76,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItem(item, cn);
             }
 
-            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.WakeUp();
 
             return outboxStatus;
         }
@@ -145,7 +141,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.WakeUp();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -223,7 +219,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
             }
 
-            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.WakeUp();
 
             return status;
         }
@@ -357,7 +353,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.WakeUp();
 
             return results;
         }
