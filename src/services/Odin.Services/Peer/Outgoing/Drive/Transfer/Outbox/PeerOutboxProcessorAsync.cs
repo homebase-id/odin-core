@@ -61,6 +61,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             await Task.WhenAll(tasks);
         }
+        
+        public override void WakeUp()
+        {
+            logger.LogDebug("Waking up outbox processor");
+            base.WakeUp();
+        }
 
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure

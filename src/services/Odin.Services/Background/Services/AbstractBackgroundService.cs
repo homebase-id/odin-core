@@ -72,7 +72,7 @@ public abstract class AbstractBackgroundService
     //
 
     // Call me from anywhere to wake up the service from SleepAsync
-    public void WakeUp()
+    public virtual void WakeUp()
     {
         _wakeUpEvent.Set();
     }
