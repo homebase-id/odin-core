@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Background.Services;
 using Odin.Services.Base;
+using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
@@ -21,6 +22,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessorBackgroundService(
+        ICertificateCache certificateCache,
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
@@ -35,13 +37,24 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var domain = tenantContext.HostOdinId.DomainName;
+
             var tasks = new List<Task>();
             while (!stoppingToken.IsCancellationRequested)
             {
-                logger.LogDebug("Processing outbox");
+                // Sanity: Make sure we have a certificate for the domain before processing the outbox.
+                // Missing certificate can happen in rare, temporary, situations if the certificate has expired
+                // or has not yet been created.
+                if (certificateCache.LookupCertificate(domain) == null)
+                {
+                    logger.LogWarning("No certificate found for domain {domain}. Skipping outbox processing", domain);
+                    await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
+                    continue;
+                }
                 
-                TimeSpan? nextRun;
+                logger.LogDebug("Processing outbox");
 
+                TimeSpan? nextRun;
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {
                     while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
