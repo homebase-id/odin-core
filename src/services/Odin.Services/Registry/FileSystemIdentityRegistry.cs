@@ -203,6 +203,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 });
         }
 
+        CacheCertificate(registration);
+        await StartBackgroundServices(registration);
+
         return registration.FirstRunToken.GetValueOrDefault();
     }
 
@@ -328,9 +331,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var regFilePath = GetRegFilePath(registration.Id);
         await File.WriteAllTextAsync(regFilePath, json);
 
-        _logger.LogInformation("Write registration file for [{registrationId}]", registration.Id);
-
-        await LoadIdentity(registration);
+        _logger.LogInformation("Wrote registration file for [{registrationId}]", registration.Id);
+        CacheIdentity(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -424,7 +426,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
-                await LoadIdentity(registration);
+                CacheIdentity(registration);
+
+                CacheCertificate(registration);
+                await StartBackgroundServices(registration);
             }
             catch (Exception e)
             {
@@ -448,7 +453,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private async Task LoadIdentity(IdentityRegistration registration)
+    private void CacheIdentity(IdentityRegistration registration)
     {
         RegisterDotYouHttpClient(registration);
 
@@ -461,26 +466,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
-        
-        // Cache certificate
-        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create(tenantContext.SslRoot);
-        certificateService.ResolveCertificate(registration.PrimaryDomainName);
-
-        // Start tenant background jobs
-        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-        await backgroundServiceManager.StartTenantBackgroundServices(scope);
     }
 
     private async Task UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
-
-        // Stop tenant background services
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-        await backgroundServiceManager.ShutdownAsync();
-
+        await StopBackgroundServices(registration);
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
@@ -612,4 +603,42 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     }
 
     //
+
+    private void CacheCertificate(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var tenantContext = scope.Resolve<TenantContext>();
+        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
+        var certificateService = certificateServiceFactory.Create(tenantContext.SslRoot);
+        var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
+        if (certificate != null)
+        {
+            _logger.LogInformation("Certificate loaded for {domain}", registration.PrimaryDomainName);
+        }
+        else
+        {
+            _logger.LogWarning("No certificate loaded for {domain} (yet)", registration.PrimaryDomainName);
+        }
+    }
+
+    //
+
+    private async Task StartBackgroundServices(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.StartTenantBackgroundServices(scope);
+    }
+
+    //
+
+    private async Task StopBackgroundServices(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.ShutdownAsync();
+    }
+
+    //
+
 }
