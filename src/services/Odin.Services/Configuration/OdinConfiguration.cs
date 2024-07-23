@@ -117,7 +117,7 @@ namespace Odin.Services.Configuration
 
             public DevelopmentSection(IConfiguration config)
             {
-                PreconfiguredDomains = config.Required<List<string>>("Development:PreconfiguredDomains");
+                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", new List<string>());
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 RecoveryKeyWaitingPeriodSeconds = config.Required<int>("Development:RecoveryKeyWaitingPeriodSeconds");
             }
