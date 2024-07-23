@@ -24,11 +24,15 @@ public static class BackgroundServiceExtensions
         cb.RegisterType<JobJanitorBackgroundService>()
             .AsSelf()
             .SingleInstance();
-        
+
+        cb.RegisterType<JobRunnerBackgroundService>()
+            .AsSelf()
+            .SingleInstance();
+
         cb.RegisterType<UpdateCertificatesBackgroundService>()
             .AsSelf()
             .SingleInstance();
-        
+
         // Add more system services here
         // ...
         // ...
@@ -40,6 +44,7 @@ public static class BackgroundServiceExtensions
     {
         // await bsm.StartAsync(nameof(DummySystemBackgroundService), services.GetRequiredService<DummySystemBackgroundService>());
         await bsm.StartAsync(nameof(JobJanitorBackgroundService), services.GetRequiredService<JobJanitorBackgroundService>());
+        await bsm.StartAsync(nameof(JobRunnerBackgroundService), services.GetRequiredService<JobRunnerBackgroundService>());
         await bsm.StartAsync(nameof(UpdateCertificatesBackgroundService), services.GetRequiredService<UpdateCertificatesBackgroundService>());
        
     }
