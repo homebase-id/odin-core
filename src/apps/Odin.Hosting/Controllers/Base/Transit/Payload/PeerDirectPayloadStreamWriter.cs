@@ -4,55 +4,42 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
-namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+namespace Odin.Hosting.Controllers.Base.Transit.Payload;
 
-/// <summary>
-/// Enables the writing of file streams from external sources and
-/// rule enforcement specific to the type of file system
-/// </summary>
-public abstract class PayloadStreamWriterBase
+public sealed class PeerDirectPayloadStreamWriter
 {
-    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
-    private PayloadOnlyPackage _package;
+    private readonly DriveManager _driveManager;
+    private readonly IDriveFileSystem _fileSystem;
+    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+    private PeerPayloadPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, PeerOutgoingTransferService peerOutgoingTransferService)
+    public PeerDirectPayloadStreamWriter(IPeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager, IDriveFileSystem fileSystem)
     {
         _peerOutgoingTransferService = peerOutgoingTransferService;
-        FileSystem = fileSystem;
+        _driveManager = driveManager;
+        _fileSystem = fileSystem;
     }
 
-    protected IDriveFileSystem FileSystem { get; }
-
-    public virtual async Task StartUpload(Stream data, IOdinContext odinContext, DatabaseConnection cn)
-    {
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
-        await this.StartUpload(instructionSet, odinContext, cn);
-    }
-
-    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task StartUpload(PeerUploadPayloadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
-        instructionSet?.AssertIsValid();
-
-        InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile, odinContext);
-
-        //bail earlier to save some bandwidth
-        if (!await FileSystem.Storage.FileExists(file, odinContext, cn))
-        {
-            throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
-        }
+        instructionSet!.AssertIsValid();
 
         if (instructionSet.Manifest?.PayloadDescriptors != null)
         {
@@ -64,11 +51,17 @@ public abstract class PayloadStreamWriterBase
             }
         }
 
-        this._package = new PayloadOnlyPackage(file, instructionSet!);
+        var tempFile = new InternalDriveFileId()
+        {
+            FileId = Guid.NewGuid(),
+            DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, cn, true)).GetValueOrDefault()
+        };
+
+        this._package = new PeerPayloadPackage(tempFile, instructionSet!);
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -83,7 +76,7 @@ public abstract class PayloadStreamWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext, cn);
+        var bytesWritten = await _fileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext, cn);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()
@@ -100,7 +93,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         // Note: this assumes you've validated the manifest; so I won't check for duplicates etc
 
@@ -138,7 +131,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext, cn);
+        var bytesWritten = await _fileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext, cn);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -155,34 +148,26 @@ public abstract class PayloadStreamWriterBase
     /// </summary>
     public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
-        var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext, cn);
+        await this.ValidateUploadCore(odinContext, cn);
 
-        await this.ValidateUploadCore(serverHeader, odinContext, cn);
-
-        await this.ValidatePayloads(_package, serverHeader);
-
-        var latestVersionTag = await this.UpdatePayloads(_package, serverHeader, odinContext, cn);
-
-        var recipientStatus = await ProcessPayloadTransitInstructions(_package, odinContext, cn, fileSystemType);
+        var recipientStatus = await EnqueueInOutbox(_package, odinContext, cn, fileSystemType);
 
         return new UploadPayloadResult()
         {
-            NewVersionTag = latestVersionTag,
+            NewVersionTag = Guid.Empty,
             RecipientStatus = recipientStatus
         };
     }
 
-    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessPayloadTransitInstructions(PayloadOnlyPackage package,
+    private async Task<Dictionary<string, TransferStatus>> EnqueueInOutbox(PeerPayloadPackage package,
         IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
 
-        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
-
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _peerOutgoingTransferService.SendPayload(package.InternalFile,
+            recipientStatus = await _peerOutgoingTransferService.SendPayload(
                 package.InstructionSet,
                 fileSystemType,
                 odinContext,
@@ -193,54 +178,25 @@ public abstract class PayloadStreamWriterBase
     }
 
     /// <summary>
-    /// Validates the new attachments against the existing header
-    /// </summary>
-    /// <returns></returns>
-    protected abstract Task ValidatePayloads(PayloadOnlyPackage package, ServerFileHeader header);
-
-    /// <summary>
-    /// Performs the update of attachments on the file system
-    /// </summary>
-    /// <returns>The updated version tag on the metadata</returns>
-    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext, DatabaseConnection cn);
-
-    /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task ValidateUploadCore(IOdinContext odinContext, DatabaseConnection cn)
     {
-        // Validate the file exists by the ID
-        if (!await FileSystem.Storage.FileExists(_package.InternalFile, odinContext, cn))
-        {
-            throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
-        }
-
-        if (_package.InstructionSet.VersionTag == null)
+        if (_package.InstructionSet.VersionTag == Guid.Empty)
         {
             throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
         }
 
-        DriveFileUtility.AssertVersionTagMatch(existingServerFileHeader.FileMetadata.VersionTag, _package.InstructionSet.VersionTag);
-
-        if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
-        {
-            throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
-        }
-
-        if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
-        {
-            throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
-        }
+        // if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
+        // {
+        //     throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
+        // }
+        //
+        // if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
+        // {
+        //     throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
+        // }
 
         await Task.CompletedTask;
-    }
-
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
-    {
-        return new InternalDriveFileId()
-        {
-            FileId = file.FileId,
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
-        };
     }
 }

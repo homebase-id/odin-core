@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using Odin.Core.Exceptions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Outgoing.Drive
 {
@@ -51,10 +54,32 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// The globalTransitId of the target file on the remote identity
         /// </summary>
-        public Guid? OverwriteGlobalTransitFileId { get; set; }
+        public Guid OverwriteGlobalTransitFileId { get; set; }
 
         public UploadManifest Manifest { get; set; }
         
         public Guid VersionTag { get; set; }
+        
+        public void AssertIsValid()
+        {
+            OdinValidationUtils.AssertValidRecipientList(this.Recipients);
+            if (Guid.Empty == OverwriteGlobalTransitFileId)
+            {
+                throw new OdinClientException("Invalid GlobalTransitFile Id");
+            }
+            
+            if (!RemoteTargetDrive.IsValid())
+            {
+                throw new OdinClientException("Remote Target Drive is invalid", OdinClientErrorCode.InvalidDrive);
+            }
+
+            if (!Manifest?.PayloadDescriptors?.Any() ?? false)
+            {
+                throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads when using the payload only upload method :)", OdinClientErrorCode.InvalidPayload);
+            }
+            
+            Manifest?.AssertIsValid();
+
+        }
     }
 }

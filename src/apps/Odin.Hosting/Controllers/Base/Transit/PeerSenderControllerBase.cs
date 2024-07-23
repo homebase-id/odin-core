@@ -13,8 +13,6 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -133,85 +131,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return new JsonResult(map);
         }
 
-
-        [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
-        [HttpPost("files/uploadpayload")]
-        public async Task<UploadPayloadResult> UploadPayload()
-        {
-            // Rules:
-            // Cannot upload encrypted payload to encrypted file (how can i tell?)
-            // cannot upload encrypted payload to unecnrypted file (how can i tell?)
-            
-
-            throw new NotImplementedException("WIP");
-            using var cn = tenantSystemStorage.CreateConnection();
-
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
-            {
-                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
-            }
-
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var writer = this.GetHttpFileSystemResolver().ResolvePayloadStreamWriter();
-
-            var section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
-
-            var instructionSet = await RemapUploadInstructionSet(section!.Body);
-            await writer.StartUpload(instructionSet, WebOdinContext, cn);
-
-            //
-            section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                if (IsPayloadPart(section))
-                {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                if (IsThumbnail(section))
-                {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                section = await reader.ReadNextSectionAsync();
-            }
-
-            var status = await writer.FinalizeUpload(WebOdinContext, cn, this.GetHttpFileSystemResolver().GetFileSystemType());
-            return status;
-        }
-
-
-        [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
-        [HttpPost("files/deletepayload")]
-        public async Task<DeletePayloadResult> DeletePayload(PeerDeletePayloadRequest request)
-        {
-            if (null == request)
-            {
-                throw new OdinClientException("Invalid delete payload request");
-            }
-
-            DriveFileUtility.AssertValidPayloadKey(request.Key);
-            if (request.VersionTag == null)
-            {
-                throw new OdinClientException("Missing version tag", OdinClientErrorCode.MissingVersionTag);
-            }
-
-            var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            using var cn = tenantSystemStorage.CreateConnection();
-
-            return new DeletePayloadResult()
-            {
-                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault(), WebOdinContext, cn)
-            };
-        }
-
-
         /// <summary>
         /// Map the client's transit instructions to an upload instruction set so we
         /// so we can keep the upload infrastructure for Alpha
@@ -247,24 +166,5 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return uploadInstructionSet;
         }
 
-        private async Task<UploadPayloadInstructionSet> RemapUploadInstructionSet(Stream data)
-        {
-            string json = await new StreamReader(data).ReadToEndAsync();
-            var originalInstructionSet = OdinSystemSerializer.Deserialize<PeerUploadPayloadInstructionSet>(json);
-
-            var instructionSet = new UploadPayloadInstructionSet()
-            {
-                TargetFile = new ExternalFileIdentifier()
-                {
-                    //FileId = ?? 
-                    TargetDrive = SystemDriveConstants.TransientTempDrive
-                },
-                Manifest = originalInstructionSet.Manifest,
-                VersionTag = originalInstructionSet.VersionTag,
-                Recipients = originalInstructionSet.Recipients
-            };
-
-            return instructionSet;
-        }
     }
 }

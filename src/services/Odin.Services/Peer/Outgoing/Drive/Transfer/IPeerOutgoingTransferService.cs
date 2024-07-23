@@ -5,6 +5,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -28,5 +29,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext, DatabaseConnection cn,
             FileSystemType fileSystemType);
+
+        Task<Dictionary<string, TransferStatus>> SendPayload(PeerUploadPayloadInstructionSet packageInstructionSet, FileSystemType fileSystemType,
+            IOdinContext odinContext, DatabaseConnection cn);
     }
 }

@@ -15,7 +15,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -159,8 +158,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        public async Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId internalFile,
-            UploadPayloadInstructionSet uploadPayloadInstructionSet,
+        public async Task<Dictionary<string, TransferStatus>> SendPayload(
+            PeerUploadPayloadInstructionSet uploadPayloadInstructionSet,
             FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
         {
             var status = new Dictionary<string, TransferStatus>();
@@ -188,9 +187,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     {
                         Priority = 100,
                         Type = OutboxItemType.PayloadUpdate,
-                        File = internalFile,
+                        File = uploadPayloadInstructionSet.,
                         Recipient = recipient,
-                        DependencyFileId = internalFile.FileId,
+                        DependencyFileId = default,
                         State = new OutboxItemState()
                         {
                             // IsTransientFile = ??
