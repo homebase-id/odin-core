@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Authentication.Peer
 {
@@ -21,12 +22,15 @@ namespace Odin.Hosting.Authentication.Peer
     {
         private static readonly Oid ClientCertificateOid = new Oid("1.3.6.1.5.5.7.3.2");
         private ICertificateValidationCache _cache;
+        private readonly OdinConfiguration _config;
 
         public PeerCertificateAuthenticationHandler(
             IOptionsMonitor<CertificateAuthenticationOptions> options,
             ILoggerFactory logger,
+            OdinConfiguration config,            
             UrlEncoder encoder) : base(options, logger, encoder)
         {
+            _config = config;
         }
 
         /// <summary>
@@ -216,6 +220,10 @@ namespace Odin.Hosting.Authentication.Peer
                 chainPolicy.VerificationFlags |= X509VerificationFlags.AllowUnknownCertificateAuthority;
                 chainPolicy.VerificationFlags |= X509VerificationFlags.IgnoreEndRevocationUnknown;
                 chainPolicy.ExtraStore.Add(certificate);
+            }
+            else if (_config.CertificateRenewal.UseCertificateAuthorityProductionServers == false)
+            {
+                chainPolicy.VerificationFlags = X509VerificationFlags.AllFlags;
             }
             else
             {
