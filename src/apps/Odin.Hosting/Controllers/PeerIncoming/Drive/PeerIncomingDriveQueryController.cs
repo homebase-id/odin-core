@@ -31,7 +31,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             using var cn = tenantSystemStorage.CreateConnection();
             return await perimeterService.QueryBatchCollection(request, WebOdinContext, cn);
         }
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("querymodified")]
         public async Task<QueryModifiedResponse> QueryModified(QueryModifiedRequest request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             using var cn = tenantSystemStorage.CreateConnection();
             var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions, WebOdinContext, cn);
             return QueryModifiedResponse.FromResult(result);
@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             var options = request.ResultOptionsRequest ?? QueryBatchResultOptionsRequest.Default;
             using var cn = tenantSystemStorage.CreateConnection();
             var batch = await perimeterService.QueryBatch(request.QueryParams, options.ToQueryBatchResultOptions(), WebOdinContext, cn);
@@ -61,7 +61,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             using var cn = tenantSystemStorage.CreateConnection();
             SharedSecretEncryptedFileHeader result = await perimeterService.GetFileHeader(request.TargetDrive, request.FileId, WebOdinContext, cn);
 
@@ -81,7 +81,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             var (encryptedKeyHeader64, isEncrypted, _, payloadStream) =
                 await perimeterService.GetPayloadStream(
                     request.File.TargetDrive,
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
 
             using var cn = tenantSystemStorage.CreateConnection();
             var (encryptedKeyHeader64, isEncrypted, _, decryptedContentType, lastModified, thumb) =
@@ -140,7 +140,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("metadata/type")]
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetPerimeterQueryService();
             using var cn = tenantSystemStorage.CreateConnection();
             var drives = await perimeterService.GetDrives(request.DriveType, WebOdinContext, cn);
             return drives;
@@ -288,7 +288,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return result;
         }
 
-        private PeerDriveQueryService GetPerimeterService()
+        private PeerDriveQueryService GetPerimeterQueryService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             return new PeerDriveQueryService(driveManager, fileSystem);

@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         : DriveUploadControllerBase
     {
         /// <summary>
-        /// Uploads a file using multi-part form data
+        /// Uploads a file using multipart form data
         /// </summary>
         /// <returns></returns>
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
@@ -58,9 +58,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
             // re-map to transit instruction set.  this is the critical point of this feature
             //
             var uploadInstructionSet = await RemapTransitInstructionSet(section!.Body);
-
+            uploadInstructionSet.AssertIsValid();
+            
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
-
+            
             using var cn = tenantSystemStorage.CreateConnection();
             await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext, cn);
 
@@ -74,14 +75,14 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
+                    await fileSystemWriter.AddPayload(payloadKey, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -132,8 +133,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         }
 
         /// <summary>
-        /// Map the client's transit instructions to an upload instruction set so we
-        /// so we can keep the upload infrastructure for Alpha
+        /// Map the client's transit instructions to an upload instruction set, so we can keep the upload infrastructure for Alpha
         /// </summary>
         private async Task<UploadInstructionSet> RemapTransitInstructionSet(Stream transitInstructionStream)
         {
@@ -165,6 +165,5 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             return uploadInstructionSet;
         }
-
     }
 }

@@ -80,8 +80,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             payloadKey = fileSection?.FileName;
         }
 
-        protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
-            out string thumbnailUploadKey, out string contentType)
+        protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection, out string thumbnailUploadKey)
         {
             var expectedPart = MultipartHostTransferParts.Thumbnail;
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
@@ -97,14 +96,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             fileSection = section.AsFileSection();
-
-            contentType = section.ContentType;
-            if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
-            {
-                throw new OdinClientException(
-                    "Thumbnails must include a valid contentType in the multi-part upload.",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
 
             thumbnailUploadKey = fileSection?.FileName;
             if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))

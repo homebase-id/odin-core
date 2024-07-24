@@ -123,7 +123,7 @@ public class SendReadReceiptOutboxWorker(
             var e = ex.InnerException;
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
-                : LatestTransferStatus.UnknownServerError;
+                : LatestTransferStatus.InternalServerError;
 
             throw new OdinOutboxProcessingException("Failed sending to recipient")
             {

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
@@ -28,11 +27,24 @@ public class UploadManifest
             foreach (var pd in this.PayloadDescriptors)
             {
                 DriveFileUtility.AssertValidPayloadKey(pd.PayloadKey);
+                if (string.IsNullOrEmpty(pd.ContentType?.Trim()))
+                {
+                    throw new OdinClientException(
+                        "Payloads must include a valid contentType in the multi-part upload.",
+                        OdinClientErrorCode.InvalidPayload);
+                }
 
                 var anyMissingThumbnailKey = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim())) ?? false;
                 if (anyMissingThumbnailKey)
                 {
-                    throw new OdinClientException($"The payload key [{pd.PayloadKey}] as a thumbnail missing a thumbnailKey",
+                    throw new OdinClientException($"The payload key [{pd.PayloadKey}] has a thumbnail missing a thumbnailKey",
+                        OdinClientErrorCode.InvalidUpload);
+                }
+
+                var anyMissingContentTypeOnThumbnail = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ContentType?.Trim())) ?? false;
+                if (anyMissingContentTypeOnThumbnail)
+                {
+                    throw new OdinClientException($"The payload key [{pd.PayloadKey}] has a thumbnail missing a content type",
                         OdinClientErrorCode.InvalidUpload);
                 }
 
@@ -50,6 +62,11 @@ public class UploadManifest
             }
         }
     }
+
+    public UploadManifestPayloadDescriptor GetPayloadDescriptor(string key)
+    {
+        return this.PayloadDescriptors?.SingleOrDefault(pk => pk.PayloadKey == key);
+    }
 }
 
 /// <summary>
@@ -60,7 +77,9 @@ public class UploadManifestPayloadDescriptor
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
-    
+
+    public string ContentType { get; set; }
+
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -69,13 +88,42 @@ public class UploadManifestPayloadDescriptor
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
+
+    public PayloadDescriptor ToPayloadDescriptor()
+    {
+        return new PayloadDescriptor
+        {
+            Iv = this.Iv,
+            Key = this.PayloadKey,
+            ContentType = this.ContentType,
+            DescriptorContent = this.DescriptorContent,
+            BytesWritten = 0,
+            LastModified = default,
+            PreviewThumbnail = this.PreviewThumbnail,
+            Thumbnails = this.Thumbnails.Select(t => t.ToThumbnailDescriptor()),
+            Uid = this.PayloadUid
+        }
+    }
 }
 
 public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
-    
+
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }
+
+    public string ContentType { get; set; }
+
+    public string CreateTransitKey(string payloadKey)
+    {
+        //duplicate code in ThumbnailDescriptor
+        return
+            $"{payloadKey}" +
+            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{this.PixelWidth}" +
+            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{this.PixelHeight}";
+    }
 }

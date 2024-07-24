@@ -40,6 +40,7 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
 
     public string CreateTransitKey(string payloadKey)
     {
+        //duplicate code in UploadedManifestThumbnailDescriptor
         return
             $"{payloadKey}" +
             $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +

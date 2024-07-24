@@ -44,9 +44,9 @@ public abstract class PayloadStreamWriterBase
     public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
-        instructionSet?.AssertIsValid();
+        instructionSet.AssertIsValid();
 
-        InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile, odinContext);
+        InternalDriveFileId file = MapToInternalFile(instructionSet.TargetFile, odinContext);
 
         //bail earlier to save some bandwidth
         if (!await FileSystem.Storage.FileExists(file, odinContext, cn))
@@ -68,7 +68,7 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddPayload(string key, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -91,7 +91,7 @@ public abstract class PayloadStreamWriterBase
                 Iv = descriptor.Iv,
                 PayloadKey = key,
                 Uid = descriptor.PayloadUid,
-                ContentType = contentType,
+                ContentType = descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -100,7 +100,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         // Note: this assumes you've validated the manifest; so I won't check for duplicates etc
 
@@ -144,7 +144,7 @@ public abstract class PayloadStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType,
+            ContentType = result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });
@@ -182,8 +182,19 @@ public abstract class PayloadStreamWriterBase
 
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _peerOutgoingTransferService.SendPayload(package.InternalFile,
-                package.InstructionSet,
+            var transferInstructionSet = new PayloadTransferInstructionSet()
+            {
+                FileSystemType = fileSystemType,
+                AppNotificationOptions = default,
+                TargetFile = package.InstructionSet.TargetFile.ToFileIdentifier(),
+                VersionTag = package.InstructionSet.VersionTag.GetValueOrDefault(),
+                Manifest = package.InstructionSet.Manifest
+            };
+
+            recipientStatus = await _peerOutgoingTransferService.SendPayload(
+                package.InternalFile,
+                recipients,
+                transferInstructionSet,
                 fileSystemType,
                 odinContext,
                 cn);

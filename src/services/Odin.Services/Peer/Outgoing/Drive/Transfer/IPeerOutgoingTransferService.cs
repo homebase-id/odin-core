@@ -21,17 +21,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(InternalDriveFileId fileId, FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients, IOdinContext odinContext, DatabaseConnection cn);
 
-        Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, FileTransferOptions fileTransferOptions,
+        Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
+            FileTransferOptions fileTransferOptions,
             IEnumerable<string> recipients, IOdinContext odinContext, DatabaseConnection cn);
-        
+
         /// <summary>
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext, DatabaseConnection cn,
             FileSystemType fileSystemType);
 
-        Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId file, PeerDirectUploadPayloadInstructionSet uploadInstructionSet,
+        Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId sourceFileId,
+            List<string> recipients,
+            PayloadTransferInstructionSet payloadTransferInstructionSet,
             FileSystemType fileSystemType,
-            IOdinContext odinContext, DatabaseConnection cn);
+            IOdinContext odinContext,
+            DatabaseConnection c);
     }
 }

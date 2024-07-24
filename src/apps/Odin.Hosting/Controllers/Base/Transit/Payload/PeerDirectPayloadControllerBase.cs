@@ -53,6 +53,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<PeerDirectUploadPayloadInstructionSet>(json);
+            instructionSet.Manifest.AssertIsValid();
 
             await writer.StartUpload(instructionSet, WebOdinContext, cn);
 
@@ -62,14 +63,14 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
+                    await writer.AddPayload(payloadKey, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
+                    await writer.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -103,6 +104,5 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
                 NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault(), WebOdinContext, cn)
             };
         }
-        
     }
 }

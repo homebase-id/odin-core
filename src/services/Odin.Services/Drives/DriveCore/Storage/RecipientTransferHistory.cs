@@ -75,7 +75,7 @@ public enum LatestTransferStatus
     /// <summary>
     /// Something bad happened on the server
     /// </summary>
-    UnknownServerError = 9999,
+    InternalServerError = 9999,
     
 }
 

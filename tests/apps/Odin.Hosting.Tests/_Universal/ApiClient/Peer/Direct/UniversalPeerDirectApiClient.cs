@@ -12,6 +12,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -469,10 +470,11 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
     {
         var instructionSet = new PeerDirectUploadPayloadInstructionSet()
         {
-            TargetFile = new GlobalTransitIdFileIdentifier()
+            TargetFile = new FileIdentifier()
             {
-                GlobalTransitId = targetGlobalTransitId,
-                TargetDrive = remoteTargetDrive
+                FileId = targetGlobalTransitId,
+                Drive = remoteTargetDrive,
+                Type = FileIdentifierType.GlobalTransitId
             },
             Recipients = recipients,
             VersionTag = targetVersionTag,
@@ -520,10 +522,11 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
     {
         var instructionSet = new PeerDirectUploadPayloadInstructionSet()
         {
-            TargetFile = new GlobalTransitIdFileIdentifier()
+            TargetFile = new FileIdentifier()
             {
-                GlobalTransitId = targetGlobalTransitId,
-                TargetDrive = remoteTargetDrive
+                FileId = targetGlobalTransitId,
+                Drive = remoteTargetDrive,
+                Type = FileIdentifierType.GlobalTransitId
             },
             Recipients = recipients,
             VersionTag = targetVersionTag,

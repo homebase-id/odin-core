@@ -89,7 +89,7 @@ public class SendPushNotificationOutboxWorker(
             throw new OdinOutboxProcessingException(e.Message)
             {
                 Recipient = default,
-                TransferStatus = LatestTransferStatus.UnknownServerError,
+                TransferStatus = LatestTransferStatus.InternalServerError,
                 VersionTag = default
             };
         }

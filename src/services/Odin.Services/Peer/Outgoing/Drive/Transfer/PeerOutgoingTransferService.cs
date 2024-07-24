@@ -158,46 +158,43 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        public async Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId file,
-            PeerDirectUploadPayloadInstructionSet uploadInstructionSet,
-            FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<Dictionary<string, TransferStatus>> SendPayload(
+            InternalDriveFileId sourceFileId,
+            List<string> recipients,
+            PayloadTransferInstructionSet payloadTransferInstructionSet,
+            FileSystemType fileSystemType, 
+            IOdinContext odinContext, 
+            DatabaseConnection cn)
         {
             var status = new Dictionary<string, TransferStatus>();
 
-            if (uploadInstructionSet.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
+            OdinValidationUtils.AssertValidRecipientList(recipients);
+            if (recipients.Contains(tenantContext.HostOdinId, StringComparer.InvariantCultureIgnoreCase))
             {
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
-            const bool isTempFile = true; //TODO: How do i determine this?
-            foreach (var r in uploadInstructionSet.Recipients!)
+            foreach (var r in recipients)
             {
                 var recipient = (OdinId)r;
                 try
                 {
                     var request = new SendPayloadRequest()
                     {
-                        IsTempFile = isTempFile,
-                        InstructionSet = new PayloadTransferInstructionSet()
-                        {
-                            FileSystemType = fileSystemType,
-                            AppNotificationOptions = default,
-                            TargetFile = uploadInstructionSet.TargetFile,
-                            VersionTag = uploadInstructionSet.VersionTag,
-                            Manifest = uploadInstructionSet.Manifest
-                        }
+                        InstructionSet = payloadTransferInstructionSet
                     };
 
                     var item = new OutboxFileItem()
                     {
                         Priority = 100,
                         Type = OutboxItemType.PayloadUpdate,
-                        File = file,
+                        File = sourceFileId,
                         Recipient = recipient,
                         DependencyFileId = default,
                         State = new OutboxItemState()
                         {
-                            IsTransientFile = isTempFile,
+                            //When GlobalTransitId is used, we are sending the file directly to the recipient; there is no local file
+                            IsTransientFile = payloadTransferInstructionSet.TargetFile.Type == FileIdentifierType.GlobalTransitId,
                             Attempts = { },
                             OriginalTransitOptions = default,
                             EncryptedClientAuthToken = default,

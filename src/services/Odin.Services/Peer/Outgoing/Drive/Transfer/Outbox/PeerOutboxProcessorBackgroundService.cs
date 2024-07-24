@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
                     continue;
                 }
-                
+
                 logger.LogDebug("Processing outbox");
 
                 TimeSpan? nextRun;
@@ -73,7 +73,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             await Task.WhenAll(tasks);
         }
-        
+
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
@@ -161,6 +161,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                             {
                                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
                                 await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, connection);
+
+                                //clean up temp files
+                                await fs.Storage.DeleteTempFiles(fileItem.File, odinContext, connection);
                             }
                         });
                 }
@@ -183,6 +186,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     fileItem.AttemptCount);
                 return;
             }
+
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
             WakeUp();
         }

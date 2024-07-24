@@ -47,7 +47,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesForWritingFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
+                var bytes = await fs.Storage.GetAllFileBytesForWritingFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(),
+                    odinContext, cn);
 
                 if (bytes == null)
                 {
@@ -266,18 +267,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             if (storageIntent == StorageIntent.MetadataOnly)
             {
-                await fs.Storage.OverwriteMetadata(
-                    keyHeader.Iv,
-                    targetFile: targetFile,
-                    newMetadata: metadata,
-                    newServerMetadata: serverMetadata,
-                    odinContext: odinContext, cn);
-
+                await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
+                {
+                    await fs.Storage.OverwriteMetadata(
+                        keyHeader.Iv,
+                        targetFile: targetFile,
+                        newMetadata: metadata,
+                        newServerMetadata: serverMetadata,
+                        odinContext: odinContext, cn);
+                });
                 return;
             }
 
-
-            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteFile", async () =>
             {
                 //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
                 //one is written any time you save a header)
@@ -388,6 +390,33 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var existingFile = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext, cn);
             return existingFile;
+        }
+
+        public async Task HandlePayloads(IDriveFileSystem fs, TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
+            {
+                var globalTransitId = inboxItem.PayloadInstructionSet.TargetFile.FileId;
+                var header = await GetFileByGlobalTransitId(fs, inboxItem.DriveId, globalTransitId, odinContext, cn);
+
+                if (null == header)
+                {
+                    throw new OdinClientException("Invalid target file for writing payloads");
+                }
+
+                inboxItem.PayloadInstructionSet.Manifest.PayloadDescriptors
+                    
+                await fs.Storage.UpdatePayloads(
+                    tempSourceFile: inboxItem.PayloadSourceFile,
+                    targetFile: new InternalDriveFileId()
+                    {
+                        FileId = header.FileId,
+                        DriveId = inboxItem.DriveId
+                    },
+                    incomingPayloads: package.GetFinalPayloadDescriptors(),
+                    odinContext,
+                    cn);
+            });
         }
     }
 }

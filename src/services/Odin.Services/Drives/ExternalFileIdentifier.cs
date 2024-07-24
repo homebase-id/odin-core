@@ -1,5 +1,7 @@
 using System;
 using Odin.Core;
+using Odin.Services.Base;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Drives
 {
@@ -66,6 +68,16 @@ namespace Odin.Services.Drives
         public override string ToString()
         {
             return $"File:[{this.FileId}]\tTargetDrive:[{this.TargetDrive}]";
+        }
+
+        public FileIdentifier ToFileIdentifier()
+        {
+            return new FileIdentifier()
+            {
+                FileId = this.FileId,
+                Drive = TargetDrive,
+                Type = FileIdentifierType.File
+            };
         }
     }
 }

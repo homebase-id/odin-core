@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerIncomingDriveUpdateController : PeerPerimeterDriveUploadControllerBase
+    public class PeerIncomingDriveUploadController : PeerPerimeterDriveUploadControllerBase
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
@@ -42,7 +42,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IMediator _mediator;
 
         /// <summary />
-        public PeerIncomingDriveUpdateController(DriveManager driveManager,
+        public PeerIncomingDriveUploadController(DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory)
         {
@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
             //End Optimizations
 
-            _incomingTransferService = GetPerimeterService(_fileSystem);
+            _incomingTransferService = GetPeerDriveIncomingTransferService(_fileSystem);
             await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
 
             //
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<PeerTransferResponse> DeleteLinkedFile(DeleteRemoteFileRequest request)
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            var perimeterService = GetPerimeterService(fileSystem);
+            var perimeterService = GetPeerDriveIncomingTransferService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection();
             return await perimeterService.AcceptDeleteLinkedFileRequest(
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
@@ -137,7 +137,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             await AssertIsValidCaller();
 
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            var perimeterService = GetPerimeterService(fileSystem);
+            var perimeterService = GetPeerDriveIncomingTransferService(fileSystem);
             using var cn = _tenantSystemStorage.CreateConnection();
 
             return await perimeterService.MarkFileAsRead(
@@ -190,7 +190,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
         {
-            AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out _);
+            AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
 
             var parts = thumbnailUploadKey.Split(DriveFileUtility.TransitThumbnailKeyDelimiter);
             if (parts.Length != 3)
@@ -215,7 +215,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 WebOdinContext, cn);
         }
 
-        private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
+        private PeerDriveIncomingTransferService GetPeerDriveIncomingTransferService(IDriveFileSystem fileSystem)
         {
             return new PeerDriveIncomingTransferService(
                 _loggerFactory.CreateLogger<PeerDriveIncomingTransferService>(),

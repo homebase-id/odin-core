@@ -5,9 +5,11 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 {
@@ -53,5 +55,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         
         //Feed bolt-ons
         public EccEncryptedPayload EncryptedFeedPayload { get; set; }
+        
+        
+        //Payload state
+        public InternalDriveFileId PayloadSourceFile { get; set; }
+        public PayloadTransferInstructionSet PayloadInstructionSet { get; set; }
     }
 }

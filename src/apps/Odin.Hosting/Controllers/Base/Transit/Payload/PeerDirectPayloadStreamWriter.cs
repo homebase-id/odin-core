@@ -61,7 +61,7 @@ public sealed class PeerDirectPayloadStreamWriter
         await Task.CompletedTask;
     }
 
-    public async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddPayload(string key, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -84,7 +84,7 @@ public sealed class PeerDirectPayloadStreamWriter
                 Iv = descriptor.Iv,
                 PayloadKey = key,
                 Uid = descriptor.PayloadUid,
-                ContentType = contentType,
+                ContentType = descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -93,7 +93,7 @@ public sealed class PeerDirectPayloadStreamWriter
         }
     }
 
-    public async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddThumbnail(string thumbnailUploadKey, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         // Note: this assumes you've validated the manifest; so I won't check for duplicates etc
 
@@ -137,7 +137,7 @@ public sealed class PeerDirectPayloadStreamWriter
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType,
+            ContentType = result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });
@@ -148,7 +148,7 @@ public sealed class PeerDirectPayloadStreamWriter
     /// </summary>
     public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
-        await this.ValidateUploadCore(odinContext, cn);
+        await this.ValidateUpload();
 
         var recipientStatus = await EnqueueInOutbox(_package, odinContext, cn, fileSystemType);
 
@@ -167,9 +167,19 @@ public sealed class PeerDirectPayloadStreamWriter
 
         if (recipients?.Any() ?? false)
         {
+            var transferInstructionSet = new PayloadTransferInstructionSet()
+            {
+                FileSystemType = fileSystemType,
+                AppNotificationOptions = default,
+                TargetFile = package.InstructionSet.TargetFile,
+                VersionTag = package.InstructionSet.VersionTag,
+                Manifest = package.InstructionSet.Manifest
+            };
+
             recipientStatus = await _peerOutgoingTransferService.SendPayload(
                 package.TempFile,
-                package.InstructionSet,
+                recipients,
+                transferInstructionSet,
                 fileSystemType,
                 odinContext,
                 cn);
@@ -181,7 +191,7 @@ public sealed class PeerDirectPayloadStreamWriter
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(IOdinContext odinContext, DatabaseConnection cn)
+    private async Task ValidateUpload()
     {
         if (_package.InstructionSet.VersionTag == Guid.Empty)
         {

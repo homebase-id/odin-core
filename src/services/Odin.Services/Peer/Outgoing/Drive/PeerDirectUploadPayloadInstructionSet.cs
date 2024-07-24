@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
-using Odin.Services.Drives;
+using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Util;
 
@@ -10,10 +10,10 @@ namespace Odin.Services.Peer.Outgoing.Drive;
 
 public class PeerDirectUploadPayloadInstructionSet
 {
-    public GlobalTransitIdFileIdentifier TargetFile { get; set; }
+    public FileIdentifier TargetFile { get; set; }
 
     public UploadManifest Manifest { get; set; }
-    
+
     /// <summary>
     /// List of identities that should receive this file 
     /// </summary>
@@ -24,12 +24,12 @@ public class PeerDirectUploadPayloadInstructionSet
     public void AssertIsValid()
     {
         OdinValidationUtils.AssertValidRecipientList(this.Recipients);
-        if (Guid.Empty == this.TargetFile.GlobalTransitId)
+        if (Guid.Empty == this.TargetFile.FileId)
         {
-            throw new OdinClientException("Invalid GlobalTransitFile Id");
+            throw new OdinClientException("Invalid FileId");
         }
 
-        if (!TargetFile.TargetDrive.IsValid())
+        if (!TargetFile.Drive.IsValid())
         {
             throw new OdinClientException("Remote Target Drive is invalid", OdinClientErrorCode.InvalidDrive);
         }

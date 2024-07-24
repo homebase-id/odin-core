@@ -43,7 +43,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         [HttpPost("filemetadata")]
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetFeedDistributionPerimeterService();
             using var cn = _tenantSystemStorage.CreateConnection();
             return await perimeterService.AcceptUpdatedFileMetadata(payload, WebOdinContext, cn);
         }
@@ -51,12 +51,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
-            var perimeterService = GetPerimeterService();
+            var perimeterService = GetFeedDistributionPerimeterService();
             using var cn = _tenantSystemStorage.CreateConnection();
             return await perimeterService.Delete(payload, WebOdinContext, cn);
         }
 
-        private FeedDistributionPerimeterService GetPerimeterService()
+        private FeedDistributionPerimeterService GetFeedDistributionPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             return new FeedDistributionPerimeterService(

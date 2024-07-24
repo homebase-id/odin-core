@@ -28,7 +28,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
         switch (e.TransferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedAccessDenied:
-            case LatestTransferStatus.UnknownServerError:
+            case LatestTransferStatus.InternalServerError:
             case LatestTransferStatus.RecipientIdentityReturnedBadRequest:
             case LatestTransferStatus.SendingServerTooManyAttempts:
                 logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);

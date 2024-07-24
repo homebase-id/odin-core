@@ -17,7 +17,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -194,13 +193,7 @@ public class SendFileOutboxWorkerAsync(
                         await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
                             odinContext, cn);
 
-                    var thumbnailKey =
-                        $"{payloadKey}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelWidth}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelHeight}";
-
+                    var thumbnailKey = thumbHeader.CreateTransitKey(payloadKey);
                     additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
@@ -243,7 +236,7 @@ public class SendFileOutboxWorkerAsync(
             var e = ex.InnerException;
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
-                : LatestTransferStatus.UnknownServerError;
+                : LatestTransferStatus.InternalServerError;
 
             throw new OdinOutboxProcessingException("Failed sending to recipient")
             {
