@@ -1,6 +1,6 @@
 namespace Odin.Services.JobManagement;
 
-public enum SchedulerGroup
+public enum OldSchedulerGroup
 {
     Default,
     SlowLowPriority,

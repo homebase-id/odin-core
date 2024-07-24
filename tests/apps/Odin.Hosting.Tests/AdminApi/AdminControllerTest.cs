@@ -176,7 +176,7 @@ public class AdminControllerTest
 
         var idx = 0;
         const int max = 20;
-        var jobResponse = new JobResponse();
+        var jobResponse = new OldJobResponse();
         for (idx = 0; idx < max; idx++)
         {
             await Task.Delay(100);
@@ -184,8 +184,8 @@ public class AdminControllerTest
             response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            jobResponse = JobResponse.Deserialize(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == JobStatus.Completed)
+            jobResponse = OldJobResponse.Deserialize(await response.Content.ReadAsStringAsync());
+            if (jobResponse.Status == OldJobStatus.Completed)
             {
                 break;
             }
@@ -196,7 +196,7 @@ public class AdminControllerTest
         }
 
         var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
-        var jobKey = Helpers.ParseJobKey(jobResponse.JobKey);
+        var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
 
         var exists = await jobManager.Exists(jobKey);
         Assert.That(exists, Is.True);
@@ -231,7 +231,7 @@ public class AdminControllerTest
 
         var idx = 0;
         const int max = 20;
-        var jobResponse = new JobResponse();
+        var jobResponse = new OldJobResponse();
         ExportTenantData exportData = null;
         for (idx = 0; idx < max; idx++)
         {
@@ -240,8 +240,8 @@ public class AdminControllerTest
             response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            (jobResponse, exportData) = JobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == JobStatus.Completed)
+            (jobResponse, exportData) = OldJobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
+            if (jobResponse.Status == OldJobStatus.Completed)
             {
                 break;
             }
@@ -254,7 +254,7 @@ public class AdminControllerTest
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
 
         var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
-        var jobKey = Helpers.ParseJobKey(jobResponse.JobKey);
+        var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
 
         var exists = await jobManager.Exists(jobKey);
         Assert.That(exists, Is.True);

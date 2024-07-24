@@ -10,9 +10,9 @@ using Quartz;
 namespace Odin.Services.JobManagement;
 #nullable enable
 
-public class JobListener(
+public class OldJobListener(
     IServiceProvider serviceProvider,
-    ILogger<JobListener> logger,
+    ILogger<OldJobListener> logger,
     ILoggerFactory loggerFactory,
     ICorrelationContext correlationContext,
     IJobMemoryCache jobMemoryCache)
@@ -30,11 +30,11 @@ public class JobListener(
         logger.LogDebug("Job {JobKey} starting", job.Key);
         if (job.Durable)
         {
-            jobData[JobConstants.StatusKey] = JobConstants.StatusValueStarted;
+            jobData[OldJobConstants.StatusKey] = OldJobConstants.StatusValueStarted;
             await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
         }
 
-        await context.ExecuteJobEvent(serviceProvider, JobStatus.Started);
+        await context.ExecuteJobEvent(serviceProvider, OldJobStatus.Started);
     }
 
     //
@@ -57,12 +57,12 @@ public class JobListener(
 
                 if (job.Durable)
                 {
-                    jobData[JobConstants.StatusKey] = JobConstants.StatusValueCompleted;
+                    jobData[OldJobConstants.StatusKey] = OldJobConstants.StatusValueCompleted;
                     await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
                 }
 
-                await ScheduleJobDeletion(context, JobConstants.CompletedRetentionSecondsKey);
-                await context.ExecuteJobEvent(serviceProvider, JobStatus.Completed);
+                await ScheduleJobDeletion(context, OldJobConstants.CompletedRetentionSecondsKey);
+                await context.ExecuteJobEvent(serviceProvider, OldJobStatus.Completed);
             }
             finally
             {
@@ -74,9 +74,9 @@ public class JobListener(
             var retryMax = 0;
             var retryDelaySeconds = 0L;
             var retry =
-                jobData.TryGetIntValue(JobConstants.RetryCountKey, out var retryCount) &&
-                jobData.TryGetIntValue(JobConstants.RetryMaxKey, out retryMax) &&
-                jobData.TryGetLongValue(JobConstants.RetryDelaySecondsKey, out retryDelaySeconds);
+                jobData.TryGetIntValue(OldJobConstants.RetryCountKey, out var retryCount) &&
+                jobData.TryGetIntValue(OldJobConstants.RetryMaxKey, out retryMax) &&
+                jobData.TryGetLongValue(OldJobConstants.RetryDelaySecondsKey, out retryDelaySeconds);
             if (retry && retryCount < retryMax)
             {
                 retryCount++;
@@ -84,7 +84,7 @@ public class JobListener(
                 logger.LogWarning("Job {JobKey} unsuccessful. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
                     job.Key, retryCount, retryMax, retryAt);
 
-                jobData[JobConstants.RetryCountKey] = retryCount.ToString();
+                jobData[OldJobConstants.RetryCountKey] = retryCount.ToString();
                 await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
 
                 var retryTrigger = TriggerBuilder.Create()
@@ -111,13 +111,13 @@ public class JobListener(
 
                     if (job.Durable)
                     {
-                        jobData[JobConstants.StatusKey] = JobConstants.StatusValueFailed;
-                        jobData[JobConstants.JobErrorMessageKey] = errorMessage;
+                        jobData[OldJobConstants.StatusKey] = OldJobConstants.StatusValueFailed;
+                        jobData[OldJobConstants.JobErrorMessageKey] = errorMessage;
                         await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
                     }
 
-                    await ScheduleJobDeletion(context, JobConstants.FailedRetentionSecondsKey);
-                    await context.ExecuteJobEvent(serviceProvider, JobStatus.Failed);
+                    await ScheduleJobDeletion(context, OldJobConstants.FailedRetentionSecondsKey);
+                    await context.ExecuteJobEvent(serviceProvider, OldJobStatus.Failed);
                 }
                 finally
                 {
@@ -134,10 +134,10 @@ public class JobListener(
         var job = context.JobDetail;
         var jobData = job.JobDataMap;
 
-        if (jobData.TryGetString(JobConstants.JobTypeName, out var jobTypeName) && jobTypeName != null)
+        if (jobData.TryGetString(OldJobConstants.JobTypeName, out var jobTypeName) && jobTypeName != null)
         {
             // Don't schedule a job to delete a deletion job => infinite loop
-            if (jobTypeName == typeof(DeleteJobDetailsJob).FullName)
+            if (jobTypeName == typeof(OldDeleteJobDetailsJob).FullName)
             {
                 return;
             }
@@ -147,8 +147,8 @@ public class JobListener(
         {
             var jobManager = serviceProvider.GetRequiredService<IJobManager>();
             var deleteAt = DateTimeOffset.Now + TimeSpan.FromSeconds(long.Parse(retention));
-            var jobSchedule = new DeleteJobDetailsSchedule(loggerFactory, job.Key, deleteAt);
-            await jobManager.Schedule<DeleteJobDetailsJob>(jobSchedule);
+            var jobSchedule = new DeleteOldIJobDetailsSchedule(loggerFactory, job.Key, deleteAt);
+            await jobManager.Schedule<OldDeleteJobDetailsJob>(jobSchedule);
         }
     }
 
@@ -164,5 +164,5 @@ public class JobListener(
 
     //
 
-    public string Name => nameof(JobListener);
+    public string Name => nameof(OldJobListener);
 }

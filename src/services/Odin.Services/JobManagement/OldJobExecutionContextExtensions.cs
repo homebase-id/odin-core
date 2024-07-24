@@ -6,7 +6,7 @@ using Quartz;
 
 namespace Odin.Services.JobManagement;
 
-public static class JobExecutionContextExtensions
+public static class OldJobExecutionContextExtensions
 {
     public static Task UpdateJobMap(
         this IJobExecutionContext context,
@@ -23,7 +23,7 @@ public static class JobExecutionContextExtensions
         if (context.JobDetail.Durable)
         {
             var jobData = context.JobDetail.JobDataMap;
-            if (jobData.TryGetString(JobConstants.CorrelationIdKey, out var correlationId) && correlationId != null)
+            if (jobData.TryGetString(OldJobConstants.CorrelationIdKey, out var correlationId) && correlationId != null)
             {
                 correlationContext.Id = correlationId;
             }
@@ -44,17 +44,17 @@ public static class JobExecutionContextExtensions
     public static async Task ExecuteJobEvent(
         this IJobExecutionContext context,
         IServiceProvider serviceProvider,
-        JobStatus status)
+        OldJobStatus status)
     {
         var jobData = context.JobDetail.JobDataMap;
 
-        if (jobData.TryGetString(JobConstants.JobEventTypeKey, out var eventType) && eventType != null)
+        if (jobData.TryGetString(OldJobConstants.JobEventTypeKey, out var eventType) && eventType != null)
         {
             var type = Type.GetType(eventType);
             if (type != null)
             {
                 var instance = ActivatorUtilities.CreateInstance(serviceProvider, type);
-                if (instance is IJobEvent jobEvent)
+                if (instance is OldIJobEvent jobEvent)
                 {
                     await jobEvent.Execute(context, status);
                 }

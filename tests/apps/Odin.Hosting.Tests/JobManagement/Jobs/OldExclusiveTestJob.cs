@@ -9,10 +9,10 @@ using Quartz;
 namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class ExclusiveTestSchedule(ILogger<ExclusiveTestSchedule> logger) : AbstractJobSchedule
+public class ExclusiveTestSchedule(ILogger<ExclusiveTestSchedule> logger) : OldAbstractOldIJobSchedule
 {
     public sealed override string SchedulingKey { get; } = "exclusive-test";
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.SlowLowPriority;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -49,10 +49,10 @@ public class ExclusiveTestSchedule(ILogger<ExclusiveTestSchedule> logger) : Abst
 
 //
 
-public class ExclusiveTestJob(
+public class OldExclusiveTestJob(
     ICorrelationContext correlationContext,
-    ILogger<ExclusiveTestJob> logger)
-    : AbstractJob(correlationContext)
+    ILogger<OldExclusiveTestJob> logger)
+    : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {

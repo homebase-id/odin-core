@@ -18,10 +18,10 @@ public static class JobManagementExtensions
             SchedulerThreadCount = config.Job.MaxSchedulerConcurrency
         });
 
-        services.AddSingleton<IJobFactory, DiJobFactory>();
-        services.AddSingleton<IJobListener, JobListener>();
-        services.AddSingleton<IJobMemoryCache, JobMemoryCache>();
-        services.AddSingleton<IJobManager, JobManager>();
+        services.AddSingleton<IJobFactory, OldDiJobFactory>();
+        services.AddSingleton<IJobListener, OldJobListener>();
+        services.AddSingleton<IJobMemoryCache, OldJobMemoryCache>();
+        services.AddSingleton<IJobManager, OldJobManager>();
 
         return services;
     }

@@ -14,10 +14,10 @@ public class SendProvisioningCompleteEmailSchedule(
     string domain,
     string email,
     string firstRunToken,
-    TimeSpan fromNow) : AbstractJobSchedule
+    TimeSpan fromNow) : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.SlowLowPriority;
 
     public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -43,7 +43,7 @@ public class SendProvisioningCompleteEmailJob(
     ILogger<SendProvisioningCompleteEmailJob> logger,
     IEmailSender emailSender,
     IIdentityRegistrationService identityRegistrationService
-    ) : AbstractJob(correlationContext)
+    ) : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {

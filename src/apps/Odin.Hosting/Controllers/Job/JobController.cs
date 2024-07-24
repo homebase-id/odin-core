@@ -22,12 +22,12 @@ public class JobController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("/api/job/v1/{jobKey}", Name = GetJobResponseRouteName)]
-    public async Task<ActionResult<JobResponse>> GetJobResponse(string jobKey)
+    public async Task<ActionResult<OldJobResponse>> GetJobResponse(string jobKey)
     {
-        var jk = Helpers.ParseJobKey(jobKey);
+        var jk = OldHelpers.ParseJobKey(jobKey);
         var job = await _jobManager.GetResponse(jk);
 
-        if (job.Status == JobStatus.NotFound)
+        if (job.Status == OldJobStatus.NotFound)
         {
             return NotFound(job);
         }

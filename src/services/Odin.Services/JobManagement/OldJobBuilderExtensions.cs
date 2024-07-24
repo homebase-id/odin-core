@@ -3,28 +3,28 @@ using Quartz;
 
 namespace Odin.Services.JobManagement;
 
- public static class JobBuilderExtensions
+ public static class OldJobBuilderExtensions
  {
 
      //
 
      public static string GetGroupName<TJobType>(this JobBuilder _)
      {
-         return Helpers.GetGroupName<TJobType>();
+         return OldHelpers.GetGroupName<TJobType>();
      }
 
      //
 
      public static JobKey ParseJobKey(this JobBuilder _, string jobKey)
      {
-         return Helpers.ParseJobKey(jobKey);
+         return OldHelpers.ParseJobKey(jobKey);
      }
 
      //
 
      public static JobKey CreateUniqueJobKey(this JobBuilder _)
      {
-         return Helpers.CreateUniqueJobKey();
+         return OldHelpers.CreateUniqueJobKey();
      }
 
      //
@@ -46,9 +46,9 @@ namespace Odin.Services.JobManagement;
          }
 
          // NOTE: values must be strings if "storeOptions.UseProperties = true;"
-         builder.UsingJobData(JobConstants.RetryCountKey, 0.ToString());
-         builder.UsingJobData(JobConstants.RetryMaxKey, retryMax.ToString());
-         builder.UsingJobData(JobConstants.RetryDelaySecondsKey, retrySeconds.ToString());
+         builder.UsingJobData(OldJobConstants.RetryCountKey, 0.ToString());
+         builder.UsingJobData(OldJobConstants.RetryMaxKey, retryMax.ToString());
+         builder.UsingJobData(OldJobConstants.RetryDelaySecondsKey, retrySeconds.ToString());
          return builder;
      }
 
@@ -88,16 +88,16 @@ namespace Odin.Services.JobManagement;
 
          // NOTE: values must be strings if "storeOptions.UseProperties = true;"
          builder.StoreDurably();
-         builder.UsingJobData(JobConstants.CompletedRetentionSecondsKey, completedRetentionSeconds.ToString());
-         builder.UsingJobData(JobConstants.FailedRetentionSecondsKey, failedRetentionSeconds.ToString());
+         builder.UsingJobData(OldJobConstants.CompletedRetentionSecondsKey, completedRetentionSeconds.ToString());
+         builder.UsingJobData(OldJobConstants.FailedRetentionSecondsKey, failedRetentionSeconds.ToString());
          return builder;
      }
 
      //
 
-     public static JobBuilder WithJobEvent<T>(this JobBuilder builder) where T : IJobEvent
+     public static JobBuilder WithJobEvent<T>(this JobBuilder builder) where T : OldIJobEvent
      {
-         builder.UsingJobData(JobConstants.JobEventTypeKey, typeof(T).AssemblyQualifiedName);
+         builder.UsingJobData(OldJobConstants.JobEventTypeKey, typeof(T).AssemblyQualifiedName);
          return builder;
      }
 

@@ -6,7 +6,7 @@ using Quartz;
 namespace Odin.Services.JobManagement;
 #nullable enable
 
-public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
+public abstract class OldAbstractJob(ICorrelationContext correlationContext) : IJob
 {
 
     // Consumer must implement this method
@@ -36,12 +36,12 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
 
         context.ApplyCorrelationId(correlationContext);
 
-        if (jobData.TryGetString(JobConstants.CompletedRetentionSecondsKey, out var cr) && cr != null)
+        if (jobData.TryGetString(OldJobConstants.CompletedRetentionSecondsKey, out var cr) && cr != null)
         {
             CompletedRetention = TimeSpan.FromSeconds(long.Parse(cr));
         }
 
-        if (jobData.TryGetString(JobConstants.FailedRetentionSecondsKey, out var fr) && fr != null)
+        if (jobData.TryGetString(OldJobConstants.FailedRetentionSecondsKey, out var fr) && fr != null)
         {
             FailedRetention = TimeSpan.FromSeconds(long.Parse(fr));
         }

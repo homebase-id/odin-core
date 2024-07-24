@@ -9,10 +9,10 @@ using Quartz;
 namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class SleepyTestSchedule(ILogger<SleepyTestSchedule> logger, SchedulerGroup schedulerGroup) : AbstractJobSchedule
+public class NonExclusiveTestSchedule(ILogger<NonExclusiveTestSchedule> logger) : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey => Helpers.UniqueId(); // computed property, since we want a new one each time for these specific tests
-    public sealed override SchedulerGroup SchedulerGroup { get; } = schedulerGroup;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -21,8 +21,7 @@ public class SleepyTestSchedule(ILogger<SleepyTestSchedule> logger, SchedulerGro
         jobBuilder
             .WithRetry(2, TimeSpan.FromSeconds(1))
             .WithRetention(TimeSpan.FromMinutes(1))
-            .UsingJobData("echo", TestEcho)
-            .UsingJobData("sleep", SleepTime.ToString());
+            .UsingJobData("echo", TestEcho);
 
         var triggerBuilders = new List<TriggerBuilder>
         {
@@ -33,37 +32,36 @@ public class SleepyTestSchedule(ILogger<SleepyTestSchedule> logger, SchedulerGro
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
 
-    public int SleepTime { get; set; } = 1000;
     public string TestEcho { get; set; } = "";
 }
 
 //
 
-public class SleepyTestJob(
+public class OldNonExclusiveTestJob(
     ICorrelationContext correlationContext,
     ILoggerFactory loggerFactory)
-    : AbstractJob(correlationContext)
+    : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
-        var logger = loggerFactory.CreateLogger<SleepyTestJob>();
+        var logger = loggerFactory.CreateLogger<OldNonExclusiveTestJob>();
 
         var jobKey = context.JobDetail.Key;
         logger.LogDebug("Starting {JobKey}", jobKey);
+        logger.LogDebug("Working...");
 
         var jobData = context.JobDetail.JobDataMap;
         jobData.TryGetString("echo", out var echo);
-        jobData.TryGetInt("sleep", out var sleep);
 
-        await Task.Delay(sleep);
+        await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
 
-        await SetJobResponseData(context, new SleepyTestData { Echo = echo });
+        logger.LogDebug("Finished {JobKey}", jobKey);
     }
 }
 
 //
 
-public class SleepyTestData
+public class NonExclusiveTestData
 {
     public string? Echo { get; set; }
 }

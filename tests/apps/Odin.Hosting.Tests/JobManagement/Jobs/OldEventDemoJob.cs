@@ -7,10 +7,10 @@ using Quartz;
 
 namespace Odin.Hosting.Tests.JobManagement.Jobs;
 
-public class EventDemoSchedule : AbstractJobSchedule
+public class EventDemoSchedule : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -32,7 +32,7 @@ public class EventDemoSchedule : AbstractJobSchedule
 }
 
 
-public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(correlationContext)
+public class OldEventDemoJob(ICorrelationContext correlationContext) : OldAbstractJob(correlationContext)
 {
     protected override Task Run(IJobExecutionContext context)
     {
@@ -47,9 +47,9 @@ public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(
     }
 }
 
-public class EventDemoEvent(EventDemoTestContainer testContainer) : IJobEvent
+public class EventDemoEvent(EventDemoTestContainer testContainer) : OldIJobEvent
 {
-    public Task Execute(IJobExecutionContext context, JobStatus status)
+    public Task Execute(IJobExecutionContext context, OldJobStatus status)
     {
         testContainer.Status.Add(status);
         return Task.CompletedTask;
@@ -58,5 +58,5 @@ public class EventDemoEvent(EventDemoTestContainer testContainer) : IJobEvent
 
 public class EventDemoTestContainer
 {
-    public List<JobStatus> Status { get; set; } = [];
+    public List<OldJobStatus> Status { get; set; } = [];
 }

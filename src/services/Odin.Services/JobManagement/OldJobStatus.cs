@@ -1,6 +1,6 @@
 namespace Odin.Services.JobManagement;
 
-public enum JobStatus
+public enum OldJobStatus
 {
     Unknown,
     NotFound,

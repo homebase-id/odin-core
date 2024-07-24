@@ -8,10 +8,10 @@ using Quartz;
 namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class ChainTestSchedule : AbstractJobSchedule
+public class ChainTestSchedule : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -33,8 +33,8 @@ public class ChainTestSchedule : AbstractJobSchedule
 
 //
 
-public class ChainTestJob(ICorrelationContext correlationContext, IJobManager jobManager)
-    : AbstractJob(correlationContext)
+public class OldChainTestJob(ICorrelationContext correlationContext, IJobManager jobManager)
+    : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
@@ -48,7 +48,7 @@ public class ChainTestJob(ICorrelationContext correlationContext, IJobManager jo
             {
                 IterationCount = currentIteration - 1
             };
-            var jobKey = await jobManager.Schedule<ChainTestJob>(scheduler);
+            var jobKey = await jobManager.Schedule<OldChainTestJob>(scheduler);
             nextJobKey = jobKey.ToString();
         }
 

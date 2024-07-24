@@ -21,9 +21,9 @@ public interface IJobMemoryCache
 
 //
 
-public class JobMemoryCache : IJobMemoryCache
+public class OldJobMemoryCache : IJobMemoryCache
 {
-    private readonly MemoryCache _cache = new("JobMemoryCache");
+    private readonly MemoryCache _cache = new("OldJobMemoryCache");
 
     //
 

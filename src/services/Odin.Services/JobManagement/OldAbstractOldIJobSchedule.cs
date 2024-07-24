@@ -6,7 +6,7 @@ using Quartz;
 namespace Odin.Services.JobManagement;
 #nullable enable
 
-public abstract class AbstractJobSchedule : IJobScheduler
+public abstract class OldAbstractOldIJobSchedule : OldIJobScheduler
 {
     /// <summary>
     /// Gets the scheduling key.
@@ -22,7 +22,7 @@ public abstract class AbstractJobSchedule : IJobScheduler
     /// </remarks>
     public abstract string SchedulingKey { get; }
 
-    public abstract SchedulerGroup SchedulerGroup { get; }
+    public abstract OldSchedulerGroup OldSchedulerGroup { get; }
 
     /// <summary>
     /// Create a job and return the job and trigger builders.
@@ -47,13 +47,13 @@ public abstract class AbstractJobSchedule : IJobScheduler
                             throw new ArgumentException("SchedulingKey must not contain '.' nor '|'");
                         }
 
-                        var schedulerGroup = SchedulerGroup.ToString();
+                        var schedulerGroup = OldSchedulerGroup.ToString();
                         if (schedulerGroup.Contains('.') || schedulerGroup.Contains('|'))
                         {
-                            throw new ArgumentException("SchedulerGroup must not contain '.' nor '|'");
+                            throw new ArgumentException("OldSchedulerGroup must not contain '.' nor '|'");
                         }
 
-                        var jobInstance = Helpers.UniqueId();
+                        var jobInstance = OldHelpers.UniqueId();
                         if (jobInstance.Contains('.') || jobInstance.Contains('|'))
                         {
                             throw new ArgumentException("JobInstance must not contain '.' nor '|'");

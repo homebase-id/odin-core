@@ -12,10 +12,10 @@ using Quartz;
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-public class ExportTenantSchedule(ILogger<ExportTenantSchedule> logger, string domain) : AbstractJobSchedule
+public class ExportTenantSchedule(ILogger<ExportTenantSchedule> logger, string domain) : OldAbstractOldIJobSchedule
 {
     public sealed override string SchedulingKey { get; } = $"export-tenant:{domain.Replace('.', '_')}";
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.SlowLowPriority;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -43,7 +43,7 @@ public class ExportTenantJob(
     ICorrelationContext correlationContext,
     ILogger<ExportTenantJob> logger,
     IIdentityRegistry identityRegistry,
-    OdinConfiguration config) : AbstractJob(correlationContext)
+    OdinConfiguration config) : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {

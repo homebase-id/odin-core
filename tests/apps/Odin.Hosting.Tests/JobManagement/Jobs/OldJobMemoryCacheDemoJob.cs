@@ -7,10 +7,10 @@ using Quartz;
 
 namespace Odin.Hosting.Tests.JobManagement.Jobs;
 
-public class JobMemoryCacheDemoSchedule(IJobMemoryCache jobMemoryCache) : AbstractJobSchedule
+public class OldIJobMemoryCacheDemoSchedule(IJobMemoryCache jobMemoryCache) : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -18,7 +18,7 @@ public class JobMemoryCacheDemoSchedule(IJobMemoryCache jobMemoryCache) : Abstra
 
         jobBuilder
             .WithRetention(TimeSpan.FromMinutes(1))
-            .WithJobEvent<JobMemoryCacheDemoEvent>();
+            .WithJobEvent<OldIJobMemoryCacheDemoEvent>();
 
         var triggerBuilders = new List<TriggerBuilder>
         {
@@ -30,9 +30,9 @@ public class JobMemoryCacheDemoSchedule(IJobMemoryCache jobMemoryCache) : Abstra
     }
 }
 
-public class JobMemoryCacheDemoJob(
+public class OldJobMemoryCacheDemoJob(
     ICorrelationContext correlationContext,
-    IJobMemoryCache jobMemoryCache) : AbstractJob(correlationContext)
+    IJobMemoryCache jobMemoryCache) : OldAbstractJob(correlationContext)
 {
     protected override Task Run(IJobExecutionContext context)
     {
@@ -46,9 +46,9 @@ public class JobMemoryCacheDemoJob(
     }
 }
 
-public class JobMemoryCacheDemoEvent(IJobMemoryCache jobMemoryCache, JobMemoryCacheDemoTestContainer testContainer) : IJobEvent
+public class OldIJobMemoryCacheDemoEvent(IJobMemoryCache jobMemoryCache, JobMemoryCacheDemoTestContainer testContainer) : OldIJobEvent
 {
-    public Task Execute(IJobExecutionContext context, JobStatus status)
+    public Task Execute(IJobExecutionContext context, OldJobStatus status)
     {
         jobMemoryCache.TryGet<string>(context, out var secret);
         if (secret != "my secret data that is only stored in memory")

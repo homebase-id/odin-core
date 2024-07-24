@@ -14,12 +14,12 @@ using Quartz;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 #nullable enable
 
-public class ProcessOutboxSchedule(OdinId identity, UnixTimeUtc nextRunTime) : AbstractJobSchedule
+public class ProcessOutboxSchedule(OdinId identity, UnixTimeUtc nextRunTime) : OldAbstractOldIJobSchedule
 {
     internal const string IdentityKey = "identity";
 
     public sealed override string SchedulingKey { get; } = nextRunTime.seconds.ToString();
-    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -48,7 +48,7 @@ public class ProcessOutboxJob(
     ICorrelationContext correlationContext,
     ILogger<ProcessOutboxJob> logger,
     ISystemHttpClient systemHttpClient)
-    : AbstractJob(correlationContext)
+    : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
@@ -74,9 +74,9 @@ public class ProcessOutboxJob(
 
 //
 
-public class ProcessOutboxEvent(ILogger<ProcessOutboxEvent> logger) : IJobEvent
+public class ProcessOutboxEvent(ILogger<ProcessOutboxEvent> logger) : OldIJobEvent
 {
-    public Task Execute(IJobExecutionContext context, JobStatus status)
+    public Task Execute(IJobExecutionContext context, OldJobStatus status)
     {
         var jobData = context.JobDetail.JobDataMap;
         if (jobData.TryGetString("echo", out var echo))

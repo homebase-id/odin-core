@@ -67,14 +67,14 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var jobResponse = JobResponse.Deserialize(await response.Content.ReadAsStringAsync());
+                    var jobResponse = OldJobResponse.Deserialize(await response.Content.ReadAsStringAsync());
 
-                    if (jobResponse.Status == JobStatus.Failed)
+                    if (jobResponse.Status == OldJobStatus.Failed)
                     {
                         throw new Exception($"Error deleting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (jobResponse.Status == JobStatus.Completed)
+                    if (jobResponse.Status == OldJobStatus.Completed)
                     {
                         AnsiConsole.MarkupLine("[green]Done[/]");
                         done = true;

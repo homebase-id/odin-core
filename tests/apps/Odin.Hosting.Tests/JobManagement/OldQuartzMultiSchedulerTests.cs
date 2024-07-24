@@ -11,17 +11,17 @@ using Quartz.Spi;
 
 namespace Odin.Hosting.Tests.JobManagement;
 
-public class QuartzMultiSchedulerTests
+public class OldQuartzMultiSchedulerTests
 {
     [Test]
     [Explicit]
     public async Task Test1()
     {
         var serviceCollection = new ServiceCollection();
-        QuartzMultiScheduler.RegisterJobs(serviceCollection);
+        OldQuartzMultiScheduler.RegisterJobs(serviceCollection);
         var serviceProvider = serviceCollection.BuildServiceProvider();
 
-        var ms = new QuartzMultiScheduler(serviceProvider);
+        var ms = new OldQuartzMultiScheduler(serviceProvider);
 
         var s1 = await ms.Start("s1");
         var s2 = await ms.Start("s2");
@@ -39,7 +39,7 @@ public class QuartzMultiSchedulerTests
 
 }
 
-public class QuartzMultiScheduler(ServiceProvider serviceProvider)
+public class OldQuartzMultiScheduler(ServiceProvider serviceProvider)
 {
     public static void RegisterJobs(ServiceCollection services)
     {
@@ -56,7 +56,7 @@ public class QuartzMultiScheduler(ServiceProvider serviceProvider)
 
         var connectionString = $"/Users/seb/tmp/xxx/{name}.db";
 
-        QuartzSqlite.CreateSchema(connectionString);
+        OldQuartzSqlite.CreateSchema(connectionString);
 
         var properties = new NameValueCollection()
         {

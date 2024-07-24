@@ -6,7 +6,7 @@ using Quartz;
 namespace Odin.Services.JobManagement;
 #nullable enable
 
-public static class Helpers
+public static class OldHelpers
 {
     public static string GetGroupName<TJobType>()
     {
@@ -46,15 +46,15 @@ public static class Helpers
 
     //
 
-    public static JobStatus JobStatusFromStatusValue(string statusValue)
+    public static OldJobStatus JobStatusFromStatusValue(string statusValue)
     {
         return statusValue switch
         {
-            JobConstants.StatusValueAdded => JobStatus.Scheduled,
-            JobConstants.StatusValueStarted => JobStatus.Started,
-            JobConstants.StatusValueCompleted => JobStatus.Completed,
-            JobConstants.StatusValueFailed => JobStatus.Failed,
-            _ => JobStatus.Unknown
+            OldJobConstants.StatusValueAdded => OldJobStatus.Scheduled,
+            OldJobConstants.StatusValueStarted => OldJobStatus.Started,
+            OldJobConstants.StatusValueCompleted => OldJobStatus.Completed,
+            OldJobConstants.StatusValueFailed => OldJobStatus.Failed,
+            _ => OldJobStatus.Unknown
         };
     }
 

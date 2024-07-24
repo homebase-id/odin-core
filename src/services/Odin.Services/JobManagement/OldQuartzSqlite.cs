@@ -2,7 +2,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Odin.Services.JobManagement;
 
-public static class QuartzSqlite
+public static class OldQuartzSqlite
 {
     // Create schema
     // https://github.com/quartznet/quartznet/blob/main/database/tables/tables_sqlite.sql

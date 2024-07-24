@@ -1,6 +1,6 @@
 namespace Odin.Services.JobManagement;
 
-public static class JobConstants
+public static class OldJobConstants
 {
     public const string CorrelationIdKey = "odin_correlation_id";
     public const string JobTypeName = "odin_job_type_name";

@@ -8,20 +8,20 @@ using Quartz.Impl.Matchers;
 namespace Odin.Services.JobManagement;
 #nullable enable
 
-public static class SchedulerExtensions
+public static class OldSchedulerExtensions
 {
     //
 
     public static string GetGroupName<TJobType>(this IScheduler _)
     {
-        return Helpers.GetGroupName<TJobType>();
+        return OldHelpers.GetGroupName<TJobType>();
     }
 
     //
 
     public static JobKey ParseJobKey(this IScheduler _, string jobKey)
     {
-        return Helpers.ParseJobKey(jobKey);
+        return OldHelpers.ParseJobKey(jobKey);
     }
 
     //
@@ -91,7 +91,7 @@ public static class SchedulerExtensions
         object serializableObject)
     {
         var json = OdinSystemSerializer.Serialize(serializableObject);
-        await scheduler.UpdateJobMap(jobDetail, JobConstants.JobResponseDataKey, json);
+        await scheduler.UpdateJobMap(jobDetail, OldJobConstants.JobResponseDataKey, json);
     }
 
     //

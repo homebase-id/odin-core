@@ -11,10 +11,10 @@ using Quartz;
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-public class DeleteTenantSchedule(ILogger<DeleteTenantSchedule> logger, string domain) : AbstractJobSchedule
+public class DeleteTenantSchedule(ILogger<DeleteTenantSchedule> logger, string domain) : OldAbstractOldIJobSchedule
 {
     public sealed override string SchedulingKey { get; } = $"delete-tenant:{domain.Replace('.', '_')}";
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
+    public sealed override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.SlowLowPriority;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -39,7 +39,7 @@ public class DeleteTenantSchedule(ILogger<DeleteTenantSchedule> logger, string d
 public class DeleteTenantJob(
     ICorrelationContext correlationContext,
     ILogger<DeleteTenantJob> logger,
-    IIdentityRegistry identityRegistry) : AbstractJob(correlationContext)
+    IIdentityRegistry identityRegistry) : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {

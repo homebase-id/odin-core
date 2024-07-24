@@ -19,7 +19,7 @@ using Quartz;
 namespace Odin.Hosting.Tests.JobManagement;
 
 [Timeout(60000)]
-public class JobManagerTest
+public class OldJobManagerTest
 {
     private readonly TimeSpan _maxWaitForJobStatus = TimeSpan.FromSeconds(5);
     private string _tempPath;
@@ -83,7 +83,7 @@ public class JobManagerTest
                 services.AddTransient<ExclusiveTestSchedule>();
                 services.AddTransient<ChainTestSchedule>();
                 services.AddTransient<EventDemoSchedule>();
-                services.AddTransient<JobMemoryCacheDemoSchedule>();
+                services.AddTransient<OldIJobMemoryCacheDemoSchedule>();
 
                 services.AddSingleton<EventDemoTestContainer>();
                 services.AddSingleton<JobMemoryCacheDemoTestContainer>();
@@ -101,7 +101,7 @@ public class JobManagerTest
 
     //
 
-    private async Task WaitForJobStatus(IJobManager jobManager, JobKey jobKey, JobStatus status, TimeSpan maxWaitTime)
+    private async Task WaitForJobStatus(IJobManager jobManager, JobKey jobKey, OldJobStatus status, TimeSpan maxWaitTime)
     {
         var sw = Stopwatch.StartNew();
         while (true)
@@ -147,7 +147,7 @@ public class JobManagerTest
         await jobManager.Initialize(async () =>
         {
             var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
-            jobKey = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+            jobKey = await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler);
 
             // Check if job exists
             var exists = await jobManager.Exists(jobKey);
@@ -157,11 +157,11 @@ public class JobManagerTest
 
             // Check that job does not start before we exit the initialize method
             var response = await jobManager.GetResponse(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Scheduled));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Scheduled));
         });
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
     }
 
     [Test]
@@ -171,24 +171,24 @@ public class JobManagerTest
 
         var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World";
-        var jobKey = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler);
 
         // NonExclusiveTestScheduler is using unique jobid
         var keyParts = jobKey.ToString().Split('.');
         Assert.That(keyParts[0], Has.Length.EqualTo(32));
         Assert.That(keyParts[1], Has.Length.GreaterThan(32));
-        Assert.That(keyParts[1], Does.EndWith($"|{scheduler.SchedulerGroup}"));
+        Assert.That(keyParts[1], Does.EndWith($"|{scheduler.OldSchedulerGroup}"));
 
         // Check if schedule exists
         var exists = await jobManager.Exists(jobKey);
         Assert.That(exists, Is.True);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Check response and data
         var (response, data) = await jobManager.GetResponse<NonExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
         Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
 
         // Manually delete all traces of the job
@@ -209,8 +209,8 @@ public class JobManagerTest
         var scheduler2 = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
         scheduler2.TestEcho = "Hello World 2";
 
-        var jobKey1 = await jobManager.Schedule<NonExclusiveTestJob>(scheduler1);
-        var jobKey2 = await jobManager.Schedule<NonExclusiveTestJob>(scheduler2);
+        var jobKey1 = await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler1);
+        var jobKey2 = await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler2);
 
         // Make sure the jobkeys are different, i.e two different jobs are scheduled
         Assert.That(jobKey1, Is.Not.EqualTo(jobKey2));
@@ -218,20 +218,20 @@ public class JobManagerTest
         // Wait for jobs to complete
         foreach (var jobKey in new[] { jobKey1, jobKey2 })
         {
-            await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+            await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
         }
 
         // Check response and data from job 1
         {
             var (response, data) = await jobManager.GetResponse<NonExclusiveTestData>(jobKey1);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo(scheduler1.TestEcho));
         }
 
         // Check response and data from job 2
         {
             var (response, data) = await jobManager.GetResponse<NonExclusiveTestData>(jobKey2);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo(scheduler2.TestEcho));
         }
     }
@@ -251,8 +251,8 @@ public class JobManagerTest
         // Verify that the jobtype is the same for both schedulers
         Assert.That(scheduler1.SchedulingKey, Is.EqualTo(scheduler2.SchedulingKey));
 
-        var jobKey1 = await jobManager.Schedule<ExclusiveTestJob>(scheduler1);
-        var jobKey2 = await jobManager.Schedule<ExclusiveTestJob>(scheduler2);
+        var jobKey1 = await jobManager.Schedule<OldExclusiveTestJob>(scheduler1);
+        var jobKey2 = await jobManager.Schedule<OldExclusiveTestJob>(scheduler2);
 
         // Make sure the jobkeys are the same, i.e only the first job is scheduled
         Assert.That(jobKey2, Is.EqualTo(jobKey1));
@@ -260,15 +260,15 @@ public class JobManagerTest
         var keyParts = jobKey1.ToString().Split('.');
         Assert.That(keyParts[0], Is.EqualTo(scheduler1.SchedulingKey));
         Assert.That(keyParts[1], Has.Length.GreaterThan(32));
-        Assert.That(keyParts[1], Does.EndWith($"|{scheduler1.SchedulerGroup}"));
+        Assert.That(keyParts[1], Does.EndWith($"|{scheduler1.OldSchedulerGroup}"));
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey1, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey1, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Check response and data from job 1
         {
             var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey1);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo(scheduler1.TestEcho));
         }
     }
@@ -285,14 +285,14 @@ public class JobManagerTest
         scheduler.FailCount = 1;
         scheduler.RetryCount = 0;
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Failed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Failed, _maxWaitForJobStatus);
 
         // Check response and data from job
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.Failed));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.Failed));
         Assert.That(data, Is.Null);
     }
 
@@ -308,14 +308,14 @@ public class JobManagerTest
         scheduler.FailCount = 3;
         scheduler.RetryCount = 3;
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Check response and data from job
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
         Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
     }
 
@@ -331,14 +331,14 @@ public class JobManagerTest
         scheduler.FailCount = 2;
         scheduler.RetryCount = 1;
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Failed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Failed, _maxWaitForJobStatus);
 
         // Check response and data from job
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.Failed));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.Failed));
         Assert.That(data, Is.Null);
     }
 
@@ -354,7 +354,7 @@ public class JobManagerTest
         Assert.That(exists, Is.False);
 
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.NotFound));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.NotFound));
         Assert.That(data, Is.Null);
     }
 
@@ -369,14 +369,14 @@ public class JobManagerTest
         scheduler.TestEcho = "Hello World 1";
         scheduler.Retention = TimeSpan.FromSeconds(10);
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Check response and data from job
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
         Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
     }
 
@@ -389,14 +389,14 @@ public class JobManagerTest
         scheduler.TestEcho = "Hello World 1";
         scheduler.Retention = TimeSpan.FromSeconds(0);
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete and be removed
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.NotFound, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.NotFound, _maxWaitForJobStatus);
 
         // Check response and data from job
         var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-        Assert.That(response.Status, Is.EqualTo(JobStatus.NotFound));
+        Assert.That(response.Status, Is.EqualTo(OldJobStatus.NotFound));
         Assert.That(data, Is.Null);
     }
 
@@ -409,25 +409,25 @@ public class JobManagerTest
         scheduler.TestEcho = "Hello World 1";
         scheduler.Retention = TimeSpan.FromSeconds(2);
 
-        var jobKey = await jobManager.Schedule<ExclusiveTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldExclusiveTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Check response and data from job
         {
             var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
         }
 
         // Wait for job to be removed
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.NotFound, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.NotFound, _maxWaitForJobStatus);
 
         // Check response and data from job
         {
             var (response, data) = await jobManager.GetResponse<ExclusiveTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.NotFound));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.NotFound));
             Assert.That(data, Is.Null);
         }
     }
@@ -440,34 +440,34 @@ public class JobManagerTest
         var scheduler = _host.Services.GetRequiredService<ChainTestSchedule>();
         scheduler.IterationCount = 3;
 
-        var jobKey = await jobManager.Schedule<ChainTestJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldChainTestJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         {
             var (response, data) = await jobManager.GetResponse<ChainTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.IterationCount, Is.EqualTo(3));
             Assert.That(data.NextJobKey, Is.Not.EqualTo(""));
-            jobKey = Helpers.ParseJobKey(data.NextJobKey);
+            jobKey = OldHelpers.ParseJobKey(data.NextJobKey);
         }
 
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         {
             var (response, data) = await jobManager.GetResponse<ChainTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.IterationCount, Is.EqualTo(2));
             Assert.That(data.NextJobKey, Is.Not.EqualTo(""));
-            jobKey = Helpers.ParseJobKey(data.NextJobKey);
+            jobKey = OldHelpers.ParseJobKey(data.NextJobKey);
         }
 
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         {
             var (response, data) = await jobManager.GetResponse<ChainTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.IterationCount, Is.EqualTo(1));
             Assert.That(data.NextJobKey, Is.EqualTo(""));
         }
@@ -484,17 +484,17 @@ public class JobManagerTest
         var scheduler = _host.Services.GetRequiredService<EventDemoSchedule>();
         scheduler.ShouldFail = false;
 
-        var jobKey = await jobManager.Schedule<EventDemoJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldEventDemoJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Give the event some time to sync and execute
         await Task.Delay(1000);
 
         Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(2));
-        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(JobStatus.Started));
-        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(JobStatus.Completed));
+        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(OldJobStatus.Started));
+        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(OldJobStatus.Completed));
     }
 
     [Test]
@@ -508,17 +508,17 @@ public class JobManagerTest
         var scheduler = _host.Services.GetRequiredService<EventDemoSchedule>();
         scheduler.ShouldFail = true;
 
-        var jobKey = await jobManager.Schedule<EventDemoJob>(scheduler);
+        var jobKey = await jobManager.Schedule<OldEventDemoJob>(scheduler);
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Failed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Failed, _maxWaitForJobStatus);
 
         // Give the event some time to sync and execute
         await Task.Delay(1000);
 
         Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(2));
-        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(JobStatus.Started));
-        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(JobStatus.Failed));
+        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(OldJobStatus.Started));
+        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(OldJobStatus.Failed));
     }
 
     [Test]
@@ -527,15 +527,15 @@ public class JobManagerTest
         var jobManager = CreateHostedJobManager(true, 1);
 
         var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
-        var jobKey1 = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+        var jobKey1 = await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler);
 
         var exception = Assert.ThrowsAsync<JobManagerException>(async () =>
         {
-            await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+            await jobManager.Schedule<OldNonExclusiveTestJob>(scheduler);
         });
 
         Assert.That(exception?.Message,
-            Is.EqualTo($"JobKey {jobKey1} already exists. An instance of AbstractJobSchedule cannot schedule more than one job."));
+            Is.EqualTo($"JobKey {jobKey1} already exists. An instance of OldAbstractOldIJobSchedule cannot schedule more than one job."));
     }
 
     [Test]
@@ -544,19 +544,19 @@ public class JobManagerTest
         var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
-        var scheduler1 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler1 = new SleepyTestSchedule(logger, OldSchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
         };
 
-        var scheduler2 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler2 = new SleepyTestSchedule(logger, OldSchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
         };
 
-        var scheduler3 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler3 = new SleepyTestSchedule(logger, OldSchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
@@ -565,15 +565,15 @@ public class JobManagerTest
         var sw = Stopwatch.StartNew();
         var jobKeys = new List<JobKey>
         {
-            await jobManager.Schedule<SleepyTestJob>(scheduler1),
-            await jobManager.Schedule<SleepyTestJob>(scheduler2),
-            await jobManager.Schedule<SleepyTestJob>(scheduler3)
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler1),
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler2),
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler3)
         };
 
         // Wait for jobs to complete
         foreach (var jobKey in jobKeys)
         {
-            await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+            await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
         }
 
         // Jobs have run serially and thus time taken should be > 3s
@@ -587,7 +587,7 @@ public class JobManagerTest
         foreach (var jobKey in jobKeys)
         {
             var (response, data) = await jobManager.GetResponse<SleepyTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo(scheduler1.TestEcho));
         }
 
@@ -606,19 +606,19 @@ public class JobManagerTest
         var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
-        var scheduler1 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler1 = new SleepyTestSchedule(logger, OldSchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
         };
 
-        var scheduler2 = new SleepyTestSchedule(logger, SchedulerGroup.SlowLowPriority)
+        var scheduler2 = new SleepyTestSchedule(logger, OldSchedulerGroup.SlowLowPriority)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
         };
 
-        var scheduler3 = new SleepyTestSchedule(logger, SchedulerGroup.FastLowPriority)
+        var scheduler3 = new SleepyTestSchedule(logger, OldSchedulerGroup.FastLowPriority)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
@@ -627,15 +627,15 @@ public class JobManagerTest
         var sw = Stopwatch.StartNew();
         var jobKeys = new List<JobKey>
         {
-            await jobManager.Schedule<SleepyTestJob>(scheduler1),
-            await jobManager.Schedule<SleepyTestJob>(scheduler2),
-            await jobManager.Schedule<SleepyTestJob>(scheduler3),
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler1),
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler2),
+            await jobManager.Schedule<OldSleepyTestJob>(scheduler3),
         };
 
         // Wait for jobs to complete
         foreach (var jobKey in jobKeys)
         {
-            await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+            await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
         }
 
         // Jobs have run in parallel and thus time taken should be < 2s
@@ -647,7 +647,7 @@ public class JobManagerTest
         foreach (var jobKey in jobKeys)
         {
             var (response, data) = await jobManager.GetResponse<SleepyTestData>(jobKey);
-            Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
+            Assert.That(response.Status, Is.EqualTo(OldJobStatus.Completed));
             Assert.That(data?.Echo, Is.EqualTo("Hello World"));
         }
 
@@ -669,8 +669,8 @@ public class JobManagerTest
         var jobMemoryCacheDemoTestContainer = _host.Services.GetRequiredService<JobMemoryCacheDemoTestContainer>();
         Assert.That(jobMemoryCacheDemoTestContainer.Secret, Is.EqualTo(""));
 
-        var schedule = _host.Services.GetRequiredService<JobMemoryCacheDemoSchedule>();
-        var jobKey = await jobManager.Schedule<EventDemoJob>(schedule);
+        var schedule = _host.Services.GetRequiredService<OldIJobMemoryCacheDemoSchedule>();
+        var jobKey = await jobManager.Schedule<OldEventDemoJob>(schedule);
 
         Assert.That(jobMemoryCache.Contains(jobKey), Is.True);
 
@@ -678,7 +678,7 @@ public class JobManagerTest
         Assert.That(secret, Is.EqualTo("my secret data that is only stored in memory"));
 
         // Wait for job to complete
-        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+        await WaitForJobStatus(jobManager, jobKey, OldJobStatus.Completed, _maxWaitForJobStatus);
 
         // Give the event some time to sync and execute
         await Task.Delay(200);

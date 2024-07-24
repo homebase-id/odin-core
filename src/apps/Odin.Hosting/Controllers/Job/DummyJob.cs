@@ -9,10 +9,10 @@ using Quartz;
 namespace Odin.Hosting.Controllers.Job;
 #nullable enable
 
-public class DummySchedule(string echo) : AbstractJobSchedule
+public class DummySchedule(string echo) : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -35,7 +35,7 @@ public class DummySchedule(string echo) : AbstractJobSchedule
 
 //
 
-public class DummyJob(ICorrelationContext correlationContext, ILogger<DummyJob> logger) : AbstractJob(correlationContext)
+public class DummyJob(ICorrelationContext correlationContext, ILogger<DummyJob> logger) : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
@@ -50,9 +50,9 @@ public class DummyJob(ICorrelationContext correlationContext, ILogger<DummyJob> 
 
 //
 
-public class DummyEvent(ILogger<DummyEvent> logger) : IJobEvent
+public class DummyEvent(ILogger<DummyEvent> logger) : OldIJobEvent
 {
-    public Task Execute(IJobExecutionContext context, JobStatus status)
+    public Task Execute(IJobExecutionContext context, OldJobStatus status)
     {
         var jobData = context.JobDetail.JobDataMap;
         if (jobData.TryGetString("echo", out var echo))

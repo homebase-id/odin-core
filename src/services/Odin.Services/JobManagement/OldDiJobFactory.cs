@@ -5,7 +5,7 @@ using Quartz.Spi;
 
 namespace Odin.Services.JobManagement;
 
-public class DiJobFactory(IServiceProvider serviceProvider) : IJobFactory
+public class OldDiJobFactory(IServiceProvider serviceProvider) : IJobFactory
 {
     public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
     {

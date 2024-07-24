@@ -6,10 +6,10 @@ using Quartz;
 
 namespace Odin.Services.JobManagement;
 
-public class LogSchedule(string text) : AbstractJobSchedule
+public class LogSchedule(string text) : OldAbstractOldIJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override string SchedulingKey { get; } = OldHelpers.UniqueId();
+    public override OldSchedulerGroup OldSchedulerGroup { get; } = OldSchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -28,14 +28,14 @@ public class LogSchedule(string text) : AbstractJobSchedule
 
 //
 
-public class LogJob(ICorrelationContext correlationContext, ILogger<LogJob> logger) : AbstractJob(correlationContext)
+public class OldLogJob(ICorrelationContext correlationContext, ILogger<OldLogJob> logger) : OldAbstractJob(correlationContext)
 {
     protected sealed override Task Run(IJobExecutionContext context)
     {
         var jobData = context.JobDetail.JobDataMap;
         if (jobData.TryGetString("text", out var text) && text != null)
         {
-            logger.LogInformation("LogJob says: {text}", text);
+            logger.LogInformation("OldLogJob says: {text}", text);
         }
         return Task.CompletedTask;
     }

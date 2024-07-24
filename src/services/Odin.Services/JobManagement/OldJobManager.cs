@@ -22,12 +22,12 @@ namespace Odin.Services.JobManagement;
 public interface IJobManager
 {
     Task Initialize(Func<Task>? configureJobs = null);
-    Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob;
-    Task<JobResponse> GetResponse(JobKey jobKey);
-    Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class;
+    Task<JobKey> Schedule<TJob>(OldAbstractOldIJobSchedule oldIJobSchedule) where TJob : IJob;
+    Task<OldJobResponse> GetResponse(JobKey jobKey);
+    Task<(OldJobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class;
     Task<bool> Exists(JobKey jobKey);
     Task<bool> Delete(JobKey jobKey);
-    Task<bool> Delete(AbstractJobSchedule jobSchedule);
+    Task<bool> Delete(OldAbstractOldIJobSchedule oldIJobSchedule);
 }
 
 //
@@ -41,8 +41,8 @@ public sealed class JobManagerConfig
 
 //
 
-public sealed class JobManager(
-    ILogger<JobManager> logger,
+public sealed class OldJobManager(
+    ILogger<OldJobManager> logger,
     ILoggerFactory loggerFactory,
     ICorrelationContext correlationContext,
     IJobFactory jobFactory,
@@ -80,48 +80,48 @@ public sealed class JobManager(
 
     //
 
-    public async Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob
+    public async Task<JobKey> Schedule<TJob>(OldAbstractOldIJobSchedule oldIJobSchedule) where TJob : IJob
     {
         using (await _mutex.LockAsync())
         {
             // Sanity
             if (_disposing)
             {
-                throw new JobManagerException("JobManager is shutting down");
+                throw new JobManagerException("OldJobManager is shutting down");
             }
 
-            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
+            var scheduler = GetScheduler(oldIJobSchedule.OldSchedulerGroup);
             if (scheduler == null)
             {
-                throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
+                throw new JobManagerException($"Scheduler {oldIJobSchedule.OldSchedulerGroup} does not exist");
             }
 
-            var exists = await scheduler.CheckExists(jobSchedule.JobKey);
+            var exists = await scheduler.CheckExists(oldIJobSchedule.JobKey);
             if (exists)
             {
-                // The JobKey is static per AbstractJobSchedule instance and has to be unique.
+                // The JobKey is static per OldAbstractOldIJobSchedule instance and has to be unique.
                 throw new JobManagerException(
-                    $"JobKey {jobSchedule.JobKey} already exists. An instance of AbstractJobSchedule cannot schedule more than one job.");
+                    $"JobKey {oldIJobSchedule.JobKey} already exists. An instance of OldAbstractOldIJobSchedule cannot schedule more than one job.");
             }
 
-            var scheduledJobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
+            var scheduledJobKey = await scheduler.GetScheduledJobKey(oldIJobSchedule.SchedulingKey);
             if (scheduledJobKey != null)
             {
                 logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, scheduledJobKey);
                 return scheduledJobKey;
             }
 
-            var (jobBuilder, triggerBuilders) = await jobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
+            var (jobBuilder, triggerBuilders) = await oldIJobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
             if (triggerBuilders.Count == 0)
             {
                 // Sanity: we don't want to schedule a job without triggers
                 return new JobKey("non-scheduled-job");
             }
 
-            jobBuilder.WithIdentity(jobSchedule.JobKey);
-            jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
-            jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
-            jobBuilder.UsingJobData(JobConstants.JobTypeName, typeof(TJob).FullName);
+            jobBuilder.WithIdentity(oldIJobSchedule.JobKey);
+            jobBuilder.UsingJobData(OldJobConstants.StatusKey, OldJobConstants.StatusValueAdded);
+            jobBuilder.UsingJobData(OldJobConstants.CorrelationIdKey, correlationContext.Id);
+            jobBuilder.UsingJobData(OldJobConstants.JobTypeName, typeof(TJob).FullName);
 
             var job = jobBuilder.Build();
             foreach (var triggerBuilder in triggerBuilders)
@@ -130,19 +130,19 @@ public sealed class JobManager(
                 await scheduler.ScheduleJob(job, trigger);
             }
 
-            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobSchedule.JobKey);
+            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, oldIJobSchedule.JobKey);
 
-            return jobSchedule.JobKey;
+            return oldIJobSchedule.JobKey;
         }
     }
 
     //
 
-    public async Task<JobResponse> GetResponse(JobKey jobKey)
+    public async Task<OldJobResponse> GetResponse(JobKey jobKey)
     {
-        var response = new JobResponse
+        var response = new OldJobResponse
         {
-            Status = JobStatus.NotFound,
+            Status = OldJobStatus.NotFound,
             JobKey = jobKey.ToString(),
         };
 
@@ -167,11 +167,11 @@ public sealed class JobManager(
             }
 
             var jobData = job.JobDataMap;
-            jobData.TryGetString(JobConstants.StatusKey, out var status);
-            jobData.TryGetString(JobConstants.JobErrorMessageKey, out var errorMessage);
-            jobData.TryGetString(JobConstants.JobResponseDataKey, out var data);
+            jobData.TryGetString(OldJobConstants.StatusKey, out var status);
+            jobData.TryGetString(OldJobConstants.JobErrorMessageKey, out var errorMessage);
+            jobData.TryGetString(OldJobConstants.JobResponseDataKey, out var data);
 
-            response.Status = Helpers.JobStatusFromStatusValue(status ?? "");
+            response.Status = OldHelpers.JobStatusFromStatusValue(status ?? "");
             response.Error = errorMessage;
             response.Data = data;
 
@@ -181,7 +181,7 @@ public sealed class JobManager(
 
     //
 
-    public async Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class
+    public async Task<(OldJobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class
     {
         var response = await GetResponse(jobKey);
         if (response.Data == null)
@@ -192,7 +192,7 @@ public sealed class JobManager(
         var data = OdinSystemSerializer.Deserialize<T>(response.Data);
         if (data == null)
         {
-            throw new JobManagerException("Error deserializing JobResponse.Data");
+            throw new JobManagerException("Error deserializing OldJobResponse.Data");
         }
 
         return (response, data);
@@ -260,17 +260,17 @@ public sealed class JobManager(
 
     //
 
-    public async Task<bool> Delete(AbstractJobSchedule jobSchedule)
+    public async Task<bool> Delete(OldAbstractOldIJobSchedule oldIJobSchedule)
     {
         using (await _mutex.LockAsync())
         {
-            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
+            var scheduler = GetScheduler(oldIJobSchedule.OldSchedulerGroup);
             if (scheduler == null)
             {
                 return false;
             }
 
-            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobSchedule.SchedulingKey));
+            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(oldIJobSchedule.SchedulingKey));
             var deleted = await scheduler.DeleteJobs(jobKeys);
             if (deleted)
             {
@@ -297,10 +297,10 @@ public sealed class JobManager(
     {
         if (_disposing)
         {
-            throw new JobManagerException("JobManager is shutting down");
+            throw new JobManagerException("OldJobManager is shutting down");
         }
 
-        var schedulerTypes = Enum.GetValues<SchedulerGroup>();
+        var schedulerTypes = Enum.GetValues<OldSchedulerGroup>();
         foreach (var schedulerType in schedulerTypes)
         {
             await CreateScheduler(schedulerType);
@@ -313,7 +313,7 @@ public sealed class JobManager(
     {
         if (_disposing)
         {
-            throw new JobManagerException("JobManager is shutting down");
+            throw new JobManagerException("OldJobManager is shutting down");
         }
 
         var schedulerNames = _schedulers.Keys;
@@ -331,22 +331,22 @@ public sealed class JobManager(
         var schedulerNames = _schedulers.Keys;
         foreach (var name in schedulerNames)
         {
-            logger.LogDebug("JobManager starting shutdown of scheduler {SchedulerName}", name);
+            logger.LogDebug("OldJobManager starting shutdown of scheduler {SchedulerName}", name);
             var scheduler = _schedulers[name];
             await scheduler.Shutdown(true);
             _schedulers.Remove(name);
-            logger.LogDebug("JobManager finished shutdown of scheduler {SchedulerName}", name);
+            logger.LogDebug("OldJobManager finished shutdown of scheduler {SchedulerName}", name);
         }
     }
 
     //
 
-    private IScheduler? GetScheduler(SchedulerGroup schedulerType)
+    private IScheduler? GetScheduler(OldSchedulerGroup oldSchedulerType)
     {
-        var schedulerName = schedulerType.ToString();
+        var schedulerName = oldSchedulerType.ToString();
         if (_disposing)
         {
-            throw new JobManagerException("JobManager is shutting down");
+            throw new JobManagerException("OldJobManager is shutting down");
         }
 
         return _schedulers.GetValueOrDefault(schedulerName);
@@ -354,15 +354,15 @@ public sealed class JobManager(
 
     //
 
-    private async Task<IScheduler> CreateScheduler(SchedulerGroup schedulerType)
+    private async Task<IScheduler> CreateScheduler(OldSchedulerGroup oldSchedulerType)
     {
-        var scheduler = GetScheduler(schedulerType);
+        var scheduler = GetScheduler(oldSchedulerType);
         if (scheduler != null)
         {
-            throw new JobManagerException($"Scheduler already exists: ${schedulerType}" );
+            throw new JobManagerException($"Scheduler already exists: ${oldSchedulerType}" );
         }
 
-        var schedulerName = schedulerType.ToString();
+        var schedulerName = oldSchedulerType.ToString();
 
         Directory.CreateDirectory(config.DatabaseDirectory);
 
@@ -373,7 +373,7 @@ public sealed class JobManager(
             Pooling = config.ConnectionPooling,
         }.ToString();
 
-        QuartzSqlite.CreateSchema(connectionString);
+        OldQuartzSqlite.CreateSchema(connectionString);
 
         // https://www.quartz-scheduler.net/documentation/quartz-3.x/configuration/reference.html
         var properties = new NameValueCollection()
