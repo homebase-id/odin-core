@@ -99,7 +99,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             return await _incomingTransferService.FinalizeTransfer(WebOdinContext, cn);
         }
 
-        public async Task<PayloadTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
+        private async Task<PayloadTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.PayloadTransferInstructionSet);
             string json = await new StreamReader(section.Body).ReadToEndAsync();
@@ -111,7 +111,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             return transferInstructionSet;
         }
 
-        public async Task ProcessPayloadSection(MultipartSection section, UploadManifest manifest, DatabaseConnection cn)
+        private async Task ProcessPayloadSection(MultipartSection section, UploadManifest manifest, DatabaseConnection cn)
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
@@ -126,7 +126,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext, cn);
         }
 
-        public async Task ProcessThumbnailSection(MultipartSection section, UploadManifest manifest, DatabaseConnection cn)
+        private async Task ProcessThumbnailSection(MultipartSection section, UploadManifest manifest, DatabaseConnection cn)
         {
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
 
