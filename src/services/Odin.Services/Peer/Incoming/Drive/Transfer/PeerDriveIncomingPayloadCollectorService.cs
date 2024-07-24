@@ -15,7 +15,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -30,12 +29,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         IMediator mediator,
         PushNotificationService pushNotificationService)
     {
-        private PayloadTransferInstructionSet _transferInstructionSet;
-        private InternalDriveFileId _sourceTempFile;
-        private InternalDriveFileId _targetFile;
-
-        private PayloadOnlyPackage _package;
-
+        private PeerPayloadPackage _package;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage = new(tenantSystemStorage);
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
@@ -51,33 +45,37 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("No file found by GlobalTransitId");
             }
 
-            _targetFile = new InternalDriveFileId()
+            var file = new InternalDriveFileId()
             {
                 FileId = existingFile.FileId,
                 DriveId = driveId
             };
 
-            _sourceTempFile = new InternalDriveFileId()
-            {
-                FileId = Guid.NewGuid(),
-                DriveId = driveId
-            };
-
-            _transferInstructionSet = instructionSet;
-            
-            this._package = new PayloadOnlyPackage(file, instructionSet!);
+            _package = new PeerPayloadPackage(file, instructionSet);
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(_sourceTempFile, MultipartHostTransferParts.PayloadTransferInstructionSet.ToString().ToLower(), stream,
+            await fileSystem.Storage.WriteTempStream(_package.TempFile, MultipartHostTransferParts.PayloadTransferInstructionSet.ToString().ToLower(), stream,
                 odinContext, cn);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext,
             DatabaseConnection cn)
         {
+            var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
+
+            if (null == descriptor)
+            {
+                throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
+            }
+
+            if (_package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
+            {
+                throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
+            }
+
             _uploadedKeys.TryAdd(key, new List<string>());
-            var bytesWritten = await fileSystem.Storage.WriteTempStream(_sourceTempFile, fileExtension, data, odinContext, cn);
+            var bytesWritten = await fileSystem.Storage.WriteTempStream(_package.TempFile, fileExtension, data, odinContext, cn);
             if (bytesWritten > 0)
             {
                 _package.Payloads.Add(new PackagePayloadDescriptor()
@@ -97,6 +95,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data, IOdinContext odinContext,
             DatabaseConnection cn)
         {
+            // if you're adding a thumbnail, there must be a manifest
+            var descriptors = _package.InstructionSet.Manifest?.PayloadDescriptors;
+            if (null == descriptors)
+            {
+                throw new OdinClientException("An upload manifest with payload descriptors is required when you're adding thumbnails");
+            }
+
+            var result = descriptors.Select(pd =>
+            {
+                return new
+                {
+                    pd.PayloadKey,
+                    pd.PayloadUid,
+                    ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailKey)
+                };
+            }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
+
+            if (null == result)
+            {
+                throw new OdinClientException(
+                    $"Error while adding thumbnail; the upload manifest does not " +
+                    $"have a thumbnail descriptor matching key {thumbnailKey}",
+                    OdinClientErrorCode.InvalidUpload);
+            }
+
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
             {
                 thumbnailKeys = new List<string>();
@@ -105,14 +128,28 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
+            
+            var bytesWritten = await fileSystem.Storage.WriteTempStream(_package.TempFile, fileExtension, data, odinContext, cn);
 
-            await fileSystem.Storage.WriteTempStream(_sourceTempFile, fileExtension, data, odinContext, cn);
+            if (bytesWritten > 0)
+            {
+                _package.Thumbnails.Add(new PackageThumbnailDescriptor()
+                {
+                    PixelHeight = result.ThumbnailDescriptor.PixelHeight,
+                    PixelWidth = result.ThumbnailDescriptor.PixelWidth,
+                    ContentType = result.ThumbnailDescriptor.ContentType,
+                    PayloadKey = result.PayloadKey,
+                    BytesWritten = bytesWritten
+                });
+            }
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(IOdinContext odinContext, DatabaseConnection cn)
         {
+            logger.LogDebug("Finalizing Transfer");
+
             // Validate we received all expected payloads
-            foreach (var expectedPayload in _transferInstructionSet.Manifest.PayloadDescriptors)
+            foreach (var expectedPayload in _package.InstructionSet.Manifest.PayloadDescriptors)
             {
                 var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.PayloadKey, out var thumbnailKeys);
                 if (!hasPayload)
@@ -132,11 +169,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             await RouteToInbox(odinContext, cn);
 
-            if (null != _transferInstructionSet.AppNotificationOptions)
+            if (null != _package.InstructionSet.AppNotificationOptions)
             {
                 var senderId = odinContext.GetCallerOdinIdOrFail();
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await pushNotificationService.EnqueueNotification(senderId, _transferInstructionSet.AppNotificationOptions, newContext, cn);
+                await pushNotificationService.EnqueueNotification(senderId, _package.InstructionSet.AppNotificationOptions, newContext, cn);
             }
 
             return new PeerTransferResponse() { Code = PeerResponseCode.AcceptedIntoInbox };
@@ -156,24 +193,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Sender = odinContext.GetCallerOdinIdOrFail(),
 
                 InstructionType = TransferInstructionType.SavePayloads,
-                DriveId = _targetFile.DriveId,
-                FileId = _targetFile.FileId,
-
-                PayloadSourceFile = _sourceTempFile,
-                PayloadInstructionSet = _transferInstructionSet,
-
-                FileSystemType = _transferInstructionSet.FileSystemType,
-
-                TransferInstructionSet = default,
-                TransferFileType = default,
-                SharedSecretEncryptedKeyHeader = default,
-                EncryptedFeedPayload = default
+                DriveId = _package.InternalFile.DriveId,
+                FileId = _package.InternalFile.FileId,
+                
+                PeerPayloadPackage = _package,
+                FileSystemType = _package.InstructionSet.FileSystemType,
             };
 
             await _transitInboxBoxStorage.Add(item, cn);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = _transferInstructionSet.TargetFile.Drive,
+                TargetDrive = _package.InstructionSet.TargetFile.Drive,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

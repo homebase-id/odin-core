@@ -57,8 +57,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public EccEncryptedPayload EncryptedFeedPayload { get; set; }
         
         
-        //Payload state
-        public InternalDriveFileId PayloadSourceFile { get; set; }
-        public PayloadTransferInstructionSet PayloadInstructionSet { get; set; }
+        public PeerPayloadPackage PeerPayloadPackage { get; set; }
     }
 }

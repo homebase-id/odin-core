@@ -396,7 +396,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
             {
-                var globalTransitId = inboxItem.PayloadInstructionSet.TargetFile.FileId;
+                var package = inboxItem.PeerPayloadPackage;
+                var globalTransitId = package.InstructionSet.TargetFile.FileId;
                 var header = await GetFileByGlobalTransitId(fs, inboxItem.DriveId, globalTransitId, odinContext, cn);
 
                 if (null == header)
@@ -404,10 +405,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     throw new OdinClientException("Invalid target file for writing payloads");
                 }
 
-                inboxItem.PayloadInstructionSet.Manifest.PayloadDescriptors
-                    
                 await fs.Storage.UpdatePayloads(
-                    tempSourceFile: inboxItem.PayloadSourceFile,
+                    tempSourceFile: inboxItem.PeerPayloadPackage.InternalFile,
                     targetFile: new InternalDriveFileId()
                     {
                         FileId = header.FileId,

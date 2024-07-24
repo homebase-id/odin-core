@@ -40,7 +40,7 @@ public class UploadManifest
                     throw new OdinClientException($"The payload key [{pd.PayloadKey}] has a thumbnail missing a thumbnailKey",
                         OdinClientErrorCode.InvalidUpload);
                 }
-
+                
                 var anyMissingContentTypeOnThumbnail = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ContentType?.Trim())) ?? false;
                 if (anyMissingContentTypeOnThumbnail)
                 {
@@ -77,9 +77,9 @@ public class UploadManifestPayloadDescriptor
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
-
+    
     public string ContentType { get; set; }
-
+    
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -88,34 +88,18 @@ public class UploadManifestPayloadDescriptor
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
-
-    public PayloadDescriptor ToPayloadDescriptor()
-    {
-        return new PayloadDescriptor
-        {
-            Iv = this.Iv,
-            Key = this.PayloadKey,
-            ContentType = this.ContentType,
-            DescriptorContent = this.DescriptorContent,
-            BytesWritten = 0,
-            LastModified = default,
-            PreviewThumbnail = this.PreviewThumbnail,
-            Thumbnails = this.Thumbnails.Select(t => t.ToThumbnailDescriptor()),
-            Uid = this.PayloadUid
-        }
-    }
 }
 
 public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
-
+    
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }
-
+    
     public string ContentType { get; set; }
-
+    
     public string CreateTransitKey(string payloadKey)
     {
         //duplicate code in ThumbnailDescriptor
