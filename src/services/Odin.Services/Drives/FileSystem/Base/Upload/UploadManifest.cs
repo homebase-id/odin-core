@@ -12,12 +12,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 /// </summary>
 public class UploadManifest
 {
-    public UploadManifest()
-    {
-        PayloadDescriptors = new List<UploadManifestPayloadDescriptor>();
-    }
-
-    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
+    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; } = new();
 
     public void AssertIsValid()
     {

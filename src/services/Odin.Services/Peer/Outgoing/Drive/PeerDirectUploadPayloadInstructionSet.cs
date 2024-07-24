@@ -1,0 +1,45 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Odin.Core.Exceptions;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Util;
+
+namespace Odin.Services.Peer.Outgoing.Drive;
+
+public class PeerDirectUploadPayloadInstructionSet
+{
+    public GlobalTransitIdFileIdentifier TargetFile { get; set; }
+
+    public UploadManifest Manifest { get; set; }
+    
+    /// <summary>
+    /// List of identities that should receive this file 
+    /// </summary>
+    public List<string> Recipients { get; set; }
+
+    public Guid VersionTag { get; set; }
+
+    public void AssertIsValid()
+    {
+        OdinValidationUtils.AssertValidRecipientList(this.Recipients);
+        if (Guid.Empty == this.TargetFile.GlobalTransitId)
+        {
+            throw new OdinClientException("Invalid GlobalTransitFile Id");
+        }
+
+        if (!TargetFile.TargetDrive.IsValid())
+        {
+            throw new OdinClientException("Remote Target Drive is invalid", OdinClientErrorCode.InvalidDrive);
+        }
+
+        if (!Manifest?.PayloadDescriptors?.Any() ?? false)
+        {
+            throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads when using the payload only upload method :)",
+                OdinClientErrorCode.InvalidPayload);
+        }
+
+        Manifest?.AssertIsValid();
+    }
+}

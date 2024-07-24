@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         [Multipart]
         [Post(DriveRoot + "/update-payloads")]
         Task<ApiResponse<PeerTransferResponse>> UpdatePayloads(
-            StreamPart header,
+            StreamPart instructionSet,
             params StreamPart[] additionalStreamParts);
     }
 }

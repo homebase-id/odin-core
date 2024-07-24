@@ -208,7 +208,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
         /// <returns></returns>
-        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<byte[]> GetAllFileBytesFromTempFile(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
         {
             await this.AssertCanReadDrive(file.DriveId, odinContext, cn);
             var tsm = await GetTempStorageManager(file.DriveId, cn);
@@ -216,7 +216,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return bytes;
         }
 
-        public async Task<byte[]> GetAllFileBytesForWriting(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<byte[]> GetAllFileBytesForWritingFromTempFile(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
             var tsm = await GetTempStorageManager(file.DriveId, cn);
@@ -452,6 +452,18 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 throw;
             }
+        }
+        
+        /// <summary>
+        /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Stream> GetStreamFromTempFile(InternalDriveFileId tempFile, string extension, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            await this.AssertCanReadDrive(tempFile.DriveId, odinContext, cn);
+            var tsm = await GetTempStorageManager(tempFile.DriveId, cn);
+            var stream = await tsm.GetStream(tempFile.FileId, extension);
+            return stream;
         }
 
         public async Task<bool> FileExists(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)

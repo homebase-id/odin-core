@@ -56,7 +56,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 FileSystemType = fileSystemType,
                 StorageIntent = storageIntent
             };
-            
+
             var priority = options.Priority switch
             {
                 OutboxPriority.High => 1000,
@@ -158,51 +158,54 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        public async Task<Dictionary<string, TransferStatus>> SendPayload(
-            PeerUploadPayloadInstructionSet uploadPayloadInstructionSet,
+        public async Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId file,
+            PeerDirectUploadPayloadInstructionSet uploadInstructionSet,
             FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
         {
             var status = new Dictionary<string, TransferStatus>();
 
-            if (uploadPayloadInstructionSet.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
+            if (uploadInstructionSet.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
             {
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
-            foreach (var r in uploadPayloadInstructionSet.Recipients!)
+            const bool isTempFile = true; //TODO: How do i determine this?
+            foreach (var r in uploadInstructionSet.Recipients!)
             {
                 var recipient = (OdinId)r;
                 try
                 {
-                    //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    //TODO: apply encryption before storing in the outbox
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
-                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
-
-                    // var request = new SendPayloadRequest()
-                    // {
-                    // };
+                    var request = new SendPayloadRequest()
+                    {
+                        IsTempFile = isTempFile,
+                        InstructionSet = new PayloadTransferInstructionSet()
+                        {
+                            FileSystemType = fileSystemType,
+                            AppNotificationOptions = default,
+                            TargetFile = uploadInstructionSet.TargetFile,
+                            VersionTag = uploadInstructionSet.VersionTag,
+                            Manifest = uploadInstructionSet.Manifest
+                        }
+                    };
 
                     var item = new OutboxFileItem()
                     {
                         Priority = 100,
                         Type = OutboxItemType.PayloadUpdate,
-                        File = uploadPayloadInstructionSet.,
+                        File = file,
                         Recipient = recipient,
                         DependencyFileId = default,
                         State = new OutboxItemState()
                         {
-                            // IsTransientFile = ??
+                            IsTransientFile = isTempFile,
                             Attempts = { },
                             OriginalTransitOptions = default,
-                            EncryptedClientAuthToken = encryptedClientAccessToken,
+                            EncryptedClientAuthToken = default,
                             TransferInstructionSet = new EncryptedRecipientTransferInstructionSet
                             {
-                                // TargetDrive = null,
                                 FileSystemType = fileSystemType
                             },
-                            Data = []
-                            // Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
+                            Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                         }
                     };
 

@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
         {
             // Rules:
             // Cannot upload encrypted payload to encrypted file (how can I tell?)
-            // cannot upload encrypted payload to unecnrypted file (how can I tell?)
+            // cannot upload encrypted payload to unencrypted file (how can I tell?)
 
             using var cn = tenantSystemStorage.CreateConnection();
 
@@ -52,7 +52,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
             AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
-            var instructionSet = OdinSystemSerializer.Deserialize<PeerUploadPayloadInstructionSet>(json);
+            var instructionSet = OdinSystemSerializer.Deserialize<PeerDirectUploadPayloadInstructionSet>(json);
 
             await writer.StartUpload(instructionSet, WebOdinContext, cn);
 

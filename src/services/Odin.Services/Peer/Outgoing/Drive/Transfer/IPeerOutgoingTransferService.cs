@@ -30,7 +30,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext, DatabaseConnection cn,
             FileSystemType fileSystemType);
 
-        Task<Dictionary<string, TransferStatus>> SendPayload(PeerUploadPayloadInstructionSet packageInstructionSet, FileSystemType fileSystemType,
+        Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId file, PeerDirectUploadPayloadInstructionSet uploadInstructionSet,
+            FileSystemType fileSystemType,
             IOdinContext odinContext, DatabaseConnection cn);
     }
 }

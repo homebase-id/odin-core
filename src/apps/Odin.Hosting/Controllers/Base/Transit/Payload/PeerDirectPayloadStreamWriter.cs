@@ -36,7 +36,7 @@ public sealed class PeerDirectPayloadStreamWriter
         _fileSystem = fileSystem;
     }
 
-    public async Task StartUpload(PeerUploadPayloadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task StartUpload(PeerDirectUploadPayloadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet!.AssertIsValid();
@@ -168,6 +168,7 @@ public sealed class PeerDirectPayloadStreamWriter
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.SendPayload(
+                package.TempFile,
                 package.InstructionSet,
                 fileSystemType,
                 odinContext,

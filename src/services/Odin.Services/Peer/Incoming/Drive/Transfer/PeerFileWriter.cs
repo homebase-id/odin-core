@@ -47,7 +47,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
+                var bytes = await fs.Storage.GetAllFileBytesForWritingFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
 
                 if (bytes == null)
                 {

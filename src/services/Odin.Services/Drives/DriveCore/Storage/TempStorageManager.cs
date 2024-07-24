@@ -37,6 +37,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var bytes = await _driveFileReaderWriter.GetAllFileBytes(path);
             return bytes;
         }
+        
+        public async Task<Stream> GetStream(Guid fileId, string extension)
+        {
+            string path = GetTempFilenameAndPath(fileId, extension);
+            var fileStream = await _driveFileReaderWriter.OpenStreamForReading(path);
+            return fileStream;
+        }
+
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
@@ -67,7 +75,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var dir = GetFileDirectory(fileId);
             await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern: GetFilename(fileId, "*"));
         }
-
+        
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>

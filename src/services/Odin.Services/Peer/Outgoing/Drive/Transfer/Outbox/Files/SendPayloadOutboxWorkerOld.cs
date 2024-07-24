@@ -12,21 +12,20 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
-public class SendPayloadOutboxWorker(
+public class SendPayloadOutboxWorkerOld(
     OutboxFileItem fileItem,
     FileSystemResolver fileSystemResolver,
-    ILogger<SendPayloadOutboxWorker> logger,
+    ILogger<SendPayloadOutboxWorkerOld> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
 ) : OutboxWorkerBase(fileItem, logger)
@@ -49,10 +48,11 @@ public class SendPayloadOutboxWorker(
 
             logger.LogDebug("Start: Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
-            var request = OdinSystemSerializer.Deserialize<SendPayloadRequest>(FileItem.State.Data.ToStringFromUtf8Bytes());
+            Guid versionTag = default;
+            Guid globalTransitId = default;
 
             await PerformanceCounter.MeasureExecutionTime("Outbox SendPayload",
-                async () => { await SendPayload(request, odinContext, cn, cancellationToken); });
+                async () => { (versionTag, globalTransitId) = await SendPayload(FileItem, odinContext, cn, cancellationToken); });
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -77,44 +77,66 @@ public class SendPayloadOutboxWorker(
         }
     }
 
-    private async Task SendPayload(
-        SendPayloadRequest request,
+    private async Task<(Guid versionTag, Guid globalTransitId)> SendPayload(OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
         DatabaseConnection cn,
         CancellationToken cancellationToken)
     {
-        OdinId recipient = FileItem.Recipient;
+        OdinId recipient = outboxFileItem.Recipient;
+        var file = outboxFileItem.File;
 
-        var file = FileItem.File;
-
-        var instructionSet = request.InstructionSet;
+        var instructionSet = FileItem.State.TransferInstructionSet;
         var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
-        var transferInstructionSetStream = new StreamPart(
-            value: new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
-            fileName: "payloadTransferInstructionSet",
-            contentType: "application/json",
-            name: Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
+        var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
+        var globalTransitId = header.FileMetadata.GlobalTransitId;
 
-        var parts = new List<StreamPart>();
-        foreach (var descriptor in request.InstructionSet.Manifest.PayloadDescriptors)
+        if (header.ServerMetadata.AllowDistribution == false)
         {
-            var payloadKey = descriptor.PayloadKey;
+            throw new OdinOutboxProcessingException("File does not allow distribution")
+            {
+                TransferStatus = LatestTransferStatus.SourceFileDoesNotAllowDistribution,
+                VersionTag = versionTag,
+                Recipient = recipient,
+                File = file
+            };
+        }
+
+        var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
+        var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
+        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+
+        var redactedAcl = header.ServerMetadata.AccessControlList;
+        redactedAcl?.OdinIdList?.Clear();
+        instructionSet.OriginalAcl = redactedAcl;
+
+        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
+        var transferKeyHeaderStream = new StreamPart(
+            new MemoryStream(transferInstructionSetBytes),
+            "transferInstructionSet.encrypted", "application/json",
+            Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+
+        var additionalStreamParts = new List<StreamPart>();
+
+        foreach (var descriptor in header.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+        {
+            var payloadKey = descriptor.Key;
 
             string contentType = "application/unknown";
 
-            var payloadStream = request.IsTempFile
-                ? await GetPayloadStreamFromTemp(odinContext, cn, descriptor, fileSystem, file)
-                : (await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn)).Stream;
+            //TODO: consider what happens if the payload has been delete from disk
+            var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
+            var payloadStream = p.Stream;
 
             var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-            parts.Add(payload);
+            additionalStreamParts.Add(payload);
 
-            foreach (var thumb in descriptor.Thumbnails ?? new List<UploadedManifestThumbnailDescriptor>())
+            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
-                var thumbStream = request.IsTempFile
-                    ? await GetThumbnailStreamFromTemp(odinContext, cn, descriptor, fileSystem, file, thumb)
-                    : await GetThumbnailStream(odinContext, cn, fileSystem, file, thumb, descriptor);
+                var (thumbStream, thumbHeader) =
+                    await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                        odinContext, cn);
 
                 var thumbnailKey =
                     $"{payloadKey}" +
@@ -123,15 +145,16 @@ public class SendPayloadOutboxWorker(
                     $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
                     $"{thumb.PixelHeight}";
 
-                parts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                     Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
         }
 
+
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClient<IPeerTransferHttpClient>(recipient);
-            var response = await client.UpdatePayloads(transferInstructionSetStream, parts.ToArray());
+            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
+            var response = await client.UpdatePayloads(transferKeyHeaderStream, additionalStreamParts.ToArray());
             return response;
         }
 
@@ -147,15 +170,14 @@ public class SendPayloadOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return;
+                return (versionTag, globalTransitId.GetValueOrDefault());
             }
 
-            throw new OdinOutboxProcessingException(
-                "Failed while sending updated payloads (note: versionTag and GlobalTransitId are for the recipient identity)")
+            throw new OdinOutboxProcessingException("Failed while sending the request")
             {
                 TransferStatus = MapPeerErrorResponseHttpStatus(response),
-                VersionTag = request.InstructionSet.VersionTag,
-                GlobalTransitId = request.InstructionSet.TargetFile.GlobalTransitId,
+                VersionTag = versionTag,
+                GlobalTransitId = globalTransitId,
                 Recipient = recipient,
                 File = file
             };
@@ -167,42 +189,15 @@ public class SendPayloadOutboxWorker(
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;
 
-            throw new OdinOutboxProcessingException(
-                "Failed sending updated payloads to recipient (note: versionTag and GlobalTransitId are for the recipient identity)")
+            throw new OdinOutboxProcessingException("Failed sending to recipient")
             {
                 TransferStatus = status,
-                VersionTag = request.InstructionSet.VersionTag,
-                GlobalTransitId = request.InstructionSet.TargetFile.GlobalTransitId,
+                VersionTag = versionTag,
                 Recipient = recipient,
+                GlobalTransitId = globalTransitId,
                 File = file
             };
         }
-    }
-
-    private static async Task<Stream> GetThumbnailStream(IOdinContext odinContext, DatabaseConnection cn, IDriveFileSystem fileSystem, InternalDriveFileId file,
-        UploadedManifestThumbnailDescriptor thumb, UploadManifestPayloadDescriptor descriptor)
-    {
-        var p = await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.PayloadKey,
-            descriptor.PayloadUid,
-            odinContext, cn);
-        return p.stream;
-    }
-
-    private static async Task<Stream> GetPayloadStreamFromTemp(IOdinContext odinContext, DatabaseConnection cn, UploadManifestPayloadDescriptor descriptor,
-        IDriveFileSystem fileSystem, InternalDriveFileId file)
-    {
-        var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.PayloadKey, descriptor.PayloadUid);
-        var payloadStream = await fileSystem.Storage.GetStreamFromTempFile(file, payloadExtension, odinContext, cn);
-        return payloadStream;
-    }
-
-    private static async Task<Stream> GetThumbnailStreamFromTemp(IOdinContext odinContext, DatabaseConnection cn, UploadManifestPayloadDescriptor descriptor,
-        IDriveFileSystem fileSystem, InternalDriveFileId file, UploadedManifestThumbnailDescriptor thumb)
-    {
-        var payloadExtension = DriveFileUtility.GetThumbnailFileExtension(descriptor.PayloadKey, descriptor.PayloadUid, thumb.PixelWidth,
-            thumb.PixelHeight);
-        var payloadStream = await fileSystem.Storage.GetStreamFromTempFile(file, payloadExtension, odinContext, cn);
-        return payloadStream;
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,

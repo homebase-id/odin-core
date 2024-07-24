@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload;
 public class PeerPayloadPackage
 {
     /// <summary />
-    public PeerPayloadPackage(InternalDriveFileId tempFile, PeerUploadPayloadInstructionSet instructionSet)
+    public PeerPayloadPackage(InternalDriveFileId tempFile, PeerDirectUploadPayloadInstructionSet instructionSet)
     {
         this.TempFile = tempFile;
         this.InstructionSet = instructionSet;
@@ -19,7 +19,7 @@ public class PeerPayloadPackage
         this.Thumbnails = [];
     }
 
-    public PeerUploadPayloadInstructionSet InstructionSet { get; init; }
+    public PeerDirectUploadPayloadInstructionSet InstructionSet { get; init; }
 
     /// <summary>
     /// The temporary file to which incoming payloads are written.  This is

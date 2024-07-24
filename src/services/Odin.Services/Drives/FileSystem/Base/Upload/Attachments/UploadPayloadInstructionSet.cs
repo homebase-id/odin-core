@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
-using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
 {
@@ -11,13 +10,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
     /// </summary>
     public class UploadPayloadInstructionSet
     {
-        public UploadPayloadInstructionSet()
-        {
-            TargetFile = new ExternalFileIdentifier();
-        }
+        public ExternalFileIdentifier TargetFile { get; set; } = new();
 
-        public ExternalFileIdentifier TargetFile { get; set; }
-        
         public UploadManifest Manifest { get; set; }
 
         /// <summary>

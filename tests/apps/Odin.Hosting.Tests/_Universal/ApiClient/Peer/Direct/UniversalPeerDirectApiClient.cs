@@ -467,10 +467,13 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         List<string> recipients,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var instructionSet = new PeerUploadPayloadInstructionSet()
+        var instructionSet = new PeerDirectUploadPayloadInstructionSet()
         {
-            OverwriteGlobalTransitFileId = targetGlobalTransitId,
-            RemoteTargetDrive = remoteTargetDrive,
+            TargetFile = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = targetGlobalTransitId,
+                TargetDrive = remoteTargetDrive
+            },
             Recipients = recipients,
             VersionTag = targetVersionTag,
             Manifest = uploadManifest
@@ -515,10 +518,13 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         byte[] aesKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var instructionSet = new PeerUploadPayloadInstructionSet()
+        var instructionSet = new PeerDirectUploadPayloadInstructionSet()
         {
-            OverwriteGlobalTransitFileId = targetGlobalTransitId,
-            RemoteTargetDrive = remoteTargetDrive,
+            TargetFile = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = targetGlobalTransitId,
+                TargetDrive = remoteTargetDrive
+            },
             Recipients = recipients,
             VersionTag = targetVersionTag,
             Manifest = uploadManifest
