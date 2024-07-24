@@ -522,7 +522,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     UseCookies = false, // DO NOT CHANGE!
                 };
 
-                // Make sure we accept certifactes from letsencrypt staging servers if not in production
+                // Make sure we accept certificates from letsencrypt staging servers if not in production
                 if (!_useCertificateAuthorityProductionServers)
                 {
                     handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
@@ -561,6 +561,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             else
             {
                 _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);
+            }
+            
+            // Make sure we accept certificates from letsencrypt staging servers if not in production
+            if (!_useCertificateAuthorityProductionServers)
+            {
+                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
             }
 
             return handler;
