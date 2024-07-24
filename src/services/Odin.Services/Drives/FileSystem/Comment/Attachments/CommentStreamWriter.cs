@@ -12,7 +12,7 @@ namespace Odin.Services.Drives.FileSystem.Comment.Attachments;
 public class CommentPayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public CommentPayloadStreamWriter(CommentFileSystem fileSystem, PeerOutgoingTransferService transferService) : base(fileSystem, transferService)
+    public CommentPayloadStreamWriter(CommentFileSystem fileSystem, IPeerOutgoingTransferService transferService) : base(fileSystem, transferService)
     {
     }
 

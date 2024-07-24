@@ -50,7 +50,8 @@ public class TestPayloadDefinition
         {
             ThumbnailKey = $"{this.Key}{thumb.PixelWidth}{thumb.PixelHeight}", //hulk smash (it all together)
             PixelWidth = thumb.PixelWidth,
-            PixelHeight = thumb.PixelHeight
+            PixelHeight = thumb.PixelHeight,
+            ContentType = thumb.ContentType
         });
 
         return new UploadManifestPayloadDescriptor()
@@ -59,6 +60,7 @@ public class TestPayloadDefinition
             PayloadKey = this.Key,
             DescriptorContent = this.DescriptorContent,
             PreviewThumbnail = this.PreviewThumbnail,
+            ContentType = ContentType,
             Thumbnails = t
         };
     }

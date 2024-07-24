@@ -22,11 +22,11 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class PayloadStreamWriterBase
 {
-    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, PeerOutgoingTransferService peerOutgoingTransferService)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, IPeerOutgoingTransferService peerOutgoingTransferService)
     {
         _peerOutgoingTransferService = peerOutgoingTransferService;
         FileSystem = fileSystem;

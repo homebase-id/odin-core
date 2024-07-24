@@ -184,6 +184,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         InstructionSet = payloadTransferInstructionSet
                     };
 
+                    //TODO: i need to resolve the token outside of transit, pass it in as options instead
+                    //TODO: apply encryption before storing in the outbox
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+                    
                     var item = new OutboxFileItem()
                     {
                         Priority = 100,
@@ -197,7 +202,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             IsTransientFile = payloadTransferInstructionSet.TargetFile.Type == FileIdentifierType.GlobalTransitId,
                             Attempts = { },
                             OriginalTransitOptions = default,
-                            EncryptedClientAuthToken = default,
+                            EncryptedClientAuthToken = encryptedClientAccessToken,
                             TransferInstructionSet = new EncryptedRecipientTransferInstructionSet
                             {
                                 FileSystemType = fileSystemType

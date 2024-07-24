@@ -62,6 +62,7 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.PeerV1}/outbox/processor",
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{OwnerApiPathConstants.PeerSenderV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
@@ -69,6 +70,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
+                $"{AppApiPathConstants.PeerSenderV1}/files/uploadpayload",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",

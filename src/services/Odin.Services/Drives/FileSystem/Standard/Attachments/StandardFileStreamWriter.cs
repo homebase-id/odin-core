@@ -12,7 +12,7 @@ namespace Odin.Services.Drives.FileSystem.Standard.Attachments;
 public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, PeerOutgoingTransferService transferService) : base(fileSystem, transferService)
+    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, IPeerOutgoingTransferService transferService) : base(fileSystem, transferService)
     {
     }
 

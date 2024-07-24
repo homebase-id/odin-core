@@ -198,7 +198,7 @@ public sealed class PeerDirectPayloadStreamWriter
     {
         if (_package.InstructionSet.VersionTag == Guid.Empty)
         {
-            throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
+            // throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
         }
 
         // if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())

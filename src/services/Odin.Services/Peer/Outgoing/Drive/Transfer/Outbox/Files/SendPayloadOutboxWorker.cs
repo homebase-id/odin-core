@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -131,9 +132,13 @@ public class SendPayloadOutboxWorker(
             }
         }
 
+        var decryptedClientAuthTokenBytes = fileItem.State.EncryptedClientAuthToken;
+        var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
+        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClient<IPeerTransferHttpClient>(recipient);
+            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient,clientAuthToken);
             var response = await client.UpdatePayloads(transferInstructionSetStream, parts.ToArray());
             return response;
         }
