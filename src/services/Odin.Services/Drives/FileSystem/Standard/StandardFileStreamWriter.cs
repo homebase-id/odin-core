@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Services.Apps.CommandMessaging;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -61,6 +61,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
             await FileSystem.Storage.OverwriteMetadata(
+                keyHeader.Iv,
                 targetFile: package.InternalFile,
                 newMetadata: metadata,
                 newServerMetadata: serverMetadata,

@@ -59,12 +59,6 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task LoadLatestIndex(DatabaseConnection cn);
 
-        Task AddCommandMessage(List<Guid> fileIds, DatabaseConnection cn);
-
-        Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count, DatabaseConnection cn);
-
-        Task MarkCommandsCompleted(List<Guid> fileIds, DatabaseConnection cn);
-
         bool AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
         bool DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);

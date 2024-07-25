@@ -27,8 +27,11 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 using WebPush;
 
@@ -38,22 +41,19 @@ public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
     TenantSystemStorage storage,
-    ServerSystemStorage serverSystemStorage,
-    TenantContext tenantContext,
     PublicPrivateKeyService keyService,
-    TenantSystemStorage tenantSystemStorage,
     NotificationListService notificationListService,
     IHttpClientFactory httpClientFactory,
     ICertificateCache certificateCache,
-    OdinConfiguration configuration)
+    OdinConfiguration configuration,
+    PeerOutbox peerOutbox,
+    IMediator mediator)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
-
-    private readonly PushNotificationOutbox _pushNotificationOutbox = new(tenantSystemStorage);
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
@@ -299,7 +299,7 @@ public class PushNotificationService(
         }
     }
 
-    //
+//
 
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
@@ -322,12 +322,6 @@ public class PushNotificationService(
     private async Task<bool> EnqueueNotificationInternal(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext, DatabaseConnection cn)
     {
         var timestamp = UnixTimeUtc.Now().milliseconds;
-        var item = new PushNotificationOutboxRecord()
-        {
-            SenderId = senderId,
-            Options = options,
-            Timestamp = timestamp
-        };
 
         //add to system list
         await notificationListService.AddNotificationInternal(senderId, new AddNotificationRequest()
@@ -339,12 +333,41 @@ public class PushNotificationService(
             cn
         );
 
-        serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
-            CronJobType.PendingTransitTransfer,
-            tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
-            UnixTimeUtc.Now());
+        // serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
+        //     CronJobType.PendingTransitTransfer,
+        //     tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
+        //     UnixTimeUtc.Now());
 
-        await _pushNotificationOutbox.Add(item, odinContext, cn);
+        var item = new OutboxFileItem()
+        {
+            Priority = 0, //super high priority to ensure these are sent quickly,
+            Type = OutboxItemType.PushNotification,
+            File = new InternalDriveFileId()
+            {
+                DriveId = Guid.NewGuid(),
+                FileId = options.TagId
+            },
+            Recipient = odinContext.Tenant,
+            DependencyFileId = default,
+            State = new OutboxItemState()
+            {
+                Data = OdinSystemSerializer.Serialize(new PushNotificationOutboxRecord()
+                {
+                    SenderId = senderId,
+                    Options = options,
+                    Timestamp = timestamp
+                }).ToUtf8ByteArray()
+            }
+        };
+        
+        logger.LogDebug("Enqueuing notification. Sender: {senderId}, Recipient: {recipient}", senderId, odinContext.Tenant);
+
+        await peerOutbox.AddItem(item, cn);
+        await mediator.Publish(new PushNotificationEnqueuedNotification()
+        {
+            OdinContext = odinContext,
+            DatabaseConnection = cn,
+        });
         return true;
     }
 }

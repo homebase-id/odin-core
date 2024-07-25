@@ -326,31 +326,6 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return Task.CompletedTask;
     }
 
-    public Task AddCommandMessage(List<Guid> fileIds, DatabaseConnection cn)
-    {
-        _db.tblDriveCommandMessageQueue.InsertRows(cn, Drive.Id, fileIds);
-        return Task.CompletedTask;
-    }
-
-    public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count, DatabaseConnection cn)
-    {
-        var list = _db.tblDriveCommandMessageQueue.Get(cn, Drive.Id, count) ?? new List<DriveCommandMessageQueueRecord>();
-
-        var result = list.Select(x => new UnprocessedCommandMessage()
-        {
-            Id = x.fileId,
-            Received = x.timeStamp
-        }).ToList();
-
-        return Task.FromResult(result);
-    }
-
-    public Task MarkCommandsCompleted(List<Guid> fileIds, DatabaseConnection cn)
-    {
-        _db.tblDriveCommandMessageQueue.DeleteRow(cn, Drive.Id, fileIds);
-        return Task.CompletedTask;
-    }
-
     public void Dispose()
     {
         GC.SuppressFinalize(this);

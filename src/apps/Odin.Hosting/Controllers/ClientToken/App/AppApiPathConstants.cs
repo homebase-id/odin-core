@@ -4,6 +4,8 @@
     {
         public const string BasePathV1 = "/api/apps/v1";
 
+        public const string UtilsV1 = BasePathV1 + "/utils";
+        
         public const string NotificationsV1 = BasePathV1 + "/notify";
 
         public const string AuthV1 = BasePathV1 + "/auth";
@@ -33,8 +35,6 @@
         public const string SecurityV1 = BasePathV1 + "/security";
 
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
-
-        public const string CommandSenderV1 = BasePathV1 + "/commands";
         
         public const string OptimizationV1 = BasePathV1 + "/optimization";
 

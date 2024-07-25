@@ -74,8 +74,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
@@ -132,8 +130,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
@@ -188,8 +184,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
@@ -252,8 +246,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
@@ -360,8 +352,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
 

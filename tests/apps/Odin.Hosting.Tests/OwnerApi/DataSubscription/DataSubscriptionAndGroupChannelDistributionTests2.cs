@@ -6,19 +6,13 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
-using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer;
 using Odin.Core.Storage;
-using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -106,7 +100,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
         // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -188,7 +182,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
         // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoSecureChannel);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -202,6 +196,9 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         // The owner deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive); // just in case
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive); // just in case
 
         //
         // Sam's feed drive no longer has the header

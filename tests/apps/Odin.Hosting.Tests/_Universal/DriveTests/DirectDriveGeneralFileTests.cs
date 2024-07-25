@@ -14,7 +14,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Authorization.Acl;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -50,17 +50,32 @@ public class DirectDriveGeneralFileTests
     {
         _scaffold.AssertLogEvents();
     }
-
-
-    public static IEnumerable TestCases()
+    
+    public static IEnumerable OwnerAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
+    public static IEnumerable AppAllowed()
+    {
+        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+    }
+    
+    public static IEnumerable GuestAllowed()
+    {
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+    }
+    
+    public static IEnumerable WhenGuestOnlyHasReadAccess()
+    {
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+    }
+
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUploadMetadataDataWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -81,7 +96,10 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUploadFileWith2PayloadsAnd2Thumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -93,8 +111,8 @@ public class DirectDriveGeneralFileTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
         };
 
         var uploadManifest = new UploadManifest()
@@ -161,7 +179,10 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task DeletingFileDeletesAllPayloadsAndThumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -171,11 +192,11 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
+            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
         };
 
         var uploadManifest = new UploadManifest()
@@ -221,7 +242,10 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanDeleteByMultipleFileIds(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -231,9 +255,9 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         // upload metadata and validate they're uploaded
-        var f1 = SampleMetadataData.Create(fileType: 101);
-        var f2 = SampleMetadataData.Create(fileType: 202);
-        var f3 = SampleMetadataData.Create(fileType: 203);
+        var f1 = SampleMetadataData.Create(fileType: 101, acl: AccessControlList.Anonymous);
+        var f2 = SampleMetadataData.Create(fileType: 202, acl: AccessControlList.Anonymous);
+        var f3 = SampleMetadataData.Create(fileType: 203, acl: AccessControlList.Anonymous);
 
         UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
         UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
@@ -286,7 +310,10 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanDeleteMultipleFilesByGroupIdList(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -299,10 +326,10 @@ public class DirectDriveGeneralFileTests
         var groupId3 = Guid.NewGuid(); // Keep this done
 
         // upload metadata and validate they're uploaded
-        var f1 = SampleMetadataData.Create(fileType: 101, groupId: groupId1);
-        var f2 = SampleMetadataData.Create(fileType: 202, groupId: groupId1);
-        var f3 = SampleMetadataData.Create(fileType: 203, groupId: groupId2);
-        var f4 = SampleMetadataData.Create(fileType: 203, groupId: groupId3);
+        var f1 = SampleMetadataData.Create(fileType: 101, groupId: groupId1, acl: AccessControlList.Anonymous);
+        var f2 = SampleMetadataData.Create(fileType: 202, groupId: groupId1, acl: AccessControlList.Anonymous);
+        var f3 = SampleMetadataData.Create(fileType: 203, groupId: groupId2, acl: AccessControlList.Anonymous);
+        var f4 = SampleMetadataData.Create(fileType: 203, groupId: groupId3, acl: AccessControlList.Anonymous);
 
         UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
         UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
@@ -400,7 +427,10 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanGetDeletedFileByGlobalTransitId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -410,7 +440,7 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
 
         var response = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         Assert.IsTrue(response.IsSuccessStatusCode);
@@ -447,13 +477,12 @@ public class DirectDriveGeneralFileTests
                     IncludeMetadataHeader = true
                 }
             });
-            
+
             Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var results = queryBatchResponse.Content.SearchResults;
             var theFile = results.SingleOrDefault();
             Assert.IsNotNull(theFile);
             Assert.IsTrue(theFile.FileState == FileState.Deleted);
-            
         }
     }
 

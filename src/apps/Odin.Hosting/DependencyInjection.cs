@@ -5,7 +5,6 @@ using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authentication.YouAuth;
@@ -44,6 +43,8 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Background;
+using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -63,6 +64,12 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
+
+            cb.RegisterType<PushNotificationOutboxAdapter>()
+                .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
+                .AsSelf().SingleInstance();
 
             cb.RegisterType<FeedNotificationMapper>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
@@ -127,7 +134,6 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
@@ -171,10 +177,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
-            
-            cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
-            cb.RegisterType<PeerOutboxProcessorAsync>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
@@ -198,8 +201,6 @@ namespace Odin.Hosting
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
 
-            cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
-
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
@@ -216,19 +217,14 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+
+            // Background services
+            cb.RegisterTenantBackgroundServices(tenant);
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
-            //TODO: add logging back in
-            // var logger = scope.Resolve<ILogger<Startup>>();
-            // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
-
-            var registry = scope.Resolve<IIdentityRegistry>();
-            var tenantContext = scope.Resolve<TenantContext>();
-
-            var tc = registry.CreateTenantContext(tenant.Name);
-            tenantContext.Update(tc);
+            // DEPRECATED - don't do stuff in here.
         }
     }
 }

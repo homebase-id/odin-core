@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Status;
 
 public abstract class DriveStatusControllerBase(
     StandardFileSystem fileSystem,
-    IPeerOutbox peerOutbox,
+    PeerOutbox peerOutbox,
     TransitInboxBoxStorage peerInbox,
     TenantSystemStorage tenantSystemStorage) : OdinControllerBase
 {

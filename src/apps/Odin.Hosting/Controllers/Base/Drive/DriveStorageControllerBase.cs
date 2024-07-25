@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -27,7 +26,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveStorageControllerBase(
         // ILogger logger,
-        FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
         // private readonly ILogger _logger = logger;
@@ -291,7 +289,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
+            await GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext, cn);
             return Ok();
         }
 
@@ -321,8 +319,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var file = new InternalDriveFileId()
             {
-                DriveId = driveId,
-                FileId = request.File.FileId
+                FileId = request.File.FileId,
+                DriveId = driveId
             };
 
             var result = new DeleteFileResult()
@@ -332,9 +330,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = await fileSystemResolver.ResolveFileSystem(file, WebOdinContext, cn);
+            //TODO: consider - this requires the caller for delete to have read access to get the file
+            // when in-fact the caller only needs write access to delete a file.
 
-            var header = await fs.Storage.GetServerFileHeader(file, WebOdinContext, cn);
+            // var patchedContext = OdinContextUpgrades.UpgradeForFileDelete(WebOdinContext, file.DriveId);
+            // var fs = await fileSystemResolver.ResolveFileSystem(file, WebOdinContext, cn);
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var header = await fs.Storage.GetServerFileHeaderForWriting(file, WebOdinContext, cn);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
@@ -342,16 +344,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var recipients = requestRecipients ?? new List<string>();
-            if (recipients.Any() && header.FileMetadata.GlobalTransitId.HasValue)
+            if (recipients.Any())
             {
-                var remoteGlobalTransitIdentifier = new GlobalTransitIdFileIdentifier()
-                {
-                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    TargetDrive = request.File.TargetDrive
-                };
-
                 //send the deleted file
-                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(file,
                     new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,

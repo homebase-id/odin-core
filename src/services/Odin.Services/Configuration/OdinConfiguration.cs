@@ -117,7 +117,7 @@ namespace Odin.Services.Configuration
 
             public DevelopmentSection(IConfiguration config)
             {
-                PreconfiguredDomains = config.Required<List<string>>("Development:PreconfiguredDomains");
+                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", new List<string>());
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 RecoveryKeyWaitingPeriodSeconds = config.Required<int>("Development:RecoveryKeyWaitingPeriodSeconds");
             }
@@ -228,7 +228,7 @@ namespace Odin.Services.Configuration
 
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
-                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", false);
+                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", true);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
@@ -289,32 +289,30 @@ namespace Odin.Services.Configuration
             /// <summary>
             /// Toggle if job processing is enabled
             /// </summary>
-            public bool Enabled { get; init; }
+            public bool Enabled { get; init; } // SEB:TODO delete this
 
             /// <summary>
             /// Number of seconds to delay starting background jobs when starting the dotyoucore process
             /// </summary>
-            public int BackgroundJobStartDelaySeconds { get; init; }
+            public int BackgroundJobStartDelaySeconds { get; init; } // SEB:TODO delete this
 
-            public int CronProcessingInterval { get; init; }
+            public int CronProcessingInterval { get; init; } // SEB:TODO delete this
 
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
 
             /// <summary>
             /// The interval in which we check for the validation of certificate order
             /// </summary>
-            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; }
+            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; } // SEB:TODO delete this
 
             /// <summary>
             ///  The number of items to query from the cron queue each time the job runs 
             /// </summary>
-            public int CronBatchSize { get; init; }
+            public int CronBatchSize { get; init; } // SEB:TODO delete this
+            
+            public int MaxSchedulerConcurrency { get; init; } // SEB:TODO delete this
 
-            public bool EnableJobBackgroundService { get; init; }
-
-            public int MaxSchedulerConcurrency { get; init; }
-
-            public bool ConnectionPooling { get; init; }
+            public bool ConnectionPooling { get; init; } // SEB:TODO delete this
             public int InboxOutboxReconciliationDelaySeconds { get; init; }
 
             public JobSection()
@@ -326,7 +324,6 @@ namespace Odin.Services.Configuration
             {
                 Enabled = config.Required<bool>("Job:Enabled");
                 BackgroundJobStartDelaySeconds = config.Required<int>("Job:BackgroundJobStartDelaySeconds");
-                EnableJobBackgroundService = config.Required<bool>("Job:EnableJobBackgroundService");
                 CronProcessingInterval = config.Required<int>("Job:CronProcessingInterval");
                 CronBatchSize = config.Required<int>("Job:CronBatchSize");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");

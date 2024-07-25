@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -23,6 +24,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
             var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
             tenantSystemStorage.Inbox.Insert(cn, new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+
+            PerformanceCounter.IncrementCounter("Inbox Item Added");
 
             return Task.CompletedTask;
         }
@@ -43,7 +46,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public InboxStatus GetPendingCount(Guid driveId, DatabaseConnection cn)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
-
             return new InboxStatus()
             {
                 TotalItems = p.totalCount,
@@ -61,6 +63,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             {
                 return new List<TransferInboxItem>();
             }
+
+            PerformanceCounter.IncrementCounter("Inbox Item Checkout");
 
             var items = records.Select(r =>
             {
@@ -81,19 +85,28 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public Task MarkComplete(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
             tenantSystemStorage.Inbox.PopCommitList(cn, marker, file.DriveId, [file.FileId]);
+            
+            PerformanceCounter.IncrementCounter("Inbox Mark Complete");
+
             return Task.CompletedTask;
         }
 
         public Task MarkFailure(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
             tenantSystemStorage.Inbox.PopCancelList(cn, marker, file.DriveId, [file.FileId]);
+            
+            PerformanceCounter.IncrementCounter("Inbox Mark Failure");
+
             return Task.CompletedTask;
         }
 
-        public Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
+        public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
-            return Task.CompletedTask;
+            var recovered = tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
+            
+            PerformanceCounter.IncrementCounter("Inbox Recover Dead");
+
+            return Task.FromResult(recovered);
         }
     }
 }

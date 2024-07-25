@@ -5,14 +5,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -72,13 +75,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
 
         RegisterCertificateInitializerHttpClient();
-        Initialize();
-    }
-
-
-    public void Initialize()
-    {
-        LoadCache();
+        LoadRegistrations().BlockingWait();
     }
 
     public Guid? ResolveId(string domain)
@@ -206,6 +203,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 });
         }
 
+        CacheCertificate(registration);
+        await StartBackgroundServices(registration);
+
         return registration.FirstRunToken.GetValueOrDefault();
     }
 
@@ -216,7 +216,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
-            UnloadRegistration(registration);
+            await UnloadRegistration(registration);
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
@@ -331,9 +331,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var regFilePath = GetRegFilePath(registration.Id);
         await File.WriteAllTextAsync(regFilePath, json);
 
-        _logger.LogInformation("Write registration file for [{registrationId}]", registration.Id);
-
-        Cache(registration);
+        _logger.LogInformation("Wrote registration file for [{registrationId}]", registration.Id);
+        CacheIdentity(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -397,7 +396,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
     }
 
-    private void LoadCache()
+    private async Task LoadRegistrations()
     {
         if (!Directory.Exists(RegistrationRoot))
         {
@@ -427,7 +426,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
-                Cache(registration);
+                CacheIdentity(registration);
+
+                CacheCertificate(registration);
+                await StartBackgroundServices(registration);
             }
             catch (Exception e)
             {
@@ -451,18 +453,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private void Cache(IdentityRegistration registration)
+    private void CacheIdentity(IdentityRegistration registration)
     {
         RegisterDotYouHttpClient(registration);
 
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
+
+        // Create multitenant scope
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var tenantContext = scope.Resolve<TenantContext>();
+        var tc = CreateTenantContext(registration.PrimaryDomainName);
+        tenantContext.Update(tc);
     }
 
-    private void UnloadRegistration(IdentityRegistration registration)
+    private async Task UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
+        await StopBackgroundServices(registration);
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
@@ -513,7 +522,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     UseCookies = false, // DO NOT CHANGE!
                 };
 
-                // Make sure we accept certifactes from letsencrypt staging servers if not in production
+                // Make sure we accept certificates from letsencrypt staging servers if not in production
                 if (!_useCertificateAuthorityProductionServers)
                 {
                     handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
@@ -552,6 +561,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             else
             {
                 _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);
+            }
+            
+            // Make sure we accept certificates from letsencrypt staging servers if not in production
+            if (!_useCertificateAuthorityProductionServers)
+            {
+                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
             }
 
             return handler;
@@ -594,4 +609,42 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     }
 
     //
+
+    private void CacheCertificate(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var tenantContext = scope.Resolve<TenantContext>();
+        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
+        var certificateService = certificateServiceFactory.Create(tenantContext.SslRoot);
+        var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
+        if (certificate != null)
+        {
+            _logger.LogInformation("Certificate loaded for {domain}", registration.PrimaryDomainName);
+        }
+        else
+        {
+            _logger.LogWarning("No certificate loaded for {domain} (yet)", registration.PrimaryDomainName);
+        }
+    }
+
+    //
+
+    private async Task StartBackgroundServices(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.StartTenantBackgroundServices(scope);
+    }
+
+    //
+
+    private async Task StopBackgroundServices(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
+        await backgroundServiceManager.ShutdownAsync();
+    }
+
+    //
+
 }

@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
 
             FileMetadata metadata = null;
-            var metadataMs = await Benchmark.MillisecondsAsync(async () =>
+            var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
                 var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
 
@@ -65,7 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
             });
 
-            logger.LogInformation("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+            logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
 
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -108,10 +108,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             metadata!.SenderOdinId = sender;
             switch (transferFileType)
             {
-                case TransferFileType.CommandMessage:
-                    await StoreCommandMessage(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, odinContext, cn);
-                    break;
-
                 case TransferFileType.Normal:
                     await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;
@@ -121,7 +117,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 default:
-                    throw new OdinFileWriteException("Invalid TransferFileType");
+                    throw new OdinFileWriteException($"Invalid TransferFileType: {transferFileType}");
             }
         }
 
@@ -175,7 +171,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                   "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
             }
             else
-            { 
+            {
                 var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
 
                 if (!recordExists || transferHistoryItem == null)
@@ -219,8 +215,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFs || !fileId.HasValue)
             {
-                //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                throw new OdinClientException("Referenced file missing or caller does not have access");
             }
 
             //
@@ -249,23 +244,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return targetAcl;
         }
 
-        /// <summary>
-        /// Stores an incoming command message and updates the queue
-        /// </summary>
-        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, odinContext: odinContext, ignorePayload: false, cn: cn);
-            await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, [tempFile.FileId], cn);
-        }
-
-
         private async Task WriteNewFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var ms = await Benchmark.MillisecondsAsync(async () =>
+            var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                 await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
@@ -279,11 +262,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-            //one is written any time you save a header)
-            metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-            //note: we also update the key header because it might have been changed by the sender
-            await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
+            {
+                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
+                //one is written any time you save a header)
+                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+                //note: we also update the key header because it might have been changed by the sender
+                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
+            });
         }
 
         /// <summary>
@@ -307,13 +293,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If we can, then the gtid is the winner and decides the matching file
             //
 
-            // TODO: Use tblMainIndex.GetByGlobalTransitId() rather than QB()
             header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
             // If there is no file matching the gtid, let's check if the UID might point to one
             if (header == null && metadata.AppData.UniqueId.HasValue)
             {
-                // TODO: Use tblMainIndex.GetByClientUniqueId() rather than QB()
                 header = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, cn);
             }
 
@@ -327,7 +311,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // The header new points to a file by either gtid or uid (in this priority)
             //
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 
@@ -364,7 +348,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 

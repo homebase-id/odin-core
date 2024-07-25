@@ -18,5 +18,6 @@ namespace Odin.Services.Mediator
 
         public DatabaseConnection DatabaseConnection { get; init; }
         public bool IgnoreFeedDistribution { get; set; }
+        public bool IgnoreReactionPreviewCalculation { get; set; }
     }
 }

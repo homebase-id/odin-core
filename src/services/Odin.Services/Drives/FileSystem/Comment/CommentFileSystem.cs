@@ -14,6 +14,4 @@ public class CommentFileSystem : IDriveFileSystem
     public DriveQueryServiceBase Query { get; }
     public DriveStorageServiceBase Storage { get; }
 
-    public DriveCommandServiceBase Commands => throw new NotImplementedException("Commands not supported for comment files");
-
 }
