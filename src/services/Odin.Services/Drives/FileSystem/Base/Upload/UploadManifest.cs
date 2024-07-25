@@ -27,12 +27,13 @@ public class UploadManifest
             foreach (var pd in this.PayloadDescriptors)
             {
                 DriveFileUtility.AssertValidPayloadKey(pd.PayloadKey);
-                if (string.IsNullOrEmpty(pd.ContentType?.Trim()))
-                {
-                    throw new OdinClientException(
-                        "Payloads must include a valid contentType in the multi-part upload.",
-                        OdinClientErrorCode.InvalidPayload);
-                }
+                //re-enable after stef updates the native apps
+                // if (string.IsNullOrEmpty(pd.ContentType?.Trim()))
+                // {
+                //     throw new OdinClientException(
+                //         "Payloads must include a valid contentType in the multi-part upload.",
+                //         OdinClientErrorCode.InvalidPayload);
+                // }
 
                 var anyMissingThumbnailKey = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim())) ?? false;
                 if (anyMissingThumbnailKey)
@@ -41,12 +42,13 @@ public class UploadManifest
                         OdinClientErrorCode.InvalidUpload);
                 }
                 
-                var anyMissingContentTypeOnThumbnail = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ContentType?.Trim())) ?? false;
-                if (anyMissingContentTypeOnThumbnail)
-                {
-                    throw new OdinClientException($"The payload key [{pd.PayloadKey}] has a thumbnail missing a content type",
-                        OdinClientErrorCode.InvalidUpload);
-                }
+                //re-enable after Stef updates the native apps
+                // var anyMissingContentTypeOnThumbnail = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ContentType?.Trim())) ?? false;
+                // if (anyMissingContentTypeOnThumbnail)
+                // {
+                //     throw new OdinClientException($"The payload key [{pd.PayloadKey}] has a thumbnail missing a content type",
+                //         OdinClientErrorCode.InvalidUpload);
+                // }
 
                 // the width and height of all thumbnails must be unique for a given payload key
                 var hasDuplicates = pd.Thumbnails?.GroupBy(p => $"{p.PixelWidth}{p.PixelHeight}")
