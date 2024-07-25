@@ -227,7 +227,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued);
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == OutboxEnqueuingStatus.Enqueued);
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
@@ -344,7 +344,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == OutboxEnqueuingStatus.Enqueued,
                             $"transfer key not created for {recipient}");
                     }
 

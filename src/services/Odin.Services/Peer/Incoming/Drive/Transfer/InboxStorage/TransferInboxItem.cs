@@ -53,10 +53,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
         
-        //Feed bolt-ons
         public EccEncryptedPayload EncryptedFeedPayload { get; set; }
         
-        
         public PeerPayloadPackage PeerPayloadPackage { get; set; }
+        
+        public DeleteRemotePayloadRequest DeleteRemotePayloadRequest { get; set; }
     }
 }

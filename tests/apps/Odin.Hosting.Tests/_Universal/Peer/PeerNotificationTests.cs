@@ -126,7 +126,7 @@ public class PeerNotificationTests
         var uploadFileResponse = await samDriveClient.UploadNewMetadata(targetDrive, fileMetadata, transitOptions);
         Assert.IsTrue(uploadFileResponse.IsSuccessStatusCode, $"Failed with status code {uploadFileResponse.StatusCode}");
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
-        Assert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
+        Assert.IsTrue(frodoTransferStatus == OutboxEnqueuingStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
 
         
         await ownerFrodo.DriveRedux.WaitForEmptyOutbox(targetDrive);

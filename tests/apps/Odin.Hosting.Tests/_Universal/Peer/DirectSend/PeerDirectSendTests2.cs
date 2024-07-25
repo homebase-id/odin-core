@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -95,7 +96,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromHours(1));
 
             // validate recipient got the file and the payload are there
@@ -215,7 +216,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
@@ -338,7 +339,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
@@ -398,7 +399,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             //
@@ -501,7 +502,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
@@ -575,7 +576,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
@@ -662,7 +663,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             // validate recipient got the file and the payload are there
@@ -716,7 +717,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
@@ -818,7 +819,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
-            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
@@ -888,7 +889,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
@@ -929,6 +930,122 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
+        [Test]
+        public async Task CanDeleteRemote_Payloads_ByKeyWhenMultiplePayloadsExist()
+        {
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.Write;
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+            var recipientTargetDrive = await PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            const string fileContent1 = "filecontent1";
+            var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 3011, fileContent1, AccessControlList.Connected);
+            fileMetadata.AllowDistribution = true;
+
+            // Upload a file with 1 payload
+            const string payloadContent = "some payload content";
+            var testPayloads = new List<TestPayloadDefinition>()
+            {
+                new()
+                {
+                    Iv = default,
+                    Key = WebScaffold.PAYLOAD_KEY,
+                    ContentType = "text/plain",
+                    Content = payloadContent.ToUtf8ByteArray(),
+                    Thumbnails = []
+                }
+            };
+
+            var uploadManifest = new UploadManifest()
+            {
+                PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            };
+
+            var transferFileResponse = await senderOwnerClient.PeerDirect.TransferNewFile(recipientTargetDrive,
+                fileMetadata,
+                [recipient.OdinId],
+                uploadManifest,
+                testPayloads);
+
+            Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
+            var transferResult = transferFileResponse.Content;
+
+            Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
+
+            // Validate we have one payload 
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(
+                recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
+
+            var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(remoteHeader);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
+
+            var remoteFile = new ExternalFileIdentifier()
+            {
+                FileId = remoteHeader.FileId,
+                TargetDrive = recipientTargetDrive
+            };
+
+            var getPayloadResponse = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(await getPayloadResponse.Content.ReadAsStringAsync() == payloadContent);
+
+            //
+            // Act: delete the payload
+            //
+
+            var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
+            var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
+
+            var deletePayloadResponse = await senderOwnerClient.PeerDirect.DeletePayload(targetGlobalTransitId,
+                targetVersionTag, recipientTargetDrive, WebScaffold.PAYLOAD_KEY, [recipient.OdinId]);
+
+            Assert.IsTrue(deletePayloadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(deletePayloadResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
+
+            //
+            // Assert: the payload was deleted but the header exists and has 0 payloads
+            //
+
+            //get the header
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
+            var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(updatedHeader);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
+
+            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = WebScaffold.PAYLOAD_KEY,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
+
+            await DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
 
         private async Task<TargetDrive> PrepareScenario(
             OwnerApiClientRedux senderOwnerClient,

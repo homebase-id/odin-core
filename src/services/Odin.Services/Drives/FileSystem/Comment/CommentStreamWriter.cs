@@ -107,7 +107,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
+    protected override async Task<Dictionary<string, OutboxEnqueuingStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
         DatabaseConnection cn)
     {
         return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, cn);

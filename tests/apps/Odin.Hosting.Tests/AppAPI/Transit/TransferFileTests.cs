@@ -513,7 +513,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"file was not enqued for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"file was not enqued for {r}");
                 }
             }
 
@@ -832,7 +832,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 

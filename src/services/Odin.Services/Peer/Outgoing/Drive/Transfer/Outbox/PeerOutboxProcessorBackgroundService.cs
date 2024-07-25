@@ -219,8 +219,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, connection, cancellationToken);
 
-                case OutboxItemType.PayloadUpdate:
+                case OutboxItemType.UpdateRemotePayloads:
                     return await SendPayload(fileItem, odinContext, connection, cancellationToken);
+
+                case OutboxItemType.DeleteRemotePayloads:
+                    return await SendDeletePayloadRequest(fileItem, odinContext, connection, cancellationToken);
 
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -252,6 +255,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var workLogger = loggerFactory.CreateLogger<SendFileOutboxWorkerAsync>();
             var worker = new SendFileOutboxWorkerAsync(fileItem,
                 fileSystemResolver,
+                workLogger,
+                odinConfiguration,
+                odinHttpClientFactory
+            );
+
+            return await worker.Send(odinContext, connection, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendDeletePayloadRequest(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendDeletePayloadOutboxWorker>();
+            var worker = new SendDeletePayloadOutboxWorker(fileItem,
                 workLogger,
                 odinConfiguration,
                 odinHttpClientFactory

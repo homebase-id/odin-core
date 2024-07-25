@@ -26,6 +26,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct
         Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
 
         [Post(RootEndpoint + "/files/deletepayload")]
-        Task<ApiResponse<DeletePayloadRequest>> DeletePayload([Body] PeerDeletePayloadRequest request);
+        Task<ApiResponse<PeerDeletePayloadResult>> DeletePayload([Body] PeerDeletePayloadRequest request);
     }
 }

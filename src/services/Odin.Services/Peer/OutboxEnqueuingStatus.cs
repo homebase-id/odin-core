@@ -1,7 +1,7 @@
 
 namespace Odin.Services.Peer
 {
-    public enum TransferStatus
+    public enum OutboxEnqueuingStatus
     {
         /// <summary>
         /// Indicates creating the outbox item failed.  The client should retry.

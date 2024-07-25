@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Org.BouncyCastle.Asn1.Cmp;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
@@ -22,11 +23,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         [Post(DriveRoot + "/mark-file-read")]
         Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest);
-        
+
         [Multipart]
         [Post(DriveRoot + "/update-payloads")]
         Task<ApiResponse<PeerTransferResponse>> UpdatePayloads(
             StreamPart instructionSet,
             params StreamPart[] additionalStreamParts);
+
+        [Post(DriveRoot + "/delete-payloads")]
+        Task<ApiResponse<PeerTransferResponse>> DeletePayload([Body] DeleteRemotePayloadRequest request);
     }
 }

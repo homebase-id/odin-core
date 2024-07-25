@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -15,7 +15,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType,
+        Task<Dictionary<string, OutboxEnqueuingStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType,
             StorageIntent storageIntent, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn);
 
         Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(InternalDriveFileId fileId, FileTransferOptions fileTransferOptions,
@@ -31,11 +31,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext, DatabaseConnection cn,
             FileSystemType fileSystemType);
 
-        Task<Dictionary<string, TransferStatus>> SendPayload(InternalDriveFileId sourceFileId,
+        Task<Dictionary<string, OutboxEnqueuingStatus>> SendPayload(InternalDriveFileId sourceFileId,
             List<string> recipients,
             PayloadTransferInstructionSet payloadTransferInstructionSet,
             FileSystemType fileSystemType,
             IOdinContext odinContext,
             DatabaseConnection c);
+
+        Task<Dictionary<string, OutboxEnqueuingStatus>> DeletePayload(FileIdentifier file,
+            Guid versionTag,
+            string payloadKey,
+            List<string> recipients,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext, DatabaseConnection connection);
     }
 }

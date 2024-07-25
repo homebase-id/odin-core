@@ -37,7 +37,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
-        public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
+        public async Task<Dictionary<string, OutboxEnqueuingStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options,
             TransferFileType transferFileType,
             StorageIntent storageIntent,
@@ -158,15 +158,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        public async Task<Dictionary<string, TransferStatus>> SendPayload(
+        public async Task<Dictionary<string, OutboxEnqueuingStatus>> SendPayload(
             InternalDriveFileId sourceFileId,
             List<string> recipients,
             PayloadTransferInstructionSet payloadTransferInstructionSet,
-            FileSystemType fileSystemType, 
-            IOdinContext odinContext, 
+            FileSystemType fileSystemType,
+            IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var status = new Dictionary<string, TransferStatus>();
+            var status = new Dictionary<string, OutboxEnqueuingStatus>();
 
             OdinValidationUtils.AssertValidRecipientList(recipients);
             if (recipients.Contains(tenantContext.HostOdinId, StringComparer.InvariantCultureIgnoreCase))
@@ -188,11 +188,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     //TODO: apply encryption before storing in the outbox
                     var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
-                    
+
                     var item = new OutboxFileItem()
                     {
                         Priority = 100,
-                        Type = OutboxItemType.PayloadUpdate,
+                        Type = OutboxItemType.UpdateRemotePayloads,
                         File = sourceFileId,
                         Recipient = recipient,
                         DependencyFileId = default,
@@ -213,18 +213,76 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                     await peerOutbox.AddItem(item, cn, useUpsert: true);
 
-                    status.Add(recipient, TransferStatus.Enqueued);
+                    status.Add(recipient, OutboxEnqueuingStatus.Enqueued);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError("Failed while creating outbox item {msg}", ex.Message);
-                    status.Add(recipient, TransferStatus.EnqueuedFailed);
+                    status.Add(recipient, OutboxEnqueuingStatus.EnqueuedFailed);
                 }
             }
 
             outboxProcessorBackgroundService.WakeUp();
 
             return status;
+        }
+
+        public async Task<Dictionary<string, OutboxEnqueuingStatus>> DeletePayload(FileIdentifier file,
+            Guid versionTag,
+            string payloadKey,
+            List<string> recipients,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext,
+            DatabaseConnection connection)
+        {
+            file.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            
+            var fileId = new InternalDriveFileId()
+            {
+                FileId = file.FileId,
+                DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
+            };
+            
+            var results = new Dictionary<string, OutboxEnqueuingStatus>();
+            foreach (var r in recipients)
+            {
+                var recipient = (OdinId)r;
+
+                //TODO: i need to resolve the token outside of transit, pass it in as options instead
+                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, connection);
+                var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+
+                var item = new OutboxFileItem()
+                {
+                    Recipient = recipient,
+                    Priority = 100,
+                    Type = OutboxItemType.DeleteRemotePayloads,
+                    File = fileId,
+                    DependencyFileId = default,
+                    State = new OutboxItemState
+                    {
+                        Recipient = null,
+                        IsTransientFile = false,
+                        TransferInstructionSet = null,
+                        OriginalTransitOptions = null,
+                        EncryptedClientAuthToken = encryptedClientAccessToken,
+                        Data = OdinSystemSerializer.Serialize(new DeleteRemotePayloadRequest()
+                        {
+                            PayloadKey = payloadKey,
+                            TargetFile = file,
+                            VersionTag = versionTag,
+                            FileSystemType = fileSystemType
+                        }).ToUtf8ByteArray()
+                    }
+                };
+
+                await peerOutbox.AddItem(item, connection, useUpsert: true);
+                results.Add(recipient.DomainName, OutboxEnqueuingStatus.Enqueued);
+            }
+
+            outboxProcessorBackgroundService.WakeUp();
+
+            return results;
         }
 
         // 
@@ -382,7 +440,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateOutboxItems(InternalDriveFileId internalFile,
+        private async Task<(Dictionary<string, OutboxEnqueuingStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateOutboxItems(
+            InternalDriveFileId internalFile,
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
@@ -392,7 +451,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDrive(internalFile.DriveId, cn, failIfInvalid: true)).TargetDriveInfo;
 
-            var status = new Dictionary<string, TransferStatus>();
+            var status = new Dictionary<string, OutboxEnqueuingStatus>();
             var outboxItems = new List<OutboxFileItem>();
 
             if (options.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
@@ -441,12 +500,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         }
                     });
 
-                    status.Add(recipient, TransferStatus.Enqueued);
+                    status.Add(recipient, OutboxEnqueuingStatus.Enqueued);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError("Failed while creating outbox item {msg}", ex.Message);
-                    status.Add(recipient, TransferStatus.EnqueuedFailed);
+                    status.Add(recipient, OutboxEnqueuingStatus.EnqueuedFailed);
                 }
             }
 

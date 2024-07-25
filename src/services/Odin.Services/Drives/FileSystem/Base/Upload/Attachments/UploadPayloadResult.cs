@@ -19,7 +19,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
         /// </summary>
         public Guid NewVersionTag { get; set; }
 
-        public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
+        public Dictionary<string, OutboxEnqueuingStatus> RecipientStatus { get; set; }
 
     }
 }

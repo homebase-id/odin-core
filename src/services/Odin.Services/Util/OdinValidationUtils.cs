@@ -61,11 +61,11 @@ public static class OdinValidationUtils
         }
     }
 
-    public static void AssertNotEmptyGuid(Guid g, string name)
+    public static void AssertNotEmptyGuid(Guid g, string name, OdinClientErrorCode code = OdinClientErrorCode.ArgumentError)
     {
         if (g == Guid.Empty)
         {
-            throw new OdinClientException($"{name} is empty", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException($"{name} is empty", code);
         }
     }
 

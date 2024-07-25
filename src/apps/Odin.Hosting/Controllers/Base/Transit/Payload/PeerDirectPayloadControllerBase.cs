@@ -12,6 +12,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit.Payload
@@ -30,7 +31,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
     {
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
         [HttpPost("files/uploadpayload")]
-        public async Task<UploadPayloadResult> UploadPayload()
+        public async Task<PeerUploadPayloadResult> UploadPayload()
         {
             // Rules:
             // Cannot upload encrypted payload to encrypted file (how can I tell?)
@@ -53,7 +54,7 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<PeerDirectUploadPayloadInstructionSet>(json);
-            instructionSet.Manifest.AssertIsValid();
+            instructionSet.AssertIsValid();
 
             await writer.StartUpload(instructionSet, WebOdinContext, cn);
 
@@ -82,26 +83,21 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
 
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
         [HttpPost("files/deletepayload")]
-        public async Task<DeletePayloadResult> DeletePayload(PeerDeletePayloadRequest request)
+        public async Task<PeerDeletePayloadResult> DeletePayload(PeerDeletePayloadRequest request)
         {
-            if (null == request)
-            {
-                throw new OdinClientException("Invalid delete payload request");
-            }
-
+            OdinValidationUtils.AssertNotNull(request, "request");
+            OdinValidationUtils.AssertNotEmptyGuid(request.VersionTag, nameof(request.VersionTag), OdinClientErrorCode.MissingVersionTag);
+            OdinValidationUtils.AssertValidRecipientList(request.Recipients, false);
             DriveFileUtility.AssertValidPayloadKey(request.Key);
-            if (request.VersionTag == null)
-            {
-                throw new OdinClientException("Missing version tag", OdinClientErrorCode.MissingVersionTag);
-            }
 
-            var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+
             using var cn = tenantSystemStorage.CreateConnection();
 
-            return new DeletePayloadResult()
+            return new PeerDeletePayloadResult()
             {
-                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault(), WebOdinContext, cn)
+                RecipientStatus = await peerOutgoingTransferService.DeletePayload(request.File, request.VersionTag, request.Key, request.Recipients,
+                    this.GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext, cn)
             };
         }
     }

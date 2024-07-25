@@ -9,5 +9,6 @@ public enum TransferInstructionType
     DeleteLinkedFile,
     SaveFile,
     ReadReceipt,
-    SavePayloads
+    SavePayloads,
+    DeletePayload
 }

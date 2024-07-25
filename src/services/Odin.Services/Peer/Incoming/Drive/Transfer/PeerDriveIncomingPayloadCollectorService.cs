@@ -11,6 +11,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
@@ -33,17 +34,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage = new(tenantSystemStorage);
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
-        public async Task InitializeIncomingTransfer(PayloadTransferInstructionSet instructionSet, IOdinContext odinContext,
+        public async Task InitializeIncomingPayloadTransfer(PayloadTransferInstructionSet instructionSet, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet.TargetFile.Drive);
-
-            //validate the target file exists by gtid
-            var existingFile = await fileSystem.Query.GetFileByGlobalTransitId(driveId, instructionSet.TargetFile.FileId, odinContext, cn);
-            if (null == existingFile)
-            {
-                throw new OdinClientException("No file found by GlobalTransitId");
-            }
+            var (existingFile, driveId) = await AssertFileExists(instructionSet.TargetFile, odinContext, cn);
 
             var file = new InternalDriveFileId()
             {
@@ -144,7 +138,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        public async Task<PeerTransferResponse> FinalizeTransfer(IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<PeerTransferResponse> FinalizePayloadTransfer(IOdinContext odinContext, DatabaseConnection cn)
         {
             logger.LogDebug("Finalizing Transfer");
 
@@ -167,25 +161,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
             }
 
-            await RouteToInbox(odinContext, cn);
-
-            if (null != _package.InstructionSet.AppNotificationOptions)
-            {
-                var senderId = odinContext.GetCallerOdinIdOrFail();
-                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await pushNotificationService.EnqueueNotification(senderId, _package.InstructionSet.AppNotificationOptions, newContext, cn);
-            }
-
-            return new PeerTransferResponse() { Code = PeerResponseCode.AcceptedIntoInbox };
-        }
-
-        //
-
-        /// <summary>
-        /// Stores the file in the inbox, so it can be processed by the owner in a separate process
-        /// </summary>
-        private async Task RouteToInbox(IOdinContext odinContext, DatabaseConnection cn)
-        {
             var item = new TransferInboxItem()
             {
                 Id = Guid.NewGuid(),
@@ -209,6 +184,65 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 OdinContext = odinContext,
                 DatabaseConnection = cn
             });
+
+
+            if (null != _package.InstructionSet.AppNotificationOptions)
+            {
+                var senderId = odinContext.GetCallerOdinIdOrFail();
+                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                await pushNotificationService.EnqueueNotification(senderId, _package.InstructionSet.AppNotificationOptions, newContext, cn);
+            }
+
+            return new PeerTransferResponse() { Code = PeerResponseCode.AcceptedIntoInbox };
+        }
+
+        public async Task<PeerTransferResponse> EnqueuePayloadDeletion(DeleteRemotePayloadRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var (existingFile, driveId) = await AssertFileExists(request.TargetFile, odinContext, cn);
+
+            var item = new TransferInboxItem()
+            {
+                Id = Guid.NewGuid(),
+                AddedTimestamp = UnixTimeUtc.Now(),
+                Sender = odinContext.GetCallerOdinIdOrFail(),
+
+                InstructionType = TransferInstructionType.DeletePayload,
+                DriveId = driveId,
+                FileId = existingFile.FileId,
+
+                DeleteRemotePayloadRequest = request,
+                FileSystemType = request.FileSystemType,
+            };
+
+            await _transitInboxBoxStorage.Add(item, cn);
+            await mediator.Publish(new InboxItemReceivedNotification()
+            {
+                TargetDrive = _package.InstructionSet.TargetFile.Drive,
+                TransferFileType = TransferFileType.Normal,
+                FileSystemType = item.FileSystemType,
+                OdinContext = odinContext,
+                DatabaseConnection = cn
+            });
+
+            return new PeerTransferResponse
+            {
+                Code = PeerResponseCode.AcceptedIntoInbox
+            };
+        }
+
+        //
+
+        private async Task<(SharedSecretEncryptedFileHeader file, Guid driveId)> AssertFileExists(FileIdentifier targetFile, IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var driveId = odinContext.PermissionsContext.GetDriveId(targetFile.Drive);
+            var existingFile = await fileSystem.Query.GetFileByGlobalTransitId(driveId, targetFile.FileId, odinContext, cn);
+            if (null == existingFile)
+            {
+                throw new OdinClientException("No file found by GlobalTransitId");
+            }
+
+            return (existingFile, driveId);
         }
     }
 }

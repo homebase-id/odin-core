@@ -282,7 +282,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[transitOptions.Recipients.Single()] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult.RecipientStatus[transitOptions.Recipients.Single()] == OutboxEnqueuingStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(storageOptions.Drive);
 

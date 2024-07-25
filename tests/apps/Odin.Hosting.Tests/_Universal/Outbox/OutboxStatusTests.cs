@@ -107,7 +107,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
             // Issue here is that the outbox processes superfast, so we probably need
             // to loaded it up with a bunch of items and not wait on it.  Then we can 

@@ -394,17 +394,33 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task HandlePayloads(IDriveFileSystem fs, TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
         {
-            // await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
-            // {
-            var package = inboxItem.PeerPayloadPackage;
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandlePayloads ", async () =>
+            {
+                var package = inboxItem.PeerPayloadPackage;
 
-            await fs.Storage.UpdatePayloads(
-                tempSourceFile: inboxItem.PeerPayloadPackage.TempFile,
-                targetFile: inboxItem.PeerPayloadPackage.InternalFile,
-                incomingPayloads: package.GetFinalPayloadDescriptors(),
-                odinContext,
-                cn);
-            // });
+                await fs.Storage.UpdatePayloads(
+                    tempSourceFile: inboxItem.PeerPayloadPackage.TempFile,
+                    targetFile: inboxItem.PeerPayloadPackage.InternalFile,
+                    incomingPayloads: package.GetFinalPayloadDescriptors(),
+                    odinContext,
+                    cn);
+            });
+        }
+
+        public async Task DeletePayloads(IDriveFileSystem fs, TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter DeletePayloads ", async () =>
+            {
+                var file = new InternalDriveFileId()
+                {
+                    FileId = inboxItem.FileId,
+                    DriveId = inboxItem.DriveId
+                };
+                
+                var request = inboxItem.DeleteRemotePayloadRequest;
+                await fs.Storage.DeletePayload(file, request.PayloadKey, request.VersionTag, odinContext, cn);
+                
+            });
         }
     }
 }

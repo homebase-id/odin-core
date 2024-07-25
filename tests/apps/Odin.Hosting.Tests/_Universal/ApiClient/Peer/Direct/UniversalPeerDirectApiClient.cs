@@ -573,4 +573,28 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             return (response, encryptedPayloads64);
         }
     }
+
+    public async Task<ApiResponse<PeerDeletePayloadResult>> DeletePayload(Guid targetGlobalTransitId,
+        Guid targetVersionTag, TargetDrive recipientTargetDrive, string payloadKey, List<string> recipients,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var svc = RestService.For<IUniversalRefitPeerDirect>(client);
+            var response = await svc.DeletePayload(new PeerDeletePayloadRequest
+            {
+                Key = payloadKey,
+                File = new FileIdentifier()
+                {
+                    FileId = targetGlobalTransitId,
+                    Drive = recipientTargetDrive,
+                    Type = FileIdentifierType.GlobalTransitId
+                },
+                VersionTag = targetVersionTag,
+                Recipients = recipients
+            });
+
+            return response;
+        }
+    }
 }

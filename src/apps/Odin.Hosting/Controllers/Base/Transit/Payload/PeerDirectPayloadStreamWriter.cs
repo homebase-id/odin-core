@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,9 +11,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.Management;
-using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
@@ -149,68 +146,35 @@ public sealed class PeerDirectPayloadStreamWriter
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
-    {
-        await this.ValidateUpload();
-
-        var recipientStatus = await EnqueueInOutbox(_package, odinContext, cn, fileSystemType);
-
-        return new UploadPayloadResult()
-        {
-            NewVersionTag = Guid.Empty,
-            RecipientStatus = recipientStatus
-        };
-    }
-
-    private async Task<Dictionary<string, TransferStatus>> EnqueueInOutbox(PeerPayloadPackage package,
-        IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
-    {
-        Dictionary<string, TransferStatus> recipientStatus = null;
-        var recipients = package.InstructionSet.Recipients;
-
-        if (recipients?.Any() ?? false)
-        {
-            var transferInstructionSet = new PayloadTransferInstructionSet()
-            {
-                FileSystemType = fileSystemType,
-                AppNotificationOptions = default,
-                TargetFile = package.InstructionSet.TargetFile,
-                VersionTag = package.InstructionSet.VersionTag,
-                Manifest = package.InstructionSet.Manifest
-            };
-
-            recipientStatus = await _peerOutgoingTransferService.SendPayload(
-                package.TempFile,
-                recipients,
-                transferInstructionSet,
-                fileSystemType,
-                odinContext,
-                cn);
-        }
-
-        return recipientStatus;
-    }
-
-    /// <summary>
-    /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
-    /// </summary>
-    private async Task ValidateUpload()
+    public async Task<PeerUploadPayloadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
         if (_package.InstructionSet.VersionTag == Guid.Empty)
         {
             throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
         }
 
-        // if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
-        // {
-        //     throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
-        // }
-        //
-        // if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
-        // {
-        //     throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
-        // }
+        var recipients = _package.InstructionSet.Recipients;
 
-        await Task.CompletedTask;
+        var transferInstructionSet = new PayloadTransferInstructionSet()
+        {
+            FileSystemType = fileSystemType,
+            AppNotificationOptions = default,
+            TargetFile = _package.InstructionSet.TargetFile,
+            VersionTag = _package.InstructionSet.VersionTag,
+            Manifest = _package.InstructionSet.Manifest
+        };
+
+        var recipientStatus = await _peerOutgoingTransferService.SendPayload(
+            _package.TempFile,
+            recipients,
+            transferInstructionSet,
+            fileSystemType,
+            odinContext,
+            cn);
+
+        return new PeerUploadPayloadResult()
+        {
+            RecipientStatus = recipientStatus
+        };
     }
 }

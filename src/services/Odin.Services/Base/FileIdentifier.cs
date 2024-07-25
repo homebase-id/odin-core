@@ -20,15 +20,29 @@ public class FileIdentifier
 
     public void AssertIsValid()
     {
-        if(this.FileId == Guid.Empty || 
-           !this.Drive.IsValid() ||
-           this.Type == FileIdentifierType.NotSet)
+        if (this.FileId == Guid.Empty ||
+            !this.Drive.IsValid() ||
+            this.Type == FileIdentifierType.NotSet)
         {
             throw new OdinClientException("The file identifier is invalid");
         }
     }
+
+    public void AssertIsValid(FileIdentifierType expectedType)
+    {
+       this.AssertIsValid();
+        AssertIsType(expectedType);
+    }
     
-    
+    public void AssertIsType(FileIdentifierType expectedType)
+    {
+        if (this.Type != expectedType)
+        {
+            throw new OdinClientException("The file identifier type is invalid");
+        }
+    }
+
+
     public bool HasValue()
     {
         return FileId != Guid.NewGuid() && Drive.IsValid();

@@ -587,7 +587,7 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == OutboxEnqueuingStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
 
         // weird
         await samOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
@@ -728,7 +728,7 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == OutboxEnqueuingStatus.Enqueued, $"Status should be DeliveredToTargetDrive but was {s}");
 
         // weird
         await samOwnerClient.Transit.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);

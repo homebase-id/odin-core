@@ -30,7 +30,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
                 }
                 : null;
 
-        public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
+        public Dictionary<string, OutboxEnqueuingStatus> RecipientStatus { get; set; }
         
         /// <summary>
         /// The version tag that resulted as of this upload

@@ -258,7 +258,7 @@ public abstract class FileSystemStreamWriterBase
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
         }
 
-        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
+        Dictionary<string, OutboxEnqueuingStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
 
         var uploadResult = new UploadResult()
         {
@@ -301,7 +301,7 @@ public abstract class FileSystemStreamWriterBase
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
+    protected abstract Task<Dictionary<string, OutboxEnqueuingStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
         DatabaseConnection cn);
 
     /// <summary>
@@ -341,10 +341,10 @@ public abstract class FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled storage intent");
     }
 
-    protected async Task<Dictionary<string, TransferStatus>> ProcessTransitBasic(FileUploadPackage package, FileSystemType fileSystemType,
+    protected async Task<Dictionary<string, OutboxEnqueuingStatus>> ProcessTransitBasic(FileUploadPackage package, FileSystemType fileSystemType,
         IOdinContext odinContext, DatabaseConnection cn)
     {
-        Dictionary<string, TransferStatus> recipientStatus = null;
+        Dictionary<string, OutboxEnqueuingStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
 
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);

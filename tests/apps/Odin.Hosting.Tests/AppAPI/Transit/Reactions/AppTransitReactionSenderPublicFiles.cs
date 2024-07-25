@@ -293,7 +293,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
             var transitResult = response.Content;
             Assert.IsNotNull(transitResult);
-            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
             var c = _scaffold.CreateOwnerApiClientRedux(merryAppClient.Identity);
             await c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);

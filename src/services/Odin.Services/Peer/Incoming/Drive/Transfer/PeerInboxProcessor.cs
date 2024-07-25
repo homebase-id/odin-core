@@ -119,6 +119,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                     await writer.HandlePayloads(fs, inboxItem, odinContext, cn);
                 }
+                else if (inboxItem.InstructionType == TransferInstructionType.DeletePayload)
+                {
+                    logger.LogDebug("Processing Inbox -> DeletePayload (gtid: {gtid} gtid as hex x'{gtidHex}') marker/popstamp:[{maker}]",
+                        inboxItem.GlobalTransitId,
+                        Utilities.BytesToHexString(inboxItem.GlobalTransitId.ToByteArray()),
+                        Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                    await writer.DeletePayloads(fs, inboxItem, odinContext, cn);
+                }
                 else if (inboxItem.InstructionType == TransferInstructionType.None)
                 {
                     throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);

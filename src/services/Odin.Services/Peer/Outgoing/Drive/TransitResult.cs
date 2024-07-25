@@ -15,6 +15,6 @@ namespace Odin.Services.Peer.Outgoing.Drive
 
         public GlobalTransitIdFileIdentifier RemoteGlobalTransitIdFileIdentifier { get; set; }
 
-        public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
+        public Dictionary<string, OutboxEnqueuingStatus> RecipientStatus { get; set; }
     }
 }

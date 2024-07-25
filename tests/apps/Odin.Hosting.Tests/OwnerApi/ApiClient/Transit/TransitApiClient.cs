@@ -260,7 +260,7 @@ public class TransitApiClient
             foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
-                Assert.IsTrue(status == TransferStatus.Enqueued, $"failed to enqueue into outbox for {recipient}; status was {status}");
+                Assert.IsTrue(status == OutboxEnqueuingStatus.Enqueued, $"failed to enqueue into outbox for {recipient}; status was {status}");
             }
 
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);

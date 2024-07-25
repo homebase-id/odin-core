@@ -104,7 +104,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
 
@@ -190,7 +190,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
 
@@ -274,7 +274,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been RecipientReturnedAccessDenied, actual status was {recipientStatus}");
 
             //
@@ -333,7 +333,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been delivered, actual status was {recipientStatus}");
 
             //
@@ -407,7 +407,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been delivered, actual status was {recipientStatus}");
             
             //
@@ -481,7 +481,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been delivered, actual status was {recipientStatus}");
 
             //
@@ -547,7 +547,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var transferStatus));
-            Assert.IsTrue(transferStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {transferStatus}");
+            Assert.IsTrue(transferStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {transferStatus}");
 
             //
             // Validate the transfer history was updated correctly

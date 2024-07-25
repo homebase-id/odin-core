@@ -23,7 +23,12 @@ public class PeerDirectUploadPayloadInstructionSet
 
     public void AssertIsValid()
     {
-        OdinValidationUtils.AssertValidRecipientList(this.Recipients);
+        if (null == Manifest)
+        {
+            throw new OdinClientException("Invalid Manifest");
+        }
+        
+        OdinValidationUtils.AssertValidRecipientList(this.Recipients, false);
         if (Guid.Empty == this.TargetFile.FileId)
         {
             throw new OdinClientException("Invalid FileId");
@@ -34,12 +39,12 @@ public class PeerDirectUploadPayloadInstructionSet
             throw new OdinClientException("Remote Target Drive is invalid", OdinClientErrorCode.InvalidDrive);
         }
 
-        if (!Manifest?.PayloadDescriptors?.Any() ?? false)
+        if (!Manifest.PayloadDescriptors?.Any() ?? false)
         {
             throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads when using the payload only upload method :)",
                 OdinClientErrorCode.InvalidPayload);
         }
 
-        Manifest?.AssertIsValid();
+        Manifest.AssertIsValid();
     }
 }

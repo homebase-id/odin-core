@@ -38,7 +38,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
         /// <summary />
         public PeerPerimeterDrivePayloadUploadController(
             TenantSystemStorage tenantSystemStorage,
-            IMediator mediator, 
+            IMediator mediator,
             PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory)
         {
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             //End Optimizations
 
             _incomingTransferService = GetPeerDriveIncomingTransferService(_fileSystem);
-            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
+            await _incomingTransferService.InitializeIncomingPayloadTransfer(transferInstructionSet, WebOdinContext, cn);
 
             //
 
@@ -96,7 +96,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
                 section = await reader.ReadNextSectionAsync();
             }
 
-            return await _incomingTransferService.FinalizeTransfer(WebOdinContext, cn);
+            return await _incomingTransferService.FinalizePayloadTransfer(WebOdinContext, cn);
+        }
+
+        [HttpPost("delete-payloads")]
+        public async Task<PeerTransferResponse> ReceivePayloadDeleteRequest([FromBody] DeleteRemotePayloadRequest request)
+        {
+            var cn = _tenantSystemStorage.CreateConnection();
+            return await _incomingTransferService.EnqueuePayloadDeletion(request, WebOdinContext, cn);
         }
 
         private async Task<PayloadTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
@@ -121,7 +128,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             {
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
-            
+
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.PayloadUid);
             await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext, cn);
         }

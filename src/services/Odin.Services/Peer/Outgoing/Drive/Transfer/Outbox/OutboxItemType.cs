@@ -12,5 +12,7 @@ public enum OutboxItemType
 
     DeleteRemoteFile = 700,
     
-    PayloadUpdate = 1100
+    UpdateRemotePayloads = 1100,
+    
+    DeleteRemotePayloads = 1200
 }

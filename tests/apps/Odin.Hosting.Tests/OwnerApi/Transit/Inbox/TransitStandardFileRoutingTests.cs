@@ -80,7 +80,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
             //
             // Test results
@@ -137,7 +137,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
             
@@ -199,7 +199,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             //
             // Test results

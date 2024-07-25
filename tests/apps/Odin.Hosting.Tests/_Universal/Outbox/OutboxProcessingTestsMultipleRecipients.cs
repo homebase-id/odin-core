@@ -102,7 +102,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
                 var uploadResult = uploadResponse.Content;
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
+                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
                 // Assert: file that was sent has peer transfer status updated
                 var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
@@ -175,7 +175,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
                 var uploadResult = uploadResponse.Content;
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
+                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
                 //Get modified to results ensure it will show up after a transfer
                 var queryModifiedResponse = await senderOwnerClient.DriveRedux.QueryModified(new QueryModifiedRequest()

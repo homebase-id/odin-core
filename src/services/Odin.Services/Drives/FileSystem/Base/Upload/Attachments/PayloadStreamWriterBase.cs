@@ -175,10 +175,10 @@ public abstract class PayloadStreamWriterBase
         };
     }
 
-    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessPayloadTransitInstructions(PayloadOnlyPackage package,
+    protected virtual async Task<Dictionary<string, OutboxEnqueuingStatus>> ProcessPayloadTransitInstructions(PayloadOnlyPackage package,
         IOdinContext odinContext, DatabaseConnection cn, FileSystemType fileSystemType)
     {
-        Dictionary<string, TransferStatus> recipientStatus = null;
+        Dictionary<string, OutboxEnqueuingStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
 
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);

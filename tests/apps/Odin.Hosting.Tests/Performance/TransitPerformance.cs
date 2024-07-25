@@ -342,7 +342,7 @@ TaskPerformanceTest_Transit
                 {
                     var wasPutInOutboxForAll =
                         instructionSet.TransitOptions.Recipients.All(r =>
-                            uploadResult.RecipientStatus[r] == TransferStatus.Enqueued);
+                            uploadResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued);
 
                     Assert.IsTrue(wasPutInOutboxForAll);
                 }

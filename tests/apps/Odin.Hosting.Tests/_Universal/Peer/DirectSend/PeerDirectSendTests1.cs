@@ -108,7 +108,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
             //
@@ -207,7 +207,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
@@ -305,7 +305,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
@@ -432,7 +432,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 recipient: recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
 
@@ -533,7 +533,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            Assert.IsTrue(recipientStatus == OutboxEnqueuingStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
 

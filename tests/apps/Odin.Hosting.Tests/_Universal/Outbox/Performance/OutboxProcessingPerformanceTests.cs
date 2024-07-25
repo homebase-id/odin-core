@@ -187,7 +187,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                     string message = "hi";
                     // var bytes = message.ToUtf8ByteArray().Length;
                     var result = await SendChatMessage(message, sender, recipient, true);
-                    if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
+                    if (result!.RecipientStatus[recipient.Identity.OdinId] == OutboxEnqueuingStatus.Enqueued)
                     {
                         lock (_lock)
                         {

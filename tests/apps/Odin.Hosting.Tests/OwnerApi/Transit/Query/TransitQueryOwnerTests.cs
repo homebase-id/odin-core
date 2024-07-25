@@ -180,7 +180,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -460,7 +460,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -814,7 +814,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
                 Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+                Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
                 var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
                 await newApi.DriveRedux.WaitForEmptyOutbox(targetDrive);
@@ -958,7 +958,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -1228,7 +1228,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == OutboxEnqueuingStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -1583,7 +1583,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
             Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
@@ -1742,7 +1742,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
             
             Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
 
             var senderApiRedux = _scaffold.CreateOwnerApiClientRedux(sender);
             await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
