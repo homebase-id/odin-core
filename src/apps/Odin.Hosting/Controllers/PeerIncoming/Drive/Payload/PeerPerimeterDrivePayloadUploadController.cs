@@ -102,9 +102,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
         [HttpPost("delete-payloads")]
         public async Task<PeerTransferResponse> ReceivePayloadDeleteRequest([FromBody] DeleteRemotePayloadRequest request)
         {
-            var cn = _tenantSystemStorage.CreateConnection();
-            return await _incomingTransferService.EnqueuePayloadDeletion(request, WebOdinContext, cn);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var svc = GetPeerDriveIncomingTransferService(this.GetHttpFileSystemResolver().ResolveFileSystem());
+            return await svc.EnqueuePayloadDeletion(request, WebOdinContext, cn);
         }
+        
+        //
 
         private async Task<PayloadTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {

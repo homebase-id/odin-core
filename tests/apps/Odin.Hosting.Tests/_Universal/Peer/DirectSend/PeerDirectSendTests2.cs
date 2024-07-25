@@ -947,8 +947,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var fileMetadata = SampleMetadataData.CreateWithContent(fileType: 3011, fileContent1, AccessControlList.Connected);
             fileMetadata.AllowDistribution = true;
 
-            // Upload a file with 1 payload
-            const string payloadContent = "some payload content";
+            // Upload a file with 2 payloads
+            const string payload2Key = "test2_key";
+            const string payloadContent1 = "some payload content";
+            const string payloadContent2 = "another payloads content";
             var testPayloads = new List<TestPayloadDefinition>()
             {
                 new()
@@ -956,7 +958,15 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                     Iv = default,
                     Key = WebScaffold.PAYLOAD_KEY,
                     ContentType = "text/plain",
-                    Content = payloadContent.ToUtf8ByteArray(),
+                    Content = payloadContent1.ToUtf8ByteArray(),
+                    Thumbnails = []
+                },
+                new()
+                {
+                    Iv = default,
+                    Key = payload2Key,
+                    ContentType = "text/plain",
+                    Content = payloadContent2.ToUtf8ByteArray(),
                     Thumbnails = []
                 }
             };
@@ -980,7 +990,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
-            // Validate we have one payload 
+            // Validate we have 2 payloads 
             var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(
                 recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
@@ -996,34 +1006,43 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 TargetDrive = recipientTargetDrive
             };
 
-            var getPayloadResponse = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            var getPayload1Response1 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = recipient.OdinId,
                 Key = WebScaffold.PAYLOAD_KEY,
                 File = remoteFile
             });
 
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(await getPayloadResponse.Content.ReadAsStringAsync() == payloadContent);
+            Assert.IsTrue(getPayload1Response1.IsSuccessStatusCode);
+            Assert.IsTrue(await getPayload1Response1.Content.ReadAsStringAsync() == payloadContent1);
+
+            var getPayload2Response1 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+
+            Assert.IsTrue(getPayload2Response1.IsSuccessStatusCode);
+            Assert.IsTrue(await getPayload2Response1.Content.ReadAsStringAsync() == payloadContent2);
 
             //
-            // Act: delete the payload
+            // Act: delete payload2Key
             //
 
             var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
 
             var deletePayloadResponse = await senderOwnerClient.PeerDirect.DeletePayload(targetGlobalTransitId,
-                targetVersionTag, recipientTargetDrive, WebScaffold.PAYLOAD_KEY, [recipient.OdinId]);
+                targetVersionTag, recipientTargetDrive, payload2Key, [recipient.OdinId]);
 
             Assert.IsTrue(deletePayloadResponse.IsSuccessStatusCode);
             Assert.IsTrue(deletePayloadResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
-
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
             //
-            // Assert: the payload was deleted but the header exists and has 0 payloads
+            // Assert: the payload was deleted but the header exists and has 1 payload
             //
 
             //get the header
@@ -1033,16 +1052,25 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(updatedHeader);
-            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 1);
+            Assert.IsNotNull(updatedHeader.FileMetadata.Payloads.SingleOrDefault(p => p.Key == WebScaffold.PAYLOAD_KEY));
 
-            var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            var getPayload1Response2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
                 OdinId = recipient.OdinId,
                 Key = WebScaffold.PAYLOAD_KEY,
                 File = remoteFile
             });
+            Assert.IsTrue(getPayload1Response2.IsSuccessStatusCode);
+            Assert.IsTrue(await getPayload1Response2.Content.ReadAsStringAsync() == payloadContent1);
 
-            Assert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
+            var getPayload2Response2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
+            {
+                OdinId = recipient.OdinId,
+                Key = payload2Key,
+                File = remoteFile
+            });
+            Assert.IsTrue(getPayload2Response2.StatusCode == HttpStatusCode.NotFound);
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }

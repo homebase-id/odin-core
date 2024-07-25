@@ -46,12 +46,12 @@ public class SendDeletePayloadOutboxWorker(
                     GlobalTransitId = default
                 };
             }
-            
+
             logger.LogDebug("Start: Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             var request = OdinSystemSerializer.Deserialize<DeleteRemotePayloadRequest>(FileItem.State.Data.ToStringFromUtf8Bytes());
             request.TargetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
-            
+
             await PerformanceCounter.MeasureExecutionTime("Outbox DeleteRemotePayloadRequest",
                 async () => { await SendRequest(request, odinContext, cn, cancellationToken); });
 
@@ -91,10 +91,10 @@ public class SendDeletePayloadOutboxWorker(
         var decryptedClientAuthTokenBytes = FileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
-        
+
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient,clientAuthToken);
+            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken, request.FileSystemType);
             var response = await client.DeletePayload(request);
             return response;
         }

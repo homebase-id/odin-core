@@ -217,7 +217,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _transitInboxBoxStorage.Add(item, cn);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = _package.InstructionSet.TargetFile.Drive,
+                TargetDrive = request.TargetFile.Drive,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

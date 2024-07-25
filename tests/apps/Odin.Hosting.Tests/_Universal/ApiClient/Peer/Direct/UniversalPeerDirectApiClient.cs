@@ -580,7 +580,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
-            var svc = RestService.For<IUniversalRefitPeerDirect>(client);
+            var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerDirect>(client, sharedSecret);
             var response = await svc.DeletePayload(new PeerDeletePayloadRequest
             {
                 Key = payloadKey,
