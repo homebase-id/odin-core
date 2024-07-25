@@ -159,11 +159,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                             // Try to clean up the transient file
                             if (!await peerOutbox.HasOutboxFileItem(fileItem, connection))
                             {
-                                logger.LogDebug("File was transient and all other outbox records sent; deleting");
-                                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, connection);
+                                try
+                                {
+                                    logger.LogDebug("File was transient and all other outbox records sent; deleting");
+                                    await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, connection);
 
-                                //clean up temp files
-                                await fs.Storage.DeleteTempFiles(fileItem.File, odinContext, connection);
+                                    //clean up temp files
+                                    await fs.Storage.DeleteTempFiles(fileItem.File, odinContext, connection);
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.LogDebug(e, $"Non Critical - Issue while cleaning up transient file");
+                                }
                             }
                         });
                 }

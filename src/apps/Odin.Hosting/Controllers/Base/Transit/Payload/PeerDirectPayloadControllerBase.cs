@@ -16,7 +16,6 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit.Payload
 {
-    
     /// <summary>
     /// Directly sends a file to a peer identity w/o saving it locally
     /// </summary>
@@ -64,14 +63,14 @@ namespace Odin.Hosting.Controllers.Base.Transit.Payload
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
-                    await writer.AddPayload(payloadKey, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await writer.AddPayload(payloadKey, fileSection.FileStream, contentType, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
-                    await writer.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await writer.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, contentType, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();

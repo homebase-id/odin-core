@@ -24,8 +24,6 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Util;
-
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -171,7 +169,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
-            metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
+            metadata.File = targetFile; //TBH it's strange having this, but we need the metadata to have the file and drive embedded
             metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
             metadata.FileState = FileState.Active;
 

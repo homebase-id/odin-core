@@ -59,9 +59,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
             //
             var uploadInstructionSet = await RemapTransitInstructionSet(section!.Body);
             uploadInstructionSet.AssertIsValid();
-            
+
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
-            
+
             using var cn = tenantSystemStorage.CreateConnection();
             await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext, cn);
 
@@ -75,14 +75,14 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
-                    await fileSystemWriter.AddPayload(payloadKey, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await fileSystemWriter.AddPayload(payloadKey, fileSection.FileStream, contentType, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, fileSection.FileStream, contentType, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();

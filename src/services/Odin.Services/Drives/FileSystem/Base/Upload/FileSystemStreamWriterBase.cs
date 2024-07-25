@@ -112,7 +112,7 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, cn);
     }
 
-    public virtual async Task AddPayload(string key, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddPayload(string key, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -136,7 +136,7 @@ public abstract class FileSystemStreamWriterBase
                 Iv = descriptor.Iv,
                 Uid = descriptor.PayloadUid,
                 PayloadKey = key,
-                ContentType = descriptor.ContentType,
+                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? contentType : descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -145,7 +145,7 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -189,7 +189,7 @@ public abstract class FileSystemStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = result.ThumbnailDescriptor.ContentType,
+            ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? contentType : result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });
@@ -316,7 +316,8 @@ public abstract class FileSystemStreamWriterBase
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         // var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
+        var metadataBytes =
+            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 

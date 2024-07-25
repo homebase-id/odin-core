@@ -61,7 +61,7 @@ public sealed class PeerDirectPayloadStreamWriter
         await Task.CompletedTask;
     }
 
-    public async Task AddPayload(string key, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddPayload(string key, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -84,7 +84,7 @@ public sealed class PeerDirectPayloadStreamWriter
                 Iv = descriptor.Iv,
                 PayloadKey = key,
                 Uid = descriptor.PayloadUid,
-                ContentType = descriptor.ContentType,
+                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? contentType : descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -93,7 +93,7 @@ public sealed class PeerDirectPayloadStreamWriter
         }
     }
 
-    public async Task AddThumbnail(string thumbnailUploadKey, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddThumbnail(string thumbnailUploadKey, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         // Note: this assumes you've validated the manifest; so I won't check for duplicates etc
 
@@ -139,7 +139,7 @@ public sealed class PeerDirectPayloadStreamWriter
             {
                 PixelHeight = result.ThumbnailDescriptor.PixelHeight,
                 PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-                ContentType = result.ThumbnailDescriptor.ContentType,
+                ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? contentType : result.ThumbnailDescriptor.ContentType,
                 PayloadKey = result.PayloadKey,
                 BytesWritten = bytesWritten
             });
@@ -198,7 +198,7 @@ public sealed class PeerDirectPayloadStreamWriter
     {
         if (_package.InstructionSet.VersionTag == Guid.Empty)
         {
-            // throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
+            throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
         }
 
         // if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())

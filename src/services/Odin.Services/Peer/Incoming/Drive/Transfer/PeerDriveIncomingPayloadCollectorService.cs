@@ -128,7 +128,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
-            
+
             var bytesWritten = await fileSystem.Storage.WriteTempStream(_package.TempFile, fileExtension, data, odinContext, cn);
 
             if (bytesWritten > 0)
@@ -195,7 +195,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 InstructionType = TransferInstructionType.SavePayloads,
                 DriveId = _package.InternalFile.DriveId,
                 FileId = _package.InternalFile.FileId,
-                
+
                 PeerPayloadPackage = _package,
                 FileSystemType = _package.InstructionSet.FileSystemType,
             };

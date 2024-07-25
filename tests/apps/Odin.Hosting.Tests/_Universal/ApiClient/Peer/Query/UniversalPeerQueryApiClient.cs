@@ -60,7 +60,7 @@ public class UniversalPeerQueryApiClient(OdinId identity, IApiClientFactory fact
 
     //
 
-    public async Task<ApiResponse<QueryBatchResponse>> GetFileHeaderByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file,
+    public async Task<ApiResponse<QueryBatchResponse>> QueryFileHeaderByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file,
         FileSystemType fst = FileSystemType.Standard)
     {
         var request = new PeerQueryBatchRequest()

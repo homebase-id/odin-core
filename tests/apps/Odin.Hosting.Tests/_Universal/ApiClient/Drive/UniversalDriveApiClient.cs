@@ -271,7 +271,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     /// <summary>
     /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, 
+    public async Task<(ApiResponse<UploadResult> response,
             string encryptedJsonContent64,
             List<EncryptedAttachmentUploadResult> uploadedThumbnails,
             List<EncryptedAttachmentUploadResult> uploadedPayloads)>
@@ -661,11 +661,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return response;
     }
 
-    public async Task<TimeSpan> WaitForEmptyOutboxForTransientTempDrive( TimeSpan? maxWaitTime = null)
+    public async Task<TimeSpan> WaitForEmptyOutboxForTransientTempDrive(TimeSpan? maxWaitTime = null)
     {
         return await this.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, maxWaitTime);
     }
-    
+
     public async Task<TimeSpan> WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
         var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);

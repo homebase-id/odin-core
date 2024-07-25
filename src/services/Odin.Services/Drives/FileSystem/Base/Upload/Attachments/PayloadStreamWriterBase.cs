@@ -68,7 +68,7 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddPayload(string key, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -91,7 +91,7 @@ public abstract class PayloadStreamWriterBase
                 Iv = descriptor.Iv,
                 PayloadKey = key,
                 Uid = descriptor.PayloadUid,
-                ContentType = descriptor.ContentType,
+                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? contentType : descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -100,7 +100,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, Stream data, string contentType, IOdinContext odinContext, DatabaseConnection cn)
     {
         // Note: this assumes you've validated the manifest; so I won't check for duplicates etc
 
@@ -146,7 +146,7 @@ public abstract class PayloadStreamWriterBase
             {
                 PixelHeight = result.ThumbnailDescriptor.PixelHeight,
                 PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-                ContentType = result.ThumbnailDescriptor.ContentType,
+                ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? contentType : result.ThumbnailDescriptor.ContentType,
                 PayloadKey = result.PayloadKey,
                 BytesWritten = bytesWritten
             });

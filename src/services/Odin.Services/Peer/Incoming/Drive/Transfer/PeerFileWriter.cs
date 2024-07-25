@@ -394,28 +394,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task HandlePayloads(IDriveFileSystem fs, TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
         {
-            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
-            {
-                var package = inboxItem.PeerPayloadPackage;
-                var globalTransitId = package.InstructionSet.TargetFile.FileId;
-                var header = await GetFileByGlobalTransitId(fs, inboxItem.DriveId, globalTransitId, odinContext, cn);
+            // await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile - OverwriteMetadata", async () =>
+            // {
+            var package = inboxItem.PeerPayloadPackage;
 
-                if (null == header)
-                {
-                    throw new OdinClientException("Invalid target file for writing payloads");
-                }
-
-                await fs.Storage.UpdatePayloads(
-                    tempSourceFile: inboxItem.PeerPayloadPackage.InternalFile,
-                    targetFile: new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = inboxItem.DriveId
-                    },
-                    incomingPayloads: package.GetFinalPayloadDescriptors(),
-                    odinContext,
-                    cn);
-            });
+            await fs.Storage.UpdatePayloads(
+                tempSourceFile: inboxItem.PeerPayloadPackage.TempFile,
+                targetFile: inboxItem.PeerPayloadPackage.InternalFile,
+                incomingPayloads: package.GetFinalPayloadDescriptors(),
+                odinContext,
+                cn);
+            // });
         }
     }
 }

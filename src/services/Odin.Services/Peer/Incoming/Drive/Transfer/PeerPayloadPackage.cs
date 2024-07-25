@@ -34,7 +34,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         public InternalDriveFileId InternalFile { get; init; }
 
-        public List<PackagePayloadDescriptor> Payloads { get; }
+        public List<PackagePayloadDescriptor> Payloads { get; init; }
 
         /// <summary>
         /// A list of thumbnails sent in the stream.
@@ -42,7 +42,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// be sent in any order (otherwise we would drop them
         /// in the payloads collection)
         /// </summary>
-        public List<PackageThumbnailDescriptor> Thumbnails { get; }
+        public List<PackageThumbnailDescriptor> Thumbnails { get; init; }
 
         /// <summary>
         /// Merges uploaded payloads and thumbnails
@@ -68,7 +68,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),
-                    BytesWritten = p.BytesWritten,                    
+                    BytesWritten = p.BytesWritten,
                     DescriptorContent = p.DescriptorContent,
                     PreviewThumbnail = p.PreviewThumbnail
                 };

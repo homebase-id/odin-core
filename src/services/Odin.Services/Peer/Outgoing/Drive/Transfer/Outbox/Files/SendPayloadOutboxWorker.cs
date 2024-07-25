@@ -132,7 +132,7 @@ public class SendPayloadOutboxWorker(
             }
         }
 
-        var decryptedClientAuthTokenBytes = fileItem.State.EncryptedClientAuthToken;
+        var decryptedClientAuthTokenBytes = FileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
         

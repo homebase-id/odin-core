@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -27,6 +28,7 @@ namespace Odin.Services.Base
 
     //
 
+    [DebuggerDisplay("Tenant:{Tenant} Caller:{Caller.OdinId} AuthContext: {AuthContext}")]
     public class OdinContext : IOdinContext
     {
         public PermissionContext PermissionsContext { get; private set; }
@@ -73,7 +75,7 @@ namespace Odin.Services.Base
 
             AuthContext = authContext;
         }
-        
+
         public void AssertCanManageConnections()
         {
             if (Caller.IsOwner && Caller.HasMasterKey)
@@ -94,7 +96,7 @@ namespace Odin.Services.Base
             };
         }
     }
-    
+
     public class RedactedOdinContext
     {
         public RedactedCallerContext Caller { get; set; }

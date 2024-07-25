@@ -22,6 +22,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
     public class PeerDirectSendTests2
     {
         private WebScaffold _scaffold;
+        private readonly TimeSpan _debugTimeout = TimeSpan.FromHours(2);
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -99,7 +100,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             // validate recipient got the file and the payload are there
 
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
@@ -142,7 +143,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             Assert.IsTrue(transferFileResponse2.IsSuccessStatusCode);
 
-            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse2.IsSuccessStatusCode);
@@ -222,7 +223,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             // validate recipient got the file and the payload are there
 
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
@@ -249,7 +250,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             const string fileContent2 = "updated content";
             fileMetadata.AppData.Content = fileContent2;
-            var (transferFileResponse2, encryptedJsonContent64_2, _, _) =
+            var (transferFileResponse2, encryptedJsonContent642, _, _) =
                 await senderOwnerClient.PeerDirect.UpdateEncryptedRemoteFile(recipientTargetDrive, fileMetadata,
                     [recipient.OdinId],
                     transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
@@ -265,13 +266,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             Assert.IsTrue(transferFileResponse2.IsSuccessStatusCode);
 
-            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse2 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse2.IsSuccessStatusCode);
             var header = getRemoteFileHeaderResponse2.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == encryptedJsonContent64_2);
+            Assert.IsTrue(header.FileMetadata.AppData.Content == encryptedJsonContent642);
             Assert.IsTrue(header.FileMetadata.Payloads.Count == 1);
 
             var getPayloadResponse2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
@@ -339,7 +340,16 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
             var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
+
+            // Validate we have one payload 
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+
+            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
+            var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(remoteHeader);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
 
             // validate recipient got the file and the payload are there
 
@@ -348,6 +358,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
             // Act: Add a new encrypted payload
             //
+            var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
 
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
             const string p2Content = "aa233;d";
@@ -383,22 +394,21 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var aesKey = ByteArrayUtil.GetRndByteArray(16);
 
-            var targetVersionTag = Guid.Empty; //TODO?
             var (uploadPayloadsResponse, encryptedPayloads64) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             //
             // Assert: the existing and new payloads can be retrieved and decrypted using the original key
             //
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
-            
+
             //get the header
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
@@ -493,18 +503,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
             var encryptedPayloadContent = uploadedPayloads.FirstOrDefault()!.EncryptedContent64;
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
-            
+
             // Validate we have one payload 
-            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
             var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(remoteHeader);
-            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == 2);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
 
             var remoteFile = new ExternalFileIdentifier()
             {
@@ -526,6 +536,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
             // Act: Add a new encrypted payload
             //
+            var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
 
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
 
@@ -560,13 +571,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var aesKey = ByteArrayUtil.GetRndByteArray(16);
 
-            var targetVersionTag = Guid.Empty; //TODO?
             var (uploadPayloadsResponse, encryptedUpdatedPayloadContent64) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
@@ -575,7 +585,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
 
             //get the header
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
@@ -606,7 +616,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
-        
+
         [Test]
         public async Task CanAddMultipleRemote_Payloads_ByKeyWhenMultiplePayloadsExist()
         {
@@ -630,7 +640,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             {
                 new()
                 {
-                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Iv = default,
                     Key = WebScaffold.PAYLOAD_KEY,
                     ContentType = "text/plain",
                     Content = payloadContent.ToUtf8ByteArray(),
@@ -653,16 +663,25 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var transferResult = transferFileResponse.Content;
 
             Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             // validate recipient got the file and the payload are there
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
 
+            // Validate we have one payload 
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
+                transferResult.RemoteGlobalTransitIdFileIdentifier);
+            Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
+            var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(remoteHeader);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
+
             //
             // Act: Add a new encrypted payload
             //
+            var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
             const string p2Content = "aa233;d";
             const string payload2Key = "p2key111";
@@ -693,13 +712,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
             };
 
-            var targetVersionTag = Guid.Empty; //TODO?
             var uploadPayloadsResponse = await senderOwnerClient.PeerDirect.UploadPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
@@ -708,7 +726,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
 
             //get the header
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
@@ -730,7 +748,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             });
 
             Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload1Response.Content.ReadAsByteArrayAsync()).ToBase64() == payloadContent);
+            Assert.IsTrue(await getPayload1Response.Content.ReadAsStringAsync() == payloadContent);
 
             var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -778,7 +796,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             {
                 new()
                 {
-                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Iv = default,
                     Key = WebScaffold.PAYLOAD_KEY,
                     ContentType = "text/plain",
                     Content = payloadContent.ToUtf8ByteArray(),
@@ -801,18 +819,17 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var transferResult = transferFileResponse.Content;
 
             Assert.IsTrue(transferResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
             // Validate we have one payload 
-            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
-
             Assert.IsTrue(getRemoteFileHeaderResponse.IsSuccessStatusCode);
             var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(remoteHeader);
-            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == 2);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
 
             var remoteFile = new ExternalFileIdentifier()
             {
@@ -828,13 +845,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             });
 
             Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayloadResponse.Content.ReadAsByteArrayAsync()).ToBase64() == payloadContent);
+            Assert.IsTrue(await getPayloadResponse.Content.ReadAsStringAsync() == payloadContent);
 
 
             //
             // Act: Add a new encrypted payload
             //
 
+            var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
 
             const string updatedContent = "aa233;d";
@@ -866,13 +884,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 PayloadDescriptors = newPayloads.ToPayloadDescriptorList().ToList()
             };
 
-            var targetVersionTag = Guid.Empty; //TODO?
             var uploadPayloadsResponse = await senderOwnerClient.PeerDirect.UploadPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive();
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(recipientTargetDrive);
 
@@ -881,7 +898,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
 
             //get the header
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.GetFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);

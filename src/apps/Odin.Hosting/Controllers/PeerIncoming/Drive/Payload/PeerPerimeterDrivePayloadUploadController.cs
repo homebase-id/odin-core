@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive.Payload
             {
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
-
+            
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.PayloadUid);
             await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext, cn);
         }
