@@ -123,14 +123,14 @@ public class FileIdentifier
 
                 break;
             case FileIdentifierType.GlobalTransitId:
-                if (GlobalTransitIdHasValue)
+                if (!GlobalTransitIdHasValue)
                 {
                     throw new OdinClientException("The file identifier type is invalid");
                 }
 
                 break;
             case FileIdentifierType.UniqueId:
-                if (UniqueIdHasValue)
+                if (!UniqueIdHasValue)
                 {
                     throw new OdinClientException("The file identifier type is invalid");
                 }
