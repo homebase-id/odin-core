@@ -172,7 +172,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinClientException oce)
             {
-                logger.LogError(oce,
+                logger.LogInformation(oce, "Processing Inbox -> Client Exception:" +
+                                     "\nSender: {sender}. " +
+                                     "\nInbox InstructionType: {instructionType}. " +
+                                     "\nTemp File:{f}. " +
+                                     "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                                     "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
+                                     "\nAction: Marking Complete",
+                    inboxItem.Sender,
+                    inboxItem.InstructionType,
+                    tempFile,
+                    inboxItem.GlobalTransitId,
+                    Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+
+                await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+            }
+            catch (OdinSqlUniqueIdException uidException)
+            {
+                logger.LogError(uidException,
                     "Processing Inbox -> UniqueId Conflict: " +
                     "\nSender: {sender}. " +
                     "\nInbox InstructionType: {instructionType}. " +

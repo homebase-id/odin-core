@@ -2,6 +2,20 @@ using System;
 
 namespace Odin.Core.Exceptions
 {
+    public class OdinSqlUniqueIdException : OdinException
+    {
+        public OdinClientErrorCode ErrorCode { get; set; }
+
+        public OdinSqlUniqueIdException(string message, OdinClientErrorCode code = OdinClientErrorCode.UnhandledScenario) : base(message)
+        {
+            this.ErrorCode = code;
+        }
+
+        public OdinSqlUniqueIdException(string message, Exception inner) : base(message, inner)
+        {
+        }
+    }
+
     public class OdinClientException : OdinException
     {
         public OdinClientErrorCode ErrorCode { get; set; }
@@ -28,6 +42,5 @@ namespace Odin.Core.Exceptions
         public OdinRemoteIdentityException(string message, Exception inner) : base(message, inner)
         {
         }
-        
     }
 }

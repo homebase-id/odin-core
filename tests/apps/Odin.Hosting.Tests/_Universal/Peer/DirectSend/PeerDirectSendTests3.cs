@@ -400,8 +400,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var aesKey = ByteArrayUtil.GetRndByteArray(16);
 
-            var (uploadPayloadsResponse, encryptedPayloads64) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
+            var (uploadPayloadsResponse, _) = await senderOwnerClient.PeerDirect.UploadEncryptedPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId], aesKey);
+
+            // here we need a way to have a way to report the invalid version tag
 
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
@@ -420,7 +422,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var header = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count == 3);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == 1);
 
             var remoteFile = new ExternalFileIdentifier()
             {
@@ -445,8 +447,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 File = remoteFile
             });
 
-            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload2Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloads64[payload2Key].ToBase64());
+            Assert.IsTrue(getPayload2Response.StatusCode == HttpStatusCode.NotFound);
 
             var getPayload3Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -455,8 +456,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 File = remoteFile
             });
 
-            Assert.IsTrue(getPayload3Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload3Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloads64[payload3Key].ToBase64());
+            Assert.IsTrue(getPayload3Response.StatusCode == HttpStatusCode.NotFound);
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -504,6 +504,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                     uploadManifest,
                     testPayloads);
 
+            var originalPayloadCount = testPayloads.Count;
+
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
@@ -537,7 +539,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
             Assert.IsTrue((await getPayloadResponse.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedPayloadContent);
-
 
             //
             // Act: Add a new encrypted payload using an invalid version tag
@@ -600,7 +601,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(updatedHeader);
-            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 2);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == originalPayloadCount, "there should be no additional payloads");
 
             var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -610,8 +611,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             });
 
             Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
+            var originalEncryptedPayload = uploadedPayloads.Single(k => k.Key == WebScaffold.PAYLOAD_KEY);
             Assert.IsTrue((await getPayload1Response.Content.ReadAsByteArrayAsync()).ToBase64() ==
-                          encryptedUpdatedPayloadContent64[WebScaffold.PAYLOAD_KEY].ToBase64());
+                          originalEncryptedPayload.EncryptedContent64, "the payload content should not have changed");
 
             var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -620,9 +622,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 File = remoteFile
             });
 
-            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload2Response.Content.ReadAsByteArrayAsync()).ToBase64() == encryptedUpdatedPayloadContent64[payload2Key].ToBase64());
-
+            Assert.IsTrue(getPayload2Response.StatusCode == HttpStatusCode.NotFound);
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -667,6 +667,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 [recipient.OdinId],
                 uploadManifest,
                 testPayloads);
+
+            var originalPayloadCount = testPayloads.Count;
 
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
@@ -730,6 +732,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var uploadPayloadsResponse = await senderOwnerClient.PeerDirect.UploadPayloads(targetGlobalTransitId,
                 targetVersionTag, recipientTargetDrive, newUploadsManifest, newPayloads, [recipient.OdinId]);
 
+            //TODO: we need a way to detect the version tag mismatch error
+
             Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadPayloadsResponse.Content.RecipientStatus[recipient.OdinId] == OutboxEnqueuingStatus.Enqueued);
             await senderOwnerClient.DriveRedux.WaitForEmptyOutboxForTransientTempDrive(_debugTimeout);
@@ -741,13 +745,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //
 
             //get the header
-            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(recipient.OdinId,
+            var getRemoteFileHeaderResponse1 = await senderOwnerClient.PeerQuery.QueryFileHeaderByGlobalTransitId(
+                recipient.OdinId,
                 transferResult.RemoteGlobalTransitIdFileIdentifier);
 
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var header = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count == 3);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count == originalPayloadCount);
 
             var remoteFile = new ExternalFileIdentifier()
             {
@@ -771,9 +776,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 Key = payload2Key,
                 File = remoteFile
             });
-
-            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload2Response.Content.ReadAsStringAsync()) == p2Content);
+            Assert.IsTrue(getPayload2Response.StatusCode == HttpStatusCode.NotFound);
 
             var getPayload3Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -781,9 +784,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 Key = payload3Key,
                 File = remoteFile
             });
-
-            Assert.IsTrue(getPayload3Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload3Response.Content.ReadAsStringAsync()) == p3Content);
+            Assert.IsTrue(getPayload3Response.StatusCode == HttpStatusCode.NotFound);
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -830,6 +831,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 uploadManifest,
                 testPayloads);
 
+            var originalPayloadCount = testPayloads.Count;
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
@@ -870,7 +872,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             //set an invalid version tag
             var targetVersionTag = Guid.NewGuid();
             // var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
-            
+
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
 
             const string updatedContent = "aa233;d";
@@ -922,7 +924,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(updatedHeader);
-            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 2);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == originalPayloadCount);
 
             var getPayload1Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -932,7 +934,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             });
 
             Assert.IsTrue(getPayload1Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload1Response.Content.ReadAsStringAsync()) == updatedContent);
+            Assert.IsTrue((await getPayload1Response.Content.ReadAsStringAsync()) == payloadContent,
+                "the original payload content should not have been updated");
 
             var getPayload2Response = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
             {
@@ -941,8 +944,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 File = remoteFile
             });
 
-            Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
-            Assert.IsTrue((await getPayload2Response.Content.ReadAsStringAsync()) == p2Content);
+            Assert.IsTrue(getPayload2Response.StatusCode == HttpStatusCode.NotFound);
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -999,6 +1001,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 uploadManifest,
                 testPayloads);
 
+            var originalPayloadCount = testPayloads.Count;
             Assert.IsTrue(transferFileResponse.IsSuccessStatusCode);
             var transferResult = transferFileResponse.Content;
 
@@ -1015,7 +1018,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var remoteHeader = getRemoteFileHeaderResponse.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(remoteHeader);
-            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == testPayloads.Count);
+            Assert.IsTrue(remoteHeader.FileMetadata.Payloads.Count == originalPayloadCount);
 
             var remoteFile = new ExternalFileIdentifier()
             {
@@ -1049,7 +1052,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             //set an invalid version tag
             var targetVersionTag = Guid.NewGuid();
-            
+
             // var targetVersionTag = remoteHeader.FileMetadata.VersionTag;
             var targetGlobalTransitId = transferResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId;
 
@@ -1072,7 +1075,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Assert.IsTrue(getRemoteFileHeaderResponse1.IsSuccessStatusCode);
             var updatedHeader = getRemoteFileHeaderResponse1.Content.SearchResults.FirstOrDefault();
             Assert.IsNotNull(updatedHeader);
-            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 1);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == originalPayloadCount);
             Assert.IsNotNull(updatedHeader.FileMetadata.Payloads.SingleOrDefault(p => p.Key == WebScaffold.PAYLOAD_KEY));
 
             var getPayload1Response2 = await senderOwnerClient.PeerQuery.GetPayload(new PeerGetPayloadRequest()
@@ -1090,7 +1093,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 Key = payload2Key,
                 File = remoteFile
             });
-            Assert.IsTrue(getPayload2Response2.StatusCode == HttpStatusCode.NotFound);
+
+            Assert.IsTrue(getPayload2Response2.IsSuccessStatusCode, "payload2 should still exist");
+            Assert.IsTrue(await getPayload2Response2.Content.ReadAsStringAsync() == payloadContent2);
 
             await DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
