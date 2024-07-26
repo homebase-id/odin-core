@@ -34,7 +34,7 @@ public class PeerDirectUploadPayloadInstructionSet
             throw new OdinClientException("Invalid FileId");
         }
 
-        if (!TargetFile.Drive.IsValid())
+        if (!TargetFile.TargetDrive.IsValid())
         {
             throw new OdinClientException("Remote Target Drive is invalid", OdinClientErrorCode.InvalidDrive);
         }

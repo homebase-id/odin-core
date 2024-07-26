@@ -178,7 +178,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _transitInboxBoxStorage.Add(item, cn);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = _package.InstructionSet.TargetFile.Drive,
+                TargetDrive = _package.InstructionSet.TargetFile.TargetDrive,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,
@@ -217,7 +217,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await _transitInboxBoxStorage.Add(item, cn);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = request.TargetFile.Drive,
+                TargetDrive = request.TargetFile.TargetDrive,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,
@@ -235,8 +235,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<(SharedSecretEncryptedFileHeader file, Guid driveId)> AssertFileExists(FileIdentifier targetFile, IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(targetFile.Drive);
-            var existingFile = await fileSystem.Query.GetFileByGlobalTransitId(driveId, targetFile.FileId, odinContext, cn);
+            var driveId = odinContext.PermissionsContext.GetDriveId(targetFile.TargetDrive);
+            var existingFile = await fileSystem.Query.GetFileByGlobalTransitId(driveId, targetFile.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
             if (null == existingFile)
             {
                 throw new OdinClientException("No file found by GlobalTransitId");

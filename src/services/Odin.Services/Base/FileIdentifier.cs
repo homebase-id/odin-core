@@ -6,46 +6,68 @@ namespace Odin.Services.Base;
 
 public class FileIdentifier
 {
-    public Guid FileId { get; set; }
+    public Guid? FileId { get; set; }
+    public Guid? GlobalTransitId { get; set; }
+    public Guid? UniqueId { get; set; }
 
     /// <summary>
     /// The drive to access
     /// </summary>
-    public TargetDrive Drive { get; set; }
-
-    public FileIdentifierType Type { get; set; }
-
-    //TODO: consider this for apiv2
-    // public FileSystemType FileSystemType { get; set; }
+    public TargetDrive TargetDrive { get; set; }
 
     public void AssertIsValid()
     {
-        if (this.FileId == Guid.Empty ||
-            !this.Drive.IsValid() ||
-            this.Type == FileIdentifierType.NotSet)
+        var missingField = !FileIdHasValue &&
+                           !GlobalTransitIdHasValue &&
+                           !UniqueIdHasValue;
+
+        if (missingField || !this.TargetDrive.IsValid())
         {
             throw new OdinClientException("The file identifier is invalid");
+        }
+
+        if (FileIdHasValue && (GlobalTransitIdHasValue || UniqueIdHasValue))
+        {
+            throw new OdinClientException("The file identifier is invalid; only one field can be set");
+        }
+
+        if (GlobalTransitIdHasValue && (FileIdHasValue || UniqueIdHasValue))
+        {
+            throw new OdinClientException("The file identifier is invalid; only one field can be set");
+        }
+
+        if (UniqueIdHasValue && (GlobalTransitIdHasValue || FileIdHasValue))
+        {
+            throw new OdinClientException("The file identifier is invalid; only one field can be set");
         }
     }
 
     public void AssertIsValid(FileIdentifierType expectedType)
     {
-       this.AssertIsValid();
+        this.AssertIsValid();
         AssertIsType(expectedType);
     }
-    
-    public void AssertIsType(FileIdentifierType expectedType)
+
+    public FileIdentifierType GetFileIdentifierType()
     {
-        if (this.Type != expectedType)
+        this.AssertIsValid();
+
+        if (FileIdHasValue)
         {
-            throw new OdinClientException("The file identifier type is invalid");
+            return FileIdentifierType.File;
         }
-    }
 
+        if (GlobalTransitIdHasValue)
+        {
+            return FileIdentifierType.GlobalTransitId;
+        }
 
-    public bool HasValue()
-    {
-        return FileId != Guid.NewGuid() && Drive.IsValid();
+        if (UniqueIdHasValue)
+        {
+            return FileIdentifierType.UniqueId;
+        }
+
+        return FileIdentifierType.NotSet;
     }
 
     public static bool operator ==(FileIdentifier d1, FileIdentifier d2)
@@ -55,7 +77,7 @@ public class FileIdentifier
             return true;
         }
 
-        return d1?.FileId == d2?.FileId && d1.Drive == d2.Drive;
+        return d1?.FileId == d2?.FileId && d1.TargetDrive == d2.TargetDrive;
     }
 
     public static bool operator !=(FileIdentifier d1, FileIdentifier d2)
@@ -67,7 +89,7 @@ public class FileIdentifier
     {
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Equals(Drive, other.Drive) && FileId.Equals(other.FileId);
+        return Equals(TargetDrive, other.TargetDrive) && FileId.Equals(other.FileId);
     }
 
     public override bool Equals(object obj)
@@ -80,8 +102,45 @@ public class FileIdentifier
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Drive, FileId);
+        return HashCode.Combine(TargetDrive, FileId);
     }
+
+    ///
+    private bool FileIdHasValue => this.FileId.GetValueOrDefault() != Guid.Empty;
+
+    private bool GlobalTransitIdHasValue => this.GlobalTransitId.GetValueOrDefault() != Guid.Empty;
+    private bool UniqueIdHasValue => this.UniqueId.GetValueOrDefault() != Guid.Empty;
+    
+    private void AssertIsType(FileIdentifierType expectedType)
+    {
+        switch (expectedType)
+        {
+            case FileIdentifierType.File:
+                if (!FileIdHasValue)
+                {
+                    throw new OdinClientException("The file identifier type is invalid");
+                }
+
+                break;
+            case FileIdentifierType.GlobalTransitId:
+                if (GlobalTransitIdHasValue)
+                {
+                    throw new OdinClientException("The file identifier type is invalid");
+                }
+
+                break;
+            case FileIdentifierType.UniqueId:
+                if (UniqueIdHasValue)
+                {
+                    throw new OdinClientException("The file identifier type is invalid");
+                }
+
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(expectedType), expectedType, null);
+        }
+    }
+
 }
 
 public enum FileIdentifierType

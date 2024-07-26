@@ -199,7 +199,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         State = new OutboxItemState()
                         {
                             //When GlobalTransitId is used, we are sending the file directly to the recipient; there is no local file
-                            IsTransientFile = payloadTransferInstructionSet.TargetFile.Type == FileIdentifierType.GlobalTransitId,
+                            IsTransientFile = payloadTransferInstructionSet.TargetFile.GetFileIdentifierType() == FileIdentifierType.GlobalTransitId,
                             Attempts = { },
                             OriginalTransitOptions = default,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
@@ -239,7 +239,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             
             var fileId = new InternalDriveFileId()
             {
-                FileId = file.FileId,
+                FileId = file.GlobalTransitId.GetValueOrDefault(),
                 DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
             };
             

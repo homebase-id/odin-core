@@ -75,8 +75,7 @@ namespace Odin.Services.Drives
             return new FileIdentifier()
             {
                 FileId = this.FileId,
-                Drive = TargetDrive,
-                Type = FileIdentifierType.File
+                TargetDrive = TargetDrive,
             };
         }
     }

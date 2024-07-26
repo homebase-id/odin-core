@@ -472,9 +472,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         {
             TargetFile = new FileIdentifier()
             {
-                FileId = targetGlobalTransitId,
-                Drive = remoteTargetDrive,
-                Type = FileIdentifierType.GlobalTransitId
+                GlobalTransitId = targetGlobalTransitId,
+                TargetDrive = remoteTargetDrive,
             },
             Recipients = recipients,
             VersionTag = targetVersionTag,
@@ -524,9 +523,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         {
             TargetFile = new FileIdentifier()
             {
-                FileId = targetGlobalTransitId,
-                Drive = remoteTargetDrive,
-                Type = FileIdentifierType.GlobalTransitId
+                GlobalTransitId = targetGlobalTransitId,
+                TargetDrive = remoteTargetDrive
             },
             Recipients = recipients,
             VersionTag = targetVersionTag,
@@ -586,9 +584,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
                 Key = payloadKey,
                 File = new FileIdentifier()
                 {
-                    FileId = targetGlobalTransitId,
-                    Drive = recipientTargetDrive,
-                    Type = FileIdentifierType.GlobalTransitId
+                    GlobalTransitId = targetGlobalTransitId,
+                    TargetDrive = recipientTargetDrive
                 },
                 VersionTag = targetVersionTag,
                 Recipients = recipients

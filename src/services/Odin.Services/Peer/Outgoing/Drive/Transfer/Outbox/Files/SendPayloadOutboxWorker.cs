@@ -51,7 +51,7 @@ public class SendPayloadOutboxWorker(
             logger.LogDebug("Start: Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             var request = OdinSystemSerializer.Deserialize<SendPayloadRequest>(FileItem.State.Data.ToStringFromUtf8Bytes());
-            if (request.InstructionSet.TargetFile.Type == FileIdentifierType.UniqueId)
+            if (request.InstructionSet.TargetFile.GetFileIdentifierType() == FileIdentifierType.UniqueId)
             {
                 throw new OdinOutboxProcessingException("Cannot send payloads by FileIdentifierType.UniqueId")
                 {
@@ -101,7 +101,7 @@ public class SendPayloadOutboxWorker(
 
         var instructionSet = request.InstructionSet;
         var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
-        var readFromTemp = request.InstructionSet.TargetFile.Type == FileIdentifierType.GlobalTransitId;
+        var readFromTemp = request.InstructionSet.TargetFile.GetFileIdentifierType() == FileIdentifierType.GlobalTransitId;
 
         var transferInstructionSetStream = new StreamPart(
             value: new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
