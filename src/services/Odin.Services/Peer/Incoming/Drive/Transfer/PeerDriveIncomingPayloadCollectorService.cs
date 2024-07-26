@@ -20,6 +20,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -38,6 +39,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             DatabaseConnection cn)
         {
             var (existingFile, driveId) = await AssertFileExists(instructionSet.TargetFile, odinContext, cn);
+
+            OdinValidationUtils.AssertNotEmptyGuid(instructionSet.VersionTag, "version tag", OdinClientErrorCode.MissingVersionTag);
+            if (existingFile.FileMetadata.VersionTag != instructionSet.VersionTag)
+            {
+                throw new OdinClientException("Invalid Version tag", OdinClientErrorCode.VersionTagMismatch);
+            }
 
             var file = new InternalDriveFileId()
             {
@@ -176,6 +183,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             await _transitInboxBoxStorage.Add(item, cn);
+
             await mediator.Publish(new InboxItemReceivedNotification()
             {
                 TargetDrive = _package.InstructionSet.TargetFile.TargetDrive,
