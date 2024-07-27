@@ -99,7 +99,7 @@ public class JobManager(
         }
 
         var runResult = RunResult.Unknown;
-        var errorMessage = "";
+        string? errorMessage = null;
         var record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
         try
         {
@@ -114,9 +114,10 @@ public class JobManager(
 
             runResult = await job.Run(cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             runResult = RunResult.Reset;
+            errorMessage = ex.Message;
         }
         catch (Exception ex)
         {
@@ -139,7 +140,8 @@ public class JobManager(
                 record.id, record.name);
             record.state = (int)JobState.Scheduled;
             record.runCount = 0;
-            record.lastError = null;
+            record.lastError = errorMessage ?? "job was reset";
+            record.jobData = job.SerializeJobData();
             await UpsertAsync(record);
         }
         else if (runResult == RunResult.Abort)
@@ -150,7 +152,8 @@ public class JobManager(
         }
         else if (runResult == RunResult.Fail)
         {
-            record.lastError = errorMessage;
+            record.lastError = errorMessage ?? "unspecified error";
+            record.jobData = job.SerializeJobData();
             if (record.runCount < record.maxAttempts)
             {
                 var runAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(record.retryInterval);
@@ -163,10 +166,9 @@ public class JobManager(
             else
             {
                 logger.LogError(
-                    "JobManager giving up on unsuccessful job {jobId} (({name})) after {attempts} attempts. Error: {errorMessage}",
+                    "JobManager giving up on unsuccessful job {jobId} ({name}) after {attempts} attempts. Error: {errorMessage}",
                     record.id, record.name, record.runCount, errorMessage);
                 record.state = (int)JobState.Failed;
-                record.jobData = job.SerializeJobData();
             }
             await UpsertAsync(record);
         }

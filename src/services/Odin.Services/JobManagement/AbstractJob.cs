@@ -14,8 +14,8 @@ public enum RunResult
     Unknown, // N/A.
     Success, // Job completed successfully.
     Fail,    // Job failed. Retry the job after RetryInterval has passed or give up if the job has been retried too many times.
-    Reset,   // Reset the job to scheduled state.
-    Abort,   // Delete the job.    
+    Reset,   // Reset the job to scheduled state (job data is not reset).
+    Abort,   // Abort and delete the job.
 }
 
 public abstract class AbstractJob
@@ -24,7 +24,7 @@ public abstract class AbstractJob
     public abstract Task<RunResult> Run(CancellationToken cancellationToken);
     
     // Implement this method to serialize job data to the database
-    public abstract string SerializeJobData();
+    public abstract string? SerializeJobData();
     
     // Implement this method to deserialize job data from the database
     public abstract void DeserializeJobData(string json);

@@ -154,7 +154,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                    return _jobData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 65535) throw new Exception("Too long");
                   _jobData = value;
@@ -249,7 +248,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +"onFailureDeleteAfter INT NOT NULL, "
                      +"correlationId STRING NOT NULL, "
                      +"jobType STRING NOT NULL, "
-                     +"jobData STRING NOT NULL, "
+                     +"jobData STRING , "
                      +"jobHash STRING  UNIQUE, "
                      +"lastError STRING , "
                      +"created INT NOT NULL, "
@@ -338,7 +337,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam11.Value = item.onFailureDeleteAfter.milliseconds;
                 _insertParam12.Value = item.correlationId;
                 _insertParam13.Value = item.jobType;
-                _insertParam14.Value = item.jobData;
+                _insertParam14.Value = item.jobData ?? (object)DBNull.Value;
                 _insertParam15.Value = item.jobHash ?? (object)DBNull.Value;
                 _insertParam16.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
@@ -427,7 +426,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam11.Value = item.onFailureDeleteAfter.milliseconds;
                 _insertParam12.Value = item.correlationId;
                 _insertParam13.Value = item.jobType;
-                _insertParam14.Value = item.jobData;
+                _insertParam14.Value = item.jobData ?? (object)DBNull.Value;
                 _insertParam15.Value = item.jobHash ?? (object)DBNull.Value;
                 _insertParam16.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
@@ -520,7 +519,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam11.Value = item.onFailureDeleteAfter.milliseconds;
                 _upsertParam12.Value = item.correlationId;
                 _upsertParam13.Value = item.jobType;
-                _upsertParam14.Value = item.jobData;
+                _upsertParam14.Value = item.jobData ?? (object)DBNull.Value;
                 _upsertParam15.Value = item.jobHash ?? (object)DBNull.Value;
                 _upsertParam16.Value = item.lastError ?? (object)DBNull.Value;
                 _upsertParam17.Value = now.uniqueTime;
@@ -618,7 +617,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _updateParam11.Value = item.onFailureDeleteAfter.milliseconds;
                 _updateParam12.Value = item.correlationId;
                 _updateParam13.Value = item.jobType;
-                _updateParam14.Value = item.jobData;
+                _updateParam14.Value = item.jobData ?? (object)DBNull.Value;
                 _updateParam15.Value = item.jobHash ?? (object)DBNull.Value;
                 _updateParam16.Value = item.lastError ?? (object)DBNull.Value;
                 _updateParam17.Value = now.uniqueTime;
@@ -748,7 +747,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             }
 
             if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.jobData = null;
             else
             {
                 item.jobData = rdr.GetString(13);
@@ -896,7 +895,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             }
 
             if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.jobData = null;
             else
             {
                 item.jobData = rdr.GetString(12);

@@ -10,9 +10,10 @@ public class SimpleJobTestData
 {
     public string SomeSerializedData { get; set; } = "uninitialized";    
 }
+
 public class SimpleJobTest(ILogger<SimpleJobTest> logger) : AbstractJob
 {
-    public SimpleJobTestData JobData { get; private set; }= new ();
+    public SimpleJobTestData JobData { get; private set; } = new ();
     
     //
     
