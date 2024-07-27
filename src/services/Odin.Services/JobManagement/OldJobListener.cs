@@ -145,7 +145,7 @@ public class OldJobListener(
 
         if (jobData.TryGetString(retentionKey, out var retention) && retention != null)
         {
-            var jobManager = serviceProvider.GetRequiredService<IJobManager>();
+            var jobManager = serviceProvider.GetRequiredService<IOldJobManager>();
             var deleteAt = DateTimeOffset.Now + TimeSpan.FromSeconds(long.Parse(retention));
             var jobSchedule = new DeleteOldIJobDetailsSchedule(loggerFactory, job.Key, deleteAt);
             await jobManager.Schedule<OldDeleteJobDetailsJob>(jobSchedule);

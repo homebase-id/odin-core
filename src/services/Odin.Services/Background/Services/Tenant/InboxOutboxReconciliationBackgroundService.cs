@@ -39,7 +39,7 @@ public class InboxOutboxReconciliationBackgroundService(
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                outboxProcessor.WakeUp(); // signal outbox processor to get to work                
+                outboxProcessor.PulseBackgroundProcessor(); // signal outbox processor to get to work                
             }
 
             if (recoveredInboxItems > 0)

@@ -78,7 +78,7 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        var jobKey = await _tenantAdmin.EnqueueExportTenant(domain);
+        var jobKey = await _tenantAdmin.OldEnqueueExportTenant(domain);
         return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
     }
 

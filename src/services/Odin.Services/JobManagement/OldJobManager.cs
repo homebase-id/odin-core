@@ -19,7 +19,7 @@ namespace Odin.Services.JobManagement;
 
 //
 
-public interface IJobManager
+public interface IOldJobManager
 {
     Task Initialize(Func<Task>? configureJobs = null);
     Task<JobKey> Schedule<TJob>(OldAbstractOldIJobSchedule oldIJobSchedule) where TJob : IJob;
@@ -32,7 +32,7 @@ public interface IJobManager
 
 //
 
-public sealed class JobManagerConfig
+public sealed class OldJobManagerConfig
 {
     public string DatabaseDirectory { get; init; } = "";
     public bool ConnectionPooling { get; init; } = true;
@@ -41,14 +41,14 @@ public sealed class JobManagerConfig
 
 //
 
-public sealed class OldJobManager(
-    ILogger<OldJobManager> logger,
+public sealed class OldOldJobManager(
+    ILogger<OldOldJobManager> logger,
     ILoggerFactory loggerFactory,
     ICorrelationContext correlationContext,
     IJobFactory jobFactory,
     IJobListener jobListener,
-    JobManagerConfig config
-    ) : IJobManager, IAsyncDisposable
+    OldJobManagerConfig config
+    ) : IOldJobManager, IAsyncDisposable
 {
     private bool _disposing;
     private readonly AsyncLock _mutex = new();
@@ -87,7 +87,7 @@ public sealed class OldJobManager(
             // Sanity
             if (_disposing)
             {
-                throw new JobManagerException("OldJobManager is shutting down");
+                throw new JobManagerException("OldOldJobManager is shutting down");
             }
 
             var scheduler = GetScheduler(oldIJobSchedule.OldSchedulerGroup);
@@ -297,7 +297,7 @@ public sealed class OldJobManager(
     {
         if (_disposing)
         {
-            throw new JobManagerException("OldJobManager is shutting down");
+            throw new JobManagerException("OldOldJobManager is shutting down");
         }
 
         var schedulerTypes = Enum.GetValues<OldSchedulerGroup>();
@@ -313,7 +313,7 @@ public sealed class OldJobManager(
     {
         if (_disposing)
         {
-            throw new JobManagerException("OldJobManager is shutting down");
+            throw new JobManagerException("OldOldJobManager is shutting down");
         }
 
         var schedulerNames = _schedulers.Keys;
@@ -331,11 +331,11 @@ public sealed class OldJobManager(
         var schedulerNames = _schedulers.Keys;
         foreach (var name in schedulerNames)
         {
-            logger.LogDebug("OldJobManager starting shutdown of scheduler {SchedulerName}", name);
+            logger.LogDebug("OldOldJobManager starting shutdown of scheduler {SchedulerName}", name);
             var scheduler = _schedulers[name];
             await scheduler.Shutdown(true);
             _schedulers.Remove(name);
-            logger.LogDebug("OldJobManager finished shutdown of scheduler {SchedulerName}", name);
+            logger.LogDebug("OldOldJobManager finished shutdown of scheduler {SchedulerName}", name);
         }
     }
 
@@ -346,7 +346,7 @@ public sealed class OldJobManager(
         var schedulerName = oldSchedulerType.ToString();
         if (_disposing)
         {
-            throw new JobManagerException("OldJobManager is shutting down");
+            throw new JobManagerException("OldOldJobManager is shutting down");
         }
 
         return _schedulers.GetValueOrDefault(schedulerName);

@@ -184,7 +184,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
-            WakeUp();
+            PulseBackgroundProcessor();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,

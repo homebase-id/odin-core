@@ -30,7 +30,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
-    private readonly IJobManager _jobManager;
+    private readonly IOldJobManager _oldJobManager;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -39,7 +39,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDnsRestClient dnsRestClient,
         IHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
-        IJobManager jobManager)
+        IOldJobManager oldJobManager)
     {
         _logger = logger;
         _configuration = configuration;
@@ -47,7 +47,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
         _dnsLookupService = dnsLookupService;
-        _jobManager = jobManager;
+        _oldJobManager = oldJobManager;
 
         RegisterHttpClient();
     }
@@ -277,7 +277,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     email,
                     firstRunToken.ToString(),
                     TimeSpan.FromSeconds(1));
-                await _jobManager.Schedule<SendProvisioningCompleteEmailJob>(scheduler);
+                await _oldJobManager.Schedule<SendProvisioningCompleteEmailJob>(scheduler);
             }
 
             return firstRunToken;

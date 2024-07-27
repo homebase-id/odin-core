@@ -7,11 +7,11 @@ using Quartz.Spi;
 
 namespace Odin.Hosting.JobManagement;
 
-public static class JobManagementExtensions
+public static class OldJobManagementExtensions
 {
-    public static IServiceCollection AddJobManagementServices(this IServiceCollection services, OdinConfiguration config)
+    public static IServiceCollection AddOldJobManagementServices(this IServiceCollection services, OdinConfiguration config)
     {
-        services.AddSingleton(new JobManagerConfig
+        services.AddSingleton(new OldJobManagerConfig
         {
             ConnectionPooling = config.Job.ConnectionPooling,
             DatabaseDirectory = Path.Combine(config.Host.SystemDataRootPath, "jobs"),
@@ -21,7 +21,7 @@ public static class JobManagementExtensions
         services.AddSingleton<IJobFactory, OldDiJobFactory>();
         services.AddSingleton<IJobListener, OldJobListener>();
         services.AddSingleton<IJobMemoryCache, OldJobMemoryCache>();
-        services.AddSingleton<IJobManager, OldJobManager>();
+        services.AddSingleton<IOldJobManager, OldOldJobManager>();
 
         return services;
     }

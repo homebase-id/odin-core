@@ -33,7 +33,7 @@ public class ChainTestSchedule : OldAbstractOldIJobSchedule
 
 //
 
-public class OldChainTestJob(ICorrelationContext correlationContext, IJobManager jobManager)
+public class OldChainTestJob(ICorrelationContext correlationContext, IOldJobManager oldJobManager)
     : OldAbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
@@ -48,7 +48,7 @@ public class OldChainTestJob(ICorrelationContext correlationContext, IJobManager
             {
                 IterationCount = currentIteration - 1
             };
-            var jobKey = await jobManager.Schedule<OldChainTestJob>(scheduler);
+            var jobKey = await oldJobManager.Schedule<OldChainTestJob>(scheduler);
             nextJobKey = jobKey.ToString();
         }
 

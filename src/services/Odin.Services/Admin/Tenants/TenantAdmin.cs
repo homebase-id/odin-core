@@ -16,18 +16,18 @@ public class TenantAdmin : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IJobManager _jobManager;
+    private readonly IOldJobManager _oldJobManager;
     private readonly IIdentityRegistry _identityRegistry;
 
     public TenantAdmin(
         ILogger<TenantAdmin> logger,
         ILoggerFactory loggerFactory,
-        IJobManager jobManager,
+        IOldJobManager oldJobManager,
         IIdentityRegistry identityRegistry)
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
-        _jobManager = jobManager;
+        _oldJobManager = oldJobManager;
         _identityRegistry = identityRegistry;
     }
 
@@ -62,11 +62,26 @@ public class TenantAdmin : ITenantAdmin
         }
 
         var jobSchedule = new DeleteTenantSchedule(_loggerFactory.CreateLogger<DeleteTenantSchedule>(), domain);
-        var jobKey = await _jobManager.Schedule<DeleteTenantJob>(jobSchedule);
+        var jobKey = await _oldJobManager.Schedule<DeleteTenantJob>(jobSchedule);
 
         return jobKey.ToString();
     }
 
+    //
+
+    public async Task<string> OldEnqueueExportTenant(string domain)
+    {
+        if (!await _identityRegistry.IsIdentityRegistered(domain))
+        {
+            throw new OdinClientException($"{domain} not found");
+        }
+
+        var jobSchedule = new ExportTenantSchedule(_loggerFactory.CreateLogger<ExportTenantSchedule>(), domain);
+        var jobKey = await _oldJobManager.Schedule<ExportTenantJob>(jobSchedule);
+
+        return jobKey.ToString();
+    }
+    
     //
 
     public async Task<string> EnqueueExportTenant(string domain)
@@ -75,13 +90,15 @@ public class TenantAdmin : ITenantAdmin
         {
             throw new OdinClientException($"{domain} not found");
         }
+        
+        
 
         var jobSchedule = new ExportTenantSchedule(_loggerFactory.CreateLogger<ExportTenantSchedule>(), domain);
-        var jobKey = await _jobManager.Schedule<ExportTenantJob>(jobSchedule);
+        var jobKey = await _oldJobManager.Schedule<ExportTenantJob>(jobSchedule);
 
         return jobKey.ToString();
     }
-
+    
     //
 
     public async Task<bool> TenantExists(string domain)

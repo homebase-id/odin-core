@@ -86,12 +86,14 @@ namespace Odin.Hosting
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             //
-            // Job stuff
+            // Background and job stuff
             //
-            services.AddJobManagementServices(config);
+            services.AddOldJobManagementServices(config);
+            services.RegisterSystemBackgroundServices();
+            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
+            services.AddSingleton<IJobManager, JobManager>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -261,9 +263,6 @@ namespace Odin.Hosting
             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-            
-            // System background services
-            builder.RegisterSystemBackgroundServices();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -458,12 +457,11 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                var jobManager = services.GetRequiredService<IJobManager>();
+                var jobManager = services.GetRequiredService<IOldJobManager>();
                 jobManager.Initialize().BlockingWait();
                 
                 // Start system background services
-                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
-                systemBackgroundServiceManager.StartSystemBackgroundServices(services).Wait();
+                services.StartSystemBackgroundServices().BlockingWait();
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -479,21 +477,12 @@ namespace Odin.Hosting
                 //
                 // Shutdown all tenant background services
                 //
-                var multitenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
-                var registry = services.GetRequiredService<IIdentityRegistry>();
-                var registrations = registry.GetList().Result;
-                foreach (var registration in registrations.Results)
-                {
-                    var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-                    var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-                    backgroundServiceManager.ShutdownAsync().BlockingWait();
-                }
+                services.ShutdownTenantBackgroundServices().BlockingWait();                
                 
                 //
                 // Shutdown system background services
                 //
-                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
-                systemBackgroundServiceManager.ShutdownAsync().BlockingWait();
+                services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
 

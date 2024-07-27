@@ -22,5 +22,4 @@ public class JobJanitorBackgroundService(
             await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
         }
     }
-    
 }

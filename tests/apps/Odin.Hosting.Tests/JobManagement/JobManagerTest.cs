@@ -19,7 +19,7 @@ using Quartz;
 namespace Odin.Hosting.Tests.JobManagement;
 
 [Timeout(60000)]
-public class OldOldJobManagerTest
+public class JobManagerTest
 {
     private readonly TimeSpan _maxWaitForJobStatus = TimeSpan.FromSeconds(5);
     private string _tempPath;

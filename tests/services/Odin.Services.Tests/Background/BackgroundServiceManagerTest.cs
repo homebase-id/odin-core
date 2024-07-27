@@ -186,12 +186,12 @@ public class BackgroundServiceManagerTest
             await Task.WhenAll(tasks);
             tasks.Clear();
 
-            // WakeUp 3 times
+            // PulseBackgroundProcessor 3 times
             for (var idx = 0; idx < 3; idx++)
             {
                 foreach (var service in services)
                 {
-                    service.WakeUp();
+                    service.PulseBackgroundProcessor();
                 }
                 await Task.Delay(200);
             }
@@ -254,7 +254,7 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         Assert.AreEqual(1, service.Counter);
         
-        service.WakeUp();
+        service.PulseBackgroundProcessor();
         await Task.Delay(200);
         
         Assert.AreEqual(2, service.Counter);

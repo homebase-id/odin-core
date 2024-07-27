@@ -195,7 +195,7 @@ public class AdminControllerTest
             Assert.Fail("Failed to delete tenant");
         }
 
-        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        var jobManager = _scaffold.Services.GetRequiredService<IOldJobManager>();
         var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
 
         var exists = await jobManager.Exists(jobKey);
@@ -253,7 +253,7 @@ public class AdminControllerTest
 
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
 
-        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        var jobManager = _scaffold.Services.GetRequiredService<IOldJobManager>();
         var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
 
         var exists = await jobManager.Exists(jobKey);

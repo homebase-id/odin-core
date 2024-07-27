@@ -632,8 +632,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private async Task StartBackgroundServices(IdentityRegistration registration)
     {
         var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-        await backgroundServiceManager.StartTenantBackgroundServices(scope);
+        await scope.StartTenantBackgroundServices();
     }
 
     //

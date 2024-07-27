@@ -21,7 +21,7 @@ public class IdentityRegistrationServiceTest
     private readonly Mock<IIdentityRegistry> _registry = new();
     private readonly Mock<IDnsRestClient> _dnsRestClient = new();
     private readonly Mock<IHttpClientFactory> _httpClientFactory = new();
-    private readonly Mock<IJobManager> _jobManager = new();
+    private readonly Mock<IOldJobManager> _jobManager = new();
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {

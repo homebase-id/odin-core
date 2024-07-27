@@ -7,14 +7,21 @@ namespace Odin.Services.Background.Services;
 
 #nullable enable
 
-public abstract class AbstractBackgroundService
+public interface IAbstractBackgroundService
+{
+    void PulseBackgroundProcessor();
+}
+
+//
+
+public abstract class AbstractBackgroundService : IAbstractBackgroundService
 {
     private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
 
-    // Override initialization logic here. TenantBackgroundServiceManager will wait for this to complete before starting the service.
+    // Override initialization logic here. BackgroundServiceManager will wait for this to complete before starting the service.
     public virtual Task StartingAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
@@ -25,7 +32,7 @@ public abstract class AbstractBackgroundService
 
     //
 
-    // Override cleanup logic here. TenantBackgroundServiceManager will run this after the service has stopped.
+    // Override cleanup logic here. BackgroundServiceManager will run this after the service has stopped.
     public virtual Task StoppedAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
@@ -33,7 +40,8 @@ public abstract class AbstractBackgroundService
 
     //
 
-    // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely until WakeUp is called.
+    // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely.
+    // Call PulseBackgroundProcessor() to wake up.
     protected Task SleepAsync(TimeSpan? duration, CancellationToken stoppingToken)
     {
         var ts = duration ?? TimeSpan.FromMilliseconds(-1);
@@ -42,7 +50,8 @@ public abstract class AbstractBackgroundService
     
     //
     
-    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2
+    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2.
+    // Call PulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
         if (duration1 > duration2)
@@ -56,7 +65,7 @@ public abstract class AbstractBackgroundService
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
             
-            // Sleep for duration or until WakeUp is signalled
+            // Sleep for duration or until PulseBackgroundProcessor is signalled
             await Task.WhenAny(wakeUp, delay);
         }
         catch (OperationCanceledException)
@@ -72,7 +81,7 @@ public abstract class AbstractBackgroundService
     //
 
     // Call me from anywhere to wake up the service from SleepAsync
-    public void WakeUp()
+    public void PulseBackgroundProcessor()
     {
         _wakeUpEvent.Set();
     }

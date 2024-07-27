@@ -11,11 +11,11 @@ public class JobController : ControllerBase
 {
     public const string GetJobResponseRouteName = "GetJobResponseRoute";
 
-    private readonly IJobManager _jobManager;
+    private readonly IOldJobManager _oldJobManager;
 
-    public JobController(IJobManager jobManager)
+    public JobController(IOldJobManager oldJobManager)
     {
-        _jobManager = jobManager;
+        _oldJobManager = oldJobManager;
     }
 
     //
@@ -25,7 +25,7 @@ public class JobController : ControllerBase
     public async Task<ActionResult<OldJobResponse>> GetJobResponse(string jobKey)
     {
         var jk = OldHelpers.ParseJobKey(jobKey);
-        var job = await _jobManager.GetResponse(jk);
+        var job = await _oldJobManager.GetResponse(jk);
 
         if (job.Status == OldJobStatus.NotFound)
         {
@@ -43,7 +43,7 @@ public class JobController : ControllerBase
     public async Task<ActionResult> JobTest()
     {
         var scheduler = new DummySchedule("Hello, World!");
-        var jobKey = await _jobManager.Schedule<DummyJob>(scheduler);
+        var jobKey = await _oldJobManager.Schedule<DummyJob>(scheduler);
         return AcceptedAtRoute(GetJobResponseRouteName, new { jobKey });
     }
 #endif
