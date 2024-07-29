@@ -8,7 +8,7 @@ namespace Odin.Services.Tests.JobManagement.Jobs;
 
 public class SimpleJobTestData
 {
-    public string SomeSerializedData { get; set; } = "uninitialized";    
+    public string SomeJobData { get; set; } = "uninitialized";    
 }
 
 public class SimpleJobTest(ILogger<SimpleJobTest> logger) : AbstractJob
@@ -17,11 +17,11 @@ public class SimpleJobTest(ILogger<SimpleJobTest> logger) : AbstractJob
     
     //
     
-    public override Task<RunResult> Run(CancellationToken cancellationToken)
+    public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
         logger.LogInformation("Running SimpleJobTest");
-        JobData.SomeSerializedData = "hurrah!";
-        return Task.FromResult(RunResult.Success);
+        JobData.SomeJobData = "hurrah!";
+        return Task.FromResult(JobExecutionResult.Success());
     }
     
     //

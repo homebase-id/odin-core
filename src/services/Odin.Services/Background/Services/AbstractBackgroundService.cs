@@ -50,13 +50,23 @@ public abstract class AbstractBackgroundService : IAbstractBackgroundService
     
     //
     
-    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2.
+    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 48 hours)
     // Call PulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
         if (duration1 > duration2)
         {
             throw new ArgumentException("duration1 must be less than or equal to duration2");
+        }
+        
+        // Don't sleep for more than 48 hours. Something goes bunkers if it becomes too long a nap.
+        if (duration1 > TimeSpan.FromHours(48)) 
+        {
+            duration1 = TimeSpan.FromHours(48);
+        }
+        if (duration2 > TimeSpan.FromHours(48)) 
+        {
+            duration2 = TimeSpan.FromHours(48);
         }
         
         var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);

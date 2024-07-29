@@ -9,19 +9,10 @@ namespace Odin.Services.JobManagement;
 
 #nullable enable
 
-public enum RunResult
-{
-    Unknown, // N/A.
-    Success, // Job completed successfully.
-    Fail,    // Job failed. Retry the job after RetryInterval has passed or give up if the job has been retried too many times.
-    Reset,   // Reset the job to scheduled state (job data is not reset).
-    Abort,   // Abort and delete the job.
-}
-
 public abstract class AbstractJob
 {
     // Implement this method to run the job
-    public abstract Task<RunResult> Run(CancellationToken cancellationToken);
+    public abstract Task<JobExecutionResult> Run(CancellationToken cancellationToken);
     
     // Implement this method to serialize job data to the database
     public abstract string? SerializeJobData();
@@ -32,8 +23,26 @@ public abstract class AbstractJob
     // Overwrite this property to set the name of the job.
     public virtual string Name => GetType().Name;
     
+    // Job Id
+    public Guid? Id => Record == null || Record.id == Guid.Empty ? null : Record.id; 
+
     // Job state
     public JobState State => (JobState?)Record?.state ?? JobState.Unknown;
+    
+    // Last error
+    public string? LastError => Record?.lastError;
+    
+    // Override this to tweak the response object used by the API 
+    public virtual JobApiResponse CreateApiResponseObject()
+    {
+        return new JobApiResponse
+        {
+            JobId = Id,
+            State = State,
+            Error = LastError,
+            Data = SerializeJobData()
+        };
+    }
     
     // Low level database job record (read-only)
     public JobsRecord? Record { get; private set; }
@@ -69,6 +78,8 @@ public abstract class AbstractJob
         return job;
     }
     
+    //
+    
     public static T CreateInstance<T>(IServiceProvider serviceProvider, JobsRecord record) where T : AbstractJob
     {
         if (CreateInstance(serviceProvider, record) is not T job)
@@ -77,6 +88,8 @@ public abstract class AbstractJob
         }
         return job;
     }
+    
+    //
     
 }
 

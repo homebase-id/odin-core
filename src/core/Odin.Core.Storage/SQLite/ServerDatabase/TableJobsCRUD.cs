@@ -256,9 +256,8 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +", PRIMARY KEY (id)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(priority);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun);"
-                     +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                     +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(nextRun,priority);"
+                     +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(jobHash);"
                      ;
                     conn.ExecuteNonQuery(cmd);
             }

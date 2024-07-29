@@ -42,9 +42,9 @@ public class AbstractJobTests
         var simpleJobTest = job as SimpleJobTest;
         Assert.NotNull(simpleJobTest);
         Assert.NotNull(simpleJobTest!.JobData);
-        Assert.AreEqual("uninitialized", simpleJobTest.JobData.SomeSerializedData);
+        Assert.AreEqual("uninitialized", simpleJobTest.JobData.SomeJobData);
 
         await simpleJobTest.Run(CancellationToken.None);
-        Assert.AreEqual("hurrah!", simpleJobTest.JobData.SomeSerializedData);
+        Assert.AreEqual("hurrah!", simpleJobTest.JobData.SomeJobData);
     }
 }

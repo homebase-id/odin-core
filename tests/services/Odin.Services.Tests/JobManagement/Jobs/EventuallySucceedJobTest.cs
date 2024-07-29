@@ -19,7 +19,7 @@ public class EventuallySucceedJobTest(ILogger<EventuallySucceedJobTest> logger) 
 
     //
 
-    public override Task<RunResult> Run(CancellationToken cancellationToken)
+    public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
         logger.LogInformation("Running EventuallySucceedJobTest");
         JobData.RunCount++;
@@ -30,10 +30,10 @@ public class EventuallySucceedJobTest(ILogger<EventuallySucceedJobTest> logger) 
             {
                 throw new System.Exception("Fail with exception");
             }
-            return Task.FromResult(RunResult.Fail);
+            return Task.FromResult(JobExecutionResult.Fail());
         }
 
-        return Task.FromResult(RunResult.Success);
+        return Task.FromResult(JobExecutionResult.Success());
     }
 
     //

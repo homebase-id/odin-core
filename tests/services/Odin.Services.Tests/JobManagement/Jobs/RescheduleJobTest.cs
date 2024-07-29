@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -5,15 +6,15 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
-public class AbortingJobTest(ILogger<AbortingJobTest> logger) : AbstractJob
+public class RescheduleJobTest(ILogger<RescheduleJobTest> logger) : AbstractJob
 {
 
     //
     
     public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Running AbortingJobTest");
-        return Task.FromResult(JobExecutionResult.Abort());
+        logger.LogInformation("Running RescheduleJobTest");
+        return Task.FromResult(JobExecutionResult.Reschedule(new DateTimeOffset(2100, 1, 1, 0, 0, 0, TimeSpan.Zero)));
     }
     
     //
@@ -27,7 +28,6 @@ public class AbortingJobTest(ILogger<AbortingJobTest> logger) : AbstractJob
 
     public override void DeserializeJobData(string json)
     {
-        // Do nothing
     }
 
     //

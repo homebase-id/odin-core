@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,18 +20,30 @@ public class JobRunnerBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var jobManager = JobManager;
+        var jobs = serverSystemStorage.Jobs;
         
+        var tasks = new List<Task>();
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("JobRunnerBackgroundService is running");
 
+            TimeSpan? nextRun;
             using (var cn = serverSystemStorage.CreateConnection())
             {
-                // SEB:TODO
-
-            }
+                while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJob(cn) is { } job)
+                {
+                    var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
+                    tasks.Add(task);
+                }
             
-            await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken);
+                var ts = await jobs.GetNextRunTime(cn);
+                nextRun = ts.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(ts.Value) - DateTimeOffset.Now : null;
+            }
+        
+            tasks.RemoveAll(t => t.IsCompleted);
+            
+            await SleepAsync(nextRun, stoppingToken);
         }
+        await Task.WhenAll(tasks);
     }
 }
