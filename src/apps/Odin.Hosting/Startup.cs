@@ -44,6 +44,7 @@ using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkMetaExtractor;
@@ -94,6 +95,8 @@ namespace Odin.Hosting
             services.RegisterSystemBackgroundServices();
             services.AddSingleton<IForgottenTasks, ForgottenTasks>();
             services.AddSingleton<IJobManager, JobManager>();
+            services.AddTransient<ExportTenantJob>();
+            services.AddTransient<DeleteTenantJob>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>

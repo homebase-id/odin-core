@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
@@ -10,12 +11,23 @@ using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
 
+// SEB:TODO jobhash must not block new jobs if existing is successful/failed
+
+// SEB:TODO rename RetryInterval to RetryDelay
+
+// SEB:TODO jobmanager must delete job if it is expired on completion
+
+// SEB:TODO update CLI
+
+// SEB:TODO unit test ApiJobResponse deserilizarion
+
 namespace Odin.Services.JobManagement;
 
 #nullable enable
 
 public interface IJobManager
 {
+    T NewJob<T>() where T : AbstractJob;
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
     Task<long> CountJobsAsync();
@@ -38,6 +50,13 @@ public class JobManager(
 {
     private readonly TableJobs _tblJobs = serverSystemStorage.Jobs;
     
+    //
+
+    public T NewJob<T>() where T : AbstractJob
+    {
+        return serviceProvider.GetRequiredService<T>();
+    }
+
     //
     
     public async Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null)

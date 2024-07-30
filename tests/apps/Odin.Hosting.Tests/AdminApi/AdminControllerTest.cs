@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Services.JobManagement;
 
@@ -34,7 +35,6 @@ public class AdminControllerTest
         _scaffold = new WebScaffold(folder);
         var env = new Dictionary<string, string>
         {
-            { "Job__Enabled", "true" },
             { "Admin__ApiEnabled", "true" },
             { "Admin__ApiKey", "your-secret-api-key-here" },
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
@@ -172,11 +172,11 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/delete-tenant%3Afrodo_dotyou_cloud."));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/"));
 
         var idx = 0;
         const int max = 20;
-        var jobResponse = new OldJobResponse();
+        var jobResponse = new JobApiResponse();
         for (idx = 0; idx < max; idx++)
         {
             await Task.Delay(100);
@@ -184,8 +184,8 @@ public class AdminControllerTest
             response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            jobResponse = OldJobResponse.Deserialize(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == OldJobStatus.Completed)
+            jobResponse = JobApiResponse.Deserialize(await response.Content.ReadAsStringAsync());
+            if (jobResponse.State == JobState.Succeeded)
             {
                 break;
             }
@@ -195,17 +195,19 @@ public class AdminControllerTest
             Assert.Fail("Failed to delete tenant");
         }
 
-        var jobManager = _scaffold.Services.GetRequiredService<IOldJobManager>();
-        var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
+        Assert.That(jobResponse.JobId, Is.Not.Null);
 
-        var exists = await jobManager.Exists(jobKey);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        var jobId = jobResponse.JobId.Value;
+
+        var exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.True);
-        var deleted = await jobManager.Delete(jobKey);
+        var deleted = await jobManager.DeleteJobAsync(jobId);
         Assert.That(deleted, Is.True);
 
-        exists = await jobManager.Exists(jobKey);
+        exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.False);
-        deleted = await jobManager.Delete(jobKey);
+        deleted = await jobManager.DeleteJobAsync(jobId);
         Assert.That(deleted, Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);
@@ -227,12 +229,12 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/export-tenant%3Afrodo_dotyou_cloud."));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/"));
 
         var idx = 0;
         const int max = 20;
-        var jobResponse = new OldJobResponse();
-        ExportTenantData exportData = null;
+        var jobResponse = new JobApiResponse();
+        ExportTenantJobData exportData = null;
         for (idx = 0; idx < max; idx++)
         {
             await Task.Delay(100);
@@ -240,8 +242,8 @@ public class AdminControllerTest
             response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            (jobResponse, exportData) = OldJobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == OldJobStatus.Completed)
+            (jobResponse, exportData) = JobApiResponse.Deserialize<ExportTenantJobData>(await response.Content.ReadAsStringAsync());
+            if (jobResponse.State == JobState.Succeeded)
             {
                 break;
             }
@@ -251,19 +253,21 @@ public class AdminControllerTest
             Assert.Fail("Failed to export tenant - did not complete");
         }
 
+        Assert.That(jobResponse.JobId, Is.Not.Null);
         Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
 
-        var jobManager = _scaffold.Services.GetRequiredService<IOldJobManager>();
-        var jobKey = OldHelpers.ParseJobKey(jobResponse.JobKey);
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
 
-        var exists = await jobManager.Exists(jobKey);
+        var jobId = jobResponse.JobId.Value;
+
+        var exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.True);
-        var deleted = await jobManager.Delete(jobKey);
+        var deleted = await jobManager.DeleteJobAsync(jobId);
         Assert.That(deleted, Is.True);
 
-        exists = await jobManager.Exists(jobKey);
+        exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.False);
-        deleted = await jobManager.Delete(jobKey);
+        deleted = await jobManager.DeleteJobAsync(jobId);
         Assert.That(deleted, Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);

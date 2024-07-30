@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,32 +8,25 @@ namespace Odin.Hosting.Controllers.Job;
 #nullable enable
 
 [ApiController]
-public class JobController : ControllerBase
+public class JobController(IJobManager jobManager) : ControllerBase
 {
     public const string GetJobResponseRouteName = "GetJobResponseRoute";
-
-    private readonly IOldJobManager _oldJobManager;
-
-    public JobController(IOldJobManager oldJobManager)
-    {
-        _oldJobManager = oldJobManager;
-    }
 
     //
 
     [AllowAnonymous]
-    [HttpGet("/api/job/v1/{jobKey}", Name = GetJobResponseRouteName)]
-    public async Task<ActionResult<OldJobResponse>> GetJobResponse(string jobKey)
+    [HttpGet("/api/job/v1/{jobId}", Name = GetJobResponseRouteName)]
+    public async Task<ActionResult<JobApiResponse>> GetJobResponse(string jobId)
     {
-        var jk = OldHelpers.ParseJobKey(jobKey);
-        var job = await _oldJobManager.GetResponse(jk);
-
-        if (job.Status == OldJobStatus.NotFound)
+        var job = await jobManager.GetJobAsync<AbstractJob>(Guid.Parse(jobId));
+        if (job == null)
         {
             return NotFound(job);
         }
 
-        return Ok(job);
+        var result = job.CreateApiResponseObject();
+
+        return Ok(result);
     }
 
     //
@@ -42,9 +36,12 @@ public class JobController : ControllerBase
     [HttpGet("/api/job/v1/dummy")]
     public async Task<ActionResult> JobTest()
     {
-        var scheduler = new DummySchedule("Hello, World!");
-        var jobKey = await _oldJobManager.Schedule<DummyJob>(scheduler);
-        return AcceptedAtRoute(GetJobResponseRouteName, new { jobKey });
+        var job = jobManager.NewJob<DummyJob>();
+        job.Data.Echo = "Hello, World!";
+
+        var jobId = await jobManager.ScheduleJobAsync(job, JobSchedule.Now);
+
+        return AcceptedAtRoute(GetJobResponseRouteName, new { jobId });
     }
 #endif
 
