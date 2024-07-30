@@ -24,7 +24,7 @@ public static class BackgroundServiceExtensions
 
         // Background only services
         services.AddSingleton<DummySystemBackgroundService>();
-        services.AddSingleton<JobJanitorBackgroundService>();
+        services.AddSingleton<JobCleanUpBackgroundService>();
         services.AddSingleton<JobRunnerBackgroundService>();
         services.AddSingleton<UpdateCertificatesBackgroundService>();
        
@@ -40,7 +40,7 @@ public static class BackgroundServiceExtensions
         var bsm = services.GetRequiredService<IBackgroundServiceManager>();
         
         // await bsm.StartAsync(nameof(DummySystemBackgroundService), services.GetRequiredService<DummySystemBackgroundService>());
-        await bsm.StartAsync(nameof(JobJanitorBackgroundService), services.GetRequiredService<JobJanitorBackgroundService>());
+        await bsm.StartAsync(nameof(JobCleanUpBackgroundService), services.GetRequiredService<JobCleanUpBackgroundService>());
         await bsm.StartAsync(nameof(JobRunnerBackgroundService), services.GetRequiredService<JobRunnerBackgroundService>());
         await bsm.StartAsync(nameof(UpdateCertificatesBackgroundService), services.GetRequiredService<UpdateCertificatesBackgroundService>());
     }

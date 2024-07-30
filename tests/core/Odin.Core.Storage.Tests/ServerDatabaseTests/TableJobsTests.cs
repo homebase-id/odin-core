@@ -130,6 +130,27 @@ public class TableJobsTests
     
     //
 
+    [Test]
+    public async Task ItShouldGetJobByHash()
+    {
+        using var db = new ServerDatabase("");
+        using var cn = db.CreateDisposableConnection();
+        db.CreateDatabase(cn);
+
+        var record = NewJobsRecord();
+        record.jobHash = "my unique hash value";
+        db.tblJobs.Insert(cn, record);
+
+        var job = await db.tblJobs.GetJobByHash(cn, record.jobHash);
+        Assert.That(job, Is.Not.Null);
+        Assert.That(job!.id, Is.EqualTo(record.id));
+
+        job = await db.tblJobs.GetJobByHash(cn, "non-existing-hash");
+        Assert.That(job, Is.Null);
+    }
+
+    //
+
     private JobsRecord NewJobsRecord()
     {
         return new JobsRecord

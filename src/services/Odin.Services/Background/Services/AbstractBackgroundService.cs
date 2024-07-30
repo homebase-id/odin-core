@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 
 namespace Odin.Services.Background.Services;
@@ -14,7 +15,7 @@ public interface IAbstractBackgroundService
 
 //
 
-public abstract class AbstractBackgroundService : IAbstractBackgroundService
+public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackgroundService
 {
     private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
@@ -104,7 +105,26 @@ public abstract class AbstractBackgroundService : IAbstractBackgroundService
         await StartingAsync(_stoppingCts.Token);
 
         // No 'await' here, this is intentional; we want to start the task and return immediately
-        _task = ExecuteAsync(_stoppingCts.Token);
+        _task = ExecuteWithCatchAllAsync(_stoppingCts.Token);
+    }
+
+    //
+
+    private async Task ExecuteWithCatchAllAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await ExecuteAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "BackgroundService {type} is exiting because of an unhandled exception: {error}",
+                GetType().Name, ex.Message);
+        }
     }
 
     //

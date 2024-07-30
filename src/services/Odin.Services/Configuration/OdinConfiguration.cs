@@ -314,6 +314,7 @@ namespace Odin.Services.Configuration
 
             public bool ConnectionPooling { get; init; } // SEB:TODO delete this
             public int InboxOutboxReconciliationDelaySeconds { get; init; }
+            public int ProcessJobCleanUpIntervalSeconds { get; init; }
 
             public JobSection()
             {
@@ -330,7 +331,8 @@ namespace Odin.Services.Configuration
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Job:ProcessPendingCertificateOrderIntervalInSeconds");
                 MaxSchedulerConcurrency = config.Required<int>("Job:MaxSchedulerConcurrency");
                 ConnectionPooling = config.GetOrDefault("Job:ConnectionPooling", true);
-                InboxOutboxReconciliationDelaySeconds = config.GetOrDefault("Job:InboxOutboxReconciliationDelaySeconds", 60 * 60);
+                InboxOutboxReconciliationDelaySeconds = config.GetOrDefault("Job:InboxOutboxReconciliationDelaySeconds", (int)TimeSpan.FromHours(1).TotalSeconds);
+                ProcessJobCleanUpIntervalSeconds = config.GetOrDefault("Job:ProcessJobCleanUpIntervalSeconds", (int)TimeSpan.FromHours(12).TotalSeconds);
             }
         }
 

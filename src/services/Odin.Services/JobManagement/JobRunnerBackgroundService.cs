@@ -12,7 +12,7 @@ namespace Odin.Services.JobManagement;
 public class JobRunnerBackgroundService(
     ILogger<JobRunnerBackgroundService> logger,
     IServiceProvider serviceProvider,
-    ServerSystemStorage serverSystemStorage) : AbstractBackgroundService
+    ServerSystemStorage serverSystemStorage) : AbstractBackgroundService(logger)
 {
     private IJobManager JobManager => serviceProvider.GetRequiredService<IJobManager>(); // avoids circular dependency 
 

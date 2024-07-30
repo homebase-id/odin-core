@@ -14,7 +14,7 @@ public class UpdateCertificatesBackgroundService(
     OdinConfiguration odinConfig,
     ICertificateServiceFactory certificateServiceFactory,
     IIdentityRegistry registry)
-    : AbstractBackgroundService
+    : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

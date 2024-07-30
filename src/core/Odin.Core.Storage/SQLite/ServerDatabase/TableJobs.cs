@@ -59,7 +59,7 @@ public class TableJobs : TableJobsCRUD
         cmd.CommandText =
             """
             SELECT nextRun
-            FROM Jobs
+            FROM jobs
             WHERE state = @scheduled
             ORDER BY nextRun
             LIMIT 1;
@@ -91,7 +91,7 @@ public class TableJobs : TableJobsCRUD
             -- Select the next scheduled job... 
             WITH NextJob AS (
                 SELECT id
-                FROM Jobs
+                FROM jobs
                 WHERE nextRun <= @now AND state = @scheduled
                 ORDER BY priority ASC, nextRun ASC
                 LIMIT 1
@@ -99,7 +99,7 @@ public class TableJobs : TableJobsCRUD
             )
 
             -- ...and update it to preflight, while making sure nobody beat us to it.
-            UPDATE Jobs
+            UPDATE jobs
             SET state = @preflight
             WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
             RETURNING *;
@@ -123,7 +123,7 @@ public class TableJobs : TableJobsCRUD
         cmd.Parameters.Add(preflight);
 
         JobsRecord? result = null;
-        var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
+        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
         if (rdr.Read())
         {
             result = ReadRecordFromReaderAll(rdr);
@@ -132,6 +132,59 @@ public class TableJobs : TableJobsCRUD
         return Task.FromResult(result);
     }
     
+    //
+
+    public Task<JobsRecord?> GetJobByHash(DatabaseConnection cn, string jobHash)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT * FROM jobs WHERE jobHash = @jobHash;";
+
+        var jobHashParam = cmd.CreateParameter();
+        jobHashParam.ParameterName = "@jobHash";
+        jobHashParam.Value = jobHash;
+        cmd.Parameters.Add(jobHashParam);
+
+        JobsRecord? result = null;
+        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
+        if (rdr.Read())
+        {
+            result = ReadRecordFromReaderAll(rdr);
+        }
+
+        return Task.FromResult(result);
+    }
+
+    //
+
+    public Task DeleteExpiredJobs(DatabaseConnection cn)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText =
+            """
+            DELETE FROM jobs 
+            WHERE (state = @succeded AND @now > onSuccessDeleteAfter)
+            OR (state = @failed AND @now > onFailureDeleteAfter);
+            """;
+
+        var succeeded = cmd.CreateParameter();
+        succeeded.ParameterName = "@succeded";
+        succeeded.Value = (int)JobState.Succeeded;
+        cmd.Parameters.Add(succeeded);
+
+        var failed = cmd.CreateParameter();
+        failed.ParameterName = "@failed";
+        failed.Value = (int)JobState.Failed;
+        cmd.Parameters.Add(failed);
+
+        var now = cmd.CreateParameter();
+        now.ParameterName = "@now";
+        now.Value = UnixTimeUtc.Now().milliseconds;
+        cmd.Parameters.Add(now);
+
+        cn.ExecuteNonQuery(cmd);
+        return Task.CompletedTask;
+    }
+
     //
 
 }

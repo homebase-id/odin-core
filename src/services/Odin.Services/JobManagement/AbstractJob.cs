@@ -20,7 +20,7 @@ public abstract class AbstractJob
     // Implement this method to deserialize job data from the database
     public abstract void DeserializeJobData(string json);
     
-    // Overwrite this property to set the name of the job.
+    // Override this property to set the name of the job.
     public virtual string Name => GetType().Name;
     
     // Job Id
@@ -31,6 +31,17 @@ public abstract class AbstractJob
     
     // Last error
     public string? LastError => Record?.lastError;
+
+    // JobType
+    public virtual string JobType => GetType().AssemblyQualifiedName ?? throw new OdinSystemException("JobType is null");
+
+    // Override this to create a job hash value. This is used to determine if a job is unique. Two jobs
+    // with the same hash cannot exist in the database at the same time. If this method returns null, it means
+    // that the job is not unique.
+    public virtual string? CreateJobHash()
+    {
+        return null;
+    }
     
     // Override this to tweak the response object used by the API 
     public virtual JobApiResponse CreateApiResponseObject()

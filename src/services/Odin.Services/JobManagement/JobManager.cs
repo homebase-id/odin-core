@@ -22,6 +22,7 @@ public interface IJobManager
     Task<bool> DeleteJobAsync(Guid jobId);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
+    Task DeleteExpiredJobsAsync();
     public void PulseBackgroundProcessor();
 }
 
@@ -45,9 +46,7 @@ public class JobManager(
         
         schedule ??= new JobSchedule();
         
-        logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}", 
-            jobId, job.Name, schedule.RunAt.ToString("O"));
-        
+
         var record = new JobsRecord
         {
             id = jobId,
@@ -62,17 +61,39 @@ public class JobManager(
             onSuccessDeleteAfter = Math.Max(schedule.OnSuccessDeleteAfter.ToUnixTimeMilliseconds(), DateTimeOffset.Now.ToUnixTimeMilliseconds()),
             onFailureDeleteAfter = Math.Max(schedule.OnFailureDeleteAfter.ToUnixTimeMilliseconds(), DateTimeOffset.Now.ToUnixTimeMilliseconds()),
             correlationId = correlationContext.Id,
-            jobType = job.GetType().AssemblyQualifiedName,
+            jobType = job.JobType,
             jobData = job.SerializeJobData(),
-            jobHash = null,
+            jobHash = job.CreateJobHash(),
             lastError = null,
         };
         
         using (var cn = await CreateConnectionAsync())
         {
-            // SEB:TODO lookup inputHash
-
-            _tblJobs.Insert(cn, record);
+            if (record.jobHash == null)
+            {
+                logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
+                    jobId, job.Name, schedule.RunAt.ToString("O"));
+                _tblJobs.Insert(cn, record);
+            }
+            else
+            {
+                logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
+                    jobId, job.Name, schedule.RunAt.ToString("O"));
+                var inserted = _tblJobs.TryInsert(cn, record);
+                if (inserted == 0)
+                {
+                    // Job already exists, lets look it up using the jobHash
+                    var existingRecord = await _tblJobs.GetJobByHash(cn, record.jobHash);
+                    if (existingRecord != null)
+                    {
+                        logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
+                            existingRecord.id, existingRecord.name);
+                        return existingRecord.id;
+                    }
+                    logger.LogError("Could not find job with hash {hash}", record.jobHash);
+                    throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
+                }
+            }
         }
         
         // Signal job runner to wake up
@@ -80,7 +101,7 @@ public class JobManager(
 
         return jobId;
     }
-   
+
     //
     
     // SEB:NOTE
@@ -120,7 +141,7 @@ public class JobManager(
             record.state = (int)JobState.Running;
             record.runCount++;
             record.lastRun = UnixTimeUtc.Now();
-            await UpsertAsync(record);
+            await UpdateAsync(record);
 
             result = await job.Run(cancellationToken);
             
@@ -151,7 +172,7 @@ public class JobManager(
             record.state = (int)JobState.Succeeded;
             record.lastError = null;
             record.jobData = job.SerializeJobData();
-            await UpsertAsync(record);
+            await UpdateAsync(record);
         }
         
         //
@@ -166,7 +187,7 @@ public class JobManager(
             record.runCount = 0;
             record.lastError = errorMessage ?? "job was rescheduled";
             record.jobData = job.SerializeJobData();
-            await UpsertAsync(record);
+            await UpdateAsync(record);
         }
         
         //
@@ -202,7 +223,7 @@ public class JobManager(
                     record.id, record.name, record.runCount, record.lastError);
                 record.state = (int)JobState.Failed;
             }
-            await UpsertAsync(record);
+            await UpdateAsync(record);
         }
         
         //
@@ -262,6 +283,14 @@ public class JobManager(
     }
     
     //
+
+    public async Task DeleteExpiredJobsAsync()
+    {
+        using var cn = await CreateConnectionAsync();
+        await _tblJobs.DeleteExpiredJobs(cn);
+    }
+
+    //
     
     public void PulseBackgroundProcessor()
     {
@@ -276,7 +305,17 @@ public class JobManager(
     } 
     
     //
-    
+
+    private async Task<int> UpdateAsync(JobsRecord record)
+    {
+        using var cn = await CreateConnectionAsync();
+        var updated = _tblJobs.Update(cn, record);
+        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        return updated;
+    }
+
+    //
+
     private async Task<int> UpsertAsync(JobsRecord record)
     {
         using var cn = await CreateConnectionAsync();

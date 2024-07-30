@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage,
         TenantContext tenantContext,
-        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService
+        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
