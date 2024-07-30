@@ -1,34 +1,33 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
+using Odin.Services.Base;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
-    public interface IUniversalDriveReactionHttpClient
+    public interface IUniversalDriveReactionHttpClientRedux
     {
         private const string ReactionRootEndpoint = "/drive/files/reactions";
 
-        [Post(ReactionRootEndpoint + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequest request);
+        [Post(ReactionRootEndpoint)]
+        Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteReaction([Body] DeleteReactionRequest request);
+        [Delete(ReactionRootEndpoint)]
+        Task<ApiResponse<HttpContent>> DeleteReaction([Body] DeleteReactionRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/deleteall")]
-        Task<ApiResponse<HttpContent>> DeleteReactions([Body] DeleteReactionRequest request);
+        [Delete(ReactionRootEndpoint + "/all")]
+        Task<ApiResponse<HttpContent>> DeleteReactions([Body] DeleteReactionRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/list")]
-        Task<ApiResponse<GetReactionsResponse>> GetReactions([Body] ExternalFileIdentifier file);
+        [Get(ReactionRootEndpoint)]
+        Task<ApiResponse<GetReactionsResponse>> GetReactions([Query] FileIdentifier file);
         
-        [Post(ReactionRootEndpoint + "/summary")]
-        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] GetReactionsRequest file);
+        [Get(ReactionRootEndpoint + "/summary")]
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Query] GetReactionsRequestRedux file);
 
-        [Post(ReactionRootEndpoint + "/listbyidentity")]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] GetReactionsByIdentityRequest file);
+        [Get(ReactionRootEndpoint)]
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequest file, string groupby = "identity");
     }
 }
