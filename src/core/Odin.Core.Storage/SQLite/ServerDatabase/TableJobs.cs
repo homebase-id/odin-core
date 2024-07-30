@@ -162,19 +162,8 @@ public class TableJobs : TableJobsCRUD
         cmd.CommandText =
             """
             DELETE FROM jobs 
-            WHERE (state = @succeded AND @now > onSuccessDeleteAfter)
-            OR (state = @failed AND @now > onFailureDeleteAfter);
+            WHERE @now > expiresAt
             """;
-
-        var succeeded = cmd.CreateParameter();
-        succeeded.ParameterName = "@succeded";
-        succeeded.Value = (int)JobState.Succeeded;
-        cmd.Parameters.Add(succeeded);
-
-        var failed = cmd.CreateParameter();
-        failed.ParameterName = "@failed";
-        failed.Value = (int)JobState.Failed;
-        cmd.Parameters.Add(failed);
 
         var now = cmd.CreateParameter();
         now.ParameterName = "@now";

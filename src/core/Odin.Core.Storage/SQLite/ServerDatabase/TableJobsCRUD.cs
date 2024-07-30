@@ -101,8 +101,8 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                   _retryInterval = value;
                }
         }
-        private UnixTimeUtc _onSuccessDeleteAfter;
-        public UnixTimeUtc onSuccessDeleteAfter
+        private Int64 _onSuccessDeleteAfter;
+        public Int64 onSuccessDeleteAfter
         {
            get {
                    return _onSuccessDeleteAfter;
@@ -111,14 +111,24 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                   _onSuccessDeleteAfter = value;
                }
         }
-        private UnixTimeUtc _onFailureDeleteAfter;
-        public UnixTimeUtc onFailureDeleteAfter
+        private Int64 _onFailureDeleteAfter;
+        public Int64 onFailureDeleteAfter
         {
            get {
                    return _onFailureDeleteAfter;
                }
            set {
                   _onFailureDeleteAfter = value;
+               }
+        }
+        private UnixTimeUtc? _expiresAt;
+        public UnixTimeUtc? expiresAt
+        {
+           get {
+                   return _expiresAt;
+               }
+           set {
+                  _expiresAt = value;
                }
         }
         private string _correlationId;
@@ -246,6 +256,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +"retryInterval INT NOT NULL, "
                      +"onSuccessDeleteAfter INT NOT NULL, "
                      +"onFailureDeleteAfter INT NOT NULL, "
+                     +"expiresAt INT , "
                      +"correlationId STRING NOT NULL, "
                      +"jobType STRING NOT NULL, "
                      +"jobData STRING , "
@@ -256,8 +267,9 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +", PRIMARY KEY (id)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(nextRun,priority);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(jobHash);"
+                     +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
+                     +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
+                     +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
                      ;
                     conn.ExecuteNonQuery(cmd);
             }
@@ -267,8 +279,8 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
-                    _insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                                 "VALUES ($id,$name,$state,$priority,$nextRun,$lastRun,$runCount,$maxAttempts,$retryInterval,$onSuccessDeleteAfter,$onFailureDeleteAfter,$correlationId,$jobType,$jobData,$jobHash,$lastError,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                                                 "VALUES ($id,$name,$state,$priority,$nextRun,$lastRun,$runCount,$maxAttempts,$retryInterval,$onSuccessDeleteAfter,$onFailureDeleteAfter,$expiresAt,$correlationId,$jobType,$jobData,$jobHash,$lastError,$created,$modified)";
                     var _insertParam1 = _insertCommand.CreateParameter();
                     _insertParam1.ParameterName = "$id";
                     _insertCommand.Parameters.Add(_insertParam1);
@@ -303,26 +315,29 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                     _insertParam11.ParameterName = "$onFailureDeleteAfter";
                     _insertCommand.Parameters.Add(_insertParam11);
                     var _insertParam12 = _insertCommand.CreateParameter();
-                    _insertParam12.ParameterName = "$correlationId";
+                    _insertParam12.ParameterName = "$expiresAt";
                     _insertCommand.Parameters.Add(_insertParam12);
                     var _insertParam13 = _insertCommand.CreateParameter();
-                    _insertParam13.ParameterName = "$jobType";
+                    _insertParam13.ParameterName = "$correlationId";
                     _insertCommand.Parameters.Add(_insertParam13);
                     var _insertParam14 = _insertCommand.CreateParameter();
-                    _insertParam14.ParameterName = "$jobData";
+                    _insertParam14.ParameterName = "$jobType";
                     _insertCommand.Parameters.Add(_insertParam14);
                     var _insertParam15 = _insertCommand.CreateParameter();
-                    _insertParam15.ParameterName = "$jobHash";
+                    _insertParam15.ParameterName = "$jobData";
                     _insertCommand.Parameters.Add(_insertParam15);
                     var _insertParam16 = _insertCommand.CreateParameter();
-                    _insertParam16.ParameterName = "$lastError";
+                    _insertParam16.ParameterName = "$jobHash";
                     _insertCommand.Parameters.Add(_insertParam16);
                     var _insertParam17 = _insertCommand.CreateParameter();
-                    _insertParam17.ParameterName = "$created";
+                    _insertParam17.ParameterName = "$lastError";
                     _insertCommand.Parameters.Add(_insertParam17);
                     var _insertParam18 = _insertCommand.CreateParameter();
-                    _insertParam18.ParameterName = "$modified";
+                    _insertParam18.ParameterName = "$created";
                     _insertCommand.Parameters.Add(_insertParam18);
+                    var _insertParam19 = _insertCommand.CreateParameter();
+                    _insertParam19.ParameterName = "$modified";
+                    _insertCommand.Parameters.Add(_insertParam19);
                 _insertParam1.Value = item.id.ToByteArray();
                 _insertParam2.Value = item.name;
                 _insertParam3.Value = item.state;
@@ -332,17 +347,18 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam7.Value = item.runCount;
                 _insertParam8.Value = item.maxAttempts;
                 _insertParam9.Value = item.retryInterval;
-                _insertParam10.Value = item.onSuccessDeleteAfter.milliseconds;
-                _insertParam11.Value = item.onFailureDeleteAfter.milliseconds;
-                _insertParam12.Value = item.correlationId;
-                _insertParam13.Value = item.jobType;
-                _insertParam14.Value = item.jobData ?? (object)DBNull.Value;
-                _insertParam15.Value = item.jobHash ?? (object)DBNull.Value;
-                _insertParam16.Value = item.lastError ?? (object)DBNull.Value;
+                _insertParam10.Value = item.onSuccessDeleteAfter;
+                _insertParam11.Value = item.onFailureDeleteAfter;
+                _insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                _insertParam13.Value = item.correlationId;
+                _insertParam14.Value = item.jobType;
+                _insertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                _insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                _insertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam17.Value = now.uniqueTime;
+                _insertParam18.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam18.Value = DBNull.Value;
+                _insertParam19.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
@@ -356,8 +372,8 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         {
             using (var _insertCommand = _database.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryInterval,@onSuccessDeleteAfter,@onFailureDeleteAfter,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryInterval,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
                 _insertParam1.ParameterName = "@id";
                 _insertCommand.Parameters.Add(_insertParam1);
@@ -392,26 +408,29 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam11.ParameterName = "@onFailureDeleteAfter";
                 _insertCommand.Parameters.Add(_insertParam11);
                 var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "@correlationId";
+                _insertParam12.ParameterName = "@expiresAt";
                 _insertCommand.Parameters.Add(_insertParam12);
                 var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "@jobType";
+                _insertParam13.ParameterName = "@correlationId";
                 _insertCommand.Parameters.Add(_insertParam13);
                 var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "@jobData";
+                _insertParam14.ParameterName = "@jobType";
                 _insertCommand.Parameters.Add(_insertParam14);
                 var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "@jobHash";
+                _insertParam15.ParameterName = "@jobData";
                 _insertCommand.Parameters.Add(_insertParam15);
                 var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "@lastError";
+                _insertParam16.ParameterName = "@jobHash";
                 _insertCommand.Parameters.Add(_insertParam16);
                 var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "@created";
+                _insertParam17.ParameterName = "@lastError";
                 _insertCommand.Parameters.Add(_insertParam17);
                 var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "@modified";
+                _insertParam18.ParameterName = "@created";
                 _insertCommand.Parameters.Add(_insertParam18);
+                var _insertParam19 = _insertCommand.CreateParameter();
+                _insertParam19.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam19);
                 _insertParam1.Value = item.id.ToByteArray();
                 _insertParam2.Value = item.name;
                 _insertParam3.Value = item.state;
@@ -421,17 +440,18 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam7.Value = item.runCount;
                 _insertParam8.Value = item.maxAttempts;
                 _insertParam9.Value = item.retryInterval;
-                _insertParam10.Value = item.onSuccessDeleteAfter.milliseconds;
-                _insertParam11.Value = item.onFailureDeleteAfter.milliseconds;
-                _insertParam12.Value = item.correlationId;
-                _insertParam13.Value = item.jobType;
-                _insertParam14.Value = item.jobData ?? (object)DBNull.Value;
-                _insertParam15.Value = item.jobHash ?? (object)DBNull.Value;
-                _insertParam16.Value = item.lastError ?? (object)DBNull.Value;
+                _insertParam10.Value = item.onSuccessDeleteAfter;
+                _insertParam11.Value = item.onFailureDeleteAfter;
+                _insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                _insertParam13.Value = item.correlationId;
+                _insertParam14.Value = item.jobType;
+                _insertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                _insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                _insertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam17.Value = now.uniqueTime;
+                _insertParam18.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam18.Value = DBNull.Value;
+                _insertParam19.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
@@ -445,10 +465,10 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
-                    _upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,correlationId,jobType,jobData,jobHash,lastError,created) " +
-                                                 "VALUES ($id,$name,$state,$priority,$nextRun,$lastRun,$runCount,$maxAttempts,$retryInterval,$onSuccessDeleteAfter,$onFailureDeleteAfter,$correlationId,$jobType,$jobData,$jobHash,$lastError,$created)"+
+                    _upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
+                                                 "VALUES ($id,$name,$state,$priority,$nextRun,$lastRun,$runCount,$maxAttempts,$retryInterval,$onSuccessDeleteAfter,$onFailureDeleteAfter,$expiresAt,$correlationId,$jobType,$jobData,$jobHash,$lastError,$created)"+
                                                  "ON CONFLICT (id) DO UPDATE "+
-                                                 "SET name = $name,state = $state,priority = $priority,nextRun = $nextRun,lastRun = $lastRun,runCount = $runCount,maxAttempts = $maxAttempts,retryInterval = $retryInterval,onSuccessDeleteAfter = $onSuccessDeleteAfter,onFailureDeleteAfter = $onFailureDeleteAfter,correlationId = $correlationId,jobType = $jobType,jobData = $jobData,jobHash = $jobHash,lastError = $lastError,modified = $modified "+
+                                                 "SET name = $name,state = $state,priority = $priority,nextRun = $nextRun,lastRun = $lastRun,runCount = $runCount,maxAttempts = $maxAttempts,retryInterval = $retryInterval,onSuccessDeleteAfter = $onSuccessDeleteAfter,onFailureDeleteAfter = $onFailureDeleteAfter,expiresAt = $expiresAt,correlationId = $correlationId,jobType = $jobType,jobData = $jobData,jobHash = $jobHash,lastError = $lastError,modified = $modified "+
                                                  "RETURNING created, modified;";
                     var _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertParam1.ParameterName = "$id";
@@ -484,26 +504,29 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                     _upsertParam11.ParameterName = "$onFailureDeleteAfter";
                     _upsertCommand.Parameters.Add(_upsertParam11);
                     var _upsertParam12 = _upsertCommand.CreateParameter();
-                    _upsertParam12.ParameterName = "$correlationId";
+                    _upsertParam12.ParameterName = "$expiresAt";
                     _upsertCommand.Parameters.Add(_upsertParam12);
                     var _upsertParam13 = _upsertCommand.CreateParameter();
-                    _upsertParam13.ParameterName = "$jobType";
+                    _upsertParam13.ParameterName = "$correlationId";
                     _upsertCommand.Parameters.Add(_upsertParam13);
                     var _upsertParam14 = _upsertCommand.CreateParameter();
-                    _upsertParam14.ParameterName = "$jobData";
+                    _upsertParam14.ParameterName = "$jobType";
                     _upsertCommand.Parameters.Add(_upsertParam14);
                     var _upsertParam15 = _upsertCommand.CreateParameter();
-                    _upsertParam15.ParameterName = "$jobHash";
+                    _upsertParam15.ParameterName = "$jobData";
                     _upsertCommand.Parameters.Add(_upsertParam15);
                     var _upsertParam16 = _upsertCommand.CreateParameter();
-                    _upsertParam16.ParameterName = "$lastError";
+                    _upsertParam16.ParameterName = "$jobHash";
                     _upsertCommand.Parameters.Add(_upsertParam16);
                     var _upsertParam17 = _upsertCommand.CreateParameter();
-                    _upsertParam17.ParameterName = "$created";
+                    _upsertParam17.ParameterName = "$lastError";
                     _upsertCommand.Parameters.Add(_upsertParam17);
                     var _upsertParam18 = _upsertCommand.CreateParameter();
-                    _upsertParam18.ParameterName = "$modified";
+                    _upsertParam18.ParameterName = "$created";
                     _upsertCommand.Parameters.Add(_upsertParam18);
+                    var _upsertParam19 = _upsertCommand.CreateParameter();
+                    _upsertParam19.ParameterName = "$modified";
+                    _upsertCommand.Parameters.Add(_upsertParam19);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.id.ToByteArray();
                 _upsertParam2.Value = item.name;
@@ -514,15 +537,16 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam7.Value = item.runCount;
                 _upsertParam8.Value = item.maxAttempts;
                 _upsertParam9.Value = item.retryInterval;
-                _upsertParam10.Value = item.onSuccessDeleteAfter.milliseconds;
-                _upsertParam11.Value = item.onFailureDeleteAfter.milliseconds;
-                _upsertParam12.Value = item.correlationId;
-                _upsertParam13.Value = item.jobType;
-                _upsertParam14.Value = item.jobData ?? (object)DBNull.Value;
-                _upsertParam15.Value = item.jobHash ?? (object)DBNull.Value;
-                _upsertParam16.Value = item.lastError ?? (object)DBNull.Value;
-                _upsertParam17.Value = now.uniqueTime;
+                _upsertParam10.Value = item.onSuccessDeleteAfter;
+                _upsertParam11.Value = item.onFailureDeleteAfter;
+                _upsertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                _upsertParam13.Value = item.correlationId;
+                _upsertParam14.Value = item.jobType;
+                _upsertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                _upsertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                _upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 _upsertParam18.Value = now.uniqueTime;
+                _upsertParam19.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
@@ -546,7 +570,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 using (var _updateCommand = _database.CreateCommand())
                 {
                     _updateCommand.CommandText = "UPDATE jobs " +
-                                                 "SET name = $name,state = $state,priority = $priority,nextRun = $nextRun,lastRun = $lastRun,runCount = $runCount,maxAttempts = $maxAttempts,retryInterval = $retryInterval,onSuccessDeleteAfter = $onSuccessDeleteAfter,onFailureDeleteAfter = $onFailureDeleteAfter,correlationId = $correlationId,jobType = $jobType,jobData = $jobData,jobHash = $jobHash,lastError = $lastError,modified = $modified "+
+                                                 "SET name = $name,state = $state,priority = $priority,nextRun = $nextRun,lastRun = $lastRun,runCount = $runCount,maxAttempts = $maxAttempts,retryInterval = $retryInterval,onSuccessDeleteAfter = $onSuccessDeleteAfter,onFailureDeleteAfter = $onFailureDeleteAfter,expiresAt = $expiresAt,correlationId = $correlationId,jobType = $jobType,jobData = $jobData,jobHash = $jobHash,lastError = $lastError,modified = $modified "+
                                                  "WHERE (id = $id)";
                     var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$id";
@@ -582,26 +606,29 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                     _updateParam11.ParameterName = "$onFailureDeleteAfter";
                     _updateCommand.Parameters.Add(_updateParam11);
                     var _updateParam12 = _updateCommand.CreateParameter();
-                    _updateParam12.ParameterName = "$correlationId";
+                    _updateParam12.ParameterName = "$expiresAt";
                     _updateCommand.Parameters.Add(_updateParam12);
                     var _updateParam13 = _updateCommand.CreateParameter();
-                    _updateParam13.ParameterName = "$jobType";
+                    _updateParam13.ParameterName = "$correlationId";
                     _updateCommand.Parameters.Add(_updateParam13);
                     var _updateParam14 = _updateCommand.CreateParameter();
-                    _updateParam14.ParameterName = "$jobData";
+                    _updateParam14.ParameterName = "$jobType";
                     _updateCommand.Parameters.Add(_updateParam14);
                     var _updateParam15 = _updateCommand.CreateParameter();
-                    _updateParam15.ParameterName = "$jobHash";
+                    _updateParam15.ParameterName = "$jobData";
                     _updateCommand.Parameters.Add(_updateParam15);
                     var _updateParam16 = _updateCommand.CreateParameter();
-                    _updateParam16.ParameterName = "$lastError";
+                    _updateParam16.ParameterName = "$jobHash";
                     _updateCommand.Parameters.Add(_updateParam16);
                     var _updateParam17 = _updateCommand.CreateParameter();
-                    _updateParam17.ParameterName = "$created";
+                    _updateParam17.ParameterName = "$lastError";
                     _updateCommand.Parameters.Add(_updateParam17);
                     var _updateParam18 = _updateCommand.CreateParameter();
-                    _updateParam18.ParameterName = "$modified";
+                    _updateParam18.ParameterName = "$created";
                     _updateCommand.Parameters.Add(_updateParam18);
+                    var _updateParam19 = _updateCommand.CreateParameter();
+                    _updateParam19.ParameterName = "$modified";
+                    _updateCommand.Parameters.Add(_updateParam19);
                 var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.id.ToByteArray();
                 _updateParam2.Value = item.name;
@@ -612,15 +639,16 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _updateParam7.Value = item.runCount;
                 _updateParam8.Value = item.maxAttempts;
                 _updateParam9.Value = item.retryInterval;
-                _updateParam10.Value = item.onSuccessDeleteAfter.milliseconds;
-                _updateParam11.Value = item.onFailureDeleteAfter.milliseconds;
-                _updateParam12.Value = item.correlationId;
-                _updateParam13.Value = item.jobType;
-                _updateParam14.Value = item.jobData ?? (object)DBNull.Value;
-                _updateParam15.Value = item.jobHash ?? (object)DBNull.Value;
-                _updateParam16.Value = item.lastError ?? (object)DBNull.Value;
-                _updateParam17.Value = now.uniqueTime;
+                _updateParam10.Value = item.onSuccessDeleteAfter;
+                _updateParam11.Value = item.onFailureDeleteAfter;
+                _updateParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                _updateParam13.Value = item.correlationId;
+                _updateParam14.Value = item.jobType;
+                _updateParam15.Value = item.jobData ?? (object)DBNull.Value;
+                _updateParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                _updateParam17.Value = item.lastError ?? (object)DBNull.Value;
                 _updateParam18.Value = now.uniqueTime;
+                _updateParam19.Value = now.uniqueTime;
                 var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
@@ -640,7 +668,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 }
         }
 
-        // SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,correlationId,jobType,jobData,jobHash,lastError,created,modified
+        // SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
         public JobsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<JobsRecord>();
@@ -721,63 +749,70 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.onSuccessDeleteAfter = new UnixTimeUtc(rdr.GetInt64(9));
+                        item.onSuccessDeleteAfter = rdr.GetInt64(9);
             }
 
             if (rdr.IsDBNull(10))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.onFailureDeleteAfter = new UnixTimeUtc(rdr.GetInt64(10));
+                        item.onFailureDeleteAfter = rdr.GetInt64(10);
             }
 
             if (rdr.IsDBNull(11))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.expiresAt = null;
             else
             {
-                item.correlationId = rdr.GetString(11);
+                item.expiresAt = new UnixTimeUtc(rdr.GetInt64(11));
             }
 
             if (rdr.IsDBNull(12))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.jobType = rdr.GetString(12);
+                item.correlationId = rdr.GetString(12);
             }
 
             if (rdr.IsDBNull(13))
-                item.jobData = null;
-            else
-            {
-                item.jobData = rdr.GetString(13);
-            }
-
-            if (rdr.IsDBNull(14))
-                item.jobHash = null;
-            else
-            {
-                item.jobHash = rdr.GetString(14);
-            }
-
-            if (rdr.IsDBNull(15))
-                item.lastError = null;
-            else
-            {
-                item.lastError = rdr.GetString(15);
-            }
-
-            if (rdr.IsDBNull(16))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(16));
+                item.jobType = rdr.GetString(13);
+            }
+
+            if (rdr.IsDBNull(14))
+                item.jobData = null;
+            else
+            {
+                item.jobData = rdr.GetString(14);
+            }
+
+            if (rdr.IsDBNull(15))
+                item.jobHash = null;
+            else
+            {
+                item.jobHash = rdr.GetString(15);
+            }
+
+            if (rdr.IsDBNull(16))
+                item.lastError = null;
+            else
+            {
+                item.lastError = rdr.GetString(16);
             }
 
             if (rdr.IsDBNull(17))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(17));
+            }
+
+            if (rdr.IsDBNull(18))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(17));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(18));
             }
             return item;
        }
@@ -869,63 +904,70 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.onSuccessDeleteAfter = new UnixTimeUtc(rdr.GetInt64(8));
+                        item.onSuccessDeleteAfter = rdr.GetInt64(8);
             }
 
             if (rdr.IsDBNull(9))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.onFailureDeleteAfter = new UnixTimeUtc(rdr.GetInt64(9));
+                        item.onFailureDeleteAfter = rdr.GetInt64(9);
             }
 
             if (rdr.IsDBNull(10))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.expiresAt = null;
             else
             {
-                item.correlationId = rdr.GetString(10);
+                item.expiresAt = new UnixTimeUtc(rdr.GetInt64(10));
             }
 
             if (rdr.IsDBNull(11))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.jobType = rdr.GetString(11);
+                item.correlationId = rdr.GetString(11);
             }
 
             if (rdr.IsDBNull(12))
-                item.jobData = null;
-            else
-            {
-                item.jobData = rdr.GetString(12);
-            }
-
-            if (rdr.IsDBNull(13))
-                item.jobHash = null;
-            else
-            {
-                item.jobHash = rdr.GetString(13);
-            }
-
-            if (rdr.IsDBNull(14))
-                item.lastError = null;
-            else
-            {
-                item.lastError = rdr.GetString(14);
-            }
-
-            if (rdr.IsDBNull(15))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(15));
+                item.jobType = rdr.GetString(12);
+            }
+
+            if (rdr.IsDBNull(13))
+                item.jobData = null;
+            else
+            {
+                item.jobData = rdr.GetString(13);
+            }
+
+            if (rdr.IsDBNull(14))
+                item.jobHash = null;
+            else
+            {
+                item.jobHash = rdr.GetString(14);
+            }
+
+            if (rdr.IsDBNull(15))
+                item.lastError = null;
+            else
+            {
+                item.lastError = rdr.GetString(15);
             }
 
             if (rdr.IsDBNull(16))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(16));
+            }
+
+            if (rdr.IsDBNull(17))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(16));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(17));
             }
             return item;
        }
@@ -934,7 +976,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         {
                 using (var _get0Command = _database.CreateCommand())
                 {
-                    _get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
+                    _get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryInterval,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
                                                  "WHERE id = $id LIMIT 1;";
                     var _get0Param1 = _get0Command.CreateParameter();
                     _get0Param1.ParameterName = "$id";

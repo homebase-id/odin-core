@@ -175,8 +175,8 @@ public class JobManagerTests
             RunAt = DateTimeOffset.Now.AddSeconds(1),
             MaxAttempts = 123,
             RetryInterval = TimeSpan.FromSeconds(321),
-            OnSuccessDeleteAfter = DateTimeOffset.Now.AddSeconds(10),
-            OnFailureDeleteAfter = DateTimeOffset.Now.AddSeconds(20),
+            OnSuccessDeleteAfter = TimeSpan.FromSeconds(10),
+            OnFailureDeleteAfter = TimeSpan.FromSeconds(20),
         };
         var jobId = await jobManager.ScheduleJobAsync(job, schedule);
         
@@ -196,8 +196,9 @@ public class JobManagerTests
         Assert.That(scheduledJob.Record!.runCount, Is.EqualTo(0));
         Assert.That(scheduledJob.Record!.maxAttempts, Is.EqualTo(schedule.MaxAttempts));
         Assert.That(scheduledJob.Record!.retryInterval, Is.EqualTo(schedule.RetryInterval.TotalMilliseconds));
-        Assert.That(scheduledJob.Record!.onSuccessDeleteAfter.milliseconds, Is.EqualTo(schedule.OnSuccessDeleteAfter.ToUnixTimeMilliseconds()));
-        Assert.That(scheduledJob.Record!.onFailureDeleteAfter.milliseconds, Is.EqualTo(schedule.OnFailureDeleteAfter.ToUnixTimeMilliseconds()));
+        Assert.That(scheduledJob.Record!.onSuccessDeleteAfter, Is.EqualTo(schedule.OnSuccessDeleteAfter.TotalMilliseconds));
+        Assert.That(scheduledJob.Record!.onFailureDeleteAfter, Is.EqualTo(schedule.OnFailureDeleteAfter.TotalMilliseconds));
+        Assert.That(scheduledJob.Record!.expiresAt, Is.Null);
 
         AssertLogEvents();
     }
@@ -753,13 +754,13 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnSuccessDeleteAfter = DateTimeOffset.Now
+            OnSuccessDeleteAfter = TimeSpan.Zero
         });
 
         var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
-            OnSuccessDeleteAfter = DateTimeOffset.Now.AddDays(1)
+            OnSuccessDeleteAfter = TimeSpan.FromDays(1)
         });
 
         await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
@@ -798,13 +799,13 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnSuccessDeleteAfter = DateTimeOffset.Now
+            OnSuccessDeleteAfter = TimeSpan.Zero
         });
 
         var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
-            OnSuccessDeleteAfter = DateTimeOffset.Now.AddDays(1)
+            OnSuccessDeleteAfter = TimeSpan.FromDays(1)
         });
 
         await WaitForJobStatus<SimpleJobTest>(jobManager, jobId1, JobState.Succeeded, TimeSpan.FromSeconds(1));
@@ -844,13 +845,13 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnFailureDeleteAfter = DateTimeOffset.Now
+            OnFailureDeleteAfter = TimeSpan.Zero
         });
 
         var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
-            OnFailureDeleteAfter = DateTimeOffset.Now.AddDays(1)
+            OnFailureDeleteAfter = TimeSpan.FromDays(1)
         });
 
         await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
@@ -890,13 +891,13 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnFailureDeleteAfter = DateTimeOffset.Now
+            OnFailureDeleteAfter = TimeSpan.Zero
         });
 
         var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
-            OnFailureDeleteAfter = DateTimeOffset.Now.AddDays(1)
+            OnFailureDeleteAfter = TimeSpan.FromDays(1)
         });
 
         await WaitForJobStatus<FailingJobTest>(jobManager, jobId1, JobState.Failed, TimeSpan.FromSeconds(1));

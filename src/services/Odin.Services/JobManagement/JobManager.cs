@@ -58,8 +58,9 @@ public class JobManager(
             runCount = 0,
             maxAttempts = Math.Max(1, schedule.MaxAttempts),
             retryInterval = Math.Max(0, (long)schedule.RetryInterval.TotalMilliseconds),
-            onSuccessDeleteAfter = Math.Max(schedule.OnSuccessDeleteAfter.ToUnixTimeMilliseconds(), DateTimeOffset.Now.ToUnixTimeMilliseconds()),
-            onFailureDeleteAfter = Math.Max(schedule.OnFailureDeleteAfter.ToUnixTimeMilliseconds(), DateTimeOffset.Now.ToUnixTimeMilliseconds()),
+            onSuccessDeleteAfter = Math.Max(0, (long)schedule.OnSuccessDeleteAfter.TotalMilliseconds),
+            onFailureDeleteAfter = Math.Max(0, (long)schedule.OnFailureDeleteAfter.TotalMilliseconds),
+            expiresAt = null,
             correlationId = correlationContext.Id,
             jobType = job.JobType,
             jobData = job.SerializeJobData(),
@@ -170,6 +171,7 @@ public class JobManager(
             logger.LogInformation("JobManager completed job {jobId} ({name}) successfully", 
                 record.id, record.name);
             record.state = (int)JobState.Succeeded;
+            record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onSuccessDeleteAfter);
             record.lastError = null;
             record.jobData = job.SerializeJobData();
             await UpdateAsync(record);
@@ -222,6 +224,7 @@ public class JobManager(
                     "JobManager giving up on unsuccessful job {jobId} ({name}) after {attempts} attempts. Error: {errorMessage}",
                     record.id, record.name, record.runCount, record.lastError);
                 record.state = (int)JobState.Failed;
+                record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
             }
             await UpdateAsync(record);
         }

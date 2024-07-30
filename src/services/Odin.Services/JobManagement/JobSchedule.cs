@@ -8,6 +8,6 @@ public class JobSchedule
     public int Priority { get; set; } = int.MaxValue / 2;
     public int MaxAttempts { get; set; } = 1;
     public TimeSpan RetryInterval { get; set; } = TimeSpan.FromSeconds(5);
-    public DateTimeOffset OnSuccessDeleteAfter { get; set; } = DateTimeOffset.Now;
-    public DateTimeOffset OnFailureDeleteAfter { get; set; } = DateTimeOffset.Now;
+    public TimeSpan OnSuccessDeleteAfter { get; set; } = TimeSpan.FromDays(1);
+    public TimeSpan OnFailureDeleteAfter { get; set; } = TimeSpan.FromDays(1);
 }
