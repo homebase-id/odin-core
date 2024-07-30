@@ -11,7 +11,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
-using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -158,7 +157,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
             IOdinContext odinContext,
             DatabaseConnection cn,
-            FileSystemType fileSystemType)
+            FileSystemType fileSystemType)  
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
             var header = await fs.Storage.GetServerFileHeader(fileId, odinContext, cn);

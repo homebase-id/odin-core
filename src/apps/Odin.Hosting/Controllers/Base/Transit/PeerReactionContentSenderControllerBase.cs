@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> AddReactionContent([FromBody] PeerAddReactionRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await peerReactionSenderService.AddReaction((OdinId)request.OdinId, request.Request,WebOdinContext, cn);
+            await peerReactionSenderService.AddReaction([(OdinId)request.OdinId], request.Request, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public Task<GetReactionsPerimeterResponse> GetAllReactions([FromBody] PeerGetReactionsRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return peerReactionSenderService.GetReactions((OdinId)request.OdinId, request.Request,WebOdinContext, cn);
+            return peerReactionSenderService.GetReactions((OdinId)request.OdinId, request.Request, WebOdinContext, cn);
         }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> DeleteReactionContent([FromBody] PeerDeleteReactionRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request,WebOdinContext, cn);
+            await peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -61,7 +61,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] PeerDeleteReactionRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request,WebOdinContext, cn);
+            await peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -74,7 +74,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] PeerGetReactionsRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return await peerReactionSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request,WebOdinContext, cn);
+            return await peerReactionSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request, WebOdinContext, cn);
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<List<string>> GetReactionsByIdentity([FromBody] PeerGetReactionsByIdentityRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return await peerReactionSenderService.GetReactionsByIdentityAndFile(request.OdinId, request,WebOdinContext, cn);
+            return await peerReactionSenderService.GetReactionsByIdentityAndFile(request.OdinId, request, WebOdinContext, cn);
         }
     }
 }

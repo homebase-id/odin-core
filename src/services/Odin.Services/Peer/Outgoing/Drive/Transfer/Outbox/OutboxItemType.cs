@@ -10,5 +10,7 @@ public enum OutboxItemType
 
     ReadReceipt = 900,
     
-    DeleteRemoteFile = 700
+    DeleteRemoteFile = 700,
+    
+    AddRemoteReaction = 2004
 }

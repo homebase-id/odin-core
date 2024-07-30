@@ -208,9 +208,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, connection, cancellationToken);
 
+                case OutboxItemType.AddRemoteReaction :
+                    return await SendReaction(fileItem, odinContext, connection, cancellationToken);
+                
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReaction(OutboxFileItem fileItem, IOdinContext odinContext, DatabaseConnection connection, CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendReactionOutboxWorker>();
+            var worker = new SendReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, connection, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,

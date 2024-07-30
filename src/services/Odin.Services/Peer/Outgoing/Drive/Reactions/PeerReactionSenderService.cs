@@ -7,15 +7,19 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Reactions;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
@@ -24,41 +28,63 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 public class PeerReactionSenderService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    
+    PeerOutbox peerOutbox,
+    PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService,
     FileSystemResolver fileSystemResolver,
-    OdinConfiguration odinConfiguration)
+    OdinConfiguration odinConfiguration,
+    DriveManager driveManager)
     : PeerServiceBase(odinHttpClientFactory,
         circleNetworkService, fileSystemResolver)
 {
-
-    /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<Dictionary<string, TransferStatus>> AddReaction(List<OdinId> recipients, AddRemoteReactionRequest request, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
+        var results = new Dictionary<string, TransferStatus>();
 
-        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        ApiResponse<HttpContent> response = null;
-        try
+        foreach (var recipient in recipients)
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { response = await client.AddReaction(payload); });
-        }
-        catch (TryRetryException ex)
-        {
-            HandleTryRetryException(ex);
-            throw;
+            //TODO: i need to resolve the token outside of transit, pass it in as options instead
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+            var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+
+            var fileId = new InternalDriveFileId()
+            {
+                FileId = request.File.GlobalTransitId,
+                DriveId = (await driveManager.GetDriveIdByAlias(request.File.TargetDrive, cn)).GetValueOrDefault()
+            };
+
+            var item = new OutboxFileItem()
+            {
+                Recipient = recipient,
+                Priority = 100,
+                Type = OutboxItemType.AddRemoteReaction,
+                File = fileId,
+                DependencyFileId = default,
+                State = new OutboxItemState
+                {
+                    Recipient = null,
+                    IsTransientFile = false,
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    EncryptedClientAuthToken = encryptedClientAccessToken,
+                    Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
+                }
+            };
+
+            await peerOutbox.AddItem(item, cn, useUpsert: true);
+            results.Add(recipient.DomainName, TransferStatus.Enqueued);
         }
 
-        AssertValidResponse(response);
+        outboxProcessorBackgroundService.WakeUp();
+
+        return results;
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -80,9 +106,10 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -103,9 +130,10 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -128,7 +156,7 @@ public class PeerReactionSenderService(
 
     public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         try
         {

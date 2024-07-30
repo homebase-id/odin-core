@@ -22,7 +22,7 @@ public abstract class ReactionController(
     ReactionContentService reactionContentService,
     PeerReactionSenderService peerReactionSenderService,
     TenantSystemStorage tenantSystemStorage
-    ) : OdinControllerBase
+) : OdinControllerBase
 {
     //
 
@@ -51,8 +51,9 @@ public abstract class ReactionController(
                 }
             };
             using var cn = tenantSystemStorage.CreateConnection();
-            await peerReactionSenderService.AddReaction(request.AuthorOdinId, remoteRequest, WebOdinContext, cn);
+            var status = await peerReactionSenderService.AddReaction([request.AuthorOdinId], remoteRequest, WebOdinContext, cn);
         }
+
         return NoContent();
     }
 
@@ -85,6 +86,7 @@ public abstract class ReactionController(
             using var cn = tenantSystemStorage.CreateConnection();
             await peerReactionSenderService.DeleteReaction(request.AuthorOdinId, remoteRequest, WebOdinContext, cn);
         }
+
         return NoContent();
     }
 
@@ -117,6 +119,7 @@ public abstract class ReactionController(
             using var cn = tenantSystemStorage.CreateConnection();
             await peerReactionSenderService.DeleteAllReactions(request.AuthorOdinId, remoteRequest, WebOdinContext, cn);
         }
+
         return NoContent();
     }
 
@@ -163,7 +166,7 @@ public abstract class ReactionController(
             {
                 // NOTE GetReactionsResponse and GetReactionsPerimeterResponse are not compatible, so we map
                 // the parts that are required by the frontend
-                Reactions = reactions.Reactions.Select(x => new Reaction {OdinId = x.OdinId, ReactionContent = x.ReactionContent}).ToList(),
+                Reactions = reactions.Reactions.Select(x => new Reaction { OdinId = x.OdinId, ReactionContent = x.ReactionContent }).ToList(),
                 Cursor = reactions.Cursor
             };
         }
@@ -244,7 +247,6 @@ public abstract class ReactionController(
     }
 
     //
-
 }
 
 //
