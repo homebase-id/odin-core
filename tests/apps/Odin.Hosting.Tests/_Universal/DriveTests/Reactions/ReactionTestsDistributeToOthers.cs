@@ -87,7 +87,7 @@ public class ReactionTestsDistributeToOthers
         const string reactionContent1 = ":cake:";
         var response = await callerReactionClient.AddReaction(new AddReactionRequestRedux
         {
-            File = uploadResult.File.ToFileIdentifier(),
+            File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions
             {
@@ -140,7 +140,7 @@ public class ReactionTestsDistributeToOthers
 
         var addReactionResponse = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
-            File = uploadResult.File.ToFileIdentifier(),
+            File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions()
             {
@@ -155,7 +155,7 @@ public class ReactionTestsDistributeToOthers
         var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerReactionClient.DeleteReaction(new DeleteReactionRequestRedux
         {
-            File = uploadResult.File.ToFileIdentifier(),
+            File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions()
             {
@@ -168,12 +168,12 @@ public class ReactionTestsDistributeToOthers
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            await AssertIdentityHasReactionInPreview(identity, uploadResult.File.ToFileIdentifier(), reactionContent1);
+            await AssertIdentityHasReactionInPreview(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
             await AssertIdentityDoesNotHaveReaction(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
 
             foreach (var recipient in recipients)
             {
-                await AssertIdentityDoesNotHaveReactionInPreview(recipient, uploadResult.File.ToFileIdentifier(), reactionContent1);
+                await AssertIdentityDoesNotHaveReactionInPreview(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
                 await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
             }
         }
@@ -189,8 +189,8 @@ public class ReactionTestsDistributeToOthers
         });
 
         var file = getHeaderResponse1.Content.SearchResults.First();
-        var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
-        Assert.IsFalse(hasReactionInPreview);
+        var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
+        Assert.IsTrue(noMatchingInReactionPreview);
     }
 
     private async Task AssertIdentityHasReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)

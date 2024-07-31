@@ -19,10 +19,10 @@ public class GroupReactionService(
     TenantContext tenantContext,
     FileSystemResolver fileSystemResolver)
 {
-    public async Task AddReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
+    public async Task<AddReactionResult> AddReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
         DatabaseConnection connection, FileSystemType fileSystemType)
     {
-        OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+        OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
         var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
@@ -30,14 +30,15 @@ public class GroupReactionService(
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
         var callerId = odinContext.GetCallerOdinIdOrFail();
 
+        var result = new AddReactionResult();
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, connection);
         if (manager != null)
         {
             manager.AddReaction(callerId, file.FileId, reaction, connection);
 
-            if ((bool)options?.Recipients.Any())
+            if (options?.Recipients?.Any() ?? false)
             {
-                //TODO: enqueue in outbox
+                //TODO: enqueue in outbox and update result
             }
 
             await mediator.Publish(new ReactionContentAddedNotification
@@ -53,34 +54,37 @@ public class GroupReactionService(
                 DatabaseConnection = connection
             });
         }
+
+        return result;
     }
 
-    public async Task DeleteReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
+    public async Task<DeleteReactionResult> DeleteReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
         DatabaseConnection connection, FileSystemType fileSystemType)
     {
-        OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+        OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
         var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
 
-        var context = odinContext;
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+
+        var result = new DeleteReactionResult();
 
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, connection);
         if (manager != null)
         {
-            manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reaction, connection);
+            manager.DeleteReaction(odinContext.GetCallerOdinIdOrFail(), file.FileId, reaction, connection);
 
-            if ((bool)options?.Recipients.Any())
+            if (options?.Recipients?.Any() ?? false)
             {
-                //TODO: enqueue in outbox
+                //TODO: enqueue in outbox and update result
             }
 
             await mediator.Publish(new ReactionDeletedNotification
             {
                 Reaction = new Reaction()
                 {
-                    OdinId = context.GetCallerOdinIdOrFail(),
+                    OdinId = odinContext.GetCallerOdinIdOrFail(),
                     Created = default,
                     ReactionContent = reaction,
                     FileId = file
@@ -89,6 +93,8 @@ public class GroupReactionService(
                 DatabaseConnection = connection
             });
         }
+
+        return result;
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(FileIdentifier fileId, IOdinContext odinContext,
