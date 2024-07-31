@@ -19,7 +19,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\services\Odin.Services.Background\Odin.Services.Background.csproj" />
         <ProjectReference Include="..\..\services\Odin.Services\Odin.Services.csproj" />
     </ItemGroup>
 
