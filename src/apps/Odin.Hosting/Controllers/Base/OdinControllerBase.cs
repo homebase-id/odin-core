@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives;

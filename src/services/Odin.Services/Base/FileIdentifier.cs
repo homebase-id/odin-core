@@ -4,6 +4,13 @@ using Odin.Services.Drives;
 
 namespace Odin.Services.Base;
 
+public class ResolvedFileIdentifier
+{
+    public Guid FileId { get; init; }
+    public Guid GlobalTransitId { get; init; }
+    public Guid? UniqueId { get; init; }
+}
+
 public class FileIdentifier
 {
     public Guid? FileId { get; init; }
@@ -139,6 +146,15 @@ public class FileIdentifier
             default:
                 throw new ArgumentOutOfRangeException(nameof(expectedType), expectedType, null);
         }
+    }
+
+    public GlobalTransitIdFileIdentifier ToGlobalTransitIdFileIdentifier()
+    {
+        return new()
+        {
+            TargetDrive = this.TargetDrive,
+            GlobalTransitId = this.GlobalTransitId.GetValueOrDefault()
+        };
     }
 }
 

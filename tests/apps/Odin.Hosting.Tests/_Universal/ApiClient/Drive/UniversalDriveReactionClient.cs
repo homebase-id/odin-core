@@ -39,15 +39,6 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile(DeleteReactionRequestRedux request)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var response = await transitSvc.DeleteReactions(request);
-
-        return response;
-    }
-
     public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile(GetReactionsRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);

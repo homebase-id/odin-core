@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
+namespace Odin.Services.Drives.Reactions.Group;
 
 public class ReactionTransitOptions
 {

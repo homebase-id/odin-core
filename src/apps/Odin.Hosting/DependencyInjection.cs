@@ -44,6 +44,7 @@ using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
+using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
@@ -150,9 +151,9 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-
             cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
-
+            cb.RegisterType<GroupReactionService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()

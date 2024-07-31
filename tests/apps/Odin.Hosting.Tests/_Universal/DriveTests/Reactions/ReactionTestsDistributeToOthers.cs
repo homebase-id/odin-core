@@ -9,6 +9,7 @@ using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Reactions.Group;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Reactions;
 
@@ -177,68 +178,7 @@ public class ReactionTestsDistributeToOthers
             }
         }
     }
-
-    [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    public async Task CanDeleteAllReactionsOnFile(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    {
-        // Setup
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-        var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
-
-        const string reactionContent1 = ":cake:";
-        const string reactionContent2 = ":pie:";
-
-        var addReactionResponse1 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
-        {
-            File = uploadResult.File.ToFileIdentifier(),
-            Reaction = reactionContent1,
-            TransitOptions = null
-        });
-        Assert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
-
-        var addReactionResponse2 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
-        {
-            File = uploadResult.File.ToFileIdentifier(),
-            Reaction = reactionContent2,
-            TransitOptions = null
-        });
-        Assert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
-
-        // Act
-        await callerContext.Initialize(ownerApiClient);
-        var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
-        var response = await callerReactionClient.DeleteAllReactionsOnFile(new DeleteReactionRequestRedux
-        {
-            File = uploadResult.File.ToFileIdentifier()
-        });
-
-        // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
-
-        if (expectedStatusCode == HttpStatusCode.OK)
-        {
-            var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-            var hasReactionInPreview = getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
-                .All(pair => pair.Value.ReactionContent != reactionContent1 && pair.Value.ReactionContent != reactionContent1);
-            Assert.IsTrue(hasReactionInPreview);
-
-            var getReactionsResponse = await ownerApiClient.Reactions.GetAllReactions(uploadResult.File.ToFileIdentifier());
-            var hasReactionInDb =
-                getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent1 || r.ReactionContent != reactionContent2);
-            Assert.IsFalse(hasReactionInDb);
-        }
-    }
-
+    
     private async Task AssertIdentityDoesNotHaveReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);

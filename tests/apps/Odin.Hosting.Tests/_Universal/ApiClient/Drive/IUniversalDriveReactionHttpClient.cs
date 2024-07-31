@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
     public interface IUniversalDriveReactionHttpClient
     {
-        private const string ReactionRootEndpoint = "/drive/files/reactions";
+        private const string ReactionRootEndpoint = "/drive/files/group/reactions";
 
         [Post(ReactionRootEndpoint)]
         Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequestRedux request);
@@ -18,16 +18,13 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Delete(ReactionRootEndpoint)]
         Task<ApiResponse<HttpContent>> DeleteReaction([Body] DeleteReactionRequestRedux request);
 
-        [Delete(ReactionRootEndpoint + "/all")]
-        Task<ApiResponse<HttpContent>> DeleteReactions([Body] DeleteReactionRequestRedux request);
-
         [Get(ReactionRootEndpoint)]
         Task<ApiResponse<GetReactionsResponse>> GetReactions([Query] FileIdentifier file);
         
         [Get(ReactionRootEndpoint + "/summary")]
         Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Query] GetReactionsRequestRedux file);
 
-        [Get(ReactionRootEndpoint)]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequestRedux file, string groupby = "identity");
+        [Get(ReactionRootEndpoint+ "/by-identity")]
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequestRedux request);
     }
 }
