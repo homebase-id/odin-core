@@ -97,6 +97,7 @@ namespace Odin.Hosting
             services.AddSingleton<IJobManager, JobManager>();
             services.AddTransient<ExportTenantJob>();
             services.AddTransient<DeleteTenantJob>();
+            services.AddTransient<SendProvisioningCompleteEmailJob>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
