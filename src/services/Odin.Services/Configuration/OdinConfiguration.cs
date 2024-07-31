@@ -286,35 +286,9 @@ namespace Odin.Services.Configuration
 
         public class JobSection
         {
-            /// <summary>
-            /// Toggle if job processing is enabled
-            /// </summary>
-            public bool Enabled { get; init; } // SEB:TODO delete this
-
-            /// <summary>
-            /// Number of seconds to delay starting background jobs when starting the dotyoucore process
-            /// </summary>
-            public int BackgroundJobStartDelaySeconds { get; init; } // SEB:TODO delete this
-
-            public int CronProcessingInterval { get; init; } // SEB:TODO delete this
-
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
-
-            /// <summary>
-            /// The interval in which we check for the validation of certificate order
-            /// </summary>
-            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; } // SEB:TODO delete this
-
-            /// <summary>
-            ///  The number of items to query from the cron queue each time the job runs 
-            /// </summary>
-            public int CronBatchSize { get; init; } // SEB:TODO delete this
-            
-            public int MaxSchedulerConcurrency { get; init; } // SEB:TODO delete this
-
-            public bool ConnectionPooling { get; init; } // SEB:TODO delete this
-            public int InboxOutboxReconciliationDelaySeconds { get; init; }
-            public int ProcessJobCleanUpIntervalSeconds { get; init; }
+            public int InboxOutboxReconciliationIntervalSeconds { get; init; }
+            public int JobCleanUpIntervalSeconds { get; init; }
 
             public JobSection()
             {
@@ -323,16 +297,9 @@ namespace Odin.Services.Configuration
 
             public JobSection(IConfiguration config)
             {
-                Enabled = config.Required<bool>("Job:Enabled");
-                BackgroundJobStartDelaySeconds = config.Required<int>("Job:BackgroundJobStartDelaySeconds");
-                CronProcessingInterval = config.Required<int>("Job:CronProcessingInterval");
-                CronBatchSize = config.Required<int>("Job:CronBatchSize");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");
-                ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Job:ProcessPendingCertificateOrderIntervalInSeconds");
-                MaxSchedulerConcurrency = config.Required<int>("Job:MaxSchedulerConcurrency");
-                ConnectionPooling = config.GetOrDefault("Job:ConnectionPooling", true);
-                InboxOutboxReconciliationDelaySeconds = config.GetOrDefault("Job:InboxOutboxReconciliationDelaySeconds", (int)TimeSpan.FromHours(1).TotalSeconds);
-                ProcessJobCleanUpIntervalSeconds = config.GetOrDefault("Job:ProcessJobCleanUpIntervalSeconds", (int)TimeSpan.FromHours(12).TotalSeconds);
+                InboxOutboxReconciliationIntervalSeconds = config.Required<int>("Job:InboxOutboxReconciliationIntervalSeconds");
+                JobCleanUpIntervalSeconds = config.Required<int>("Job:JobCleanUpIntervalSeconds");
             }
         }
 

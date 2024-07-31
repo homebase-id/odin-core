@@ -68,7 +68,7 @@ public class JobManagerTests
             },
             Job = new OdinConfiguration.JobSection
             {
-                ProcessJobCleanUpIntervalSeconds = 120
+                JobCleanUpIntervalSeconds = 120
             }
         };
 

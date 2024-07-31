@@ -16,20 +16,17 @@ public class TenantAdmin : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IOldJobManager _oldJobManager;
     private readonly IJobManager _jobManager;
     private readonly IIdentityRegistry _identityRegistry;
 
     public TenantAdmin(
         ILogger<TenantAdmin> logger,
         ILoggerFactory loggerFactory,
-        IOldJobManager oldJobManager,
         IJobManager jobManager,
         IIdentityRegistry identityRegistry)
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
-        _oldJobManager = oldJobManager;
         _jobManager = jobManager;
         _identityRegistry = identityRegistry;
     }

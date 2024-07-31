@@ -47,7 +47,7 @@ public class InboxOutboxReconciliationBackgroundService(
                 logger.LogInformation("Recovered {count} inbox items", recoveredOutboxItems);
             }
             
-            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationDelaySeconds), stoppingToken);
+            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds), stoppingToken);
         }
     }
 }

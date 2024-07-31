@@ -15,7 +15,7 @@ public class JobCleanUpBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = config.Job.ProcessJobCleanUpIntervalSeconds;
+        var interval = config.Job.JobCleanUpIntervalSeconds;
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("JobCleanUpBackgroundService is running");

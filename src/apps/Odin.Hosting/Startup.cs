@@ -40,14 +40,12 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Extensions;
-using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
-using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -91,13 +89,9 @@ namespace Odin.Hosting
             //
             // Background and job stuff
             //
-            services.AddOldJobManagementServices(config);
-            services.RegisterSystemBackgroundServices();
+            services.AddSystemBackgroundServices();
+            services.AddJobManagerServices();
             services.AddSingleton<IForgottenTasks, ForgottenTasks>();
-            services.AddSingleton<IJobManager, JobManager>();
-            services.AddTransient<ExportTenantJob>();
-            services.AddTransient<DeleteTenantJob>();
-            services.AddTransient<SendProvisioningCompleteEmailJob>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -461,9 +455,6 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                var jobManager = services.GetRequiredService<IOldJobManager>();
-                jobManager.Initialize().BlockingWait();
-                
                 // Start system background services
                 services.StartSystemBackgroundServices().BlockingWait();
             });

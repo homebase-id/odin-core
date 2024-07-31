@@ -2,20 +2,18 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Tasks;
 using Odin.Services.Background.Services.System;
 using Odin.Services.Background.Services.Tenant;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
-using Quartz.Logging;
 
 namespace Odin.Services.Background;
 
 public static class BackgroundServiceExtensions
 {
-    public static void RegisterSystemBackgroundServices(this IServiceCollection services)
+    public static void AddSystemBackgroundServices(this IServiceCollection services)
     {
         services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
             provider.GetRequiredService<IServiceProvider>(),
@@ -55,7 +53,7 @@ public static class BackgroundServiceExtensions
     
     //
     
-    public static void RegisterTenantBackgroundServices(this ContainerBuilder cb, Tenant.Tenant tenant)
+    public static void AddTenantBackgroundServices(this ContainerBuilder cb, Tenant.Tenant tenant)
     {
         cb.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), tenant.Name))
