@@ -12,7 +12,7 @@ namespace Odin.Services.Tests.JobManagement;
 
 public class JobApiResponseTests
 {
-    private IServiceProvider _serviceProvider;
+    private IServiceProvider _serviceProvider = null!;
 
     [SetUp]
     public void Setup()
