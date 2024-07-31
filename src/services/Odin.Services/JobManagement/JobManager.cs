@@ -11,15 +11,15 @@ using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
 
+// SEB:TODO test: create a job that scehdules another job
+
 // SEB:TODO jobhash must not block new jobs if existing is successful/failed
 
-// SEB:TODO rename RetryInterval to RetryDelay
-
-// SEB:TODO jobmanager must delete job if it is expired on completion
+// SEB:TODO unit test ApiJobResponse deserilizarion
 
 // SEB:TODO update CLI
 
-// SEB:TODO unit test ApiJobResponse deserilizarion
+// SEB:TODO delete all traces of Old JobManager and Quartz
 
 namespace Odin.Services.JobManagement;
 
@@ -76,7 +76,7 @@ public class JobManager(
             lastRun = null,
             runCount = 0,
             maxAttempts = Math.Max(1, schedule.MaxAttempts),
-            retryInterval = Math.Max(0, (long)schedule.RetryInterval.TotalMilliseconds),
+            retryDelay = Math.Max(0, (long)schedule.RetryDelay.TotalMilliseconds),
             onSuccessDeleteAfter = Math.Max(0, (long)schedule.OnSuccessDeleteAfter.TotalMilliseconds),
             onFailureDeleteAfter = Math.Max(0, (long)schedule.OnFailureDeleteAfter.TotalMilliseconds),
             expiresAt = null,
@@ -189,11 +189,19 @@ public class JobManager(
         {
             logger.LogInformation("JobManager completed job {jobId} ({name}) successfully", 
                 record.id, record.name);
-            record.state = (int)JobState.Succeeded;
-            record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onSuccessDeleteAfter);
-            record.lastError = null;
-            record.jobData = job.SerializeJobData();
-            await UpdateAsync(record);
+
+            if (record.onSuccessDeleteAfter == 0)
+            {
+                await DeleteAsync(record);
+            }
+            else
+            {
+                record.state = (int)JobState.Succeeded;
+                record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onSuccessDeleteAfter);
+                record.lastError = null;
+                record.jobData = job.SerializeJobData();
+                await UpdateAsync(record);
+            }
         }
         
         //
@@ -230,7 +238,7 @@ public class JobManager(
             record.jobData = job.SerializeJobData();
             if (record.runCount < record.maxAttempts)
             {
-                var runAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(record.retryInterval);
+                var runAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(record.retryDelay);
                 logger.LogWarning(
                     "JobManager rescheduling unsuccessful job {jobId} ({name}) [{attempt}/{maxAttempt}] for {runat}, Error: {errorMessage}",
                     record.id, record.name, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
@@ -242,8 +250,15 @@ public class JobManager(
                 logger.LogError(
                     "JobManager giving up on unsuccessful job {jobId} ({name}) after {attempts} attempts. Error: {errorMessage}",
                     record.id, record.name, record.runCount, record.lastError);
-                record.state = (int)JobState.Failed;
-                record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                if (record.onFailureDeleteAfter == 0)
+                {
+                    await DeleteAsync(record);
+                }
+                else
+                {
+                    record.state = (int)JobState.Failed;
+                    record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                }
             }
             await UpdateAsync(record);
         }

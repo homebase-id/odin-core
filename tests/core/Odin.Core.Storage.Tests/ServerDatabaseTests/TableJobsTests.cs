@@ -163,7 +163,7 @@ public class TableJobsTests
             lastRun = null,
             runCount = 0,
             maxAttempts = 1,
-            retryInterval = 100,
+            retryDelay = 100,
             onSuccessDeleteAfter = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
             onFailureDeleteAfter = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
             correlationId = "correlationContext.Id",

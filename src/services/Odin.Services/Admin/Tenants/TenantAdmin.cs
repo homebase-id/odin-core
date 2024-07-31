@@ -70,7 +70,7 @@ public class TenantAdmin : ITenantAdmin
         var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = 3,
-            RetryInterval = TimeSpan.FromSeconds(5),
+            RetryDelay = TimeSpan.FromSeconds(5),
             OnFailureDeleteAfter = TimeSpan.FromDays(2),
             OnSuccessDeleteAfter = TimeSpan.FromDays(2),
             Priority = JobSchedule.LowPriority,
@@ -94,7 +94,7 @@ public class TenantAdmin : ITenantAdmin
         var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = 3,
-            RetryInterval = TimeSpan.FromSeconds(5),
+            RetryDelay = TimeSpan.FromSeconds(5),
             OnFailureDeleteAfter = TimeSpan.FromDays(2),
             OnSuccessDeleteAfter = TimeSpan.FromDays(2),
             Priority = JobSchedule.LowPriority,

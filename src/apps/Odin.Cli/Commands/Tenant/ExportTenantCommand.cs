@@ -55,7 +55,7 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var (jobResponse, jobData) = OldJobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
+                    var (jobResponse, jobData) = OldJobResponse.Deserialize<ExportTenantJobData>(await response.Content.ReadAsStringAsync());
 
                     if (jobResponse.Status == OldJobStatus.Failed)
                     {

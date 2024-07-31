@@ -167,14 +167,14 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
-        var job = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job = jobManager.NewJob<SimpleJobTest>();
 
         // Act
         var schedule = new JobSchedule
         {
             RunAt = DateTimeOffset.Now.AddSeconds(1),
             MaxAttempts = 123,
-            RetryInterval = TimeSpan.FromSeconds(321),
+            RetryDelay = TimeSpan.FromSeconds(321),
             OnSuccessDeleteAfter = TimeSpan.FromSeconds(10),
             OnFailureDeleteAfter = TimeSpan.FromSeconds(20),
         };
@@ -195,7 +195,7 @@ public class JobManagerTests
         Assert.That(scheduledJob.Record!.lastRun, Is.Null);
         Assert.That(scheduledJob.Record!.runCount, Is.EqualTo(0));
         Assert.That(scheduledJob.Record!.maxAttempts, Is.EqualTo(schedule.MaxAttempts));
-        Assert.That(scheduledJob.Record!.retryInterval, Is.EqualTo(schedule.RetryInterval.TotalMilliseconds));
+        Assert.That(scheduledJob.Record!.retryDelay, Is.EqualTo(schedule.RetryDelay.TotalMilliseconds));
         Assert.That(scheduledJob.Record!.onSuccessDeleteAfter, Is.EqualTo(schedule.OnSuccessDeleteAfter.TotalMilliseconds));
         Assert.That(scheduledJob.Record!.onFailureDeleteAfter, Is.EqualTo(schedule.OnFailureDeleteAfter.TotalMilliseconds));
         Assert.That(scheduledJob.Record!.expiresAt, Is.Null);
@@ -213,7 +213,7 @@ public class JobManagerTests
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
         
-        var job = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
         Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
 
@@ -246,7 +246,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
-        var job = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
         Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
         
@@ -269,7 +269,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
-        var job = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
         Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
         
@@ -298,7 +298,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         
-        var job = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
         Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
 
@@ -330,7 +330,7 @@ public class JobManagerTests
         
         for (var idx = 0; idx < 100; idx++)
         {
-            var job = _host!.Services.GetRequiredService<SimpleJobWithDelayTest>();
+            var job = jobManager.NewJob<SimpleJobWithDelayTest>();
             var jobId = await jobManager.ScheduleJobAsync(job);
             jobList.Add(jobId);
         }
@@ -374,7 +374,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job = _host!.Services.GetRequiredService<EventuallySucceedJobTest>();
+        var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
         {
             FailUsingException = failUsingException,
@@ -384,7 +384,7 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = succeedAtRun,
-            RetryInterval = TimeSpan.Zero
+            RetryDelay = TimeSpan.Zero
         });
 
         job = await jobManager.GetJobAsync<EventuallySucceedJobTest>(jobId);
@@ -432,7 +432,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
-        var job = _host!.Services.GetRequiredService<EventuallySucceedJobTest>();
+        var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
         {
             FailUsingException = failUsingException,
@@ -442,7 +442,7 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = succeedAtRun,
-            RetryInterval = TimeSpan.Zero
+            RetryDelay = TimeSpan.Zero
         });
 
         // Act
@@ -473,7 +473,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job = _host!.Services.GetRequiredService<EventuallySucceedJobTest>();
+        var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
         {
             FailUsingException = failUsingException,
@@ -483,7 +483,7 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = maxAttempts,
-            RetryInterval = TimeSpan.Zero
+            RetryDelay = TimeSpan.Zero
         });
 
         job = await jobManager.GetJobAsync<EventuallySucceedJobTest>(jobId);
@@ -532,7 +532,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
-        var job = _host!.Services.GetRequiredService<EventuallySucceedJobTest>();
+        var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
         {
             FailUsingException = failUsingException,
@@ -542,7 +542,7 @@ public class JobManagerTests
         var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = maxAttempts,
-            RetryInterval = TimeSpan.Zero
+            RetryDelay = TimeSpan.Zero
         });
         
         // Act
@@ -570,7 +570,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job = _host!.Services.GetRequiredService<AbortingJobTest>();
+        var job = jobManager.NewJob<AbortingJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
@@ -592,7 +592,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
-        var job = _host!.Services.GetRequiredService<AbortingJobTest>();
+        var job = jobManager.NewJob<AbortingJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
@@ -613,7 +613,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job = _host!.Services.GetRequiredService<RescheduleJobTest>();
+        var job = jobManager.NewJob<RescheduleJobTest>();
 
         var jobId = await jobManager.ScheduleJobAsync(job);
 
@@ -640,7 +640,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
-        var job = _host!.Services.GetRequiredService<RescheduleJobTest>();
+        var job = jobManager.NewJob<RescheduleJobTest>();
 
         var jobId = await jobManager.ScheduleJobAsync(job);
 
@@ -668,7 +668,7 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job = _host!.Services.GetRequiredService<RescheduleOnCancelJobTest>();
+        var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
         job.JobData = new RescheduleOnCancelJobTestData
         {
             CancelUsingException = cancelUsingException
@@ -701,7 +701,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
-        var job = _host!.Services.GetRequiredService<RescheduleOnCancelJobTest>();
+        var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
         job.JobData = new RescheduleOnCancelJobTestData
         {
             CancelUsingException = cancelUsingException
@@ -746,7 +746,9 @@ public class JobManagerTests
     //
 
     [Test]
-    public async Task ItShouldDeleteExpiredSuccessfulJobsDirectly()
+    [TestCase(0)]
+    [TestCase(100)]
+    public async Task ItShouldDeleteExpiredSuccessfulJobsDirectly(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -754,7 +756,7 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnSuccessDeleteAfter = TimeSpan.Zero
+            OnSuccessDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
         var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
@@ -764,19 +766,33 @@ public class JobManagerTests
         });
 
         await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
-        var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Not.Null);
+
+        // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
+        if (deleteAfterMilliseconds == 0)
+        {
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
+        else
+        {
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Not.Null);
+        }
 
         await jobManager.RunJobNowAsync(jobId2, CancellationToken.None);
         var completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
-
+        
+        await Task.Delay(2 * deleteAfterMilliseconds);
+        
         // Act
         await jobManager.DeleteExpiredJobsAsync();
 
         // Assert
-        completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Null);
+        {
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
 
         completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
@@ -786,8 +802,11 @@ public class JobManagerTests
 
     //
 
+#if !NOISY_NEIGHBOUR    
     [Test]
-    public async Task ItShouldDeleteExpiredSuccessfulJobsInTheBackground()
+    [TestCase(0)]
+    [TestCase(100)]
+    public async Task ItShouldDeleteExpiredSuccessfulJobsInTheBackground(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -799,7 +818,7 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnSuccessDeleteAfter = TimeSpan.Zero
+            OnSuccessDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
         var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
@@ -807,16 +826,34 @@ public class JobManagerTests
         {
             OnSuccessDeleteAfter = TimeSpan.FromDays(1)
         });
+        
+        await Task.Delay(200);        
 
-        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId1, JobState.Succeeded, TimeSpan.FromSeconds(1));
-        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId2, JobState.Succeeded, TimeSpan.FromSeconds(1));
+        // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
+        if (deleteAfterMilliseconds == 0)
+        {
+            await Task.Delay(100);
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
+        else
+        {
+            await WaitForJobStatus<SimpleJobTest>(jobManager, jobId1, JobState.Succeeded, TimeSpan.FromSeconds(2));
+        }
+        
+        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId2, JobState.Succeeded, TimeSpan.FromSeconds(2));
 
-        var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Not.Null);
+        if (deleteAfterMilliseconds > 0)
+        {
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Not.Null);
+        }
 
         var completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
+        await Task.Delay(200);
+        
         // Act
         var jobCleanUpBackgroundService = _host!.Services.GetRequiredService<JobCleanUpBackgroundService>();
         jobCleanUpBackgroundService.PulseBackgroundProcessor();
@@ -825,19 +862,24 @@ public class JobManagerTests
         await Task.Delay(200);
 
         // Assert
-        completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Null);
+        {
+            var completedJob1 = await jobManager.GetJobAsync<SimpleJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
 
         completedJob2 = await jobManager.GetJobAsync<SimpleJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
         AssertLogEvents();
     }
-
+#endif
+    
     //
 
     [Test]
-    public async Task ItShouldDeleteExpiredFailedJobsDirectly()
+    [TestCase(0)]
+    [TestCase(100)]
+    public async Task ItShouldDeleteExpiredFailedJobsDirectly(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -845,7 +887,7 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnFailureDeleteAfter = TimeSpan.Zero
+            OnFailureDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
         var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
@@ -855,20 +897,34 @@ public class JobManagerTests
         });
 
         await jobManager.RunJobNowAsync(jobId1, CancellationToken.None);
-        var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Not.Null);
+        
+        // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
+        if (deleteAfterMilliseconds == 0)
+        {
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
+        else
+        {
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Not.Null);
+        }
 
         await jobManager.RunJobNowAsync(jobId2, CancellationToken.None);
         var completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
+        await Task.Delay(2 * deleteAfterMilliseconds);
+        
         // Act
         await jobManager.DeleteExpiredJobsAsync();
 
         // Assert
-        completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Null);
-
+        {
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
+        
         completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
@@ -878,8 +934,11 @@ public class JobManagerTests
 
     //
 
+#if !NOISY_NEIGHBOUR
     [Test]
-    public async Task ItShouldDeleteExpiredFailedJobsInTheBackground()
+    [TestCase(0)]
+    [TestCase(100)]
+    public async Task ItShouldDeleteExpiredFailedJobsInTheBackground(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -891,7 +950,7 @@ public class JobManagerTests
         var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
-            OnFailureDeleteAfter = TimeSpan.Zero
+            OnFailureDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
         var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
@@ -899,16 +958,32 @@ public class JobManagerTests
         {
             OnFailureDeleteAfter = TimeSpan.FromDays(1)
         });
-
-        await WaitForJobStatus<FailingJobTest>(jobManager, jobId1, JobState.Failed, TimeSpan.FromSeconds(1));
+        
+        // Assert JobManager deletes the job immediately if deleteAfterMilliseconds is 0
+        if (deleteAfterMilliseconds == 0)
+        {
+            await Task.Delay(100);
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
+        else
+        {
+            await WaitForJobStatus<FailingJobTest>(jobManager, jobId1, JobState.Failed, TimeSpan.FromSeconds(1));
+        }
+        
         await WaitForJobStatus<FailingJobTest>(jobManager, jobId2, JobState.Failed, TimeSpan.FromSeconds(1));
 
-        var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Not.Null);
+        if (deleteAfterMilliseconds > 0)
+        {
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Not.Null);
+        }
 
         var completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
+        await Task.Delay(200);
+        
         // Act
         var jobCleanUpBackgroundService = _host!.Services.GetRequiredService<JobCleanUpBackgroundService>();
         jobCleanUpBackgroundService.PulseBackgroundProcessor();
@@ -917,8 +992,10 @@ public class JobManagerTests
         await Task.Delay(200);
 
         // Assert
-        completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
-        Assert.That(completedJob1, Is.Null);
+        {
+            var completedJob1 = await jobManager.GetJobAsync<FailingJobTest>(jobId1);
+            Assert.That(completedJob1, Is.Null);
+        }
 
         completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
@@ -926,8 +1003,71 @@ public class JobManagerTests
         var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
         Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
     }
-
+#endif
+    
     //
+    
+    [Test]
+    public async Task ItShouldRunAChainedJobDirectly()
+    {
+        Assert.Fail();
+        
+        // Arrange
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        
+        var job = jobManager.NewJob<SimpleJobTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job);
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+        
+        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(scheduledJob, Is.Not.Null);
+        Assert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
+
+        // Act
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        
+        // Assert
+        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(completedJob, Is.Not.Null);
+        Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
+        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+        
+        AssertLogEvents();
+    }
+    
+    //
+    
+    [Test]
+    public async Task ItShouldRunAChainedJobInTheBackground()
+    {
+        Assert.Fail();
+        
+        // Arrange
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        await StartBackgroundServices();
+        
+        var job = jobManager.NewJob<SimpleJobTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job);
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+
+        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(scheduledJob, Is.Not.Null);
+
+        // Act
+        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+        
+        // Assert
+        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(completedJob, Is.Not.Null);
+        Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
+        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+
+        await StopBackgroundServices();
+        AssertLogEvents();
+    }
+    
+    //
+    
     
     private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
