@@ -11,16 +11,6 @@ using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
 
-// SEB:TODO test: create a job that scehdules another job
-
-// SEB:TODO jobhash must not block new jobs if existing is successful/failed
-
-// SEB:TODO unit test ApiJobResponse deserilizarion
-
-// SEB:TODO update CLI
-
-// SEB:TODO delete all traces of Old JobManager and Quartz
-
 namespace Odin.Services.JobManagement;
 
 #nullable enable
@@ -35,7 +25,6 @@ public interface IJobManager
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
-    public void PulseBackgroundProcessor();
 }
 
 //
@@ -64,7 +53,6 @@ public class JobManager(
         var jobId = Guid.NewGuid();
         
         schedule ??= new JobSchedule();
-        
 
         var record = new JobsRecord
         {
@@ -136,12 +124,14 @@ public class JobManager(
         }
         
         var job = await GetJobAsync<AbstractJob>(jobId);
-        if (job == null)
+        if (job?.Record == null)
         {
             logger.LogError("Job {jobId} not found", jobId);
             return;
         }
-        
+
+        correlationContext.Id = job.Record.correlationId;
+
         if (job.State is not (JobState.Scheduled or JobState.Preflight))
         {
             logger.LogError("Job {jobId} is in wrong state: {state}", jobId, job.State);
@@ -328,14 +318,7 @@ public class JobManager(
     }
 
     //
-    
-    public void PulseBackgroundProcessor()
-    {
-        jobRunnerBackgroundService.PulseBackgroundProcessor();
-    }
-    
-    //
-    
+
     private Task<DatabaseConnection> CreateConnectionAsync()
     {
         return Task.FromResult(serverSystemStorage.CreateConnection());

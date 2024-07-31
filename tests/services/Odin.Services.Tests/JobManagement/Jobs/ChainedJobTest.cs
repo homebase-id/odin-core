@@ -9,7 +9,7 @@ namespace Odin.Services.Tests.JobManagement.Jobs;
 
 public class ChainedJobTestData
 {
-    public Guid? ChainedId { get; set; }    
+    public Guid? SimpleJobId { get; set; }
 }
 
 public class ChainedJobTest(ILogger<ChainedJobTest> logger, IJobManager jobManager) : AbstractJob
@@ -23,10 +23,9 @@ public class ChainedJobTest(ILogger<ChainedJobTest> logger, IJobManager jobManag
         logger.LogInformation("Running ChainedJobTest");
 
         var simpleJob = jobManager.NewJob<SimpleJobTest>();
-        simpleJob.JobData.SomeJobData = $"I got this from ChainedJobTest id: {Id}";
 
-        var chainedJobId = await jobManager.ScheduleJobAsync(simpleJob, JobSchedule.Now);
-        JobData.ChainedId = chainedJobId;
+        var jobId = await jobManager.ScheduleJobAsync(simpleJob, JobSchedule.Now);
+        JobData.SimpleJobId = jobId;
         
         return JobExecutionResult.Success();
     }

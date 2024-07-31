@@ -13,7 +13,6 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Tasks;
 using Odin.Services.Background;
-using Odin.Services.Background.Services.System;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -104,6 +103,9 @@ public class JobManagerTests
                 services.AddTransient<RescheduleOnCancelJobTest>();
                 services.AddTransient<JobWithHash>();
                 services.AddTransient<FailingJobTest>();
+                services.AddTransient<ChainedJobTest>();
+
+
             })
             .Build();
 
@@ -1010,24 +1012,21 @@ public class JobManagerTests
     [Test]
     public async Task ItShouldRunAChainedJobDirectly()
     {
-        Assert.Fail();
-        
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
-        var job = jobManager.NewJob<SimpleJobTest>();
-        var jobId = await jobManager.ScheduleJobAsync(job);
-        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
-        
-        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
-        Assert.That(scheduledJob, Is.Not.Null);
-        Assert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
+        var chainedJob = jobManager.NewJob<ChainedJobTest>();
+        var chainedJobId = await jobManager.ScheduleJobAsync(chainedJob);
+        Assert.That(chainedJobId, Is.Not.EqualTo(Guid.Empty));
 
         // Act
-        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
-        
+        await jobManager.RunJobNowAsync(chainedJobId, CancellationToken.None);
+        chainedJob = await jobManager.GetJobAsync<ChainedJobTest>(chainedJobId);
+        var simpleJobId = chainedJob!.JobData.SimpleJobId!.Value;
+        await jobManager.RunJobNowAsync(simpleJobId, CancellationToken.None);
+
         // Assert
-        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(simpleJobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
         Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
@@ -1040,24 +1039,24 @@ public class JobManagerTests
     [Test]
     public async Task ItShouldRunAChainedJobInTheBackground()
     {
-        Assert.Fail();
-        
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         
-        var job = jobManager.NewJob<SimpleJobTest>();
-        var jobId = await jobManager.ScheduleJobAsync(job);
-        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
-
-        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
-        Assert.That(scheduledJob, Is.Not.Null);
+        var chainedJob = jobManager.NewJob<ChainedJobTest>();
+        var chainedJobId = await jobManager.ScheduleJobAsync(chainedJob);
+        Assert.That(chainedJobId, Is.Not.EqualTo(Guid.Empty));
 
         // Act
-        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
-        
+        await WaitForJobStatus<ChainedJobTest>(jobManager, chainedJobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+
+        chainedJob = await jobManager.GetJobAsync<ChainedJobTest>(chainedJobId);
+        var simpleJobId = chainedJob!.JobData.SimpleJobId!.Value;
+
+        await WaitForJobStatus<SimpleJobTest>(jobManager, simpleJobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+
         // Assert
-        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(simpleJobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
         Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);

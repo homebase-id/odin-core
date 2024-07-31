@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.JobManagement;
 using Spectre.Console;
@@ -55,14 +56,14 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var (jobResponse, jobData) = OldJobResponse.Deserialize<ExportTenantJobData>(await response.Content.ReadAsStringAsync());
+                    var (jobResponse, jobData) = JobApiResponse.Deserialize<ExportTenantJobData>(await response.Content.ReadAsStringAsync());
 
-                    if (jobResponse.Status == OldJobStatus.Failed)
+                    if (jobResponse.State == JobState.Failed)
                     {
                         throw new Exception($"Error exporting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (jobResponse.Status == OldJobStatus.Completed)
+                    if (jobResponse.State == JobState.Succeeded)
                     {
                         AnsiConsole.MarkupLine($"[green]Done[/]. Copy of tenant on server: {jobData?.TargetPath}");
                         done = true;

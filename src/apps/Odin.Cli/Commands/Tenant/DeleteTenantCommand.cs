@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Services.JobManagement;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -67,14 +68,14 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    var jobResponse = OldJobResponse.Deserialize(await response.Content.ReadAsStringAsync());
+                    var jobResponse = JobApiResponse.Deserialize(await response.Content.ReadAsStringAsync());
 
-                    if (jobResponse.Status == OldJobStatus.Failed)
+                    if (jobResponse.State == JobState.Failed)
                     {
                         throw new Exception($"Error deleting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (jobResponse.Status == OldJobStatus.Completed)
+                    if (jobResponse.State == JobState.Succeeded)
                     {
                         AnsiConsole.MarkupLine("[green]Done[/]");
                         done = true;
