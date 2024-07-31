@@ -117,12 +117,8 @@ public class JobManager(
     // You should only call this directly when testing the job.
     public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            logger.LogDebug("JobManager job {jobId} cancelled", jobId);
-            return;
-        }
-        
+        // DO NOT check cancellationToken here. It will orphan the job if we bail at this point!
+
         var job = await GetJobAsync<AbstractJob>(jobId);
         if (job?.Record == null)
         {
