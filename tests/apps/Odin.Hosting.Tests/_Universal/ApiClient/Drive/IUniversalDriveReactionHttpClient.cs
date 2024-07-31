@@ -8,7 +8,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
-    public interface IUniversalDriveReactionHttpClientRedux
+    public interface IUniversalDriveReactionHttpClient
     {
         private const string ReactionRootEndpoint = "/drive/files/reactions";
 
@@ -28,6 +28,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Query] GetReactionsRequestRedux file);
 
         [Get(ReactionRootEndpoint)]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequest file, string groupby = "identity");
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequestRedux file, string groupby = "identity");
     }
 }

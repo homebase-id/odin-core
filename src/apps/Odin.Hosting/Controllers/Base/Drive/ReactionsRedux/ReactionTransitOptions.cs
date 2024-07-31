@@ -4,5 +4,5 @@ namespace Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 
 public class ReactionTransitOptions
 {
-    private List<string> Recipients { get; set; }
+    public List<string> Recipients { get; init; }
 }

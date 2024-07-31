@@ -46,7 +46,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
             Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
-
+            
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
             Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
@@ -61,11 +61,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         }
 
         public TestIdentity Identity => _identity;
-        
+
         public UniversalFollowerApiClient Follower { get; }
 
         public UniversalDriveReactionClient Reactions { get; }
-
+        
         public UniversalPeerQueryApiClient PeerQuery { get; }
 
         public UniversalPeerDirectApiClient PeerDirect { get; }

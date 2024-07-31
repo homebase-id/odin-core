@@ -1,6 +1,12 @@
+using Odin.Services.Base;
+
 namespace Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 
 public class DeleteReactionRequestRedux
 {
-    
+    public FileIdentifier File { get; init; }
+
+    public string Reaction { get; init; }
+
+    public ReactionTransitOptions TransitOptions { get; init; }
 }

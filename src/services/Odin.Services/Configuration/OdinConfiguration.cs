@@ -135,7 +135,7 @@ namespace Odin.Services.Configuration
             public string PowerDnsApiKey { get; init; }
 
             public string ProvisioningDomain { get; init; }
-            public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
+            public List<RegistrySection.ManagedDomainApex> ManagedDomainApexes { get; init; }
 
             public DnsConfigurationSet DnsConfigurationSet { get; init; }
             public List<string> DnsResolvers { get; init; }
