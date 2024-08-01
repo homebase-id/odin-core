@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
@@ -10,6 +11,7 @@ public class OwnerClientContext(TargetDrive targetDrive) : IApiClientContext
     private OwnerApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
+    public DrivePermission DrivePermission => DrivePermission.All;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {

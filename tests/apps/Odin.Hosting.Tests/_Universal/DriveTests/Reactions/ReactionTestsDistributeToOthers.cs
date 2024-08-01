@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,13 +6,18 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Reactions;
 
@@ -54,20 +60,20 @@ public class ReactionTestsDistributeToOthers
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-    public static IEnumerable AppAllowed()
+    public static IEnumerable AppAllowedReactOnly()
     {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React), HttpStatusCode.OK };
     }
 
-    public static IEnumerable GuestAllowed()
+    public static IEnumerable GuestMethodNotAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(AppAllowedReactOnly))]
+    [TestCaseSource(nameof(GuestMethodNotAllowed))]
     public async Task CanAddAndDistributeReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -76,12 +82,32 @@ public class ReactionTestsDistributeToOthers
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
+
+        //create the drive on recipients
+        foreach (var recipient in recipients)
+        {
+            await ownerApiClient.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
+            await SetupRecipient(recipient, ownerApiClient.Identity.OdinId, callerContext);
+        }
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, allowDistribution: true);
+        var transitOptions = new TransitOptions()
+        {
+            Recipients = recipients.ToStringList()
+        };
+        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.Content;
         Assert.IsNotNull(uploadResult);
 
-        List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+        foreach (var recipient in recipients)
+        {
+            var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+            await recipientClient.DriveRedux.ProcessInbox(targetDrive, 100);
+            await recipientClient.DriveRedux.WaitForEmptyInbox(targetDrive);
+        }
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -96,6 +122,8 @@ public class ReactionTestsDistributeToOthers
                 Recipients = recipients.ToStringList()
             }
         });
+
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
@@ -115,12 +143,14 @@ public class ReactionTestsDistributeToOthers
                 await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
             }
         }
+
+        await DeleteScenario(ownerApiClient, recipients);
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(AppAllowedReactOnly))]
+    [TestCaseSource(nameof(GuestMethodNotAllowed))]
     public async Task CanDistributeDeleteReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -129,14 +159,33 @@ public class ReactionTestsDistributeToOthers
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
+
+        //create the drive on recipients
+        foreach (var recipient in recipients)
+        {
+            await ownerApiClient.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
+            await SetupRecipient(recipient, ownerApiClient.Identity.OdinId, callerContext);
+        }
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, allowDistribution: true);
+        var transitOptions = new TransitOptions()
+        {
+            Recipients = recipients.ToStringList()
+        };
+        var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.Content;
         Assert.IsNotNull(uploadResult);
 
-        const string reactionContent1 = ":pie:";
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        foreach (var recipient in recipients)
+        {
+            var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+            await recipientClient.DriveRedux.ProcessInbox(targetDrive, 100);
+            await recipientClient.DriveRedux.WaitForEmptyInbox(targetDrive);
+        }
 
-        List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
+        const string reactionContent1 = ":pie:";
 
         var addReactionResponse = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
@@ -147,6 +196,7 @@ public class ReactionTestsDistributeToOthers
                 Recipients = recipients.ToStringList()
             }
         });
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
@@ -163,6 +213,9 @@ public class ReactionTestsDistributeToOthers
             }
         });
 
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
@@ -177,6 +230,8 @@ public class ReactionTestsDistributeToOthers
                 await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
             }
         }
+
+        await DeleteScenario(ownerApiClient, recipients);
     }
 
     private async Task AssertIdentityDoesNotHaveReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
@@ -223,5 +278,74 @@ public class ReactionTestsDistributeToOthers
             fileSystemType);
         var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
         Assert.IsTrue(reactionNotInDb);
+    }
+
+    private async Task SetupRecipient(TestIdentity recipient, OdinId sender, IApiClientContext callerContext)
+    {
+        var targetDrive = callerContext.TargetDrive;
+        var drivePermissions = callerContext.DrivePermission;
+        var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        //
+        // Recipient creates a target drive
+        //
+        var recipientDriveResponse = await recipientClient.DriveManager.CreateDrive(
+            targetDrive: targetDrive,
+            name: "Target drive on recipient",
+            metadata: "",
+            allowAnonymousReads: false,
+            allowSubscriptions: false,
+            ownerOnly: false);
+
+        Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+
+        //
+        // Recipient creates a circle with target drive, read and write access
+        //
+        var expectedPermissionedDrive = new PermissionedDrive()
+        {
+            Drive = targetDrive,
+            Permission = drivePermissions | DrivePermission.Write
+        };
+
+        var circleId = Guid.NewGuid();
+        var createCircleResponse = await recipientClient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = expectedPermissionedDrive
+                }
+            }
+        });
+
+        Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+
+
+        //
+        // Recipient accepts; grants access to circle
+        //
+        await recipientClient.Connections.AcceptConnectionRequest(sender, new List<GuidId>() { circleId });
+
+        // 
+        // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
+        // 
+
+        var getConnectionInfoResponse = await recipientClient.Network.GetConnectionInfo(sender);
+
+        Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+        var senderConnectionInfo = getConnectionInfoResponse.Content;
+
+        Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
+    }
+
+    private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, List<TestIdentity> recipients)
+    {
+        foreach (var recipient in recipients)
+        {
+            await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.OdinId);
+        }
     }
 }
