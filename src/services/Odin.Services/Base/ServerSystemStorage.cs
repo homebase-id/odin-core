@@ -25,10 +25,13 @@ public sealed class ServerSystemStorage : IDisposable
 
         var finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new ServerDatabase(finalPath);
-        using (var cn = _db.CreateDisposableConnection())
-        {
-            _db.CreateDatabase(cn, false);
-        }
+        using var cn = _db.CreateDisposableConnection();
+        _db.CreateDatabase(cn, false);
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
     }
 
     public DatabaseConnection CreateConnection()
@@ -36,8 +39,5 @@ public sealed class ServerSystemStorage : IDisposable
         return _db.CreateDisposableConnection();
     }
 
-    public void Dispose()
-    {
-        _db.Dispose();
-    }
+    public TableJobs Jobs => _db.tblJobs;
 }

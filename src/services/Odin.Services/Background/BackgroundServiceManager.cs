@@ -76,7 +76,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
             
             // SEB:NOTE
             // Since BackgroundServiceManager did not create the background service,
-            // therefore it is not responsible for disposing it. 
+            // it is not responsible for disposing it.
         }
     }
 
@@ -112,7 +112,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
         
         // SEB:NOTE
         // Since BackgroundServiceManager did not create the background service,
-        // therefore it is not responsible for disposing it. 
+        // it is not responsible for disposing it.
     }
     
     //

@@ -270,14 +270,25 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             var firstRunToken = await _registry.AddRegistration(request);
 
+            // Queue background job to send email
             if (_configuration.Mailgun.Enabled)
             {
-                var scheduler = new SendProvisioningCompleteEmailSchedule(
-                    domain,
-                    email,
-                    firstRunToken.ToString(),
-                    TimeSpan.FromSeconds(1));
-                await _jobManager.Schedule<SendProvisioningCompleteEmailJob>(scheduler);
+                var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
+                job.Data = new SendProvisioningCompleteEmailJobData
+                {
+                    Domain = domain,
+                    Email = email,
+                    FirstRunToken = firstRunToken.ToString()
+                };
+
+                await _jobManager.ScheduleJobAsync(job, new JobSchedule
+                {
+                    RunAt = DateTimeOffset.Now.AddSeconds(1),
+                    MaxAttempts = 20,
+                    RetryDelay = TimeSpan.FromMinutes(1),
+                    OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                    OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                });
             }
 
             return firstRunToken;
