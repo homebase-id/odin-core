@@ -1,25 +1,25 @@
+using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 
 namespace Odin.Services.JobManagement;
 
 #nullable enable
 
-public class JobResponse
+public class JobApiResponse
 {
-    public JobStatus Status { get; set; }
-    public string JobKey { get; set; } = "";
+    public Guid? JobId { get; set; }
+    public JobState? State { get; set; }
     public string? Error { get; set; }
     public string? Data { get; set; }
 
-    //
-
-    public static JobResponse Deserialize(string json)
+    public static JobApiResponse Deserialize(string json)
     {
-        var result = OdinSystemSerializer.Deserialize<JobResponse>(json);
+        var result = OdinSystemSerializer.Deserialize<JobApiResponse>(json);
         if (result == null)
         {
-            throw new OdinSystemException("Error deserializing JobResponse");
+            throw new OdinSystemException("Error deserializing JobApiResponse");
         }
 
         return result;
@@ -27,7 +27,7 @@ public class JobResponse
 
     //
 
-    public static (JobResponse, T?) Deserialize<T>(string json) where T : class
+    public static (JobApiResponse, T?) Deserialize<T>(string json) where T : class
     {
         var response = Deserialize(json);
 
@@ -39,7 +39,7 @@ public class JobResponse
         var data = OdinSystemSerializer.Deserialize<T>(response.Data);
         if (data == null)
         {
-            throw new OdinSystemException("Error deserializing JobResponse.Data");
+            throw new OdinSystemException("Error deserializing JobApiResponse.Data");
         }
 
         return (response, data);

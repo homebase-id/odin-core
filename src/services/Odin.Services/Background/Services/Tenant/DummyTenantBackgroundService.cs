@@ -8,7 +8,7 @@ namespace Odin.Services.Background.Services.Tenant;
 public sealed class DummyTenantBackgroundService(
     ILogger<DummyTenantBackgroundService> logger, 
     Odin.Services.Tenant.Tenant tenant)
-    : AbstractBackgroundService
+    : AbstractBackgroundService(logger)
 {
     private readonly Odin.Services.Tenant.Tenant _tenant = tenant;
 

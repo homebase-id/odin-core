@@ -110,8 +110,7 @@ public abstract class OdinControllerBase : ControllerBase
             _odinContext = HttpContext.RequestServices.GetRequiredService<IOdinContext>();
             if (string.IsNullOrEmpty(_odinContext.Tenant))
             {
-                Log.Error(""); // SEB:TODO fix this logger when Todd is done refactoring boxes and what not
-                _odinContext = null;
+                throw new OdinSystemException("Missing IOdinContext.Tenant");
             }
             
             return _odinContext;

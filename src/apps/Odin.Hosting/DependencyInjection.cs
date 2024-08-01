@@ -220,7 +220,7 @@ namespace Odin.Hosting
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
 
             // Background services
-            cb.RegisterTenantBackgroundServices(tenant);
+            cb.AddTenantBackgroundServices(tenant);
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
