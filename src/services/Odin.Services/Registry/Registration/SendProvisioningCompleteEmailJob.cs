@@ -38,6 +38,8 @@ public class SendProvisioningCompleteEmailJob(
             throw new OdinSystemException("Provisioning email: certificate not ready yet");
         }
 
+        logger.LogInformation("Sending provisioning completed email to {Email}", Data.Email);
+
         const string subject = "Your new identity is ready";
         var firstRunlink = $"https://{Data.Domain}/owner/firstrun?frt={Data.FirstRunToken}";
 
