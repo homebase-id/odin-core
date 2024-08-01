@@ -5,6 +5,8 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Base;
@@ -69,8 +71,8 @@ public class ReactionTestsDistributeToOthers
     public async Task CanAddAndDistributeReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var localIdentity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(localIdentity);
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
@@ -83,7 +85,7 @@ public class ReactionTestsDistributeToOthers
 
         // Act
         await callerContext.Initialize(ownerApiClient);
-        var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
+        var callerReactionClient = new UniversalDriveReactionClient(localIdentity.OdinId, callerContext.GetFactory());
         const string reactionContent1 = ":cake:";
         var response = await callerReactionClient.AddReaction(new AddReactionRequestRedux
         {
@@ -105,11 +107,9 @@ public class ReactionTestsDistributeToOthers
             Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
                 .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
 
-            var getReactionsResponse = await ownerApiClient.Reactions.GetAllReactions(uploadResult.File.ToFileIdentifier());
-            var hasReactionInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent1);
-            Assert.IsTrue(hasReactionInDb);
-
             var globalTransitFileId = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
+
+            await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1);
             foreach (var recipient in recipients)
             {
                 await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
@@ -178,15 +178,11 @@ public class ReactionTestsDistributeToOthers
             }
         }
     }
-    
+
     private async Task AssertIdentityDoesNotHaveReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
-        var getHeaderResponse1 = await client.DriveRedux.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier
-        {
-            TargetDrive = fileId.TargetDrive,
-            GlobalTransitId = fileId.GlobalTransitId.GetValueOrDefault()
-        });
+        var getHeaderResponse1 = await client.DriveRedux.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
 
         var file = getHeaderResponse1.Content.SearchResults.First();
         var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
@@ -196,32 +192,36 @@ public class ReactionTestsDistributeToOthers
     private async Task AssertIdentityHasReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
-        var getHeaderResponse1 = await client.DriveRedux.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier
-        {
-            TargetDrive = fileId.TargetDrive,
-            GlobalTransitId = fileId.GlobalTransitId.GetValueOrDefault()
-        });
+        var getHeaderResponse1 = await client.DriveRedux.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
 
         var file = getHeaderResponse1.Content.SearchResults.First();
-        var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
+        var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.Any(pair => pair.Value.ReactionContent == reactionContent);
         Assert.IsTrue(hasReactionInPreview);
     }
 
-    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent)
+    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
-        var getReactionsResponse = await client.Reactions.GetAllReactions(globalTransitFileId);
-        var hasReactionInDb =
-            getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
+        var getReactionsResponse = await client.Reactions.GetReactions(new GetReactionsRequestRedux
+            {
+                File = globalTransitFileId,
+            },
+            fileSystemType);
+        var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.ReactionContent == reactionContent);
         Assert.IsTrue(hasReactionInDb);
     }
 
-    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent)
+    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
-        var getReactionsResponse = await client.Reactions.GetAllReactions(globalTransitFileId);
-        var hasReactionInDb =
-            getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
-        Assert.IsFalse(hasReactionInDb);
+        var getReactionsResponse = await client.Reactions.GetReactions(new GetReactionsRequestRedux
+            {
+                File = globalTransitFileId,
+            },
+            fileSystemType);
+        var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
+        Assert.IsTrue(reactionNotInDb);
     }
 }

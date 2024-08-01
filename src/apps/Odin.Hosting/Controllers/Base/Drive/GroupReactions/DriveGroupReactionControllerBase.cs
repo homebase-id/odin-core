@@ -5,6 +5,7 @@ using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Services.Base;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Drive.GroupReactions;
@@ -67,7 +68,9 @@ public class DriveGroupReactionControllerBase : OdinControllerBase
     public async Task<List<string>> GetReactionsByIdentity([FromQuery] GetReactionsByIdentityRequestRedux request)
     {
         using var cn = _tenantSystemStorage.CreateConnection();
-        return await _groupReactionService.GetReactionsByIdentityAndFile(request.Identity, request.File, WebOdinContext, cn,
+
+        OdinValidationUtils.AssertIsValidOdinId(request.Identity, out var identity);
+        return await _groupReactionService.GetReactionsByIdentityAndFile(identity, request.File, WebOdinContext, cn,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 

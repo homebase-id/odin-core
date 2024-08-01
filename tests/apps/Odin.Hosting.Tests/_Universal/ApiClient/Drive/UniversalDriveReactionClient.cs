@@ -2,10 +2,11 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Services.Base;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -22,11 +23,11 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         return response;
     }
 
-    public async Task<ApiResponse<GetReactionsResponse>> GetAllReactions(FileIdentifier file)
+    public async Task<ApiResponse<GetReactionsResponse>> GetReactions(GetReactionsRequestRedux request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var response = await svc.GetReactions(file);
+        var client = factory.CreateHttpClient(targetIdentity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, sharedSecret);
+        var response = await svc.GetReactions(request);
         return response;
     }
 

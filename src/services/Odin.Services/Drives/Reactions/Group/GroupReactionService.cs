@@ -10,6 +10,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Util;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Odin.Services.Drives.Reactions.Group;
 
@@ -122,6 +123,8 @@ public class GroupReactionService(
     public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
         DatabaseConnection connection, FileSystemType fileSystemType)
     {
+        OdinValidationUtils.AssertIsValidOdinId(identity, out _);
+
         var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
