@@ -278,7 +278,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 {
                     Domain = domain,
                     Email = email,
-                    FirstRunToken = firstRunToken.ToString()
+                    FirstRunToken = firstRunToken.ToString(),
+                    ProvisioningEmailLogoImage = _configuration.Registry.ProvisioningEmailLogoImage,
+                    ProvisioningEmailLogoHref = _configuration.Registry.ProvisioningEmailLogoHref            
                 };
 
                 await _jobManager.ScheduleJobAsync(job, new JobSchedule

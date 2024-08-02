@@ -15,6 +15,8 @@ public class SendProvisioningCompleteEmailJobData
     public string Domain { get; set; } = "";
     public string Email { get; set; } = "";
     public string FirstRunToken { get; set; } = "";
+    public string ProvisioningEmailLogoImage { get; set; } = "";
+    public string ProvisioningEmailLogoHref { get; set; } = "";
 }
 
 //
@@ -38,7 +40,7 @@ public class SendProvisioningCompleteEmailJob(
             throw new OdinSystemException("Provisioning email: certificate not ready yet");
         }
 
-        logger.LogInformation("Sending provisioning completed email to {Email}", Data.Email);
+        logger.LogInformation("Send email: provisioning of domain '{domain}' completed to {email}", Data.Domain, Data.Email);
 
         const string subject = "Your new identity is ready";
         var firstRunlink = $"https://{Data.Domain}/owner/firstrun?frt={Data.FirstRunToken}";
@@ -48,7 +50,12 @@ public class SendProvisioningCompleteEmailJob(
             To = [new NameAndEmailAddress { Email = Data.Email }],
             Subject = subject,
             TextMessage = RegistrationEmails.ProvisioningCompletedText(Data.Email, Data.Domain, firstRunlink),
-            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(Data.Email, Data.Domain, firstRunlink),
+            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(
+                Data.Email, 
+                Data.Domain, 
+                firstRunlink, 
+                Data.ProvisioningEmailLogoHref,
+                Data.ProvisioningEmailLogoImage)
         };
 
         await emailSender.SendAsync(envelope);
@@ -76,15 +83,23 @@ public class SendProvisioningCompleteEmailJob(
     {
         if (string.IsNullOrEmpty(Data.Domain))
         {
-            throw new OdinSystemException("Domain is missing");
+            throw new OdinSystemException($"{nameof(Data.Domain)} is missing");
         }
         if (string.IsNullOrEmpty(Data.Email))
         {
-            throw new OdinSystemException("Email is missing");
+            throw new OdinSystemException($"{nameof(Data.Email)} is missing");
         }
         if (string.IsNullOrEmpty(Data.FirstRunToken))
         {
-            throw new OdinSystemException("FirstRunToken is missing");
+            throw new OdinSystemException($"{nameof(Data.FirstRunToken)} is missing");
+        }
+        if (string.IsNullOrEmpty(Data.ProvisioningEmailLogoImage))
+        {
+            throw new OdinSystemException($"{nameof(Data.ProvisioningEmailLogoImage)} is missing");
+        }
+        if (string.IsNullOrEmpty(Data.ProvisioningEmailLogoHref))
+        {
+            throw new OdinSystemException($"{nameof(Data.ProvisioningEmailLogoHref)} is missing");
         }
     }
 }
