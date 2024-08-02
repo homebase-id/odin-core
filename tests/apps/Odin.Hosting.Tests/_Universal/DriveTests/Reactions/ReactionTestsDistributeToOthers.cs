@@ -10,13 +10,14 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
-using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Reactions;
@@ -60,9 +61,13 @@ public class ReactionTestsDistributeToOthers
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-    public static IEnumerable AppAllowedReactOnly()
+    public static IEnumerable AppAllowedDriveReactOnlyAndUseTransitWrite()
     {
-        yield return new object[] { new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React), HttpStatusCode.OK };
+        yield return new object[]
+        {
+            new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React | DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.UseTransitWrite)),
+            HttpStatusCode.OK
+        };
     }
 
     public static IEnumerable GuestMethodNotAllowed()
@@ -72,7 +77,7 @@ public class ReactionTestsDistributeToOthers
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
+    [TestCaseSource(nameof(AppAllowedDriveReactOnlyAndUseTransitWrite))]
     [TestCaseSource(nameof(GuestMethodNotAllowed))]
     public async Task CanAddAndDistributeReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -100,6 +105,9 @@ public class ReactionTestsDistributeToOthers
         var uploadResult = uploadMetadataResponse.Content;
         Assert.IsNotNull(uploadResult);
 
+        //
+        // ensure the file is sent and is on the recipient's drive
+        //
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         foreach (var recipient in recipients)
@@ -123,13 +131,18 @@ public class ReactionTestsDistributeToOthers
             }
         });
 
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
+            foreach (var (_, status) in response.Content.RecipientStatus)
+            {
+                Assert.IsTrue(status == TransferStatus.Enqueued);
+            }
+
+            await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
             // Validate the reaction is there locally
             var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
             Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
@@ -149,11 +162,13 @@ public class ReactionTestsDistributeToOthers
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowedReactOnly))]
+    [TestCaseSource(nameof(AppAllowedDriveReactOnlyAndUseTransitWrite))]
     [TestCaseSource(nameof(GuestMethodNotAllowed))]
     public async Task CanDistributeDeleteReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
+        //
         // Setup
+        //
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
@@ -161,21 +176,32 @@ public class ReactionTestsDistributeToOthers
 
         List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
 
-        //create the drive on recipients
+        //
+        // create the drive on recipients
+        //
         foreach (var recipient in recipients)
         {
             await ownerApiClient.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
             await SetupRecipient(recipient, ownerApiClient.Identity.OdinId, callerContext);
         }
 
+        //
+        // Send a file
+        //
+
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, allowDistribution: true);
         var transitOptions = new TransitOptions()
         {
             Recipients = recipients.ToStringList()
         };
+
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.Content;
         Assert.IsNotNull(uploadResult);
+
+        //
+        // ensure the file is sent and is on the recipient's drive
+        //
 
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
         foreach (var recipient in recipients)
@@ -200,7 +226,9 @@ public class ReactionTestsDistributeToOthers
 
         Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
+        //
         // Act
+        //
         await callerContext.Initialize(ownerApiClient);
         var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerReactionClient.DeleteReaction(new DeleteReactionRequestRedux
@@ -213,14 +241,17 @@ public class ReactionTestsDistributeToOthers
             }
         });
 
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
+            foreach (var (_, status) in response.Content.RecipientStatus)
+            {
+                Assert.IsTrue(status == TransferStatus.Enqueued);
+            }
+
+            await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
             await AssertIdentityHasReactionInPreview(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
             await AssertIdentityDoesNotHaveReaction(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
 

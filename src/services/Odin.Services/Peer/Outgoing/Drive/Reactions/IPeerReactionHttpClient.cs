@@ -7,9 +7,6 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions
 {
-    /// <summary>
-    /// The interface for querying from a host to another host
-    /// </summary>
     public interface IPeerReactionHttpClient
     {
         private const string RootPath = PeerApiPathConstants.ReactionsV1;
@@ -22,9 +19,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions
         
         [Post(RootPath + "/delete")]
         Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] SharedSecretEncryptedTransitPayload file);
-
-        [Post(RootPath + "/deleteall")]
-        Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] SharedSecretEncryptedTransitPayload file);
 
         [Post(RootPath + "/summary")]
         Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] SharedSecretEncryptedTransitPayload file);

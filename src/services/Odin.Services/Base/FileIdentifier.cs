@@ -4,13 +4,6 @@ using Odin.Services.Drives;
 
 namespace Odin.Services.Base;
 
-public class ResolvedFileIdentifier
-{
-    public Guid FileId { get; init; }
-    public Guid GlobalTransitId { get; init; }
-    public Guid? UniqueId { get; init; }
-}
-
 public class FileIdentifier
 {
     public Guid? FileId { get; init; }
@@ -79,12 +72,13 @@ public class FileIdentifier
 
     public static bool operator ==(FileIdentifier d1, FileIdentifier d2)
     {
-        if (ReferenceEquals(d1, d2))
-        {
-            return true;
-        }
-
-        return d1?.FileId == d2?.FileId && d1.TargetDrive == d2.TargetDrive;
+        throw new NotImplementedException("Need to check across all fields");
+        // if (ReferenceEquals(d1, d2))
+        // {
+        //     return true;
+        // }
+        //
+        // return d1?.FileId == d2?.FileId && d1.TargetDrive == d2.TargetDrive;
     }
 
     public static bool operator !=(FileIdentifier d1, FileIdentifier d2)

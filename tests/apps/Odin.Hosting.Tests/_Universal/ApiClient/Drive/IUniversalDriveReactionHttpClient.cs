@@ -3,8 +3,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Services.Base;
+using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
@@ -14,10 +15,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         private const string ReactionRootEndpoint = "/drive/files/group/reactions";
 
         [Post(ReactionRootEndpoint)]
-        Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequestRedux request);
+        Task<ApiResponse<AddReactionResult>> AddReaction([Body] AddReactionRequestRedux request);
 
         [Delete(ReactionRootEndpoint)]
-        Task<ApiResponse<HttpContent>> DeleteReaction([Body] DeleteReactionRequestRedux request);
+        Task<ApiResponse<DeleteReactionResult>> DeleteReaction([Body] DeleteReactionRequestRedux request);
 
 
         [Get(ReactionRootEndpoint)]

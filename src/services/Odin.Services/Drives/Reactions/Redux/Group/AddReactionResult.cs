@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+using Odin.Services.Base;
 using Odin.Services.Peer;
 
-namespace Odin.Services.Drives.Reactions.Group;
+namespace Odin.Services.Drives.Reactions.Redux.Group;
 
 public class AddReactionResult
 {

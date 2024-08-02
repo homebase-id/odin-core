@@ -19,9 +19,8 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
 {
     public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var context = odinContext;
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-        var callerId = context.GetCallerOdinIdOrFail();
+        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+        var callerId = odinContext.GetCallerOdinIdOrFail();
 
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
@@ -45,19 +44,18 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
 
     public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var context = odinContext;
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent, cn);
+            manager.DeleteReaction(odinContext.GetCallerOdinIdOrFail(), file.FileId, reactionContent, cn);
 
             await mediator.Publish(new ReactionDeletedNotification
             {
                 Reaction = new Reaction()
                 {
-                    OdinId = context.GetCallerOdinIdOrFail(),
+                    OdinId = odinContext.GetCallerOdinIdOrFail(),
                     Created = default,
                     ReactionContent = reactionContent,
                     FileId = file

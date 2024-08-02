@@ -5,15 +5,16 @@ using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive.ReactionsRedux;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
 
 public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> AddReaction(AddReactionRequestRedux request)
+    public async Task<ApiResponse<AddReactionResult>> AddReaction(AddReactionRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 
@@ -31,7 +32,7 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteReaction(DeleteReactionRequestRedux request)
+    public async Task<ApiResponse<DeleteReactionResult>> DeleteReaction(DeleteReactionRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);

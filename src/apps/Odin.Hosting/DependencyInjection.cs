@@ -39,13 +39,13 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
-using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
-using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
 namespace Odin.Hosting
 {
@@ -208,8 +208,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<PeerReactionService>().AsSelf().SingleInstance();
-
+            cb.RegisterType<PeerIncomingReactionService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<PublicPrivateKeyService>()
                 .As<INotificationHandler<OwnerIsOnlineNotification>>()
                 .AsSelf()

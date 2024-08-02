@@ -15,12 +15,14 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -31,7 +33,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         ILogger<PeerInboxProcessor> logger,
         PublicPrivateKeyService keyService,
         DriveManager driveManager,
-        TenantSystemStorage tenantSystemStorage)
+        TenantSystemStorage tenantSystemStorage,
+        ReactionContentService reactionContentService)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
@@ -139,6 +142,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await writer.MarkFileAsRead(fs, inboxItem, odinContext, cn);
                     logger.LogDebug(ReadReceiptItemMarkedComplete);
                 }
+                else if (inboxItem.InstructionType is TransferInstructionType.AddReaction or TransferInstructionType.DeleteReaction)
+                {
+                    await HandleReaction(inboxItem, fs, odinContext, cn);
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+                }
+
                 else if (inboxItem.InstructionType == TransferInstructionType.None)
                 {
                     throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
@@ -219,6 +228,48 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
             }
             // });
+        }
+
+        private async Task HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext, DatabaseConnection connection)
+        {
+            var header = await fs.Query.GetFileByGlobalTransitId(inboxItem.DriveId, inboxItem.GlobalTransitId, odinContext, connection);
+            if (null == header)
+            {
+                throw new OdinClientException("HandleReaction -> No file found by GlobalTransitId", OdinClientErrorCode.InvalidFile);
+            }
+
+            var request = OdinSystemSerializer.Deserialize<RemoteReactionRequestRedux>(inboxItem.Data.ToStringFromUtf8Bytes());
+            var payload = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(request.Payload);
+
+            var localFile = new InternalDriveFileId()
+            {
+                FileId = header.FileId,
+                DriveId = inboxItem.DriveId
+            };
+
+            switch (inboxItem.InstructionType)
+            {
+                case TransferInstructionType.AddReaction:
+                    await reactionContentService.AddReaction(localFile, payload.Reaction, odinContext, connection);
+                    break;
+
+                case TransferInstructionType.DeleteReaction:
+                    await reactionContentService.DeleteReaction(localFile, payload.Reaction, odinContext, connection);
+                    break;
+            }
+        }
+
+        private async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
+        {
+            //TODO: put decryption back in place
+            // var t = await ResolveClientAccessToken(caller!.Value, tokenSource);
+            // var sharedSecret = t.SharedSecret;
+            // var encryptedBytes = Convert.FromBase64String(payload.Data);
+            // var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref sharedSecret, payload.Iv);
+
+            var decryptedBytes = Convert.FromBase64String(payload.Data);
+            var json = decryptedBytes.ToStringFromUtf8Bytes();
+            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
         }
 
         private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer, InternalDriveFileId tempFile,
