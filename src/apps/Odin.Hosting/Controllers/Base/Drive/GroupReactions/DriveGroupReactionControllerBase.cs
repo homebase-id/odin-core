@@ -11,7 +11,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 
 /// <summary />
-public class DriveGroupReactionControllerBase : OdinControllerBase
+public abstract class DriveGroupReactionControllerBase : OdinControllerBase
 {
     private const string SwaggerSection = "Group Reactions";
     private readonly GroupReactionService _groupReactionService;

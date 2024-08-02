@@ -47,7 +47,8 @@ public class GroupReactionService(
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueAddRemoteReaction((OdinId)recipient, fileId, reaction, localFile, odinContext, connection, fileSystemType);
+                var status = await EnqueueRemoteReactionOutboxItem(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
+                    odinContext, connection, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
@@ -74,7 +75,8 @@ public class GroupReactionService(
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueDeleteRemoteReaction((OdinId)recipient, fileId, reaction, localFile, odinContext, connection, fileSystemType);
+                var status = await EnqueueRemoteReactionOutboxItem(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
+                    odinContext, connection, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
@@ -132,52 +134,8 @@ public class GroupReactionService(
         return localFileId;
     }
 
-    private async Task<TransferStatus> EnqueueAddRemoteReaction(OdinId recipient,
-        FileIdentifier file,
-        string reaction,
-        InternalDriveFileId localFile,
-        IOdinContext odinContext,
-        DatabaseConnection connection,
-        FileSystemType fileSystemType)
-    {
-        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, connection, false);
-        if (null == clientAuthToken)
-        {
-            // must be connected
-            return TransferStatus.EnqueuedFailed;
-        }
-
-        var request = new RemoteReactionRequestRedux()
-        {
-            File = file,
-            Payload = CreateSharedSecretEncryptedPayload(clientAuthToken, reaction),
-            FileSystemType = fileSystemType
-        };
-
-        var outboxItem = new OutboxFileItem
-        {
-            Recipient = recipient,
-            File = new InternalDriveFileId()
-            {
-                FileId = Guid.NewGuid(), // random since reactions don't have an id
-                DriveId = localFile.DriveId
-            },
-            Priority = 100,
-            Type = OutboxItemType.AddRemoteReaction,
-            DependencyFileId = localFile.FileId,
-            State = new OutboxItemState
-            {
-                EncryptedClientAuthToken = clientAuthToken.ToPortableBytes(),
-                Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
-            }
-        };
-
-        await peerOutbox.AddItem(outboxItem, connection, useUpsert: true);
-        return TransferStatus.Enqueued;
-    }
-
-
-    private async Task<TransferStatus> EnqueueDeleteRemoteReaction(OdinId recipient,
+    private async Task<TransferStatus> EnqueueRemoteReactionOutboxItem(OutboxItemType outboxItemType,
+        OdinId recipient,
         FileIdentifier file,
         string reaction,
         InternalDriveFileId localFile,
@@ -203,11 +161,11 @@ public class GroupReactionService(
             Recipient = recipient,
             File = new InternalDriveFileId()
             {
-                FileId = Guid.NewGuid(), // random since reactions don't have an id
+                FileId = ByteArrayUtil.ReduceSHA256Hash(reaction),
                 DriveId = localFile.DriveId
             },
             Priority = 100,
-            Type = OutboxItemType.DeleteRemoteReaction,
+            Type = outboxItemType,
             DependencyFileId = localFile.FileId,
             State = new OutboxItemState
             {
