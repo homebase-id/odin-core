@@ -9,16 +9,17 @@ public static class SystemCircleConstants
 {
     public static readonly GuidId ConnectedIdentitiesSystemCircleId = GuidId.FromString("we_are_connected");
 
-    public static readonly List<DriveGrantRequest> ConnectedIdentitiesSystemCircleInitialDrives = new()
-    {
+    public static readonly List<DriveGrantRequest> ConnectedIdentitiesSystemCircleInitialDrives =
+    [
         new DriveGrantRequest()
         {
             PermissionedDrive = new PermissionedDrive()
             {
                 Drive = SystemDriveConstants.ChatDrive,
-                Permission = DrivePermission.Write
+                Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
             }
         },
+
         new DriveGrantRequest()
         {
             PermissionedDrive = new PermissionedDrive()
@@ -27,6 +28,7 @@ public static class SystemCircleConstants
                 Permission = DrivePermission.Write
             }
         },
+
         new DriveGrantRequest()
         {
             PermissionedDrive = new PermissionedDrive()
@@ -35,5 +37,5 @@ public static class SystemCircleConstants
                 Permission = DrivePermission.Write
             }
         }
-    };
+    ];
 }
