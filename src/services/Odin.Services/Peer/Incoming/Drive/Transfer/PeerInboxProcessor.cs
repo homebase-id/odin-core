@@ -239,7 +239,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             var request = OdinSystemSerializer.Deserialize<RemoteReactionRequestRedux>(inboxItem.Data.ToStringFromUtf8Bytes());
-            var payload = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(request.Payload);
 
             var localFile = new InternalDriveFileId()
             {
@@ -247,14 +246,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = inboxItem.DriveId
             };
 
+            var reaction = await DecryptUsingSharedSecret<string>(request.Payload);
+
             switch (inboxItem.InstructionType)
             {
                 case TransferInstructionType.AddReaction:
-                    await reactionContentService.AddReaction(localFile, payload.Reaction, odinContext, connection);
+                    await reactionContentService.AddReaction(localFile, reaction, odinContext, connection);
                     break;
 
                 case TransferInstructionType.DeleteReaction:
-                    await reactionContentService.DeleteReaction(localFile, payload.Reaction, odinContext, connection);
+                    await reactionContentService.DeleteReaction(localFile, reaction, odinContext, connection);
                     break;
             }
         }

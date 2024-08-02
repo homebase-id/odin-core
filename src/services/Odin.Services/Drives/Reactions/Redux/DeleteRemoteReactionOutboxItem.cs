@@ -7,6 +7,4 @@ public class DeleteRemoteReactionOutboxItem
 {
     public FileIdentifier File { get; init; }
     public string Reaction { get; init; }
-    
-    public FileSystemType FileSystemType { get; set; }
 }

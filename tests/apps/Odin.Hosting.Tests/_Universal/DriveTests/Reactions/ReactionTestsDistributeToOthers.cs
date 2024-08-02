@@ -65,14 +65,20 @@ public class ReactionTestsDistributeToOthers
     {
         yield return new object[]
         {
-            new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React | DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.UseTransitWrite)),
+            new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React | DrivePermission.Write,
+                new TestPermissionKeyList(PermissionKeys.UseTransitWrite)),
             HttpStatusCode.OK
         };
     }
 
     public static IEnumerable GuestMethodNotAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[]
+        {
+            new GuestSpecifyAccessToDrive(TargetDrive.NewTargetDrive(), DrivePermission.React | DrivePermission.Write,
+                new TestPermissionKeyList(PermissionKeys.UseTransitWrite)),
+            HttpStatusCode.MethodNotAllowed
+        };
     }
 
     [Test]
@@ -109,13 +115,7 @@ public class ReactionTestsDistributeToOthers
         // ensure the file is sent and is on the recipient's drive
         //
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-        foreach (var recipient in recipients)
-        {
-            var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
-            await recipientClient.DriveRedux.ProcessInbox(targetDrive, 100);
-            await recipientClient.DriveRedux.WaitForEmptyInbox(targetDrive);
-        }
+        await WaitForEmptyInboxes(recipients, targetDrive);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -142,18 +142,16 @@ public class ReactionTestsDistributeToOthers
             }
 
             await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-
-            // Validate the reaction is there locally
-            var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
-                .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
+            await WaitForEmptyInboxes(recipients, targetDrive);
 
             var globalTransitFileId = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
 
             await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1);
+            await AssertIdentityHasReactionInPreview(localIdentity, globalTransitFileId, reactionContent1);
             foreach (var recipient in recipients)
             {
                 await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
+                await AssertIdentityHasReactionInPreview(recipient, globalTransitFileId, reactionContent1);
             }
         }
 
@@ -169,8 +167,8 @@ public class ReactionTestsDistributeToOthers
         //
         // Setup
         //
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var localIdentity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(localIdentity);
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
@@ -204,12 +202,8 @@ public class ReactionTestsDistributeToOthers
         //
 
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-        foreach (var recipient in recipients)
-        {
-            var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
-            await recipientClient.DriveRedux.ProcessInbox(targetDrive, 100);
-            await recipientClient.DriveRedux.WaitForEmptyInbox(targetDrive);
-        }
+        await WaitForEmptyInboxes(recipients, targetDrive);
+
 
         const string reactionContent1 = ":pie:";
 
@@ -222,15 +216,30 @@ public class ReactionTestsDistributeToOthers
                 Recipients = recipients.ToStringList()
             }
         });
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
+        //
+        // Assert valid setup - local and all recipients have the reactions that need to be deleted below
+        //
         Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
+
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        await WaitForEmptyInboxes(recipients, targetDrive);
+
+        var globalTransitFileId = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
+
+        await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1);
+        await AssertIdentityHasReactionInPreview(localIdentity, globalTransitFileId, reactionContent1);
+        foreach (var recipient in recipients)
+        {
+            await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
+            await AssertIdentityHasReactionInPreview(recipient, globalTransitFileId, reactionContent1);
+        }
 
         //
         // Act
         //
         await callerContext.Initialize(ownerApiClient);
-        var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
+        var callerReactionClient = new UniversalDriveReactionClient(localIdentity.OdinId, callerContext.GetFactory());
         var response = await callerReactionClient.DeleteReaction(new DeleteReactionRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
@@ -252,8 +261,10 @@ public class ReactionTestsDistributeToOthers
             }
 
             await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
-            await AssertIdentityHasReactionInPreview(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-            await AssertIdentityDoesNotHaveReaction(identity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+            await WaitForEmptyInboxes(recipients, targetDrive);
+
+            await AssertIdentityDoesNotHaveReactionInPreview(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+            await AssertIdentityDoesNotHaveReaction(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
 
             foreach (var recipient in recipients)
             {
@@ -377,6 +388,16 @@ public class ReactionTestsDistributeToOthers
         foreach (var recipient in recipients)
         {
             await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.OdinId);
+        }
+    }
+
+    private async Task WaitForEmptyInboxes(List<TestIdentity> recipients, TargetDrive targetDrive)
+    {
+        foreach (var recipient in recipients)
+        {
+            var recipientClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+            await recipientClient.DriveRedux.ProcessInbox(targetDrive, 100);
+            await recipientClient.DriveRedux.WaitForEmptyInbox(targetDrive);
         }
     }
 }

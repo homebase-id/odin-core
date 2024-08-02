@@ -13,7 +13,6 @@ using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 
@@ -148,16 +147,10 @@ public class GroupReactionService(
             return TransferStatus.EnqueuedFailed;
         }
 
-        var r1 = new AddRemoteReactionRequest()
-        {
-            File = file.ToGlobalTransitIdFileIdentifier(),
-            Reaction = reaction
-        };
-
         var request = new RemoteReactionRequestRedux()
         {
             File = file,
-            Payload = CreateSharedSecretEncryptedPayload(clientAuthToken, r1),
+            Payload = CreateSharedSecretEncryptedPayload(clientAuthToken, reaction),
             FileSystemType = fileSystemType
         };
 
@@ -198,17 +191,21 @@ public class GroupReactionService(
             return TransferStatus.EnqueuedFailed;
         }
 
-        var request = new DeleteRemoteReactionOutboxItem()
+        var request = new RemoteReactionRequestRedux()
         {
             File = file,
-            Reaction = reaction,
+            Payload = CreateSharedSecretEncryptedPayload(clientAuthToken, reaction),
             FileSystemType = fileSystemType
         };
 
         var outboxItem = new OutboxFileItem
         {
             Recipient = recipient,
-            File = localFile,
+            File = new InternalDriveFileId()
+            {
+                FileId = Guid.NewGuid(), // random since reactions don't have an id
+                DriveId = localFile.DriveId
+            },
             Priority = 100,
             Type = OutboxItemType.DeleteRemoteReaction,
             DependencyFileId = localFile.FileId,

@@ -9,5 +9,6 @@ public class RemoteReactionRequestRedux
     public FileIdentifier File { get; init; }
 
     public FileSystemType FileSystemType { get; init; }
+    
     public SharedSecretEncryptedTransitPayload Payload { get; init; }
 }
