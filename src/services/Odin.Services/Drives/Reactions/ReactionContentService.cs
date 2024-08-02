@@ -17,21 +17,20 @@ namespace Odin.Services.Drives.Reactions;
 /// </summary>
 public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediator mediator)
 {
-    public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddReaction(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
-        var callerId = odinContext.GetCallerOdinIdOrFail();
 
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.AddReaction(callerId, file.FileId, reactionContent, cn);
+            manager.AddReaction(senderId, file.FileId, reactionContent, cn);
 
             await mediator.Publish(new ReactionContentAddedNotification
             {
                 Reaction = new Reaction()
                 {
-                    OdinId = callerId,
+                    OdinId = senderId,
                     Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
                     ReactionContent = reactionContent,
                     FileId = file
@@ -42,20 +41,20 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
         }
     }
 
-    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
         var manager = await driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.DeleteReaction(odinContext.GetCallerOdinIdOrFail(), file.FileId, reactionContent, cn);
+            manager.DeleteReaction(senderId, file.FileId, reactionContent, cn);
 
             await mediator.Publish(new ReactionDeletedNotification
             {
                 Reaction = new Reaction()
                 {
-                    OdinId = odinContext.GetCallerOdinIdOrFail(),
+                    OdinId = senderId,
                     Created = default,
                     ReactionContent = reactionContent,
                     FileId = file

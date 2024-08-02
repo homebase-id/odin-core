@@ -35,7 +35,6 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-
         await RouteReactionActionToInbox(TransferInstructionType.AddReaction, request, odinContext, cn);
         return PeerResponseCode.AcceptedIntoInbox;
     }

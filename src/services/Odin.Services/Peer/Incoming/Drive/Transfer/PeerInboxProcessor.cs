@@ -251,11 +251,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             switch (inboxItem.InstructionType)
             {
                 case TransferInstructionType.AddReaction:
-                    await reactionContentService.AddReaction(localFile, reaction, odinContext, connection);
+                    await reactionContentService.AddReaction(localFile, reaction, inboxItem.Sender, odinContext, connection);
                     break;
 
                 case TransferInstructionType.DeleteReaction:
-                    await reactionContentService.DeleteReaction(localFile, reaction, odinContext, connection);
+                    await reactionContentService.DeleteReaction(localFile, reaction, inboxItem.Sender, odinContext, connection);
                     break;
             }
         }

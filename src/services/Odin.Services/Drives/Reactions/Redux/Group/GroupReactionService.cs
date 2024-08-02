@@ -41,7 +41,7 @@ public class GroupReactionService(
 
         var result = new AddReactionResult();
 
-        await reactionContentService.AddReaction(localFile, reaction, odinContext, connection);
+        await reactionContentService.AddReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, connection);
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -69,7 +69,7 @@ public class GroupReactionService(
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReaction(localFile, reaction, odinContext, connection);
+        await reactionContentService.DeleteReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, connection);
 
         if (options?.Recipients?.Any() ?? false)
         {

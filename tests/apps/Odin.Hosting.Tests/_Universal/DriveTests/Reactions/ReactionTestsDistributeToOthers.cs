@@ -146,11 +146,11 @@ public class ReactionTestsDistributeToOthers
 
             var globalTransitFileId = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
 
-            await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1);
+            await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1, localIdentity.OdinId);
             await AssertIdentityHasReactionInPreview(localIdentity, globalTransitFileId, reactionContent1);
             foreach (var recipient in recipients)
             {
-                await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
+                await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1, localIdentity.OdinId);
                 await AssertIdentityHasReactionInPreview(recipient, globalTransitFileId, reactionContent1);
             }
         }
@@ -227,11 +227,11 @@ public class ReactionTestsDistributeToOthers
 
         var globalTransitFileId = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier();
 
-        await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1);
+        await AssertIdentityHasReaction(localIdentity, globalTransitFileId, reactionContent1, localIdentity.OdinId);
         await AssertIdentityHasReactionInPreview(localIdentity, globalTransitFileId, reactionContent1);
         foreach (var recipient in recipients)
         {
-            await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1);
+            await AssertIdentityHasReaction(recipient, globalTransitFileId, reactionContent1, localIdentity.OdinId);
             await AssertIdentityHasReactionInPreview(recipient, globalTransitFileId, reactionContent1);
         }
 
@@ -264,12 +264,12 @@ public class ReactionTestsDistributeToOthers
             await WaitForEmptyInboxes(recipients, targetDrive);
 
             await AssertIdentityDoesNotHaveReactionInPreview(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-            await AssertIdentityDoesNotHaveReaction(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+            await AssertIdentityDoesNotHaveReaction(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1, localIdentity.OdinId);
 
             foreach (var recipient in recipients)
             {
                 await AssertIdentityDoesNotHaveReactionInPreview(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-                await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
+                await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1, localIdentity.OdinId);
             }
         }
 
@@ -296,7 +296,7 @@ public class ReactionTestsDistributeToOthers
         Assert.IsTrue(hasReactionInPreview);
     }
 
-    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -305,11 +305,11 @@ public class ReactionTestsDistributeToOthers
                 File = globalTransitFileId,
             },
             fileSystemType);
-        var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.ReactionContent == reactionContent);
+        var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.OdinId == sender && r.ReactionContent == reactionContent);
         Assert.IsTrue(hasReactionInDb);
     }
 
-    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -318,7 +318,7 @@ public class ReactionTestsDistributeToOthers
                 File = globalTransitFileId,
             },
             fileSystemType);
-        var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
+        var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => !(r.OdinId == sender && r.ReactionContent == reactionContent));
         Assert.IsTrue(reactionNotInDb);
     }
 

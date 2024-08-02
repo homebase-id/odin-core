@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
 using Odin.Services.Drives.Reactions;
-using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
