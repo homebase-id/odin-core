@@ -60,7 +60,7 @@ public interface IIdentityRegistrationService
     public Task DeleteOwnDomain(string domain);
     
     //
-    // Helpers
+    // OldHelpers
     //
     Task<bool> CanConnectToHostAndPort(string domain, int port);
     Task<bool> HasValidCertificate(string domain);

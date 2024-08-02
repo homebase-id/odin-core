@@ -27,7 +27,6 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Quartz.Util;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -275,7 +274,7 @@ namespace Odin.Hosting.Authentication.YouAuth
                 clientAccessTokenValue64 = Context.Request.Headers[cookieName];
             }
 
-            if (clientAccessTokenValue64.IsNullOrWhiteSpace())
+            if (string.IsNullOrWhiteSpace(clientAccessTokenValue64))
             {
                 clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
             }

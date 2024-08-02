@@ -61,10 +61,19 @@ public class TenantAdmin : ITenantAdmin
             throw new OdinClientException($"{domain} not found");
         }
 
-        var jobSchedule = new DeleteTenantSchedule(_loggerFactory.CreateLogger<DeleteTenantSchedule>(), domain);
-        var jobKey = await _jobManager.Schedule<DeleteTenantJob>(jobSchedule);
+        var job = _jobManager.NewJob<DeleteTenantJob>();
+        job.Data.Domain = domain;
 
-        return jobKey.ToString();
+        var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            MaxAttempts = 3,
+            RetryDelay = TimeSpan.FromSeconds(5),
+            OnFailureDeleteAfter = TimeSpan.FromDays(2),
+            OnSuccessDeleteAfter = TimeSpan.FromDays(2),
+            Priority = JobSchedule.LowPriority,
+        });
+
+        return jobId.ToString();
     }
 
     //
@@ -75,13 +84,22 @@ public class TenantAdmin : ITenantAdmin
         {
             throw new OdinClientException($"{domain} not found");
         }
+        
+        var job = _jobManager.NewJob<ExportTenantJob>();
+        job.Data.Domain = domain;
 
-        var jobSchedule = new ExportTenantSchedule(_loggerFactory.CreateLogger<ExportTenantSchedule>(), domain);
-        var jobKey = await _jobManager.Schedule<ExportTenantJob>(jobSchedule);
+        var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            MaxAttempts = 3,
+            RetryDelay = TimeSpan.FromSeconds(5),
+            OnFailureDeleteAfter = TimeSpan.FromDays(2),
+            OnSuccessDeleteAfter = TimeSpan.FromDays(2),
+            Priority = JobSchedule.LowPriority,
+        });
 
-        return jobKey.ToString();
+        return jobId.ToString();
     }
-
+    
     //
 
     public async Task<bool> TenantExists(string domain)

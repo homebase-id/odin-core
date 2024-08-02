@@ -16,7 +16,6 @@ COPY src/core/Odin.Core/Odin.Core.csproj                                        
 COPY src/core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj                   src/core/Odin.Core.Cryptography/
 COPY src/core/Odin.Core.Storage/Odin.Core.Storage.csproj                             src/core/Odin.Core.Storage/
 COPY src/services/Odin.Services/Odin.Services.csproj                                 src/services/Odin.Services/
-COPY src/services/Odin.Services.Background/Odin.Services.Background.csproj           src/services/Odin.Services.Background/
 COPY src/apps/Odin.Hosting/Odin.Hosting.csproj                                       src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/Odin.Cli.csproj                                               src/apps/Odin.Cli/
 
@@ -25,7 +24,6 @@ RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core/Odin.Cor
 RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj
 RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core.Storage/Odin.Core.Storage.csproj
 RUN dotnet restore -a $TARGETARCH --disable-parallel src/services/Odin.Services/Odin.Services.csproj
-RUN dotnet restore -a $TARGETARCH --disable-parallel src/services/Odin.Services.Background/Odin.Services.Background.csproj
 RUN dotnet restore -a $TARGETARCH --disable-parallel src/apps/Odin.Hosting/Odin.Hosting.csproj
 RUN dotnet restore -a $TARGETARCH --disable-parallel src/apps/Odin.Cli/Odin.Cli.csproj
 
@@ -34,7 +32,6 @@ COPY src/core/Odin.Core/                         src/core/Odin.Core/
 COPY src/core/Odin.Core.Cryptography/            src/core/Odin.Core.Cryptography/
 COPY src/core/Odin.Core.Storage/                 src/core/Odin.Core.Storage/
 COPY src/services/Odin.Services/                 src/services/Odin.Services/
-COPY src/services/Odin.Services.Background/      src/services/Odin.Services.Background/
 COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
 

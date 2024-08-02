@@ -1,15 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.Background;
 using Odin.Services.Background.Services;
+using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
 namespace Odin.Services.Tests.Background;
 
@@ -20,6 +25,8 @@ public class BackgroundServiceManagerTest
     private readonly Mock<ICorrelationContext> _mockCorrelationContext = new ();
     private readonly Mock<IStickyHostname> _mockStickyHostName = new ();
     private readonly Mock<ILogger<BackgroundServiceManager>> _mockLogger = new ();
+    private LogEventMemoryStore _logEventMemoryStore = null!;
+    private ILogger _logger = null!;
 
     public BackgroundServiceManagerTest()
     {
@@ -27,13 +34,39 @@ public class BackgroundServiceManagerTest
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(IStickyHostname))).Returns(_mockStickyHostName.Object);
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(ILogger<BackgroundServiceManager>))).Returns(_mockLogger.Object);
     }
-    
+
+    [SetUp]
+    public void Setup()
+    {
+        _logEventMemoryStore = new LogEventMemoryStore();
+        _logger = TestLogFactory.CreateConsoleLogger(_logEventMemoryStore);
+    }
+
+    private void AssertLogEvents()
+    {
+        LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
+    }
+
+    [Test]
+    public async Task ItShouldLogUnhandledExceptions()
+    {
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
+        var service = new ThrowingBackgroundService(_logger);
+        await manager.StartAsync("dummy-service", service);
+        await Task.Delay(1);
+
+        var logEvents = _logEventMemoryStore.GetLogEvents();
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1));
+        LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error],
+            "BackgroundService \"ThrowingBackgroundService\" is exiting because of an unhandled exception: \"crash and burn!\"");
+    }
+
     [Test]
     public async Task ItShouldStartAndStopAServiceWithoutLoop()
     {
         var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
 
-        var service = new NoOpBackgroundService();
+        var service = new NoOpBackgroundService(_logger);
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -58,6 +91,8 @@ public class BackgroundServiceManagerTest
         Assert.True(service.DidFinish);
         Assert.True(service.DidShutdown);
         Assert.True(service.DidDispose);
+
+        AssertLogEvents();
     }
 
     [Test]
@@ -65,7 +100,7 @@ public class BackgroundServiceManagerTest
     {
         var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
         
-        var service = new LoopingBackgroundService();
+        var service = new LoopingBackgroundService(_logger);
         Assert.False(service.DidInitialize);
         Assert.False(service.DidFinish);
         Assert.False(service.DidShutdown);
@@ -94,6 +129,8 @@ public class BackgroundServiceManagerTest
         Assert.True(service.DidFinish);
         Assert.True(service.DidShutdown);
         Assert.True(service.DidDispose);
+
+        AssertLogEvents();
     }
 
     [Test]
@@ -105,7 +142,7 @@ public class BackgroundServiceManagerTest
         var services = new List<LoopingBackgroundService>();
         for (var i = 0; i < serviceCount; i++)
         {
-            var service = new LoopingBackgroundService();
+            var service = new LoopingBackgroundService(_logger);
             services.Add(service);
             Assert.False(service.DidInitialize);
             Assert.False(service.DidFinish);
@@ -152,6 +189,8 @@ public class BackgroundServiceManagerTest
             Assert.True(service.DidShutdown);
             Assert.True(service.DidDispose);
         }
+
+        AssertLogEvents();
     }
 
 #if !NOISY_NEIGHBOUR
@@ -166,7 +205,7 @@ public class BackgroundServiceManagerTest
             var services = new List<LoopingBackgroundServiceWithSleepAndWakeUp>();
             for (var i = 0; i < serviceCount; i++)
             {
-                var service = new LoopingBackgroundServiceWithSleepAndWakeUp();
+                var service = new LoopingBackgroundServiceWithSleepAndWakeUp(_logger);
                 services.Add(service);
                 Assert.False(service.DidInitialize);
                 Assert.False(service.DidFinish);
@@ -186,12 +225,12 @@ public class BackgroundServiceManagerTest
             await Task.WhenAll(tasks);
             tasks.Clear();
 
-            // WakeUp 3 times
+            // PulseBackgroundProcessor 3 times
             for (var idx = 0; idx < 3; idx++)
             {
                 foreach (var service in services)
                 {
-                    service.WakeUp();
+                    service.PulseBackgroundProcessor();
                 }
                 await Task.Delay(200);
             }
@@ -232,10 +271,12 @@ public class BackgroundServiceManagerTest
 
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            var service = new LoopingBackgroundServiceWithSleepAndWakeUp();
+            var service = new LoopingBackgroundServiceWithSleepAndWakeUp(_logger);
             await manager.StartAsync(Guid.NewGuid().ToString(), service);
         });
         Assert.AreEqual("The background service is stopping.", exception?.Message);
+
+        AssertLogEvents();
     }
 #endif
 
@@ -245,7 +286,7 @@ public class BackgroundServiceManagerTest
     {
         var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
         
-        var service = new ResetEventDemo();
+        var service = new ResetEventDemo(_logger);
         var sw = Stopwatch.StartNew();
        
         await manager.StartAsync("foo", service);
@@ -254,16 +295,23 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         Assert.AreEqual(1, service.Counter);
         
-        service.WakeUp();
+        service.PulseBackgroundProcessor();
         await Task.Delay(200);
         
         Assert.AreEqual(2, service.Counter);
+
+        AssertLogEvents();
     }
 #endif    
-    
+
+
+
 }
 
-public abstract class BaseBackgroundService : AbstractBackgroundService, IDisposable
+
+
+public abstract class BaseBackgroundService(ILogger logger)
+    : AbstractBackgroundService(logger), IDisposable
 {
     public volatile bool DidInitialize;
     public volatile bool DidFinish;
@@ -289,7 +337,15 @@ public abstract class BaseBackgroundService : AbstractBackgroundService, IDispos
     }
 }
 
-public class NoOpBackgroundService : BaseBackgroundService
+public class ThrowingBackgroundService(ILogger logger) : BaseBackgroundService(logger)
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        throw new Exception("crash and burn!");
+    }
+}
+
+public class NoOpBackgroundService(ILogger logger) : BaseBackgroundService(logger)
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -298,7 +354,7 @@ public class NoOpBackgroundService : BaseBackgroundService
     }
 }
 
-public class LoopingBackgroundService : BaseBackgroundService
+public class LoopingBackgroundService(ILogger logger) : BaseBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -316,7 +372,8 @@ public class LoopingBackgroundService : BaseBackgroundService
     }
 }
 
-public class LoopingBackgroundServiceWithSleepAndWakeUp : BaseBackgroundService
+public class LoopingBackgroundServiceWithSleepAndWakeUp(ILogger logger)
+    : BaseBackgroundService(logger)
 {
     public int Counter  { get; private set; }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -340,7 +397,7 @@ public class LoopingBackgroundServiceWithSleepAndWakeUp : BaseBackgroundService
     }
 }
 
-public class ResetEventDemo : BaseBackgroundService
+public class ResetEventDemo(ILogger logger) : BaseBackgroundService(logger)
 {
     private int _counter;
     public int Counter

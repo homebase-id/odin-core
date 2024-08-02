@@ -17,7 +17,7 @@ public class InboxOutboxReconciliationBackgroundService(
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
     PeerOutboxProcessorBackgroundService outboxProcessor)
-    : AbstractBackgroundService
+    : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,7 +39,7 @@ public class InboxOutboxReconciliationBackgroundService(
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                outboxProcessor.WakeUp(); // signal outbox processor to get to work                
+                outboxProcessor.PulseBackgroundProcessor(); // signal outbox processor to get to work                
             }
 
             if (recoveredInboxItems > 0)
@@ -47,7 +47,7 @@ public class InboxOutboxReconciliationBackgroundService(
                 logger.LogInformation("Recovered {count} inbox items", recoveredOutboxItems);
             }
             
-            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationDelaySeconds), stoppingToken);
+            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds), stoppingToken);
         }
     }
 }
