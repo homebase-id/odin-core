@@ -50,7 +50,7 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
         {
             manager.DeleteReaction(senderId, file.FileId, reactionContent, cn);
 
-            await mediator.Publish(new ReactionDeletedNotification
+            await mediator.Publish(new ReactionContentDeletedNotification
             {
                 Reaction = new Reaction()
                 {

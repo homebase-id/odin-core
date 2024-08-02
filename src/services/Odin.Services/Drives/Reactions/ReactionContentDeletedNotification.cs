@@ -8,7 +8,7 @@ using Odin.Services.Mediator;
 
 namespace Odin.Services.Drives.Reactions;
 
-public class ReactionDeletedNotification : MediatorNotificationBase, IClientNotification
+public class ReactionContentDeletedNotification : MediatorNotificationBase, IClientNotification
 {
     public Reaction Reaction { get; set; }
 

@@ -90,6 +90,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<InboxItemReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionContentDeletedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .As<INotificationHandler<AppNotificationAddedNotification>>()
                 .AsSelf()
@@ -159,7 +160,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<ReactionDeletedNotification>>()
+                .As<INotificationHandler<ReactionContentDeletedNotification>>()
                 .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
