@@ -135,7 +135,10 @@ namespace Odin.Services.Configuration
             public string PowerDnsApiKey { get; init; }
 
             public string ProvisioningDomain { get; init; }
-            public List<RegistrySection.ManagedDomainApex> ManagedDomainApexes { get; init; }
+            public string ProvisioningEmailLogoImage { get; init; }
+            public string ProvisioningEmailLogoHref { get; init; }
+            
+            public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
 
             public DnsConfigurationSet DnsConfigurationSet { get; init; }
             public List<string> DnsResolvers { get; init; }
@@ -151,6 +154,8 @@ namespace Odin.Services.Configuration
                 PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
                 PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
+                ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
+                ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
