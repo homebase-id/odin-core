@@ -22,7 +22,7 @@ public class UpdateCertificatesBackgroundService(
         
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("Checking certificates");
+            logger.LogDebug("{service} is running", GetType().Name);
             
             var tasks = new List<Task>();
             var identities = await registry.GetList();
@@ -37,6 +37,7 @@ public class UpdateCertificatesBackgroundService(
             await Task.WhenAll(tasks);
             tasks.Clear();
 
+            logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
             await SleepAsync(interval, stoppingToken);
         }
     }

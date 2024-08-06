@@ -52,9 +52,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     continue;
                 }
                 
-                logger.LogDebug("Processing outbox");
+                logger.LogDebug("{service} is running", GetType().Name);
 
-                TimeSpan? nextRun;
+                TimeSpan nextRun;
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {
                     while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
@@ -63,11 +63,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         tasks.Add(task);
                     }
 
-                    nextRun = await peerOutbox.NextRun(cn);
+                    nextRun = await peerOutbox.NextRun(cn) ?? MaxSleepDuration;
                 }
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
+                logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, nextRun);
                 await SleepAsync(nextRun, stoppingToken);
             }
 

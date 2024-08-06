@@ -15,12 +15,15 @@ public class JobCleanUpBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = config.Job.JobCleanUpIntervalSeconds;
+        var interval = TimeSpan.FromSeconds(config.Job.JobCleanUpIntervalSeconds);
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("JobCleanUpBackgroundService is running");
+            logger.LogDebug("{service} is running", GetType().Name);
+            
             await jobManager.DeleteExpiredJobsAsync();
-            await SleepAsync(TimeSpan.FromSeconds(interval), stoppingToken);
+            
+            logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
+            await SleepAsync(interval, stoppingToken);
         }
     }
 }

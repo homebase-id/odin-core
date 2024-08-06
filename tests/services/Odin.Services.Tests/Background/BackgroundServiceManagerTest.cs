@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Logging.CorrelationId;
@@ -274,7 +272,7 @@ public class BackgroundServiceManagerTest
             var service = new LoopingBackgroundServiceWithSleepAndWakeUp(_logger);
             await manager.StartAsync(Guid.NewGuid().ToString(), service);
         });
-        Assert.AreEqual("The background service is stopping.", exception?.Message);
+        Assert.AreEqual("The background service manager is stopping.", exception?.Message);
 
         AssertLogEvents();
     }
@@ -302,9 +300,81 @@ public class BackgroundServiceManagerTest
 
         AssertLogEvents();
     }
-#endif    
+#endif
 
+    [Test]
+    public async Task ItShouldResetDurationOnBadSleepDuration()
+    {
+        var manager = new BackgroundServiceManager(_mockServiceProvider.Object, _tenant.Name);
 
+        // Good sleep
+        {
+            var sleep = TimeSpan.Zero;
+            var service = new BackgroundServiceWithBadSleep(_logger, sleep, sleep);
+            var sw = Stopwatch.StartNew();
+        
+            await manager.StartAsync(Guid.NewGuid().ToString(), service);
+            Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+            
+            AssertLogEvents();
+        }
+        
+        // Good sleep
+        {
+            var sleep = TimeSpan.FromMilliseconds(1);
+            var service = new BackgroundServiceWithBadSleep(_logger, sleep, sleep);
+            var sw = Stopwatch.StartNew();
+        
+            await manager.StartAsync(Guid.NewGuid().ToString(), service);
+            Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+            
+            AssertLogEvents();
+        }
+        
+        // Bad sleep
+        {
+            _logEventMemoryStore.Clear();
+            
+            var sleep = TimeSpan.FromMilliseconds(-1); // -1 means "infinite" when calling Task.Delay
+            var service = new BackgroundServiceWithBadSleep(_logger, sleep, sleep);
+            await manager.StartAsync(Guid.NewGuid().ToString(), service);
+            
+            var logEvents = _logEventMemoryStore.GetLogEvents();
+            LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
+        
+            AssertLogEvents();
+        }
+        
+        // Bad sleep
+        {
+            _logEventMemoryStore.Clear();
+            
+            var sleep = AbstractBackgroundService.MaxSleepDuration.Add(TimeSpan.FromMilliseconds(1));
+            var service = new BackgroundServiceWithBadSleep(_logger, sleep, sleep);
+        
+            await manager.StartAsync(Guid.NewGuid().ToString(), service);
+
+            var logEvents = _logEventMemoryStore.GetLogEvents();
+            LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
+            
+            AssertLogEvents();
+        }
+        
+        // Bad sleep
+        {
+            var sleep1 = TimeSpan.FromMilliseconds(2);
+            var sleep2 = TimeSpan.FromMilliseconds(1);
+            var service = new BackgroundServiceWithBadSleep(_logger, sleep1, sleep2);
+        
+            await manager.StartAsync(Guid.NewGuid().ToString(), service);
+            var logEvents = _logEventMemoryStore.GetLogEvents();
+            Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1));
+        
+            var error = logEvents[LogEventLevel.Error][0].RenderMessage();
+            Assert.That(error, Is.EqualTo($"BackgroundService \"BackgroundServiceWithBadSleep\" is exiting because of an unhandled exception: \"duration1 must be less than or equal to duration2\""));
+        }
+        
+    }
 
 }
 
@@ -421,3 +491,12 @@ public class ResetEventDemo(ILogger logger) : BaseBackgroundService(logger)
         }
     }
 }
+
+public class BackgroundServiceWithBadSleep(ILogger logger, TimeSpan duration1, TimeSpan duration2) : BaseBackgroundService(logger)
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await SleepAsync(duration1, duration2, stoppingToken);
+    }
+}
+
