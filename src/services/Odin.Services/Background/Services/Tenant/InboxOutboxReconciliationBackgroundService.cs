@@ -23,7 +23,7 @@ public class InboxOutboxReconciliationBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("Reconciling inbox and outbox");
+            logger.LogDebug("{service} is running", GetType().Name);
             
             var ageSeconds = config.Host.InboxOutboxRecoveryAgeSeconds;
             var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(ageSeconds)));
@@ -46,8 +46,10 @@ public class InboxOutboxReconciliationBackgroundService(
             {
                 logger.LogInformation("Recovered {count} inbox items", recoveredOutboxItems);
             }
-            
-            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds), stoppingToken);
+
+            var interval = TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds);
+            logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
+            await SleepAsync(interval, stoppingToken);
         }
     }
 }

@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     continue;
                 }
                 
-                logger.LogDebug("Processing outbox");
+                logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
                 using (var cn = tenantSystemStorage.CreateConnection())
@@ -68,6 +68,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
+                logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, nextRun);
                 await SleepAsync(nextRun, stoppingToken);
             }
 

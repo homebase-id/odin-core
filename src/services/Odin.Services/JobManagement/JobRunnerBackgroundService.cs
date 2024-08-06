@@ -25,9 +25,9 @@ public class JobRunnerBackgroundService(
         var tasks = new List<Task>();
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("JobRunnerBackgroundService is running");
-
-            TimeSpan nextRun;
+            logger.LogDebug("{service} is running", GetType().Name);
+        
+            TimeSpan sleepDuration;
             using (var cn = serverSystemStorage.CreateConnection())
             {
                 while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJob(cn) is { } job)
@@ -36,13 +36,36 @@ public class JobRunnerBackgroundService(
                     tasks.Add(task);
                 }
             
-                nextRun = await jobs.GetNextRunTime(cn) ?? MaxSleepDuration;
+                sleepDuration = CalculateSleepDuration(await jobs.GetNextRunTime(cn));
             }
         
             tasks.RemoveAll(t => t.IsCompleted);
             
-            await SleepAsync(nextRun, stoppingToken);
+            logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, sleepDuration);
+            await SleepAsync(sleepDuration, stoppingToken);
         }
         await Task.WhenAll(tasks);
     }
+    
+    //
+    
+    private static TimeSpan CalculateSleepDuration(long? nextRun)
+    {
+        if (nextRun == null)
+        {
+            return MaxSleepDuration;
+        }
+        
+        var now = DateTimeOffset.Now;
+        var nextRunTime = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value);
+        
+        if (nextRunTime < now)
+        {
+            return TimeSpan.Zero;
+        }
+        
+        return nextRunTime - now;
+    }
+    
+    //
 }
