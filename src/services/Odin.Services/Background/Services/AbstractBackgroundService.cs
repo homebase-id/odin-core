@@ -21,6 +21,9 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
+    
+    // Maximum sleep duration. Sleeping too long makes Delay behave unpredictably, so cap it to some reasonable number.
+    public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromHours(12);
 
     // Override initialization logic here. BackgroundServiceManager will wait for this to complete before starting the service.
     public virtual Task StartingAsync(CancellationToken stoppingToken)
@@ -43,10 +46,9 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
 
     // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely.
     // Call PulseBackgroundProcessor() to wake up.
-    protected Task SleepAsync(TimeSpan? duration, CancellationToken stoppingToken)
+    protected Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
     {
-        var ts = duration ?? TimeSpan.FromMilliseconds(-1);
-        return SleepAsync(ts, ts, stoppingToken);
+        return SleepAsync(duration, duration, stoppingToken);
     }
     
     //
@@ -55,20 +57,31 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     // Call PulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
+        if (duration1 < TimeSpan.Zero) 
+        {
+            logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to min.", duration1.TotalMilliseconds);
+            duration1 = TimeSpan.Zero;
+        }
+        if (duration1 > MaxSleepDuration) 
+        {
+            logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to max.", duration1.TotalMilliseconds);
+            duration1 = MaxSleepDuration;
+        }
+        if (duration2 < TimeSpan.Zero) 
+        {
+            logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to min.", duration2.TotalMilliseconds);
+            duration2 = TimeSpan.Zero;
+        }
+        if (duration2 > MaxSleepDuration) 
+        {
+            logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to max.", duration2.TotalMilliseconds);
+            duration2 = MaxSleepDuration;
+        }
+        
         if (duration1 > duration2)
         {
             throw new ArgumentException("duration1 must be less than or equal to duration2");
-        }
-        
-        // Don't sleep for more than 48 hours. Something goes bunkers if it becomes too long a nap.
-        if (duration1 > TimeSpan.FromHours(48)) 
-        {
-            duration1 = TimeSpan.FromHours(48);
-        }
-        if (duration2 > TimeSpan.FromHours(48)) 
-        {
-            duration2 = TimeSpan.FromHours(48);
-        }
+        }        
         
         var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);
         try

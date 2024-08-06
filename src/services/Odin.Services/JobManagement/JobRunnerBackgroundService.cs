@@ -27,7 +27,7 @@ public class JobRunnerBackgroundService(
         {
             logger.LogDebug("JobRunnerBackgroundService is running");
 
-            TimeSpan? nextRun;
+            TimeSpan nextRun;
             using (var cn = serverSystemStorage.CreateConnection())
             {
                 while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJob(cn) is { } job)
@@ -36,8 +36,7 @@ public class JobRunnerBackgroundService(
                     tasks.Add(task);
                 }
             
-                var ts = await jobs.GetNextRunTime(cn);
-                nextRun = ts.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(ts.Value) - DateTimeOffset.Now : null;
+                nextRun = await jobs.GetNextRunTime(cn) ?? MaxSleepDuration;
             }
         
             tasks.RemoveAll(t => t.IsCompleted);

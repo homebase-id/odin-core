@@ -53,7 +53,7 @@ public class TableJobs : TableJobsCRUD
     
     //
 
-    public Task<long?> GetNextRunTime(DatabaseConnection cn)
+    public Task<TimeSpan?> GetNextRunTime(DatabaseConnection cn)
     {
         using var cmd = _db.CreateCommand();
         cmd.CommandText =
@@ -70,10 +70,21 @@ public class TableJobs : TableJobsCRUD
         scheduled.Value = (int)JobState.Scheduled;
         cmd.Parameters.Add(scheduled);
 
-        var nextRun = cn.ExecuteScalar(cmd);
-        var result = (long?)nextRun;
+        var nextRun = (long?)cn.ExecuteScalar(cmd);
+        if (nextRun == null)
+        {
+            return Task.FromResult<TimeSpan?>(null);
+        }
+        
+        var dt = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value);
+        var now = DateTimeOffset.Now;
 
-        return Task.FromResult(result);
+        if (dt < now)
+        {
+            return Task.FromResult<TimeSpan?>(TimeSpan.Zero);
+        }
+
+        return Task.FromResult<TimeSpan?>(dt - now);
     }
     
     //
