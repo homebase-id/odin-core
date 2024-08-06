@@ -22,8 +22,8 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
     
-    // Maximum sleep duration. Sleeping too long makes Delay behave unpredictably, so cap it to some reasonable number.
-    public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromHours(12);
+    // Maximum sleep duration. Sleeping too long makes Delay behave unpredictably, so cap it at some reasonable number.
+    public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromDays(30);
 
     // Override initialization logic here. BackgroundServiceManager will wait for this to complete before starting the service.
     public virtual Task StartingAsync(CancellationToken stoppingToken)
