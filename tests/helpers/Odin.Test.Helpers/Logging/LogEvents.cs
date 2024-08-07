@@ -13,8 +13,6 @@ public static class LogEvents
 
     public static void AssertLogMessageExists(IEnumerable<LogEvent> logEvents, string message)
     {
-        var xx = logEvents.Select(e => e.RenderMessage());
-
         var found = logEvents.Any(e => e.RenderMessage() == message);
         Assert.That(found, Is.True, $"Expected log message not found: '{message}'");
     }
