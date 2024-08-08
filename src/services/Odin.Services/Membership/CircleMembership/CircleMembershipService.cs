@@ -286,11 +286,11 @@ public class CircleMembershipService(
     /// Creates the system circle
     /// </summary>
     /// <returns></returns>
-    public async Task CreateSystemCircle(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task CreateSystemCircles(IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.CreateSystemCircle(cn);
+        await circleDefinitionService.CreateSystemCircles(cn);
     }
 
     private bool CircleIsEnabled(GuidId circleId, out bool exists, DatabaseConnection cn)

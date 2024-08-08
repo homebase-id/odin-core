@@ -156,15 +156,15 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return true;
         }
 
-        [HttpPost("introductions/send-introduction-request")]
-        public async Task<IActionResult> SendIntroductionRequest([FromBody] IntroductionRequest request)
+        [HttpPost("introductions/send-introductions")]
+        public async Task<IActionResult> SendIntroductions([FromBody] IntroductionGroup group)
         {
-            OdinValidationUtils.AssertNotNull(request, nameof(request));
-            OdinValidationUtils.AssertValidRecipientList(request.Recipients);
+            OdinValidationUtils.AssertNotNull(group, nameof(group));
+            OdinValidationUtils.AssertValidRecipientList(group.Recipients);
 
             using var cn = tenantSystemStorage.CreateConnection();
-            await introductionService.SendIntroductionRequest(request, WebOdinContext, cn);
-            return Ok();
+            var result = await introductionService.SendIntroductions(group, WebOdinContext, cn);
+            return new JsonResult(result);
         }
 
         [HttpGet("introductions/received")]

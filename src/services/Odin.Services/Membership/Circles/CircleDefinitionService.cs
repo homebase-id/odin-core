@@ -17,7 +17,6 @@ namespace Odin.Services.Membership.Circles
 {
     public class CircleDefinitionService
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DriveManager _driveManager;
 
         private readonly byte[] _circleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
@@ -25,7 +24,6 @@ namespace Odin.Services.Membership.Circles
 
         public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
-            _tenantSystemStorage = tenantSystemStorage;
             _driveManager = driveManager;
             const string circleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
             _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
@@ -36,7 +34,7 @@ namespace Odin.Services.Membership.Circles
             return await this.CreateCircleInternal(request, cn);
         }
 
-        public async Task CreateSystemCircle(DatabaseConnection cn)
+        public async Task CreateSystemCircles(DatabaseConnection cn)
         {
             if (null == this.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, cn))
             {
@@ -46,6 +44,37 @@ namespace Odin.Services.Membership.Circles
                     Name = "All Connected Identities",
                     Description = "All Connected Identities",
                     DriveGrants = SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives,
+                    Permissions = new PermissionSet()
+                    {
+                        Keys = new List<int>()
+                    }
+                }, cn, skipValidation: true);
+            }
+
+            if (null == this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, cn))
+            {
+                await this.CreateCircleInternal(new CreateCircleRequest()
+                {
+                    Id = SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
+                    Name = "Confirmed Identities",
+                    Description =
+                        "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection",
+                    DriveGrants = SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives,
+                    Permissions = new PermissionSet()
+                    {
+                        Keys = new List<int>()
+                    }
+                }, cn, skipValidation: true);
+            }
+
+            if (null == this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, cn))
+            {
+                await this.CreateCircleInternal(new CreateCircleRequest()
+                {
+                    Id = SystemCircleConstants.AutoConnectionsCircleId.Value,
+                    Name = "Auto-connected Identities",
+                    Description = "Contains all identities which were automatically connected (due to an introduction from another-connected identity)",
+                    DriveGrants = SystemCircleConstants.AutoConnectionsSystemCircleInitialDrives,
                     Permissions = new PermissionSet()
                     {
                         Keys = new List<int>()
@@ -92,7 +121,14 @@ namespace Odin.Services.Membership.Circles
             var circles = _circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType);
             if (!includeSystemCircle)
             {
-                return Task.FromResult(circles.Where(c => c.Id != SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value));
+                Guid[] excludes =
+                [
+                    SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value,
+                    SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
+                    SystemCircleConstants.AutoConnectionsCircleId.Value
+                ];
+
+                return Task.FromResult(circles.ExceptBy(excludes, cd=>cd.Id));
             }
 
             return Task.FromResult(circles);

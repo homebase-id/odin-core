@@ -146,8 +146,6 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             odinContext.AssertCanManageConnections();
 
-            header.ContactData?.Validate();
-
             if (header.Recipient == odinContext.Caller.OdinId)
             {
                 throw new OdinClientException(
@@ -185,6 +183,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 ContactData = header.ContactData,
                 Recipient = header.Recipient,
                 Message = header.Message,
+                IntroducerOdinId = header.IntroducerOdinId,
                 ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
                 TempRawKey = tempRawKey.GetKey(),
                 TempEncryptedIcrKey = default,
@@ -406,7 +405,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeletePendingRequest(senderOdinId, odinContext, cn);
             await this.DeleteSentRequest(senderOdinId, odinContext, cn);
-            
+
             try
             {
                 _logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
@@ -460,12 +459,12 @@ namespace Odin.Services.Membership.Connections.Requests
             try
             {
                 var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
-                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext, 
-                    feedDriveId.GetValueOrDefault(), 
+                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
+                    feedDriveId.GetValueOrDefault(),
                     tempKey,
                     originalRequest.TempEncryptedFeedDriveStorageKey,
                     originalRequest.TempEncryptedIcrKey);
-                
+
                 _logger.LogDebug("EstablishConnection - Running SynchronizeChannelFiles");
                 await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn, sharedSecret);
             }
@@ -549,6 +548,23 @@ namespace Odin.Services.Membership.Connections.Requests
             var combined = ByteArrayUtil.Combine(sender.ToHashId().ToByteArray(), _pendingRequestsDataType);
             var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
             return new Guid(bytes);
+        }
+
+        public async Task<bool> HasPendingOrSentRequest(OdinId identity, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var hasPendingRequest = await GetPendingRequest(identity, odinContext, cn);
+            if (null != hasPendingRequest)
+            {
+                return true;
+            }
+
+            var hasSentRequest = await GetSentRequest(identity, odinContext, cn);
+            if (null != hasSentRequest)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

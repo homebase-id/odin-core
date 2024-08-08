@@ -160,7 +160,7 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCircle(odinContext, cn);
+        await _circleMembershipService.CreateSystemCircles(odinContext, cn);
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext, cn);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext, cn);
@@ -365,7 +365,9 @@ public class TenantConfigService
             Name = "Homebase - Chat",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConnectedIdentitiesSystemCircleId,
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -434,7 +436,9 @@ public class TenantConfigService
             Name = "Homebase - Mail",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConnectedIdentitiesSystemCircleId,
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {

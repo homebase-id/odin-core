@@ -22,7 +22,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController(
         CircleNetworkRequestService circleNetworkRequestService,
-        CircleNetworkIntroductionService introductionService,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("connect")]

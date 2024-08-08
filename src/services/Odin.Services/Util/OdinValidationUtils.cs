@@ -8,6 +8,24 @@ using Odin.Services.Drives;
 
 namespace Odin.Services.Util;
 
+public static class OdinExtensions
+{
+    public static List<OdinId> ToOdinIdList(this List<string> items)
+    {
+        return items.Select(r => (OdinId)r).ToList();
+    }
+
+    public static List<OdinId> Without(this List<OdinId> list, OdinId identity)
+    {
+        return list.Where(r => r != identity).ToList();
+    }
+
+    public static List<string> ToDomainNames(this List<OdinId> items)
+    {
+        return items.Select(r => r.DomainName).ToList();
+    }
+}
+
 public static class OdinValidationUtils
 {
     const string ValidFilenamePattern = @"^[a-zA-Z0-9](?:[a-zA-Z0-9 ._-]*[a-zA-Z0-9])?\.[a-zA-Z0-9_-]+$";

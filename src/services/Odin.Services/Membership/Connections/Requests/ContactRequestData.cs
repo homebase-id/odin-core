@@ -18,8 +18,4 @@ public class ContactRequestData
     /// </summary>
     public Guid ImageId { get; set; }
 
-    public void Validate()
-    {
-        OdinValidationUtils.AssertNotNullOrEmpty(Name, nameof(Name));
-    }
 }

@@ -18,13 +18,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         CircleNetworkIntroductionService introductionService,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
-        [HttpPost("request-introductions")]
-        public async Task<IActionResult> ReceiveIntroductionRequest([FromBody] SharedSecretEncryptedPayload payload)
-        {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await introductionService.ReceiveIntroductionRequest(payload, WebOdinContext, cn);
-            return Ok();
-        }
 
         [HttpPost("make-introduction")]
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)

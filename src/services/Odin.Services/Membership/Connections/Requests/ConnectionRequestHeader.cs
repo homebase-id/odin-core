@@ -42,5 +42,10 @@ namespace Odin.Services.Membership.Connections.Requests
         /// The circles to be granted to the recipient
         /// </summary>
         public List<GuidId> CircleIds { get; set; }
+
+        /// <summary>
+        /// The identity who introduced the recipient to the sender
+        /// </summary>
+        public OdinId? IntroducerOdinId { get; init; }
     }
 }

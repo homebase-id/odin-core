@@ -122,10 +122,15 @@ namespace Odin.Services.Base
 
         public void AssertHasAtLeastOnePermission(params int[] permissionKeys)
         {
-            if (!permissionKeys.Any(HasPermission))
+            if (!HasAtLeastOnePermission(permissionKeys))
             {
                 throw new OdinSecurityException("Does not have permission");
             }
+        }
+
+        public bool HasAtLeastOnePermission(params int[] permissionKeys)
+        {
+            return permissionKeys.Any(HasPermission);
         }
 
         public void AssertHasPermission(int permissionKey)

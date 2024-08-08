@@ -44,7 +44,6 @@ namespace Odin.Services.Membership.Connections.Requests
             OdinValidationUtils.AssertNotNull(Recipient, nameof(Recipient));
             OdinValidationUtils.AssertNotEmptyGuid(Id, nameof(Id));
             OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
-            ContactData.Validate();
         }
     }
 }
