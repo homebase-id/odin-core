@@ -173,6 +173,7 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
+            cb.RegisterType<CircleNetworkIntroductionService>().AsSelf().SingleInstance();
 
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
