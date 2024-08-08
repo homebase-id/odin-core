@@ -19,13 +19,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.ReactionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerPerimeterReactionContentController(PeerReactionService reactionService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public class PeerPerimeterReactionContentController(PeerIncomingReactionService incomingReactionService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent(SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await reactionService.AddReaction(payload, WebOdinContext, cn);
+            await incomingReactionService.AddReaction(payload, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -33,14 +33,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<GetReactionsPerimeterResponse> GetAllReactions(SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return await reactionService.GetReactions(payload, WebOdinContext, cn);
+            return await incomingReactionService.GetReactions(payload, WebOdinContext, cn);
         }
 
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await reactionService.DeleteReaction(payload, WebOdinContext, cn);
+            await incomingReactionService.DeleteReaction(payload, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await reactionService.DeleteAllReactions(payload, WebOdinContext, cn);
+            await incomingReactionService.DeleteAllReactions(payload, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -56,14 +56,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return await reactionService.GetReactionCountsByFile(payload, WebOdinContext, cn);
+            return await incomingReactionService.GetReactionCountsByFile(payload, WebOdinContext, cn);
         }
 
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            return await reactionService.GetReactionsByIdentityAndFile(payload, WebOdinContext, cn);
+            return await incomingReactionService.GetReactionsByIdentityAndFile(payload, WebOdinContext, cn);
         }
     }
 }

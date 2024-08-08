@@ -11,7 +11,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
-using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -43,15 +42,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
-            OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
-            OdinValidationUtils.AssertValidRecipientList(options.Recipients);
+            OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
 
             var sfo = new FileTransferOptions()
             {
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType
             };
-            
+
             var priority = options.Priority switch
             {
                 OutboxPriority.High => 1000,
@@ -115,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
         }
-        
+
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
             FileSystemType fileSystemType)
@@ -154,7 +152,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         // 
-        
+
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
             IOdinContext odinContext,
             DatabaseConnection cn,
@@ -238,7 +236,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 Status = SendReadReceiptResultStatus.Enqueued
             };
         }
-        
+
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,

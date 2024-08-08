@@ -20,6 +20,8 @@ public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, Lis
 
     public TargetDrive TargetDrive { get; } = default;
 
+    public DrivePermission DrivePermission => throw new NotImplementedException();
+
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var domain = new AsciiDomainName(odinId);

@@ -14,7 +14,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Reactions;
 /// <summary>
 /// Handles incoming reactions and queries from followers
 /// </summary>
-public class PeerReactionService(
+public class PeerIncomingReactionService(
     ReactionContentService reactionContentService,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
@@ -24,33 +24,34 @@ public class PeerReactionService(
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, DatabaseConnection cn)
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, odinContext);
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        await reactionContentService.AddReaction(fileId.Value, request.Reaction, odinContext, cn);
+        await reactionContentService.AddReaction(fileId.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, cn);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, DatabaseConnection cn)
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        await reactionContentService.DeleteReaction(fileId.Value, request.Reaction, odinContext, cn);
+        await reactionContentService.DeleteReaction(fileId.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, cn);
     }
 
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -63,7 +64,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -76,7 +77,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -89,7 +90,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File,odinContext, cn);
+        var fileId = await ResolveInternalFile(request.File, odinContext, cn);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");

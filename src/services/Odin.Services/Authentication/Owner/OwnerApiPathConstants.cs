@@ -18,6 +18,8 @@
 
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
 
+        public const string DriveGroupReactionsV1 = DriveV1 + "/files/group/reactions";
+        
         public const string DriveManagementV1 = DriveV1 + "/mgmt";
 
         public const string DriveQueryV1 = DriveV1 + "/query";
