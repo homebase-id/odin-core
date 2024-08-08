@@ -34,10 +34,8 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly ILogger<CircleNetworkIntroductionService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
 
-
         private readonly ThreeKeyValueStorage _receivedIntroductionValueStorage;
         private readonly ThreeKeyValueStorage _sentIntroductionValueStorage;
-
 
         public CircleNetworkIntroductionService(
             OdinConfiguration odinConfiguration,
@@ -83,8 +81,8 @@ namespace Odin.Services.Membership.Connections.Requests
                     {
                         var json = OdinSystemSerializer.Serialize(request);
                         var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(requesterOdinId);
-
+                        var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(requesterOdinId,
+                            clientAuthToken.ToAuthenticationToken());
                         response = await client.DeliverIntroductionRequest(encryptedPayload);
 
                         if (!response.IsSuccessStatusCode)
@@ -131,7 +129,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
                 var introduction = new Introduction
                 {
-                    Identity = request.Requester,
+                    Identity = odinContext.Caller.OdinId,
                     Timestamp = UnixTimeUtc.Now()
                 };
 
@@ -151,8 +149,9 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
+                var newOdinContext = OdinContextUpgrades.UpgradeToUseTransit(odinContext);
                 //TODO: Move all of this to the outbox
-                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+                var clientAuthToken = await ResolveClientAccessToken(recipient, newOdinContext, cn, false);
 
                 ApiResponse<HttpContent> response;
                 await TryRetry.WithDelayAsync(
@@ -163,7 +162,8 @@ namespace Odin.Services.Membership.Connections.Requests
                     {
                         var json = OdinSystemSerializer.Serialize(request);
                         var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient);
+                        var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
+                            clientAuthToken.ToAuthenticationToken());
 
                         response = await client.MakeIntroduction(encryptedPayload);
 
@@ -184,6 +184,8 @@ namespace Odin.Services.Membership.Connections.Requests
         public async Task ReceiveIntroduction(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
+
+            //TODO validate you're not already connected to request.Identity 
 
             var payloadBytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
             Introduction introduction = OdinSystemSerializer.Deserialize<Introduction>(payloadBytes.ToStringFromUtf8Bytes());
