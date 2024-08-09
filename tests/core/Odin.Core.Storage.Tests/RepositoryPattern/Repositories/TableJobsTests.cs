@@ -91,6 +91,26 @@ public class TableJobsTests
         await tableJobs.DeleteExpiredJobsUsingDapper();
         count = await tableJobs.GetCountAsync();
         Assert.AreEqual(0, count);
+
+        await tableJobs.InsertMany([
+                NewJobsRecord(),
+                NewJobsRecord(),
+                NewJobsRecord()
+            ],
+            true);
+
+        count = await tableJobs.GetCountAsync();
+        Assert.AreEqual(3, count);
+
+        await tableJobs.InsertMany([
+                NewJobsRecord(),
+                NewJobsRecord(),
+                NewJobsRecord()
+            ],
+            false);
+
+        count = await tableJobs.GetCountAsync();
+        Assert.AreEqual(3, count);
     }
 
     private JobsRecord NewJobsRecord()

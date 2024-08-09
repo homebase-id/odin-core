@@ -212,5 +212,27 @@ public class TableJobs(ISystemDbConnectionFactory connectionFactory) : TableJobs
         }
     }
 
+    //
+
+    public async Task<int> InsertMany(JobsRecord[] jobs, bool commit)
+    {
+        var result = 0;
+
+        await using var cn = await ConnectionFactory.CreateAsync();
+        await using var trx = await cn.BeginTransactionAsync();
+
+        foreach (var job in jobs)
+        {
+            result += await Insert(job, trx);
+        }
+
+        if (commit)
+        {
+            await trx.CommitAsync();
+        }
+
+        return result;
+    }
+
 
 }
