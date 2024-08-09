@@ -183,6 +183,12 @@ public class CircleNetworkStorage
             data.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
         }
 
+        ConnectionRequestOrigin connectionOrigin = string.IsNullOrEmpty(data.ConnectionOrigin)
+            ? ConnectionRequestOrigin.IdentityOwner
+            : Enum.Parse<ConnectionRequestOrigin>(data.ConnectionOrigin);
+
+        OdinId? introducerOdinId = string.IsNullOrEmpty(data.IntroducerOdinId?.Trim()) ? null : (OdinId)data.IntroducerOdinId;
+
         // data.AccessGrant.AppGrants
         return new IdentityConnectionRegistration()
         {
@@ -195,7 +201,9 @@ public class CircleNetworkStorage
             EncryptedClientAccessToken = new EncryptedClientAccessToken()
             {
                 EncryptedData = data.EncryptedClientAccessToken
-            }
+            },
+            ConnectionRequestOrigin = connectionOrigin,
+            IntroducerOdinId = introducerOdinId
         };
     }
 }
@@ -216,4 +224,6 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
+    public string IntroducerOdinId { get; init; }
+    public string ConnectionOrigin { get; init; }
 }

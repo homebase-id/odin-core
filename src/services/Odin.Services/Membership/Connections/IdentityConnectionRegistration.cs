@@ -61,6 +61,16 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public ContactRequestData OriginalContactData { get; set; }
 
+        /// <summary>
+        /// How this connection was made
+        /// </summary>
+        public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; }
+
+        /// <summary>
+        /// Nullable, the identity that introduce you to this <see cref="OdinId"/>
+        /// </summary>
+        public OdinId? IntroducerOdinId { get; init; }
+
         public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {
             return this.CreateClientAccessToken(icrDecryptionKey).ToAuthenticationToken();

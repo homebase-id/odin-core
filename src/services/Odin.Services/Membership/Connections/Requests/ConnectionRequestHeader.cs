@@ -18,12 +18,12 @@ namespace Odin.Services.Membership.Connections.Requests
                 //no-op as the Id is based on the odinId of the recipient.  this is wierd
             }
         }
-        
+
         /// <summary>
         /// Initial data sent with a connection request
         /// </summary>
         public ContactRequestData ContactData { get; set; }
-        
+
         /// <summary>
         /// Individual receiving the invite
         /// </summary>
@@ -37,7 +37,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>
         public string Message { get; set; }
-        
+
         /// <summary>
         /// The circles to be granted to the recipient
         /// </summary>
@@ -47,5 +47,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// The identity who introduced the recipient to the sender
         /// </summary>
         public OdinId? IntroducerOdinId { get; init; }
+
+        public ConnectionRequestOrigin RequestOrigin { get; init; } = ConnectionRequestOrigin.IdentityOwner;
     }
 }

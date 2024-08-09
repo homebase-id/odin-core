@@ -1,4 +1,3 @@
-using System;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Core.Time;
 
@@ -23,6 +22,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
             Message = arg.Message,
             IntroducerOdinId = arg.IntroducerOdinId,
             ReceivedTimestampMilliseconds = arg.ReceivedTimestampMilliseconds,
+            RequestOrigin = arg.RequestOrigin,
             Recipient = arg.Recipient,
             Direction = direction
         };

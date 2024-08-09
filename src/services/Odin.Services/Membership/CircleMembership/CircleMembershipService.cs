@@ -15,6 +15,8 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Util;
 
 namespace Odin.Services.Membership.CircleMembership;
 
@@ -123,16 +125,16 @@ public class CircleMembershipService(
         };
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, ConnectionRequestOrigin origin,
+        SensitiveByteArray keyStoreKey,
         IOdinContext odinContext, DatabaseConnection cn)
     {
-        // Always put identities in the system circle
-        var list = circleIds ?? new List<GuidId>();
-        list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+        var list = CircleNetworkUtils.AddSystemCircles(circleIds, origin);
         return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, cn);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -299,4 +301,5 @@ public class CircleMembershipService(
         exists = circle != null;
         return !circle?.Disabled ?? false;
     }
+    
 }

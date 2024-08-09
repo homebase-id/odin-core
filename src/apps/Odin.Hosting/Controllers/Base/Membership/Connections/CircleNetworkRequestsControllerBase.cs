@@ -174,13 +174,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             var list = await introductionService.GetReceivedIntroductions(WebOdinContext, cn);
             return new JsonResult(list);
         }
-
-        [HttpGet("introductions/sent")]
-        public async Task<IActionResult> GetSentIntroductions()
-        {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var list = await introductionService.GetSentIntroductions(WebOdinContext, cn);
-            return new JsonResult(list);
-        }
+        
     }
 }

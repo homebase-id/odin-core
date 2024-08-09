@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Drives;
@@ -23,6 +24,16 @@ public static class OdinExtensions
     public static List<string> ToDomainNames(this List<OdinId> items)
     {
         return items.Select(r => r.DomainName).ToList();
+    }
+
+    public static List<GuidId> EnsureItem(this List<GuidId> list, GuidId item)
+    {
+        if (!list.Contains(item))
+        {
+            list.Add(item);
+        }
+
+        return list;
     }
 }
 

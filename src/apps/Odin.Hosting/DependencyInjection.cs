@@ -124,6 +124,8 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
+            cb.RegisterType<MasterKeyContextAccessor>().AsSelf().SingleInstance();
+            
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 

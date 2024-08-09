@@ -34,6 +34,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// A temporary encryption key used during the connection process
         /// </summary>
         public byte[] TempRawKey { get; set; }
+        
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.
@@ -43,7 +44,6 @@ namespace Odin.Services.Membership.Connections.Requests
             OdinValidationUtils.AssertNotNullOrEmpty(SenderOdinId, nameof(SenderOdinId));
             OdinValidationUtils.AssertNotNull(Recipient, nameof(Recipient));
             OdinValidationUtils.AssertNotEmptyGuid(Id, nameof(Id));
-            OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
         }
     }
 }

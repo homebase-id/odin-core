@@ -47,6 +47,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly OwnerSecretService _secretService;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinConfiguration _configuration;
+        private readonly MasterKeyContextAccessor _masterKeyContextAccessor;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -66,7 +67,8 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinConfiguration configuration)
+            OdinConfiguration configuration,
+            MasterKeyContextAccessor masterKeyContextAccessor)
         {
             _logger = logger;
             _secretService = secretService;
@@ -79,6 +81,7 @@ namespace Odin.Services.Authentication.Owner
             _identityRegistry = identityRegistry;
 
             _configuration = configuration;
+            _masterKeyContextAccessor = masterKeyContextAccessor;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -358,6 +361,8 @@ namespace Odin.Services.Authentication.Owner
             {
                 return false;
             }
+            
+            _masterKeyContextAccessor.SetContext(ctx);
 
             //🐈⏰
             var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);

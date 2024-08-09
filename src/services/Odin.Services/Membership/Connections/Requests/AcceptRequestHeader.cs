@@ -19,6 +19,5 @@ public class AcceptRequestHeader
     public void Validate()
     {
         OdinValidationUtils.AssertNotNullOrEmpty(Sender, nameof(Sender));
-        OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
     }
 }

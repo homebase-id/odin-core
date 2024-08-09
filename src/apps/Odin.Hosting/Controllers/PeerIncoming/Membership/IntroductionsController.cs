@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await introductionService.ReceiveIntroduction(payload, WebOdinContext, cn);
+            await introductionService.ReceiveIntroductions(payload, WebOdinContext, cn);
             return Ok();
         }
     }

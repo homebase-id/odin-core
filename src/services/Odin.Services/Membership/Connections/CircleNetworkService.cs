@@ -44,7 +44,7 @@ namespace Odin.Services.Membership.Connections
             INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
-        
+
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
@@ -318,9 +318,13 @@ namespace Odin.Services.Membership.Connections
         /// <param name="accessGrant">The access to be given to this connection</param>
         /// <param name="encryptedCat">The keys used when accessing the remote identity</param>
         /// <param name="contactData"></param>
+        /// <param name="introducerOdinId"></param>
         /// <param name="odinContext"></param>
+        /// <param name="connectionRequestOrigin"></param>
         /// <returns></returns>
         public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData,
+            ConnectionRequestOrigin connectionRequestOrigin,
+            OdinId? introducerOdinId,
             IOdinContext odinContext, DatabaseConnection cn)
         {
             //TODO: need to add security that this method can be called
@@ -352,7 +356,9 @@ namespace Odin.Services.Membership.Connections
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-                EncryptedClientAccessToken = encryptedCat
+                EncryptedClientAccessToken = encryptedCat,
+                ConnectionRequestOrigin = connectionRequestOrigin,
+                IntroducerOdinId = introducerOdinId
             };
 
             this.SaveIcr(newConnection, odinContext, cn);
@@ -432,18 +438,19 @@ namespace Odin.Services.Membership.Connections
 
             this.SaveIcr(icr, odinContext, cn);
         }
-        
-        public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(List<GuidId> circleIds,
+
+        public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(
+            List<GuidId> circleIds,
+            ConnectionRequestOrigin origin,
             SensitiveByteArray keyStoreKey,
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            // Always put identities in the system circle
-            var list = circleIds ?? new List<GuidId>();
-            list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+
+            var list = CircleNetworkUtils.AddSystemCircles(circleIds, origin);
             return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, cn);
         }
-        
+
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             List<GuidId> circleIds,
@@ -900,7 +907,8 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration, IOdinContext odinContext,
+        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
+            IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
