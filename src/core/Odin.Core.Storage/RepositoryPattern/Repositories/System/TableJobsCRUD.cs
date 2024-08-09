@@ -261,6 +261,12 @@ namespace Odin.Core.Storage.RepositoryPattern.Repositories.System
             await cn.ExecuteAsync(sql);
         }
 
+        public virtual async Task<int> Insert(JobsRecord item)
+        {
+            await using var cn = await ConnectionFactory.CreateAsync();
+            return await Insert(item, cn);
+        }
+
         public virtual async Task<int> Insert(JobsRecord item, DbConnection cn)
         {
             await using var cmd = cn.CreateCommand();
@@ -363,13 +369,6 @@ namespace Odin.Core.Storage.RepositoryPattern.Repositories.System
                 item.created = now;
             }
             return count;
-        }
-
-
-        public virtual async Task<int> Insert(JobsRecord item)
-        {
-            await using var cn = await ConnectionFactory.CreateAsync();
-            return await Insert(item, cn);
         }
 
         public virtual async Task<bool> TryInsert(JobsRecord item)
