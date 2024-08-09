@@ -51,11 +51,13 @@ public class CircleNetworkStorage
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
     public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var icrAccessRecord = new IcrAccessRecord()
+        var icrAccessRecord = new IcrAccessRecord
         {
             AccessGrant = icr.AccessGrant,
             OriginalContactData = icr.OriginalContactData,
-            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData
+            IntroducerOdinId = icr.IntroducerOdinId,
+            ConnectionOrigin = Enum.GetName(icr.ConnectionRequestOrigin),
+            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData,
         };
 
         cn.CreateCommitUnitOfWork(() =>

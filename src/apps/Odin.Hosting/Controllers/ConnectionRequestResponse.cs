@@ -22,7 +22,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
             Message = arg.Message,
             IntroducerOdinId = arg.IntroducerOdinId,
             ReceivedTimestampMilliseconds = arg.ReceivedTimestampMilliseconds,
-            RequestOrigin = arg.RequestOrigin,
+            ConnectionRequestOrigin = arg.ConnectionRequestOrigin,
             Recipient = arg.Recipient,
             Direction = direction
         };

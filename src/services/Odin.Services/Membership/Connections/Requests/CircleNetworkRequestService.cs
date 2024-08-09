@@ -155,7 +155,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
-            if (header.RequestOrigin == ConnectionRequestOrigin.Introduction)
+            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
                 OdinValidationUtils.AssertNotNullOrEmpty(header.IntroducerOdinId, nameof(header.IntroducerOdinId));
             }
@@ -192,7 +192,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 Message = header.Message,
                 ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
                 TempRawKey = tempRawKey.GetKey(),
-                RequestOrigin = header.RequestOrigin,
+                ConnectionRequestOrigin = header.ConnectionRequestOrigin,
                 IntroducerOdinId = header.IntroducerOdinId,
                 TempEncryptedIcrKey = default,
                 TempEncryptedFeedDriveStorageKey = default
@@ -235,7 +235,7 @@ namespace Odin.Services.Membership.Connections.Requests
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
 
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-            if (header.RequestOrigin == ConnectionRequestOrigin.Introduction)
+            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
                 circles.Add(SystemCircleConstants.AutoConnectionsCircleId);
             }
@@ -247,9 +247,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
                     circles,
-                    header.RequestOrigin,
+                    header.ConnectionRequestOrigin,
                     keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, header.RequestOrigin, keyStoreKey, odinContext, cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, header.ConnectionRequestOrigin, keyStoreKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
 
@@ -374,9 +374,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(circles, pendingRequest.RequestOrigin,
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(circles, pendingRequest.ConnectionRequestOrigin,
                     keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, pendingRequest.RequestOrigin, keyStoreKey, odinContext, cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, pendingRequest.ConnectionRequestOrigin, keyStoreKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
@@ -384,7 +384,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, cn);
             await _cns.Connect(senderOdinId, accessGrant, encryptedCat,
                 pendingRequest.ContactData,
-                pendingRequest.RequestOrigin,
+                pendingRequest.ConnectionRequestOrigin,
                 pendingRequest.IntroducerOdinId, odinContext, cn);
 
             // Now tell the remote to establish the connection
@@ -474,7 +474,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat,
                 reply.ContactData,
-                originalRequest.RequestOrigin,
+                originalRequest.ConnectionRequestOrigin,
                 originalRequest.IntroducerOdinId,
                 odinContext,
                 cn);

@@ -10,17 +10,17 @@ public class MasterKeyContextAccessor
     private readonly TimeSpan _holdTime = TimeSpan.FromSeconds(100);
     private readonly GenericMemoryCache _cache = new("mk-context");
 
-    public void SetContext(IOdinContext context)
+    public void SetContext(OdinContext context)
     {
-        if (!_cache.TryGet(CacheKey, out _))
+        if (!_cache.TryGet<OdinContext>(CacheKey, out _))
         {
-            _cache.Set(CacheKey, context.Clone(), _holdTime);
+            _cache.Set(CacheKey, (OdinContext)context.Clone(), _holdTime);
         }
     }
 
-    public IOdinContext GetContext()
+    public OdinContext GetContext()
     {
-        if (_cache.TryGet(CacheKey, out IOdinContext ctx))
+        if (_cache.TryGet(CacheKey, out OdinContext ctx))
         {
             return ctx;
         }

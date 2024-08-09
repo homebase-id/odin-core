@@ -185,7 +185,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             IntroducerOdinId = sender,
             ContactData = new ContactRequestData(),
             CircleIds = [SystemCircleConstants.AutoConnectionsCircleId],
-            RequestOrigin = ConnectionRequestOrigin.Introduction
+            ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
         };
 
         await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);

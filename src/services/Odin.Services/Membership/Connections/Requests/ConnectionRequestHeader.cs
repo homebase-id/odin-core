@@ -48,6 +48,6 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public OdinId? IntroducerOdinId { get; init; }
 
-        public ConnectionRequestOrigin RequestOrigin { get; init; } = ConnectionRequestOrigin.IdentityOwner;
+        public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; } = ConnectionRequestOrigin.IdentityOwner;
     }
 }

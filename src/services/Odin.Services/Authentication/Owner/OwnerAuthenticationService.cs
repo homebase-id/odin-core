@@ -362,7 +362,7 @@ namespace Odin.Services.Authentication.Owner
                 return false;
             }
             
-            _masterKeyContextAccessor.SetContext(ctx);
+            _masterKeyContextAccessor.SetContext((OdinContext)ctx);
 
             //🐈⏰
             var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);

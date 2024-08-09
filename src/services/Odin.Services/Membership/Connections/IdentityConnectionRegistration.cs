@@ -95,6 +95,8 @@ namespace Odin.Services.Membership.Connections
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
                 OriginalContactData = omitContactData ? null : this.OriginalContactData,
+                IntroducerOdinId = this.IntroducerOdinId,
+                ConnectionRequestOrigin = this.ConnectionRequestOrigin,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }
@@ -114,6 +116,7 @@ namespace Odin.Services.Membership.Connections
         public long Created { get; set; }
         public long LastUpdated { get; set; }
         public ContactRequestData OriginalContactData { get; set; }
-        
+        public OdinId? IntroducerOdinId { get; init; }
+        public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; }
     }
 }

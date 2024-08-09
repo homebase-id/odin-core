@@ -27,7 +27,7 @@ public sealed class MasterKeyAvailableBackgroundService(
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         while (!stoppingToken.IsCancellationRequested)
         {
-            var mkContext = accessor.GetContext();
+            var mkContext = (IOdinContext)accessor.GetContext();
             if (mkContext != null)
             {
                 using var cn = tenantSystemStorage.CreateConnection();
