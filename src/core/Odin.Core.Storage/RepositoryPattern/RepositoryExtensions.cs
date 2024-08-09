@@ -27,12 +27,12 @@ public static class RepositoryExtensions
         //
         if (databaseType == DatabaseType.Sqlite)
         {
-            services.AddScoped<ISystemDbConnection>(_ => new SqliteSystemDbConnection(connectionString));
+            services.AddScoped<ISystemDbConnectionFactory>(_ => new SqliteSystemDbConnectionFactory(connectionString));
             services.AddScoped<IJobRepositoryStrategy, SqliteJobRepositoryStrategy>();
         }
         else if (databaseType == DatabaseType.PostgreSql)
         {
-            services.AddScoped<ISystemDbConnection>(_ => new NpgsqlSystemDbConnection(connectionString));
+            services.AddScoped<ISystemDbConnectionFactory>(_ => new NpgsqlSystemDbConnectionFactory(connectionString));
             services.AddScoped<IJobRepositoryStrategy, PostgreSqlJobRepositoryStrategy>();
         }
         else

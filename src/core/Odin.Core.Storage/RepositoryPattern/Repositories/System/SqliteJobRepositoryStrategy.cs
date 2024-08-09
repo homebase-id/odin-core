@@ -3,10 +3,12 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.RepositoryPattern.Repositories.System;
 
-public class SqliteJobRepositoryStrategy(Connection.System.ISystemDbConnection connection) : IJobRepositoryStrategy
+public class SqliteJobRepositoryStrategy(Connection.System.ISystemDbConnectionFactory connectionFactory) : IJobRepositoryStrategy
 {
-    public Task<int> SpecializedQueryThatUsesNonPortableSql()
+    public async Task<int> SpecializedQueryThatUsesNonPortableSql()
     {
+        await using var cn = await connectionFactory.CreateAsync();
+
         throw new NotImplementedException();
     }
 }

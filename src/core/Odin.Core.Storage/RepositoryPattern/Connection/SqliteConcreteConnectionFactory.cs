@@ -1,17 +1,18 @@
-using System.Data;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Nito.AsyncEx;
 
 namespace Odin.Core.Storage.RepositoryPattern.Connection;
 
-public static class SqliteConnectionFactory
+public static class SqliteConcreteConnectionFactory
 {
     private static readonly AsyncLock Mutex = new ();
     private static bool _initialized;
 
-    public static async Task<IDbConnection> Create(string connectionString)
+    public static async Task<DbConnection> Create(string connectionString)
     {
+        // SEB:TODO do we need explicit retry logic here?
         var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         if (!_initialized)

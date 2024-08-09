@@ -8,19 +8,19 @@ using Odin.Core.Storage.RepositoryPattern.Entities;
 namespace Odin.Core.Storage.RepositoryPattern.Repositories.System;
 
 public class JobRepository(
-    ISystemDbConnection connection,
+    ISystemDbConnectionFactory connectionFactory,
     IJobRepositoryStrategy jobRepositoryStrategy) : IJobRepository
 {
     public async Task<IEnumerable<Job>> GetAllAsync()
     {
-        var cn = await connection.Get();
+        var cn = await connectionFactory.CreateAsync();
         const string sql = "SELECT * FROM Jobs";
         return await cn.QueryAsync<Job>(sql);
     }
 
     public async Task<Job> GetByIdAsync(Guid id)
     {
-        var cn = await connection.Get();
+        var cn = await connectionFactory.CreateAsync();
         const string sql = "SELECT * FROM Jobs WHERE Id = @Id";
         return await cn.QuerySingleOrDefaultAsync<Job>(sql, new { Id = id });
     }
