@@ -261,11 +261,21 @@ namespace Odin.Core.Storage.RepositoryPattern.Repositories.System
             await cn.ExecuteAsync(sql);
         }
 
-        public virtual async Task<int> Insert(JobsRecord item)
+        public virtual async Task<int> Insert(JobsRecord item, DbConnection cn)
         {
-            await using var cn = await ConnectionFactory.CreateAsync();
             await using var cmd = cn.CreateCommand();
+            return await Insert(item, cmd);
+        }
 
+        public virtual async Task<int> Insert(JobsRecord item, DbTransaction trx)
+        {
+            await using var cmd = trx.Connection?.CreateCommand() ?? throw new Exception("Transaction has no connection");
+            cmd.Transaction = trx;
+            return await Insert(item, cmd);
+        }
+
+        public virtual async Task<int> Insert(JobsRecord item, DbCommand cmd)
+        {
             cmd.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                          "VALUES ($id,$name,$state,$priority,$nextRun,$lastRun,$runCount,$maxAttempts,$retryDelay,$onSuccessDeleteAfter,$onFailureDeleteAfter,$expiresAt,$correlationId,$jobType,$jobData,$jobHash,$lastError,$created,$modified)";
             var cmd1 = cmd.CreateParameter();
@@ -353,6 +363,13 @@ namespace Odin.Core.Storage.RepositoryPattern.Repositories.System
                 item.created = now;
             }
             return count;
+        }
+
+
+        public virtual async Task<int> Insert(JobsRecord item)
+        {
+            await using var cn = await ConnectionFactory.CreateAsync();
+            return await Insert(item, cn);
         }
 
         public virtual async Task<bool> TryInsert(JobsRecord item)
