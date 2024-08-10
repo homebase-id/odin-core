@@ -61,7 +61,6 @@ public static class BackgroundServiceExtensions
             .SingleInstance();
 
         cb.RegisterType<DummyTenantBackgroundService>()
-            .WithParameter(new TypedParameter(typeof(Tenant.Tenant), tenant))
             .AsSelf()
             .SingleInstance();
         
