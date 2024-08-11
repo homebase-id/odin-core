@@ -5,6 +5,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Time;
+using Org.BouncyCastle.Security;
 using System;
 
 [TestFixture]
@@ -17,22 +18,28 @@ public class SignatureDataTest
     /// (you should still validate it), when it was signed. 
     /// Then it calls "verify" with the exact same JSON string, and if it is the same string, the it passes.
     /// 
-    /// What you should be careful of, is making sure that you don't leave room in your code for someone 
-    /// signing anything other than an introduction. if that might happen then you should pre-pend your string
-    /// with a constant string to ensure that your function cannot sign "other" documents. For example if you 
-    /// pre-pend "introduction_signature:" to the string, then only that particular string will validate.
-    /// 
     /// You would of course need to use Frodo's ECC-384 signature key (the one that requires he is online is the safest)
     /// rather than the key I generated below.
+    /// 
+    /// What you should be careful of, is making sure that you don't leave room in your code for someone 
+    /// signing anything other than an introduction. That's why I made the helper function below. It ensures
+    /// that you can't end up signing a random document.
     /// 
     /// As part of transmitting the introduction request you would need to send the exact JSON string as well
     /// as the signature to both parties.
     /// </summary>
+    ///        
+    private byte[] ToddsHelper(string partyA, string partyB)
+    {
+        return System.Text.Encoding.UTF8.GetBytes($"introducing: {{ partyA : {partyA}, partyB: {partyB}}}");
+    }
+
+
     [Test]
     public void Example_Introduction_Signature()
     {
         // Arrange
-        byte[] testData = System.Text.Encoding.UTF8.GetBytes("introducing: { partyA : \"sam.gamgee.me\", partyB: \"pippin.me\" }");
+        byte[] testData = ToddsHelper("sam.gamgee.me", "merry.something.me");
         OdinId testIdentity = new OdinId("frodo.baggins.me");
         SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, EccKeySize.P384, 1);
