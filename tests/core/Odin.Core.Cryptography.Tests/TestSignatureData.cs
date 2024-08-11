@@ -22,6 +22,9 @@ public class SignatureDataTest
     /// with a constant string to ensure that your function cannot sign "other" documents. For example if you 
     /// pre-pend "introduction_signature:" to the string, then only that particular string will validate.
     /// 
+    /// You would of course need to use Frodo's ECC-384 signature key (the one that requires he is online is the safest)
+    /// rather than the key I generated below.
+    /// 
     /// As part of transmitting the introduction request you would need to send the exact JSON string as well
     /// as the signature to both parties.
     /// </summary>
