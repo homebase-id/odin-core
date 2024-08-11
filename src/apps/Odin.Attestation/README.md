@@ -1,3 +1,7 @@
+# ATTESTATION
+
+This is an example of a service that can attest for example your real name, country, etc.
+
 # TODO ATTESTATION
 
 It would be really cool to create an identity, e.g. "attest.odin.earth"
