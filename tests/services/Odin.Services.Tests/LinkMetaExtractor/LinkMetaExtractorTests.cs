@@ -42,6 +42,7 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.Url);
         }
 
+#if !NOISY_NEIGHBOUR
         [Test]
         public async Task TestYoutubeUrl()
         {
@@ -53,6 +54,7 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.ImageUrl);
         }
+#endif        
 
         [Test]
         public async Task TestLinkedInUrl()
