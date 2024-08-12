@@ -167,6 +167,54 @@ public class GenericMemoryCacheTest
     //
 
     [Test]
+    public void ItShouldLookupConcreteClassBasedOnInterface()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        var key = RandomNumberGenerator.GetBytes(16);
+        cache.Set(key, new SomeConcreteClass(), TimeSpan.FromMilliseconds(100));
+
+        {
+            var hit = cache.TryGet<ISomeInterface>(key, out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("Hello", value!.Value);
+        }
+        // below is exactly the same as above
+        {
+            var hit = cache.TryGet(key, out ISomeInterface? value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("Hello", value!.Value);
+        }
+    }
+
+    //
+
+    [Test]
+    public void ItShouldLookupConcreteClassBasedOnParentType()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        var key = RandomNumberGenerator.GetBytes(16);
+        cache.Set(key, new SomeConcreteClass(), TimeSpan.FromMilliseconds(100));
+
+        {
+            var hit = cache.TryGet<SomeAbstractClass>(key, out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("Hello", value!.Value);
+        }
+        // below is exactly the same as above
+        {
+            var hit = cache.TryGet(key, out SomeAbstractClass? value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("Hello", value!.Value);
+        }
+    }
+
+    //
+
+    [Test]
     public void ItShouldRemoveAKey()
     {
         // Arrange
@@ -226,4 +274,20 @@ public class GenericMemoryCacheTest
     {
         public string Name { get; set; } = "bar";
     }
+
+    private interface ISomeInterface
+    {
+        public string Value { get; }
+    }
+
+    private abstract class SomeAbstractClass : ISomeInterface
+    {
+        public abstract string Value { get; }
+    }
+
+    private class SomeConcreteClass : SomeAbstractClass
+    {
+        public override string Value { get; } = "Hello";
+    }
+
 }
