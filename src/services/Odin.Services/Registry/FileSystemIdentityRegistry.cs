@@ -141,8 +141,16 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
-        var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured,
+        
+        var tc = TenantContext.Create(
+            idReg.Id, 
+            (OdinId)idReg.PrimaryDomainName, 
+            sslRoot, 
+            storageConfig, 
+            idReg.FirstRunToken, 
+            isPreconfigured,
             idReg.MarkedForDeletionDate);
+
         return tc;
     }
 

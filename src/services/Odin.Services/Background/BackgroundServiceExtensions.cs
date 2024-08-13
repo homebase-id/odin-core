@@ -61,15 +61,12 @@ public static class BackgroundServiceExtensions
             .SingleInstance();
 
         cb.RegisterType<DummyTenantBackgroundService>()
-            .AsSelf()
             .SingleInstance();
         
         cb.RegisterType<InboxOutboxReconciliationBackgroundService>()
-            .AsSelf()
             .SingleInstance();
         
         cb.RegisterType<PeerOutboxProcessorBackgroundService>()
-            .AsSelf()
             .SingleInstance();
        
         // Add more tenant services here

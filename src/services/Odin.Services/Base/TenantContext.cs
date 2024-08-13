@@ -8,21 +8,26 @@ namespace Odin.Services.Base
     public class TenantContext
     {
         private TenantSettings _tenantSettings;
-
-        public TenantContext()
+       
+        public static TenantContext Create(
+            Guid dotYouRegistryId, 
+            OdinId hostOdinId, 
+            string sslRoot, 
+            TenantStorageConfig storageConfig, 
+            Guid? firstRunToken,
+            bool isPreconfigured, 
+            UnixTimeUtc? markedForDeletionDate)
         {
-        }
-
-        public TenantContext(Guid dotYouRegistryId, OdinId hostOdinId, string sslRoot, TenantStorageConfig storageConfig, Guid? firstRunToken,
-            bool isPreconfigured, UnixTimeUtc? markedForDeletionDate)
-        {
-            this.DotYouRegistryId = dotYouRegistryId;
-            this.HostOdinId = hostOdinId;
-            this.SslRoot = sslRoot;
-            this.StorageConfig = storageConfig;
-            this.FirstRunToken = firstRunToken;
-            this.IsPreconfigured = isPreconfigured;
-            this.MarkedForDeletionDate = markedForDeletionDate;
+            return new TenantContext
+            {
+                DotYouRegistryId = dotYouRegistryId,
+                HostOdinId = hostOdinId,
+                SslRoot = sslRoot,
+                StorageConfig = storageConfig,
+                FirstRunToken = firstRunToken,
+                IsPreconfigured = isPreconfigured,
+                MarkedForDeletionDate = markedForDeletionDate,
+            };
         }
 
         public Guid DotYouRegistryId { get; private set; }

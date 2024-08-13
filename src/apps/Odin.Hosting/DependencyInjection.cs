@@ -56,30 +56,40 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
+            // SEB:TODO lifetime
+            cb.RegisterType<TenantSystemStorage>()
+                .SingleInstance();
 
-            cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<NotificationListService>()
+                .InstancePerDependency();
 
+            // SEB:IOC-OK
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerDependency();
             
-            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
+            // SEB:TODO why is this registered per-tenant?
+            cb.RegisterType<LinkMetaExtractor>()
+                .As<ILinkMetaExtractor>()
+                .InstancePerDependency();
 
+            // SEB:IOC-OK
             cb.RegisterType<PushNotificationOutboxAdapter>()
                 .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
-                .AsSelf().SingleInstance();
+                .InstancePerDependency();
 
+            // SEB:IOC-OK
             cb.RegisterType<FeedNotificationMapper>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<NewFeedItemReceived>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
-                .AsSelf()
-                .SingleInstance();
+                .InstancePerDependency();
 
+            // SEB:TODO must inject DeviceSocketCollection to become transient 
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
@@ -96,12 +106,28 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
-            cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+            // SEB:TODO this should be transient, but runs code in ctor that touches database
+            cb.RegisterType<TenantConfigService>()
+                .SingleInstance();
+            
+            // SEB:TODO needs more investigation
+            // (was: this should possibly be per-scope, because it has properties that are updated in individual requests
+            // most importantly during authentication. But it lives in a number of singleton services, so we need to
+            // be careful here.)
+            cb.RegisterType<TenantContext>()
+                .SingleInstance();
 
-            cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<OdinContext>()
+                .As<IOdinContext>()
+                .InstancePerLifetimeScope();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<OdinHttpClientFactory>()
+                .As<IOdinHttpClientFactory>()
+                .InstancePerDependency();
 
+            // SEB:TODO this should probably be transient and have the IAppCache injected into it
             cb.RegisterType<HomeCachingService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
@@ -110,116 +136,237 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
+            // SEB:TODO needs more investigation because of OdinContextCache
             cb.RegisterType<HomeAuthenticatorService>()
                 .AsSelf()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
-            cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<HomeRegistrationStorage>()
+                .InstancePerDependency();
 
-            cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
-            cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
+            // SEB:TODO needs more investigation
+            cb.RegisterType<YouAuthUnifiedService>()
+                .As<IYouAuthUnifiedService>()
+                .SingleInstance();
+           
+            // SEB:TODO needs more investigation because of OdinContextCache 
+            cb.RegisterType<YouAuthDomainRegistrationService>()
+                .SingleInstance();
 
-            cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
-            cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<RecoveryService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<OwnerSecretService>()
+                .InstancePerDependency();
+            
+            // SEB:TODO needs more investigation because of OdinContextCache
             cb.RegisterType<OwnerAuthenticationService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
-            cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
-            cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
+            // SEB:TODO this should be transient, but runs code in ctor that touches database
+            cb.RegisterType<DriveManager>()
+                .SingleInstance();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<DriveAclAuthorizationService>()
+                .As<IDriveAclAuthorizationService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
-            cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
+            // SEB:IOC-OK
+            cb.RegisterType<FileSystemResolver>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<FileSystemHttpRequestResolver>()
+                .InstancePerDependency();
 
-            cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
+            // SEB:IOC-OK
+            cb.RegisterType<StandardFileStreamWriter>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<StandardFilePayloadStreamWriter>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<StandardFileDriveStorageService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<StandardFileDriveQueryService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
+            // SEB:IOC-OK
+            cb.RegisterType<StandardFileSystem>()
+                .InstancePerDependency();
 
-            cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
+            // SEB:IOC-OK
+            cb.RegisterType<CommentStreamWriter>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<CommentPayloadStreamWriter>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<CommentFileStorageService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<CommentFileQueryService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<CommentFileSystem>()
+                .InstancePerDependency();
 
+            // SEB:IOC-OK
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerDependency();
 
-            cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
-            cb.RegisterType<GroupReactionService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<ReactionContentService>()
+                .InstancePerDependency();
             
+            // SEB:IOC-OK
+            cb.RegisterType<GroupReactionService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionContentDeletedNotification>>()
-                .As<INotificationHandler<AllReactionsByFileDeleted>>();
+                .As<INotificationHandler<AllReactionsByFileDeleted>>()
+                .InstancePerDependency();
 
-            cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
+            // SEB:TODO needs more investigation because of OdinContextCache
+            cb.RegisterType<AppRegistrationService>()
+                .As<IAppRegistrationService>()
+                .SingleInstance();
 
-            cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
-            cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
-            cb.RegisterType<CircleDefinitionService>().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<CircleMembershipService>()
+                .InstancePerDependency();
+
+            // SEB:IOC-OK
+            cb.RegisterType<IcrKeyService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<CircleDefinitionService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
             cb.RegisterType<CircleNetworkService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .As<INotificationHandler<AppRegistrationChangedNotification>>()
-                .SingleInstance();
+                .InstancePerDependency();
 
-            cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<CircleNetworkRequestService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<FollowerService>().SingleInstance();
-            cb.RegisterType<FollowerPerimeterService>().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<FollowerService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
+            cb.RegisterType<FollowerPerimeterService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<PeerOutbox>()
+                .InstancePerDependency();
 
-            cb.RegisterType<PeerInboxProcessor>().AsSelf()
+            // SEB:IOC-OK
+            cb.RegisterType<PeerInboxProcessor>()
+                .AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
-                .SingleInstance();
+                .InstancePerDependency();
 
+            // SEB:TODO needs more investigation because of OdinContextCache
             cb.RegisterType<TransitAuthenticationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
-            cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
+            // SEB:TODO needs more investigation because of OdinContextCache
+            cb.RegisterType<IdentitiesIFollowAuthenticationService>()
+                .AsSelf()
+                .SingleInstance();
+            
+            // SEB:TODO needs more investigation because of OdinContextCache
+            cb.RegisterType<FollowerAuthenticationService>()
+                .AsSelf()
+                .SingleInstance();
+
+            // SEB:IOC-OK
             cb.RegisterType<FeedDriveDistributionRouter>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerDependency();
 
-            cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<TransitInboxBoxStorage>()
+                .InstancePerDependency();
 
-            cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<PeerOutgoingTransferService>()
+                .As<IPeerOutgoingTransferService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<ExchangeGrantService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<PeerDriveQueryService>()
+                .InstancePerDependency();
 
-            cb.RegisterType<PeerIncomingReactionService>().AsSelf().SingleInstance();
-            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<PeerReactionSenderService>()
+                .InstancePerDependency();
+
+            // SEB:IOC-OK
+            cb.RegisterType<PeerIncomingReactionService>()
+                .InstancePerDependency();
             
+            // SEB:IOC-OK
+            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>()
+                .InstancePerDependency();
+            
+            // SEB:IOC-OK
             cb.RegisterType<PublicPrivateKeyService>()
                 .As<INotificationHandler<OwnerIsOnlineNotification>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerDependency();
 
-            cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<StaticFileContentService>()
+                .AsSelf()
+                .InstancePerDependency();
 
-            cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+            // SEB:IOC-OK
+            cb.RegisterType<ConnectionAutoFixService>()
+                .AsSelf()
+                .InstancePerDependency();
 
             // Background services
             cb.AddTenantBackgroundServices(tenant);
