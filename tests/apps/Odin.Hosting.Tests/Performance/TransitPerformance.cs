@@ -130,7 +130,13 @@ TaskPerformanceTest_Transit
                 DB Opened 15, Closed 0
                 Bandwidth : 130,000 bytes / second
           */
-        [Test]
+        
+        // SEB:NOTE
+        // Temporary explicit because the call to PerformanceFramework.ThreadedTestAsync is not correctly
+        // synchronized with the backend and will end the backend host too soon and will error because
+        // it fails to release af CFM lock on a filestream (either as an error on THIS test, or
+        // as an "inconclusive warning" on another test that runs after this one.
+        [Test, Explicit] 
         public async Task TaskPerformanceTest_Transit()
         {
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();

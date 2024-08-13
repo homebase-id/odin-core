@@ -1,72 +1,36 @@
-using System;
-using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
-using Quartz;
 
 namespace Odin.Hosting.Controllers.Job;
+
 #nullable enable
 
-public class DummySchedule(string echo) : AbstractJobSchedule
+public class DummyJobData
 {
-    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
-    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
-
-    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
-    {
-        jobBuilder
-            .WithRetry(2, TimeSpan.FromSeconds(5))
-            .WithRetention(TimeSpan.FromMinutes(1))
-            .WithJobEvent<DummyEvent>()
-            .UsingJobData("echo", echo);
-
-        var triggerBuilders = new List<TriggerBuilder>
-        {
-            TriggerBuilder.Create()
-                .StartNow()
-                .WithPriority(1)
-        };
-
-        return Task.FromResult((jobBuilder, triggerBuilders));
-    }
+    public string Echo { get; set; } = "";
 }
 
-//
-
-public class DummyJob(ICorrelationContext correlationContext, ILogger<DummyJob> logger) : AbstractJob(correlationContext)
+public class DummyJob(ILogger<DummyJob> logger) : AbstractJob
 {
-    protected sealed override async Task Run(IJobExecutionContext context)
+    public DummyJobData Data { get; set; } = new();
+
+    public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        var jobData = context.JobDetail.JobDataMap;
-        if (jobData.TryGetString("echo", out var echo) && echo != null)
-        {
-            logger.LogInformation("DummyJob says: {echo}", echo);
-            await SetJobResponseData(context, new DummyReponseData { Echo = echo });
-        }
+        logger.LogInformation("DummyJob says: {echo}", Data.Echo);
+        return Task.FromResult(JobExecutionResult.Success());
     }
-}
 
-//
-
-public class DummyEvent(ILogger<DummyEvent> logger) : IJobEvent
-{
-    public Task Execute(IJobExecutionContext context, JobStatus status)
+    public override string? SerializeJobData()
     {
-        var jobData = context.JobDetail.JobDataMap;
-        if (jobData.TryGetString("echo", out var echo))
-        {
-            logger.LogInformation("DummyEvent status:{status} echo:{echo}", status, echo);
-        }
-        return Task.CompletedTask;
+        return OdinSystemSerializer.Serialize(Data);
     }
-}
 
-//
-
-public class DummyReponseData
-{
-    public string? Echo { get; set; }
+    public override void DeserializeJobData(string json)
+    {
+        Data = OdinSystemSerializer.DeserializeOrThrow<DummyJobData>(json);
+    }
 }
 

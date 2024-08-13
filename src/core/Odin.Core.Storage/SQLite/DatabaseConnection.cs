@@ -197,13 +197,13 @@ namespace Odin.Core.Storage.SQLite
 
         public object ExecuteScalar(SqliteCommand command)
         {
-            lock (_lock)
+            lock (_lock) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
-                var result = command.ExecuteScalar();
+                var r = command.ExecuteScalar();
                 command.Transaction = null;
-                return result;
+                return r;
             }
         }
 

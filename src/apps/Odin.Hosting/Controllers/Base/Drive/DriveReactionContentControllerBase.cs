@@ -21,13 +21,15 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
     /// <summary />
     protected async Task AddReaction(AddReactionRequest request, DatabaseConnection cn)
     {
-        await _reactionContentService.AddReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext, cn);
+        await _reactionContentService.AddReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
+            cn);
     }
 
     /// <summary />
     protected async Task DeleteReaction(DeleteReactionRequest request, DatabaseConnection cn)
     {
-        await _reactionContentService.DeleteReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext, cn);
+        await _reactionContentService.DeleteReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
+            cn);
     }
 
     /// <summary />

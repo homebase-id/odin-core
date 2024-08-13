@@ -48,7 +48,7 @@ namespace Odin.Hosting
                 Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
                 try
                 {
-                    Log.Information("\n\n\nStarting web host");
+                    Log.Information("Starting web host");
                     Log.Information("Identity-host version: {Version}", Extensions.Version.VersionText);
                     CreateHostBuilder(args).Build().Run();
                     Log.Information("Stopped web host\n\n\n");

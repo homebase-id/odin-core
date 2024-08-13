@@ -23,7 +23,7 @@ namespace Odin.Services.Base
             bool isSystem = false)
         {
             SharedSecretKey = sharedSecretKey;
-            PermissionGroups = permissionGroups;
+            PermissionGroups = permissionGroups ?? new Dictionary<string, PermissionGroup>();
             _isSystem = isSystem;
         }
 
@@ -94,6 +94,15 @@ namespace Odin.Services.Base
 
         public void AssertHasDrivePermission(Guid driveId, DrivePermission permission)
         {
+            if (!this.HasDrivePermission(driveId, permission))
+            {
+                throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
+            }
+        }
+
+        public void AssertHasDrivePermission(TargetDrive targetDrive, DrivePermission permission)
+        {
+            var driveId = this.GetDriveId(targetDrive);
             if (!this.HasDrivePermission(driveId, permission))
             {
                 throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");

@@ -40,12 +40,12 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Extensions;
-using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Admin.Tenants.Jobs;
+using Odin.Services.Background;
 using Odin.Services.JobManagement;
-using Odin.Services.LinkMetaExtractor;
 
 namespace Odin.Hosting
 {
@@ -85,13 +85,13 @@ namespace Odin.Hosting
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             //
-            // Job stuff
+            // Background and job stuff
             //
-            services.AddJobManagementServices(config);
-            services.AddCronSchedules();
+            services.AddSystemBackgroundServices();
+            services.AddJobManagerServices();
+            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -455,15 +455,8 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                // if (config.Job.Enabled)
-                {
-                    var jobManager = services.GetRequiredService<IJobManager>();
-                    jobManager.Initialize(async () =>
-                    {
-                        await services.UnscheduleCronJobs();
-                        await services.ScheduleCronJobs();
-                    }).Wait();
-                }
+                // Start system background services
+                services.StartSystemBackgroundServices().BlockingWait();
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -472,13 +465,19 @@ namespace Odin.Hosting
                     config.Host.ShutdownTimeoutSeconds);
 
                 var services = app.ApplicationServices;
-                if (config.Job.Enabled)
-                {
-                    services.UnscheduleCronJobs().Wait();
-                }
 
                 // Wait for any registered fire-and-forget tasks to complete
                 services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
+
+                //
+                // Shutdown all tenant background services
+                //
+                services.ShutdownTenantBackgroundServices().BlockingWait();                
+                
+                //
+                // Shutdown system background services
+                //
+                services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
 

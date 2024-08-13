@@ -1,34 +1,33 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
-using Odin.Services.Drives;
+using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Base;
+using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
     public interface IUniversalDriveReactionHttpClient
     {
-        private const string ReactionRootEndpoint = "/drive/files/reactions";
+        private const string ReactionRootEndpoint = "/drive/files/group/reactions";
 
-        [Post(ReactionRootEndpoint + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequest request);
+        [Post(ReactionRootEndpoint)]
+        Task<ApiResponse<AddReactionResult>> AddReaction([Body] AddReactionRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteReaction([Body] DeleteReactionRequest request);
+        [Delete(ReactionRootEndpoint)]
+        Task<ApiResponse<DeleteReactionResult>> DeleteReaction([Body] DeleteReactionRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/deleteall")]
-        Task<ApiResponse<HttpContent>> DeleteReactions([Body] DeleteReactionRequest request);
 
-        [Post(ReactionRootEndpoint + "/list")]
-        Task<ApiResponse<GetReactionsResponse>> GetReactions([Body] ExternalFileIdentifier file);
-        
-        [Post(ReactionRootEndpoint + "/summary")]
-        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] GetReactionsRequest file);
+        [Get(ReactionRootEndpoint)]
+        Task<ApiResponse<GetReactionsResponse>> GetReactions([Query] GetReactionsRequestRedux request);
 
-        [Post(ReactionRootEndpoint + "/listbyidentity")]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] GetReactionsByIdentityRequest file);
+        [Get(ReactionRootEndpoint + "/summary")]
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Query] GetReactionsRequestRedux request);
+
+        [Get(ReactionRootEndpoint + "/by-identity")]
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Query] GetReactionsByIdentityRequestRedux request);
     }
 }

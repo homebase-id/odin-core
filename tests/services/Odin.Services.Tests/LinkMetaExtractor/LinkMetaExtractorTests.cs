@@ -42,6 +42,7 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.Url);
         }
 
+#if !NOISY_NEIGHBOUR
         [Test]
         public async Task TestYoutubeUrl()
         {
@@ -53,6 +54,7 @@ public class LinkMetaExtractorTests
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.ImageUrl);
         }
+#endif        
 
         [Test]
         public async Task TestLinkedInUrl()
@@ -89,6 +91,18 @@ public class LinkMetaExtractorTests
             var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
             var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
             var ogp = await  linkMetaExtractor.ExtractAsync("https://simonwillison.net/2024/May/29/training-not-chatting/");
+            Assert.NotNull(ogp.Title);
+            Assert.NotNull(ogp.Description);
+            Assert.NotNull(ogp.Url);
+        }
+        
+        [Test]
+        public async Task TestCloudFareBlockedURl()
+        {
+            var logStore = new LogEventMemoryStore();
+            var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+            var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+            var ogp = await  linkMetaExtractor.ExtractAsync("https://www.economist.com/schools-brief/2024/07/16/a-short-history-of-ai");
             Assert.NotNull(ogp.Title);
             Assert.NotNull(ogp.Description);
             Assert.NotNull(ogp.Url);

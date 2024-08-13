@@ -144,7 +144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Not possible");
 
                         var utc = UnixTimeUtc.ZeroTime;
-                        if (!rdr.Read())
+                        if (rdr.Read())
                         {
                             if (!rdr.IsDBNull(0))
                             {

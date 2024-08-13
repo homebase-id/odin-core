@@ -25,4 +25,5 @@ public class DriveFileDeletedNotification : MediatorNotificationBase, IDriveNoti
 
     public DatabaseConnection DatabaseConnection { get; init; }
     public bool IgnoreFeedDistribution { get; set; }
+    public bool IgnoreReactionPreviewCalculation { get; set; }
 }

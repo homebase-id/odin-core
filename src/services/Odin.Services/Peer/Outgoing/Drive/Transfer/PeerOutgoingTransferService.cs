@@ -9,7 +9,6 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -30,9 +29,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         CircleNetworkService circleNetworkService,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
-        ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorAsync outboxProcessorAsync
+        PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
     {
@@ -44,17 +42,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
-            OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
-            OdinValidationUtils.AssertValidRecipientList(options.Recipients);
+            OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
 
             var sfo = new FileTransferOptions()
             {
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType
             };
-
-            var tenant = tenantContext.HostOdinId;
-            serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
             var priority = options.Priority switch
             {
@@ -73,7 +67,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItem(item, cn);
             }
 
-            _ = outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
             return outboxStatus;
         }
@@ -119,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
         }
-        
+
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
             FileSystemType fileSystemType)
@@ -138,7 +132,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -158,7 +152,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         // 
-        
+
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
             IOdinContext odinContext,
             DatabaseConnection cn,
@@ -242,7 +236,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 Status = SendReadReceiptResultStatus.Enqueued
             };
         }
-        
+
         private async Task<Dictionary<string, DeleteLinkedFileStatus>> EnqueueDeletes(InternalDriveFileId fileId,
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
@@ -286,7 +280,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            await outboxProcessorAsync.StartOutboxProcessingAsync(odinContext, cn);
+            outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
             return results;
         }
