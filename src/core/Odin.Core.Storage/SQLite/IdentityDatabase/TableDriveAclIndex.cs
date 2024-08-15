@@ -28,6 +28,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return base.DeleteAllRows(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
         }
 
+        public new int Insert(DatabaseConnection conn, DriveAclIndexRecord item)
+        {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+            return base.Insert(conn, item);
+        }
+
         public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)

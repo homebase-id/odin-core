@@ -18,6 +18,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, memberId);
         }
 
+        public new int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        {
+            item.identityId = ((IdentityDatabase)_database)._identityId;
+            return base.Insert(conn, item);
+        }
+
         public new int Upsert(DatabaseConnection conn, CircleMemberRecord item)
         {
             item.identityId = ((IdentityDatabase)_database)._identityId;
