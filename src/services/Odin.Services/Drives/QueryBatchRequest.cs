@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -29,7 +30,7 @@ public class GetQueryBatchRequest
     /// <summary>
     /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
     /// </summary>
-    public byte[][] Sender { get; set; } = null;
+    public OdinId[] Sender { get; set; } = null;
 
     public Guid[] GroupId { get; set; } = null;
 

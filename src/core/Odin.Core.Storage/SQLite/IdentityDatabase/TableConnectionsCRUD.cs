@@ -128,7 +128,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
                      +"identityId BLOB NOT NULL, "
-                     +"identity BLOB NOT NULL UNIQUE, "
+                     +"identity STRING NOT NULL UNIQUE, "
                      +"displayName STRING NOT NULL, "
                      +"status INT NOT NULL, "
                      +"accessIsRevoked INT NOT NULL, "

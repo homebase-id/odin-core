@@ -128,15 +128,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                   _historyStatus = value;
                }
         }
-        private string _senderId;
-        public string senderId
+        private OdinId? _senderId;
+        public OdinId? senderId
         {
            get {
                    return _senderId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
                   _senderId = value;
                }
         }
@@ -322,7 +320,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam10.Value = item.dataType;
                 _insertParam11.Value = item.archivalStatus;
                 _insertParam12.Value = item.historyStatus;
-                _insertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                _insertParam13.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
                 _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam16.Value = item.byteCount;
@@ -411,7 +409,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam10.Value = item.dataType;
                 _insertParam11.Value = item.archivalStatus;
                 _insertParam12.Value = item.historyStatus;
-                _insertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                _insertParam13.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
                 _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam16.Value = item.byteCount;
@@ -504,7 +502,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam10.Value = item.dataType;
                 _upsertParam11.Value = item.archivalStatus;
                 _upsertParam12.Value = item.historyStatus;
-                _upsertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                _upsertParam13.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
                 _upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam16.Value = item.byteCount;
@@ -602,7 +600,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam10.Value = item.dataType;
                 _updateParam11.Value = item.archivalStatus;
                 _updateParam12.Value = item.historyStatus;
-                _updateParam13.Value = item.senderId ?? (object)DBNull.Value;
+                _updateParam13.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
                 _updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam16.Value = item.byteCount;
@@ -782,7 +780,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = rdr.GetString(12);
+                item.senderId = new OdinId(rdr.GetString(12));
             }
 
             if (rdr.IsDBNull(13))
@@ -945,7 +943,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = rdr.GetString(10);
+                item.senderId = new OdinId(rdr.GetString(10));
             }
 
             if (rdr.IsDBNull(11))
@@ -1098,7 +1096,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = rdr.GetString(9);
+                item.senderId = new OdinId(rdr.GetString(9));
             }
 
             if (rdr.IsDBNull(10))
@@ -1261,7 +1259,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = rdr.GetString(9);
+                item.senderId = new OdinId(rdr.GetString(9));
             }
 
             if (rdr.IsDBNull(10))
