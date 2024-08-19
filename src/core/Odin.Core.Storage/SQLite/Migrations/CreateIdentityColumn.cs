@@ -7,7 +7,16 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 public static class CreateIdentityColumn
 {
+    //
+    // pushd src/apps/Odin.Hosting
     // dotnet publish -r osx-x64 --self-contained -p:PublishSingleFile=true
+    //
+    // pushd src/apps/Odin.Hosting/bin/Release/net8.0/osx-x64/publish/
+    // sudo cp /identity-host/config/appsettings.production.json .
+    // sudo chmod a+rw appsettings.production.json
+    //
+    // ASPNETCORE_ENVIRONMENT=production ./Odin.Hosting --create-identity-column
+    //
 
     //
     // after migration:
