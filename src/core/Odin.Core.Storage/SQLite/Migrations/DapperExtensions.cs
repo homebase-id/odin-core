@@ -1,7 +1,9 @@
 using Dapper;
 using System;
 using System.Data;
+using Odin.Core.Identity;
 using Odin.Core.Time;
+using Odin.Core.Util;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
@@ -35,36 +37,34 @@ public class UnixTimeUtcUniqueHandler : SqlMapper.TypeHandler<UnixTimeUtcUnique>
 
 //
 
-public class StringHandler : SqlMapper.TypeHandler<string>
+public class OdinIdHandler : SqlMapper.TypeHandler<OdinId?>
 {
-    public override void SetValue(IDbDataParameter parameter, string value)
+    public override void SetValue(IDbDataParameter parameter, OdinId? value)
     {
-        parameter.Value = value;
+        parameter.Value = value?.DomainName;
     }
 
-    public override string Parse(object value)
+    public override OdinId? Parse(object value)
     {
+        var domain = "";
         if (value is string stringValue)
         {
-            if (stringValue == "System.Byte[]")
-            {
-                // Console.WriteLine("    skipping text 'System.Byte[]'");
-                return "";
-            }
-
-            return stringValue;
+            domain = stringValue;
         }
-        if (value is byte[] bytesValue)
+        else if (value is byte[] bytesValue)
         {
-            var result = System.Text.Encoding.UTF8.GetString(bytesValue);
-            // Console.WriteLine($"    convert byte[] to string: '{result}'");
-            return result;
+            domain = System.Text.Encoding.UTF8.GetString(bytesValue);
         }
 
-        throw new DataException($"Cannot convert {value.GetType()} to string");
+        if (AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return new OdinId(domain);
+        }
+        return null;
     }
 }
 
+//
 
 public static class DapperExtensions
 {
@@ -72,7 +72,6 @@ public static class DapperExtensions
     {
         SqlMapper.AddTypeHandler(new GuidTypeHandler());
         SqlMapper.AddTypeHandler(new UnixTimeUtcUniqueHandler());
-        SqlMapper.AddTypeHandler(new StringHandler());
-
+        SqlMapper.AddTypeHandler(new OdinIdHandler());
     }
 }
