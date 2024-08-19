@@ -67,7 +67,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
             using var cn = tenantSystemStorage.CreateConnection();
-            await circleNetworkRequestService.AcceptConnectionRequest(header, WebOdinContext, cn);
+            await circleNetworkRequestService.AcceptConnectionRequest(header, overrideAclIfPossible: false, WebOdinContext, cn);
             return true;
         }
 
@@ -174,6 +174,5 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             var list = await introductionService.GetReceivedIntroductions(WebOdinContext, cn);
             return new JsonResult(list);
         }
-        
     }
 }

@@ -362,8 +362,6 @@ namespace Odin.Services.Authentication.Owner
                 return false;
             }
             
-            _masterKeyContextAccessor.SetContext((OdinContext)ctx);
-
             //🐈⏰
             var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
             odinContext.AuthTokenCreated = catTime;
@@ -371,11 +369,7 @@ namespace Odin.Services.Authentication.Owner
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            //experimental:tell the system the owner is online
-            // var mediator = context.RequestServices.GetRequiredService<IMediator>();
-            // await mediator.Publish(new OwnerIsOnlineNotification()
-            // {
-            // });
+            _masterKeyContextAccessor.SetContext((OdinContext)ctx);
 
             return true;
         }

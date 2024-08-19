@@ -34,4 +34,5 @@ public class IdentityIntroduction
 {
     public OdinId Identity { get; init; }
     public string Message { get; init; }
+    public OdinId IntroducerOdinId { get; init; }
 }

@@ -148,7 +148,8 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             odinContext.AssertCanManageConnections();
 
-            if (header.Recipient == odinContext.Caller.OdinId)
+            var recipient = (OdinId)header.Recipient;
+            if (recipient == odinContext.Caller.OdinId)
             {
                 throw new OdinClientException(
                     "I get it, connecting with yourself is critical..yet you sent a connection request to yourself but you are already you",
@@ -160,14 +161,22 @@ namespace Odin.Services.Membership.Connections.Requests
                 OdinValidationUtils.AssertNotNullOrEmpty(header.IntroducerOdinId, nameof(header.IntroducerOdinId));
             }
 
-            // var incomingRequest = await this.GetPendingRequest(recipientOdinId);
-            // if (null != incomingRequest)
-            // {
-            //     throw new OdinClientException("You already have an incoming request from the recipient.",
-            //         OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
-            // }
+            var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
+            if (null != incomingRequest)
+            {
+                // just accept the request; using the ACL info (header.CircleIds, etc.)
+                var ac = new AcceptRequestHeader
+                {
+                    Sender = recipient,
+                    CircleIds = header.CircleIds,
+                    ContactData = header.ContactData
+                };
 
-            // var existingRequest = await this.GetSentRequest(recipientOdinId);
+                await this.AcceptConnectionRequest(ac, false, odinContext, cn);
+                return;
+            }
+
+            // var existingRequest = await this.GetSentRequestInternal(recipientOdinId, cn);
             // if (existingRequest != null)
             // {
             //     //delete the existing request 
@@ -272,6 +281,19 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var recipient = _tenantContext.HostOdinId;
 
+            //Check if a request was sent to the sender
+            var sender = odinContext.GetCallerOdinIdOrFail();
+            var sentRequest = await GetSentRequestInternal(sender, cn);
+            if (null != sentRequest)
+            {
+                //we can auto-accept
+                _logger.LogInformation("Auto-accepting connection request from {sender}", sender);
+                //Note: nothing to do here for now because of the MasterKeyAvailableBackgroundService
+                // will check this same logic and auto-approve
+                // However, if we drop the MasterKeyAvailableBackgroundService - we will need to
+                // put in an inbox item to perform the auto-accept
+            }
+
             var request = new PendingConnectionRequestHeader()
             {
                 SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
@@ -341,7 +363,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        public async Task AcceptConnectionRequest(AcceptRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task AcceptConnectionRequest(AcceptRequestHeader header, bool overrideAclIfPossible, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
             header.Validate();
@@ -353,8 +375,19 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             pendingRequest.Validate();
-
             var senderOdinId = (OdinId)pendingRequest.SenderOdinId;
+            AccessExchangeGrant accessGrant = null;
+
+            //Note: this option is used for auto-accepting connection requests for the Invitation feature
+            if (overrideAclIfPossible)
+            {
+                //If I had previously sent a connection request; use the ACLs I already created
+                var existingSentRequest = await GetSentRequestInternal(senderOdinId, cn);
+                if (null != existingSentRequest)
+                {
+                    accessGrant = existingSentRequest.PendingAccessExchangeGrant;
+                }
+            }
 
             _logger.LogInformation($"Accept Connection request called for sender {senderOdinId} to {pendingRequest.Recipient}");
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(pendingRequest.ClientAccessToken64);
@@ -369,7 +402,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-            var accessGrant = new AccessExchangeGrant()
+            accessGrant ??= new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
@@ -379,6 +412,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, pendingRequest.ConnectionRequestOrigin, keyStoreKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
+
             keyStoreKey.Wipe();
 
             var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, cn);
@@ -422,7 +456,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             await this.DeleteSentRequestInternal(senderOdinId, cn);
-            await this.DeleteSentRequestInternal(senderOdinId, cn);
+            await this.DeletePendingRequestInternal(senderOdinId, cn);
 
             try
             {

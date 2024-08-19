@@ -251,27 +251,7 @@ namespace Odin.Services.Membership.Connections
 
             return connection;
         }
-
-        /// <summary>
-        /// Gets the access registration granted to the <param name="odinId"></param>
-        /// </summary>
-        /// <param name="odinId"></param>
-        /// <param name="remoteIdentityConnectionKey"></param>
-        /// <returns></returns>
-        public async Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId, SensitiveByteArray remoteIdentityConnectionKey,
-            DatabaseConnection cn)
-        {
-            var connection = await GetIdentityConnectionRegistrationInternal(odinId, cn);
-
-            if (connection?.AccessGrant.AccessRegistration == null || connection.IsConnected() == false)
-            {
-                throw new OdinSecurityException("Unauthorized Action");
-            }
-
-            connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
-
-            return connection.AccessGrant.AccessRegistration;
-        }
+        
 
         /// <summary>
         /// Determines if the specified odinId is connected 
@@ -666,6 +646,63 @@ namespace Odin.Services.Membership.Connections
             return info;
         }
 
+                public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var masterKey = odinContext.Caller.GetMasterKey();
+            var appKey = newAppRegistration.AppId.Value;
+
+            //TODO: use _db.CreateCommitUnitOfWork()
+            if (null != oldAppRegistration)
+            {
+                var circlesToRevoke = oldAppRegistration.AuthorizedCircles.Except(newAppRegistration.AuthorizedCircles);
+                //TODO: spin thru circles to revoke an update members
+
+                foreach (var circleId in circlesToRevoke)
+                {
+                    //get all circle members and update their grants
+                    var members = await this.GetCircleMembers(circleId, odinContext, cn);
+
+                    foreach (var odinId in members)
+                    {
+                        var icr = await this.GetIdentityConnectionRegistrationInternal(odinId, cn);
+                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
+                        keyStoreKey.Wipe();
+                        this.SaveIcr(icr, odinContext, cn);
+                    }
+                }
+            }
+
+            foreach (var circleId in newAppRegistration.AuthorizedCircles ?? new List<Guid>())
+            {
+                //get all circle members and update their grants
+                var members = await this.GetCircleMembers(circleId, odinContext, cn);
+
+                foreach (var odinId in members)
+                {
+                    var icr = await this.GetIdentityConnectionRegistrationInternal(odinId, cn);
+                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+
+                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration, circleId, keyStoreKey, masterKey, cn);
+
+                    if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
+                    {
+                        appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
+                    }
+
+                    appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
+                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
+
+                    keyStoreKey.Wipe();
+
+                    this.SaveIcr(icr, odinContext, cn);
+                }
+            }
+            //
+        }
+        
         private async Task<AppCircleGrant> CreateAppCircleGrant(
             RedactedAppRegistration appReg,
             GuidId circleId,
@@ -907,61 +944,25 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
-            IOdinContext odinContext,
+        /// <summary>
+        /// Gets the access registration granted to the <param name="odinId"></param>
+        /// </summary>
+        /// <param name="odinId"></param>
+        /// <param name="remoteIdentityConnectionKey"></param>
+        /// <returns></returns>
+        private async Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId, SensitiveByteArray remoteIdentityConnectionKey,
             DatabaseConnection cn)
         {
-            var masterKey = odinContext.Caller.GetMasterKey();
-            var appKey = newAppRegistration.AppId.Value;
+            var connection = await GetIdentityConnectionRegistrationInternal(odinId, cn);
 
-            //TODO: use _db.CreateCommitUnitOfWork()
-            if (null != oldAppRegistration)
+            if (connection?.AccessGrant.AccessRegistration == null || connection.IsConnected() == false)
             {
-                var circlesToRevoke = oldAppRegistration.AuthorizedCircles.Except(newAppRegistration.AuthorizedCircles);
-                //TODO: spin thru circles to revoke an update members
-
-                foreach (var circleId in circlesToRevoke)
-                {
-                    //get all circle members and update their grants
-                    var members = await this.GetCircleMembers(circleId, odinContext, cn);
-
-                    foreach (var odinId in members)
-                    {
-                        var icr = await this.GetIdentityConnectionRegistrationInternal(odinId, cn);
-                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
-                        keyStoreKey.Wipe();
-                        this.SaveIcr(icr, odinContext, cn);
-                    }
-                }
+                throw new OdinSecurityException("Unauthorized Action");
             }
 
-            foreach (var circleId in newAppRegistration.AuthorizedCircles ?? new List<Guid>())
-            {
-                //get all circle members and update their grants
-                var members = await this.GetCircleMembers(circleId, odinContext, cn);
+            connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
-                foreach (var odinId in members)
-                {
-                    var icr = await this.GetIdentityConnectionRegistrationInternal(odinId, cn);
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-
-                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration, circleId, keyStoreKey, masterKey, cn);
-
-                    if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
-                    {
-                        appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
-                    }
-
-                    appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
-                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
-
-                    keyStoreKey.Wipe();
-
-                    this.SaveIcr(icr, odinContext, cn);
-                }
-            }
-            //
+            return connection.AccessGrant.AccessRegistration;
         }
     }
 }

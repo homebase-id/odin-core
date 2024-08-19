@@ -13,6 +13,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -112,6 +113,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         OdinValidationUtils.AssertValidRecipientList(introduction.Identities, allowEmpty: false);
 
         introduction.Timestamp = UnixTimeUtc.Now();
+        var introducerOdinId = odinContext.GetCallerOdinIdOrFail();
 
         foreach (var identity in introduction.Identities.ToOdinIdList())
         {
@@ -120,6 +122,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
             var iid = new IdentityIntroduction()
             {
+                IntroducerOdinId = introducerOdinId,
                 Identity = identity,
                 Message = introduction.Message
             };
@@ -129,6 +132,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
             await EnqueueInboxItemToSendConnectionRequest(iid, odinContext, cn);
         }
+
+        await _mediator.Publish(new IntroductionsReceivedNotification()
+        {
+            IntroducerOdinId = introducerOdinId,
+            Introduction = introduction,
+            OdinContext = odinContext,
+            DatabaseConnection = cn
+        });
 
         await Task.CompletedTask;
     }
@@ -143,22 +154,18 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         foreach (var request in incomingConnectionRequests.Results)
         {
             var sender = request.SenderOdinId;
-            var introduction = this.GetIntroduction(sender, connection);
 
-            if (null == introduction)
+            var introduction = await this.GetIntroduction(sender, connection);
+            if (null != introduction)
             {
-                //ignore requests w/o a matching introduction
-                continue;
+                await AutoAccept(sender, odinContext, connection);
             }
 
-            var header = new AcceptRequestHeader()
+            var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, connection);
+            if (null != existingSentRequest)
             {
-                Sender = sender,
-                CircleIds = [],
-                ContactData = new ContactRequestData()
-            };
-
-            await _circleNetworkRequestService.AcceptConnectionRequest(header, odinContext, connection);
+                await AutoAccept(sender, odinContext, connection);
+            }
         }
     }
 
@@ -286,5 +293,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         var key = MakeReceivedIntroductionKey(identity);
         var result = _receivedIntroductionValueStorage.Get<IdentityIntroduction>(cn, key);
         return Task.FromResult(result);
+    }
+
+    private async Task AutoAccept(OdinId sender, IOdinContext odinContext, DatabaseConnection connection)
+    {
+        var header = new AcceptRequestHeader()
+        {
+            Sender = sender,
+            CircleIds = [],
+            ContactData = new ContactRequestData(),
+        };
+
+        await _circleNetworkRequestService.AcceptConnectionRequest(header, overrideAclIfPossible: true, odinContext, connection);
     }
 }
