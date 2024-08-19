@@ -378,7 +378,7 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write
+                            Permission = DrivePermission.Write  | DrivePermission.React
                         }
                     }
                 ],

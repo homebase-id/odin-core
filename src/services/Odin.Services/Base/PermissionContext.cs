@@ -100,6 +100,15 @@ namespace Odin.Services.Base
             }
         }
 
+        public void AssertHasDrivePermission(TargetDrive targetDrive, DrivePermission permission)
+        {
+            var driveId = this.GetDriveId(targetDrive);
+            if (!this.HasDrivePermission(driveId, permission))
+            {
+                throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
+            }
+        }
+
         private bool HasPermission(int permissionKey)
         {
             if (_isSystem)

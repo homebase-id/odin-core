@@ -60,12 +60,17 @@ public static class OdinValidationUtils
         }
     }
 
-    public static void AssertValidRecipientList(IEnumerable<string> recipients, bool allowEmpty = true)
+    public static void AssertValidRecipientList(IEnumerable<string> recipients, bool allowEmpty = true, OdinId? tenant = null)
     {
-        var list = recipients?.ToArray() ?? [];
-        if (list.Length == 0 && !allowEmpty)
+        var list = recipients?.ToList() ?? [];
+        if (list.Count == 0 && !allowEmpty)
         {
             throw new OdinClientException("One or more recipients are required", OdinClientErrorCode.InvalidRecipient);
+        }
+
+        if (!string.IsNullOrEmpty(tenant))
+        {
+            AssertIsTrue(list.TrueForAll(r => r != tenant), "You cannot send a file to yourself");
         }
 
         foreach (var r in list)

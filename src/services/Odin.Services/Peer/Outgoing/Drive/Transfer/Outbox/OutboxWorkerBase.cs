@@ -9,7 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Refit;
 
-namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
+namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
 {
@@ -56,7 +56,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
         IOdinContext odinContext,
         DatabaseConnection cn);
 
-    protected LatestTransferStatus MapPeerErrorResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
+    protected LatestTransferStatus MapPeerErrorResponseHttpStatus<T>(ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {

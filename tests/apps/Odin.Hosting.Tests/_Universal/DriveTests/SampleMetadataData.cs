@@ -6,7 +6,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests;
 
 public static class SampleMetadataData
 {
-    public static UploadFileMetadata Create(int fileType, Guid? groupId = null, AccessControlList acl = null)
+    public static UploadFileMetadata Create(int fileType, Guid? groupId = null, AccessControlList acl = null, bool allowDistribution = false)
     {
         return new UploadFileMetadata()
         {
@@ -15,7 +15,7 @@ public static class SampleMetadataData
                 FileType = fileType,
                 GroupId = groupId ?? default
             },
-
+            AllowDistribution = allowDistribution,
             AccessControlList = acl ?? AccessControlList.OwnerOnly
         };
     }

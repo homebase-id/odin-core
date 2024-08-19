@@ -12,7 +12,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
-using Serilog;
 
 namespace Odin.Hosting.Controllers.Base;
 

@@ -218,7 +218,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             Sender = odinContext.GetCallerOdinIdOrFail(),
             Priority = 190,
 
-            Data = OdinSystemSerializer.Serialize(item),
+            Data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray(),
 
             FileId = Guid.NewGuid(), //hack
             DriveId = driveId.GetValueOrDefault(),

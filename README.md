@@ -1,4 +1,4 @@
-# DotYouCore
+# Homebase.id
 
 [![Build](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main.yml/badge.svg)](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main.yml)
 

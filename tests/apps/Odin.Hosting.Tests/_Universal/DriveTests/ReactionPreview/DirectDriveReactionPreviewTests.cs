@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.ReactionPreview;
@@ -38,8 +39,7 @@ public class DirectDriveReactionPreviewTests
     {
         _scaffold.AssertLogEvents();
     }
-
-
+    
     [Test]
     public async Task CanUpdateHeaderAndKeepReactionPreview()
     {
@@ -55,7 +55,14 @@ public class DirectDriveReactionPreviewTests
         var uploadResult = uploadMetadataResponse.Content;
 
         const string reactionContent1 = ":cake:";
-        var addReactionResponse = await ownerApiClient.Reactions.AddReaction(uploadResult.File, reactionContent1);
+        var request = new AddReactionRequestRedux
+        {
+            File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+            Reaction = reactionContent1,
+            TransitOptions = null
+        };
+        
+        var addReactionResponse = await ownerApiClient.Reactions.AddReaction(request);
         Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
         // Validate the reaction is there (get file)

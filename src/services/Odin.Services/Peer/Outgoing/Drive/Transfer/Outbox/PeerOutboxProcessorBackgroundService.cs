@@ -18,6 +18,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
@@ -51,7 +52,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
                     continue;
                 }
-                
                 logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
@@ -74,7 +74,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             await Task.WhenAll(tasks);
         }
-        
+
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
@@ -177,7 +177,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
-                logger.LogInformation("Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
+                logger.LogInformation(
+                    "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
                     fileItem.File,
                     fileItem.AttemptCount);
@@ -209,9 +210,33 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, connection, cancellationToken);
 
+                case OutboxItemType.AddRemoteReaction:
+                    return await AddRemoteReaction(fileItem, odinContext, connection, cancellationToken);
+
+                case OutboxItemType.DeleteRemoteReaction:
+                    return await DeleteRemoteReaction(fileItem, odinContext, connection, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> AddRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<AddRemoteReactionOutboxWorker>();
+            var worker = new AddRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, connection, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> DeleteRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<DeleteRemoteReactionOutboxWorker>();
+            var worker = new DeleteRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, connection, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,
