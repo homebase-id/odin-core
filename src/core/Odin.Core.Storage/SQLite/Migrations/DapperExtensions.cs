@@ -1,9 +1,7 @@
 using Dapper;
 using System;
 using System.Data;
-using Odin.Core.Identity;
 using Odin.Core.Time;
-using Odin.Core.Util;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
@@ -37,34 +35,36 @@ public class UnixTimeUtcUniqueHandler : SqlMapper.TypeHandler<UnixTimeUtcUnique>
 
 //
 
-public class OdinIdHandler : SqlMapper.TypeHandler<OdinId?>
+public class StringHandler : SqlMapper.TypeHandler<string>
 {
-    public override void SetValue(IDbDataParameter parameter, OdinId? value)
+    public override void SetValue(IDbDataParameter parameter, string value)
     {
-        parameter.Value = value?.DomainName;
+        parameter.Value = value;
     }
 
-    public override OdinId? Parse(object value)
+    public override string Parse(object value)
     {
-        var domain = "";
         if (value is string stringValue)
         {
-            domain = stringValue;
+            if (stringValue == "System.Byte[]")
+            {
+                // Console.WriteLine("    skipping text 'System.Byte[]'");
+                return "";
+            }
+
+            return stringValue;
         }
-        else if (value is byte[] bytesValue)
+        if (value is byte[] bytesValue)
         {
-            domain = System.Text.Encoding.UTF8.GetString(bytesValue);
+            var result = System.Text.Encoding.UTF8.GetString(bytesValue);
+            // Console.WriteLine($"    convert byte[] to string: '{result}'");
+            return result;
         }
 
-        if (AsciiDomainNameValidator.TryValidateDomain(domain))
-        {
-            return new OdinId(domain);
-        }
-        return null;
+        throw new DataException($"Cannot convert {value.GetType()} to string");
     }
 }
 
-//
 
 public static class DapperExtensions
 {
@@ -72,6 +72,7 @@ public static class DapperExtensions
     {
         SqlMapper.AddTypeHandler(new GuidTypeHandler());
         SqlMapper.AddTypeHandler(new UnixTimeUtcUniqueHandler());
-        SqlMapper.AddTypeHandler(new OdinIdHandler());
+        SqlMapper.AddTypeHandler(new StringHandler());
+
     }
 }
