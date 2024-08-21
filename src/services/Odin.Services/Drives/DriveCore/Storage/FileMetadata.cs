@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -70,7 +69,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
-        public OdinId? SenderOdinId { get; set; }
+        public string SenderOdinId { get; set; }
 
         public AppFileMetaData AppData { get; set; }
 

@@ -166,7 +166,7 @@ namespace Odin.Services.DataSubscription
             //if the file was received from another identity, do not redistribute
             var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
-            var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.DomainName.Trim());
+            var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity && !isCollabChannel)
             {
                 return false;

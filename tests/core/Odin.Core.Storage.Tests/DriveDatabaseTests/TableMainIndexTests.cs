@@ -1,6 +1,5 @@
 ﻿using System;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
@@ -19,7 +18,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -66,7 +65,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -98,7 +97,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var k1 = Guid.NewGuid();
                 var cts1 = UnixTimeUtcUnique.Now();
-                var sid1 = new OdinId(Guid.NewGuid().ToString() + ".com");
+                var sid1 = Guid.NewGuid().ToByteArray();
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
@@ -115,7 +114,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     created = cts1,
                     fileType = 7,
                     dataType = 42,
-                    senderId = sid1,
+                    senderId = sid1.ToString(),
                     groupId = tid1,
                     uniqueId = Guid.NewGuid(),
                     userDate = ud1,
@@ -173,7 +172,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var k1 = Guid.NewGuid();
                 var cts1 = UnixTimeUtcUnique.Now();
-                var sid1 = new OdinId(Guid.NewGuid().ToString() + ".com");
+                var sid1 = Guid.NewGuid().ToByteArray();
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
@@ -185,7 +184,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     created = cts1,
                     fileType = 7,
                     dataType = 42,
-                    senderId = sid1,
+                    senderId = sid1.ToString(),
                     groupId = tid1,
                     uniqueId = Guid.NewGuid(),
                     userDate = ud1,
@@ -204,7 +203,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         created = cts1,
                         fileType = 7,
                         dataType = 42,
-                        senderId = sid1,
+                        senderId = sid1.ToString(),
                         groupId = tid1,
                         uniqueId = Guid.NewGuid(),
                         userDate = ud1,
@@ -233,7 +232,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var k1 = Guid.NewGuid();
                 var cts1 = UnixTimeUtcUnique.Now();
-                var sid1 = new OdinId(Guid.NewGuid().ToString() + ".com");
+                var sid1 = Guid.NewGuid().ToByteArray();
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
@@ -245,7 +244,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     created = cts1,
                     fileType = 7,
                     dataType = 42,
-                    senderId = sid1,
+                    senderId = sid1.ToString(),
                     groupId = tid1,
                     uniqueId = Guid.NewGuid(),
                     userDate = ud1,
@@ -271,7 +270,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (md.dataType != 43)
                     Assert.Fail();
 
-                var sid2 = new OdinId("frodo.baggins");
+                var sid2 = "frodo.baggins";
                 md.senderId = sid2;
                 db.tblDriveMainIndex.Update(myc, md);
                 md = db.tblDriveMainIndex.Get(myc, driveId, k1);

@@ -1,6 +1,5 @@
 ﻿using Microsoft.VisualBasic.FileIO;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
@@ -343,7 +342,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
-            OdinId senderId,
+            string senderId,
             Guid? groupId,
             Guid? uniqueId,
             Int32 archivalStatus,
@@ -395,7 +394,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Int32? fileState = null,
             Int32? fileType = null,
             Int32? dataType = null,
-            OdinId? senderId = null,
+            string senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
             Int32? archivalStatus = null,
@@ -442,7 +441,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,
-            List<OdinId> senderidAnyOf,
+            List<byte[]> senderidAnyOf,
             List<Guid> groupIdAnyOf,
             UnixTimeUtcRange userdateSpan,
             List<Guid> tagsAllOf,
@@ -508,7 +507,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(senderidAnyOf))
             {
-                listWhere.Add($"senderid IN ({StringList(senderidAnyOf)})");
+                listWhere.Add($"senderid IN ({HexList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
@@ -566,7 +565,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<OdinId> senderidAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -743,7 +742,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<OdinId> senderidAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -888,7 +887,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<OdinId> senderidAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -979,22 +978,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return s;
         }
 
-        private string StringList(List<OdinId> list)
-        {
-            int len = list.Count;
-            string s = "";
-
-            for (int i = 0; i < len; i++)
-            {
-                s += $"'{list[i].DomainName}'";
-
-                if (i < len - 1)
-                    s += ",";
-            }
-
-            return s;
-        }
-
         private string HexList(List<byte[]> list)
         {
             int len = list.Count;
@@ -1031,11 +1014,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Returns true if the list should be used in the query
         /// </summary>
         private bool IsSet(List<byte[]> list)
-        {
-            return list != null && list.Any();
-        }
-
-        private bool IsSet(List<OdinId> list)
         {
             return list != null && list.Any();
         }

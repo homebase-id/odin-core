@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -87,7 +86,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -147,7 +146,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -212,7 +211,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -287,7 +286,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -371,7 +370,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(100));
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid(new UnixTimeUtc(1000));
                 var f3 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
@@ -413,7 +412,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -453,7 +452,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(200001));
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid(new UnixTimeUtc(20000));
                 var f3 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
@@ -493,7 +492,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -530,7 +529,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var gtid1 = SequentialGuid.CreateGuid();
                 var uid1 = SequentialGuid.CreateGuid();
 
@@ -567,7 +566,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -628,7 +627,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -712,7 +711,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -782,7 +781,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -882,7 +881,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -918,7 +917,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -954,7 +953,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -990,7 +989,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1026,7 +1025,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
@@ -1064,7 +1063,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
@@ -1105,7 +1104,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
@@ -1143,7 +1142,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             {
                 _testDatabase.CreateDatabase(myc);
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
@@ -1185,7 +1184,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid(); // Newest
@@ -1217,7 +1216,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1269,7 +1268,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1325,7 +1324,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1380,7 +1379,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1442,7 +1441,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 Thread.Sleep(1);
@@ -1508,7 +1507,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1550,7 +1549,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -1597,7 +1596,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 var f2 = SequentialGuid.CreateGuid();
@@ -1661,7 +1660,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 var f2 = SequentialGuid.CreateGuid();
@@ -1729,7 +1728,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 var f2 = SequentialGuid.CreateGuid();
@@ -1807,7 +1806,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 var f2 = SequentialGuid.CreateGuid();
@@ -1954,7 +1953,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 var f2 = SequentialGuid.CreateGuid();
@@ -2115,7 +2114,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var g1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2144,7 +2143,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var g1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
@@ -2180,14 +2179,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var g1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 try
                 {
                     var f2 = SequentialGuid.CreateGuid();
-                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
                     Assert.Fail();
                 }
                 catch
@@ -2210,7 +2209,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2240,7 +2239,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var g1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2282,7 +2281,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
                 var g3 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2315,7 +2314,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var u1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2344,7 +2343,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var u1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
@@ -2380,14 +2379,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var u1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid();
                 var t1 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
                 try
                 {
                     var f2 = SequentialGuid.CreateGuid();
-                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f2, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
                     Assert.Fail();
                 }
                 catch
@@ -2410,7 +2409,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2440,7 +2439,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var f1 = SequentialGuid.CreateGuid();
                 var u1 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2481,7 +2480,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var u1 = Guid.NewGuid();
                 var u2 = Guid.NewGuid();
                 var u3 = Guid.NewGuid();
-                var s1 = new OdinId(SequentialGuid.CreateGuid().ToString() + ".com");
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
                 _testDatabase.AddEntryPassalongToUpsert(myc, driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
@@ -2594,7 +2593,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var r = testDatabase.tblDriveMainIndex.Get(myc, driveId, fileId[420]);
             r.fileType = 5;
             r.dataType = 6;
-            r.senderId = new OdinId(conversationId[42].ToString() + ".com");
+            r.senderId = conversationId[42].ToString();
             r.groupId = theguid;
             r.userDate = new UnixTimeUtc(42);
             r.requiredSecurityGroup = 333;
@@ -2707,7 +2706,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 ref cursor,
                 filetypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
                 datatypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
-                senderidAnyOf: new List<OdinId>() { new OdinId(tags[0].ToString()+".com") },
+                senderidAnyOf: new List<byte[]>() { tags[0].ToByteArray() },
                 groupIdAnyOf: new List<Guid>() { tags[0] },
                 userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(7), new UnixTimeUtc(42)),
                 requiredSecurityGroup: allIntRange);
@@ -2790,7 +2789,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 tmptaglist.Add(tags[2]);
                 tmptaglist.Add(tags[3]);
 
-                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[0], Guid.NewGuid(), 0, 0, new OdinId(conversationId[0].ToString()+".com"), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
                 // Insert a lot of random data
                 for (var i = 0 + 1; i < fileId.Count; i++)
@@ -2817,7 +2816,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         countTags++;
                     }
 
-                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), new OdinId(conversationId[myRnd.Next(0, conversationId.Count - 1)].ToString() + ".com"), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
 
                 stopWatch.Stop();

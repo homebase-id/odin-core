@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
@@ -21,7 +20,7 @@ public class FileQueryParams
     /// <summary>
     /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
     /// </summary>
-    public IEnumerable<OdinId> Sender { get; set; } = null;
+    public IEnumerable<byte[]> Sender { get; set; } = null;
 
     public IEnumerable<Guid> GroupId { get; set; } = null;
 

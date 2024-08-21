@@ -93,7 +93,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS imFollowing("
                      +"identityId BLOB NOT NULL, "
-                     +"identity STRING NOT NULL, "
+                     +"identity BLOB NOT NULL, "
                      +"driveId BLOB NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT  "

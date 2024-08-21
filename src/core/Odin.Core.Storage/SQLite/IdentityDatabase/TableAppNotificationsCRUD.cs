@@ -38,13 +38,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                   _unread = value;
                }
         }
-        private OdinId? _senderId;
-        public OdinId? senderId
+        private string _senderId;
+        public string senderId
         {
            get {
                    return _senderId;
                }
            set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _senderId = value;
                }
         }
@@ -173,7 +175,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.identityId.ToByteArray();
                 _insertParam2.Value = item.notificationId.ToByteArray();
                 _insertParam3.Value = item.unread;
-                _insertParam4.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
+                _insertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam5.Value = item.timestamp.milliseconds;
                 _insertParam6.Value = item.data ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
@@ -223,7 +225,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.identityId.ToByteArray();
                 _insertParam2.Value = item.notificationId.ToByteArray();
                 _insertParam3.Value = item.unread;
-                _insertParam4.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
+                _insertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam5.Value = item.timestamp.milliseconds;
                 _insertParam6.Value = item.data ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
@@ -277,7 +279,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam1.Value = item.identityId.ToByteArray();
                 _upsertParam2.Value = item.notificationId.ToByteArray();
                 _upsertParam3.Value = item.unread;
-                _upsertParam4.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
+                _upsertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 _upsertParam5.Value = item.timestamp.milliseconds;
                 _upsertParam6.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
@@ -336,7 +338,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.identityId.ToByteArray();
                 _updateParam2.Value = item.notificationId.ToByteArray();
                 _updateParam3.Value = item.unread;
-                _updateParam4.Value = item.senderId?.DomainName ?? (object)DBNull.Value;
+                _updateParam4.Value = item.senderId ?? (object)DBNull.Value;
                 _updateParam5.Value = item.timestamp.milliseconds;
                 _updateParam6.Value = item.data ?? (object)DBNull.Value;
                 _updateParam7.Value = now.uniqueTime;
@@ -420,7 +422,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = new OdinId(rdr.GetString(3));
+                item.senderId = rdr.GetString(3);
             }
 
             if (rdr.IsDBNull(4))
@@ -504,7 +506,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.senderId = null;
             else
             {
-                item.senderId = new OdinId(rdr.GetString(1));
+                item.senderId = rdr.GetString(1);
             }
 
             if (rdr.IsDBNull(2))
