@@ -9,9 +9,9 @@ public static class CreateIdentityColumn
 {
     //
     // pushd src/apps/Odin.Hosting
-    // dotnet publish -r osx-x64 --self-contained -p:PublishSingleFile=true
+    // dotnet clean && dotnet publish -r osx-x64 --self-contained -p:PublishSingleFile=true
     // OR
-    // dotnet publish -r linux-x64 --self-contained -p:PublishSingleFile=true
+    // dotnet clean && dotnet publish -r linux-x64 --self-contained -p:PublishSingleFile=true
     //
     // pushd src/apps/Odin.Hosting/bin/Release/net8.0/osx-x64/publish/
     // OR
@@ -20,6 +20,8 @@ public static class CreateIdentityColumn
     // sudo chmod a+rw appsettings.production.json
     //
     // ASPNETCORE_ENVIRONMENT=production ./Odin.Hosting --create-identity-column
+    // OR
+    // ASPNETCORE_ENVIRONMENT=development ./Odin.Hosting --create-identity-column
     //
 
     //
