@@ -881,7 +881,7 @@ public class JobManagerTests
     [Test]
     [TestCase(0)]
     [TestCase(100)]
-    public async Task ItShouldDeleteExpiredFailedJobsDirectly(int deleteAfterMilliseconds)
+    public async Task ItShouldDeleteExpiredUnsuccessfulJobsDirectly(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -940,7 +940,7 @@ public class JobManagerTests
     [Test]
     [TestCase(0)]
     [TestCase(100)]
-    public async Task ItShouldDeleteExpiredFailedJobsInTheBackground(int deleteAfterMilliseconds)
+    public async Task ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground(int deleteAfterMilliseconds)
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();

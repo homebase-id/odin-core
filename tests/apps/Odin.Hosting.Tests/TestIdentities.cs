@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections.Requests;
 
@@ -15,14 +16,18 @@ namespace Odin.Hosting.Tests
 
     public static class TestIdentities
     {
-        
+        public static List<string> ToStringList(this IEnumerable<TestIdentity> list)
+        {
+            return list.Select(d => (string)d.OdinId).ToList();
+        }
+
         //Note: this is not used as a test identity but rather tested against (i.e. auto-follow)
         public static readonly TestIdentity HomebaseId = new TestIdentity()
         {
             OdinId = (OdinId)"id.homebase.id",
             ContactData = new ContactRequestData()
         };
-        
+
         public static readonly TestIdentity TomBombadil = new TestIdentity()
         {
             OdinId = (OdinId)"tom.dotyou.cloud",

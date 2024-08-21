@@ -70,10 +70,8 @@ public class TableJobs : TableJobsCRUD
         scheduled.Value = (int)JobState.Scheduled;
         cmd.Parameters.Add(scheduled);
 
-        var nextRun = cn.ExecuteScalar(cmd);
-        var result = (long?)nextRun;
-
-        return Task.FromResult(result);
+        var nextRun = (long?)cn.ExecuteScalar(cmd);
+        return Task.FromResult(nextRun);
     }
     
     //

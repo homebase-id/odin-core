@@ -42,7 +42,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
         
         if (_stoppingCts.IsCancellationRequested)
         {
-            throw new InvalidOperationException("The background service is stopping.");
+            throw new InvalidOperationException("The background service manager is stopping.");
         }
 
         using (await _mutex.LockAsync())
