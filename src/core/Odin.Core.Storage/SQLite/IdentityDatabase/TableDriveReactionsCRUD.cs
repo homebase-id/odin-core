@@ -95,7 +95,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     "CREATE TABLE IF NOT EXISTS driveReactions("
                      +"identityId BLOB NOT NULL, "
                      +"driveId BLOB NOT NULL, "
-                     +"identity BLOB NOT NULL, "
+                     +"identity STRING NOT NULL, "
                      +"postId BLOB NOT NULL, "
                      +"singleReaction STRING NOT NULL "
                      +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"

@@ -1,17 +1,11 @@
-﻿using Microsoft.VisualBasic.FileIO;
-using Odin.Core.Exceptions;
+﻿using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static NodaTime.TimeZones.ZoneEqualityComparer;
 
 
 /*
@@ -441,7 +435,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,
-            List<byte[]> senderidAnyOf,
+            List<string> senderidAnyOf,
             List<Guid> groupIdAnyOf,
             UnixTimeUtcRange userdateSpan,
             List<Guid> tagsAllOf,
@@ -507,7 +501,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(senderidAnyOf))
             {
-                listWhere.Add($"senderid IN ({HexList(senderidAnyOf)})");
+                listWhere.Add($"senderid IN ({UnsafeStringList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
@@ -565,7 +559,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -742,7 +736,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -887,7 +881,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -1009,23 +1003,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             return s;
         }
+        
+        private string UnsafeStringList(List<string> list)
+        {
+            // WARNING! This does not do anything to escape the strings.
+            // It's up to the caller to ensure the strings are safe.
+            return string.Join(", ", list.Select(item => "'" + item + "'"));
+        }
 
         /// <summary>
         /// Returns true if the list should be used in the query
         /// </summary>
         private bool IsSet(List<byte[]> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
         }
 
         private bool IsSet(List<Guid> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
         }
 
         private bool IsSet(List<int> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
+        }
+
+        private bool IsSet(List<string> list)
+        {
+            return list?.Count > 0;
         }
 
         private string AndIntersectHexList(List<Guid> list)

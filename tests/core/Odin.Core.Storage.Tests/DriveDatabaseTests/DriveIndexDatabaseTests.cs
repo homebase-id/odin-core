@@ -2706,7 +2706,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 ref cursor,
                 filetypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
                 datatypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
-                senderidAnyOf: new List<byte[]>() { tags[0].ToByteArray() },
+                senderidAnyOf: new List<string>() { tags[0].ToString() },
                 groupIdAnyOf: new List<Guid>() { tags[0] },
                 userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(7), new UnixTimeUtc(42)),
                 requiredSecurityGroup: allIntRange);
