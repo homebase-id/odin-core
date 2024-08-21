@@ -10,8 +10,12 @@ public static class CreateIdentityColumn
     //
     // pushd src/apps/Odin.Hosting
     // dotnet publish -r osx-x64 --self-contained -p:PublishSingleFile=true
+    // OR
+    // dotnet publish -r linux-x64 --self-contained -p:PublishSingleFile=true
     //
     // pushd src/apps/Odin.Hosting/bin/Release/net8.0/osx-x64/publish/
+    // OR
+    // pushd src/apps/Odin.Hosting/bin/Release/net8.0/linux-x64/publish/
     // sudo cp /identity-host/config/appsettings.production.json .
     // sudo chmod a+rw appsettings.production.json
     //
@@ -41,14 +45,15 @@ public static class CreateIdentityColumn
     {
         Console.WriteLine(tenantDir);
         var tenantId = Guid.Parse(Path.GetFileName(tenantDir));
+        
         var orgDbPath = Path.Combine(tenantDir, "headers", "sys.db");
-
-        var backup = BackupSqliteDatabase.Execute(orgDbPath);
-        Console.WriteLine($"backup: {backup}");
-
+        var oldDbPath = Path.Combine(tenantDir, "headers", "oldsys.db");
         var newDbPath = Path.Combine(tenantDir, "headers", "newsys.db");
+        
+        if (File.Exists(oldDbPath)) File.Delete(oldDbPath);
+        BackupSqliteDatabase.Execute(orgDbPath, oldDbPath);
 
-        using var oldDb = new IdentityDatabase.IdentityDatabase(tenantId, orgDbPath);
+        using var oldDb = new IdentityDatabase.IdentityDatabase(tenantId, oldDbPath);
         using var oldCn = oldDb.CreateDisposableConnection();
         using var newDb = new IdentityDatabase.IdentityDatabase(tenantId, newDbPath);
         using var newCn = newDb.CreateDisposableConnection();
@@ -56,6 +61,15 @@ public static class CreateIdentityColumn
         // DriveMainIndex
         {
             Console.WriteLine("  DriveMainIndex");
+            
+            // Clean the source table
+            oldCn.Connection.Execute(
+                $"""
+                 UPDATE {oldDb.tblDriveMainIndex._tableName}
+                 SET senderId = NULL
+                 WHERE senderId = '' OR senderId = 'System.Byte[]' OR senderId = x'';
+                 """);
+            
             newDb.tblDriveMainIndex.EnsureTableExists(newCn, true);
             var records = oldCn.Connection.Query<DriveMainIndexRecord>($"SELECT * FROM {newDb.tblDriveMainIndex._tableName} order by created asc");
             foreach (var record in records)
@@ -488,6 +502,15 @@ public static class CreateIdentityColumn
         // AppNotificationsTable
         {
             Console.WriteLine("  AppNotificationsTable");
+            
+            // Clean the source table
+            oldCn.Connection.Execute(
+                $"""
+                 UPDATE {newDb.tblAppNotificationsTable._tableName}
+                 SET senderId = NULL
+                 WHERE senderId = '' OR senderId = 'System.Byte[]' OR senderId = x'';
+                 """);
+            
             newDb.tblAppNotificationsTable.EnsureTableExists(newCn, true);
             var records = oldCn.Connection.Query<AppNotificationsRecord>($"SELECT * FROM {newDb.tblAppNotificationsTable._tableName}");
             foreach (var record in records)

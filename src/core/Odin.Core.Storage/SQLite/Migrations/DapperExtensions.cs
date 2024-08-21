@@ -48,17 +48,14 @@ public class StringHandler : SqlMapper.TypeHandler<string>
         {
             if (stringValue == "System.Byte[]")
             {
-                // Console.WriteLine("    skipping text 'System.Byte[]'");
-                return "";
+                return null;
             }
 
             return stringValue;
         }
         if (value is byte[] bytesValue)
         {
-            var result = System.Text.Encoding.UTF8.GetString(bytesValue);
-            // Console.WriteLine($"    convert byte[] to string: '{result}'");
-            return result;
+            return System.Text.Encoding.UTF8.GetString(bytesValue);
         }
 
         throw new DataException($"Cannot convert {value.GetType()} to string");
@@ -73,6 +70,5 @@ public static class DapperExtensions
         SqlMapper.AddTypeHandler(new GuidTypeHandler());
         SqlMapper.AddTypeHandler(new UnixTimeUtcUniqueHandler());
         SqlMapper.AddTypeHandler(new StringHandler());
-
     }
 }
