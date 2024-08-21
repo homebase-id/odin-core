@@ -20,7 +20,8 @@ namespace Odin.Services.Drives
     public class DriveDatabaseHost : IDisposable,
         INotificationHandler<DriveFileAddedNotification>,
         INotificationHandler<DriveFileChangedNotification>,
-        INotificationHandler<DriveFileDeletedNotification>
+        INotificationHandler<DriveFileDeletedNotification>,
+        INotificationHandler<ReactionPreviewUpdatedNotification>
     {
         private readonly DriveManager _driveManager;
         private readonly ConcurrentDictionary<Guid, AsyncLazy<IDriveDatabaseManager>> _queryManagers = new();
@@ -58,6 +59,12 @@ namespace Odin.Services.Drives
             await manager.UpdateCurrentIndex(notification.ServerFileHeader, notification.DatabaseConnection);
         }
 
+        public async Task Handle(ReactionPreviewUpdatedNotification notification, CancellationToken cancellationToken)
+        {
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId, notification.DatabaseConnection);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader, notification.DatabaseConnection);
+        }
+        
         public async Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
         {
             var manager = await TryGetOrLoadQueryManager(notification.File.DriveId, notification.DatabaseConnection);
