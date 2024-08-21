@@ -45,8 +45,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _senderId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value?.Length > 255) throw new Exception("Too long");
                   _senderId = value;
                }
         }
