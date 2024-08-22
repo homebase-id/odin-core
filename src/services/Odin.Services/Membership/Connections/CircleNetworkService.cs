@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -23,6 +25,8 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Util;
+using Refit;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
@@ -251,7 +255,7 @@ namespace Odin.Services.Membership.Connections
 
             return connection;
         }
-        
+
 
         /// <summary>
         /// Determines if the specified odinId is connected 
@@ -426,7 +430,6 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-
             var list = CircleNetworkUtils.AddSystemCircles(circleIds, origin);
             return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, cn);
         }
@@ -646,7 +649,7 @@ namespace Odin.Services.Membership.Connections
             return info;
         }
 
-                public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
+        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
@@ -702,7 +705,21 @@ namespace Odin.Services.Membership.Connections
             }
             //
         }
-        
+
+        public Task<VerifyConnectionResponse> VerifyConnectionCode(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            //TODO: other things here?
+            var key = odinContext.PermissionsContext.SharedSecretKey;
+            var bytes = payload.Decrypt(key);
+
+            var result = new VerifyConnectionResponse()
+            {
+                VerificationCode = new Guid(bytes)
+            };
+
+            return Task.FromResult(result);
+        }
+
         private async Task<AppCircleGrant> CreateAppCircleGrant(
             RedactedAppRegistration appReg,
             GuidId circleId,

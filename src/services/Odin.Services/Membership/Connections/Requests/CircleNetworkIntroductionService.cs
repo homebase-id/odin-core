@@ -304,6 +304,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             ContactData = new ContactRequestData(),
         };
 
-        await _circleNetworkRequestService.AcceptConnectionRequest(header, overrideAclIfPossible: true, odinContext, connection);
+        await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, connection);
     }
 }

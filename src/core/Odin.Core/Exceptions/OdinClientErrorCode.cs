@@ -71,6 +71,8 @@ public enum OdinClientErrorCode
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
     CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
     ConnectionRequestToYourself = 5003,
+    BlockedConnection = 5004,
+    CannotSendConnectionRequestToValidConnection = 5005, 
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,

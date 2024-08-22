@@ -67,7 +67,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
             using var cn = tenantSystemStorage.CreateConnection();
-            await circleNetworkRequestService.AcceptConnectionRequest(header, overrideAclIfPossible: false, WebOdinContext, cn);
+            await circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: false, WebOdinContext, cn);
             return true;
         }
 
