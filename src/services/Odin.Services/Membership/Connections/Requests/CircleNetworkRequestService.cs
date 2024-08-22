@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -12,17 +13,21 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Peer;
 using Odin.Services.Util;
+using Refit;
 
 
 namespace Odin.Services.Membership.Connections.Requests
@@ -30,7 +35,7 @@ namespace Odin.Services.Membership.Connections.Requests
     /// <summary>
     /// Establishes connections between individuals
     /// </summary>
-    public class CircleNetworkRequestService
+    public class CircleNetworkRequestService : PeerServiceBase
     {
         private readonly byte[] _pendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
 
@@ -49,9 +54,9 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly DriveManager _driveManager;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly FollowerService _followerService;
+        private readonly OdinConfiguration _odinConfiguration;
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
-
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -61,8 +66,14 @@ namespace Odin.Services.Membership.Connections.Requests
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
-            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService,
-            DriveManager driveManager, FollowerService followerService)
+            ExchangeGrantService exchangeGrantService,
+            IcrKeyService icrKeyService,
+            CircleMembershipService circleMembershipService,
+            DriveManager driveManager,
+            FollowerService followerService,
+            FileSystemResolver fileSystemResolver,
+            OdinConfiguration odinConfiguration)
+            : base(odinHttpClientFactory, cns, fileSystemResolver)
         {
             _cns = cns;
             _logger = logger;
@@ -75,6 +86,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _driveManager = driveManager;
             _followerService = followerService;
+            _odinConfiguration = odinConfiguration;
 
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
@@ -161,8 +173,25 @@ namespace Odin.Services.Membership.Connections.Requests
                 OdinValidationUtils.AssertNotNullOrEmpty(header.IntroducerOdinId, nameof(header.IntroducerOdinId));
             }
 
+            // Check if already connected
+            var existingConnection = await _cns.GetIdentityConnectionRegistration(recipient, odinContext, cn);
+            if (existingConnection.Status == ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
+            }
+
+            if (existingConnection.IsConnected())
+            {
+                if (await this.VerifyConnection(recipient, odinContext, cn))
+                {
+                    //connection is good
+                    throw new OdinClientException("Cannot send connection request to a valid connection",
+                        OdinClientErrorCode.CannotSendConnectionRequestToValidConnection);
+                }
+            }
+
             var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
-            if (null != incomingRequest)
+            if (incomingRequest != null)
             {
                 // just accept the request; using the ACL info (header.CircleIds, etc.)
                 var ac = new AcceptRequestHeader
@@ -172,19 +201,9 @@ namespace Odin.Services.Membership.Connections.Requests
                     ContactData = header.ContactData
                 };
 
-                await this.AcceptConnectionRequest(ac, false, odinContext, cn);
+                await this.AcceptConnectionRequest(ac, tryOverrideAcl: false, odinContext, cn);
                 return;
             }
-
-            // var existingRequest = await this.GetSentRequestInternal(recipientOdinId, cn);
-            // if (existingRequest != null)
-            // {
-            //     //delete the existing request 
-            //
-            //      await this.DeleteSentRequest(recipientOdinId);
-            //     throw new OdinClientException("You already sent a request to this recipient.",
-            //         OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
-            // }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -279,10 +298,28 @@ namespace Odin.Services.Membership.Connections.Requests
 
             //TODO: check robot detection code
 
+            var sender = odinContext.GetCallerOdinIdOrFail();
             var recipient = _tenantContext.HostOdinId;
 
+            var existingConnection = await _cns.GetIdentityConnectionRegistration(sender, odinContext, cn, true);
+            if (existingConnection.Status == ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
+            }
+
+            if (existingConnection.IsConnected())
+            {
+                var success = await this.VerifyConnection(sender, odinContext, cn);
+                if (success)
+                {
+                    _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
+
+                    //TODO decide if we should throw an error here?
+                    return;
+                }
+            }
+            
             //Check if a request was sent to the sender
-            var sender = odinContext.GetCallerOdinIdOrFail();
             var sentRequest = await GetSentRequestInternal(sender, cn);
             if (null != sentRequest)
             {
@@ -363,7 +400,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        public async Task AcceptConnectionRequest(AcceptRequestHeader header, bool overrideAclIfPossible, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task AcceptConnectionRequest(AcceptRequestHeader header, bool tryOverrideAcl, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
             header.Validate();
@@ -379,7 +416,7 @@ namespace Odin.Services.Membership.Connections.Requests
             AccessExchangeGrant accessGrant = null;
 
             //Note: this option is used for auto-accepting connection requests for the Invitation feature
-            if (overrideAclIfPossible)
+            if (tryOverrideAcl)
             {
                 //If I had previously sent a connection request; use the ACLs I already created
                 var existingSentRequest = await GetSentRequestInternal(senderOdinId, cn);
@@ -552,6 +589,41 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             odinContext.AssertCanManageConnections();
             return DeletePendingRequestInternal(sender, cn);
+        }
+
+        private async Task<bool> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            Guid randomCode = Guid.NewGuid();
+
+            bool success = false;
+            try
+            {
+                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+
+                ApiResponse<VerifyConnectionResponse> response;
+                await TryRetry.WithDelayAsync(
+                    _odinConfiguration.Host.PeerOperationMaxAttempts,
+                    _odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () =>
+                    {
+                        var json = OdinSystemSerializer.Serialize(randomCode);
+                        var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
+                        var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
+                            clientAuthToken.ToAuthenticationToken());
+
+                        response = await client.VerifyConnection(encryptedPayload);
+                        success = response.Content != null &&
+                                  response.IsSuccessStatusCode &&
+                                  response.Content.VerificationCode == randomCode;
+                    });
+            }
+            catch (TryRetryException e)
+            {
+                throw e.InnerException ?? e;
+            }
+
+            return success;
         }
 
         private Task DeletePendingRequestInternal(OdinId sender, DatabaseConnection cn)
