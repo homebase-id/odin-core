@@ -6,57 +6,69 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
-    public abstract class CircleNetworkControllerBase : OdinControllerBase
+    public abstract class CircleNetworkControllerBase(
+        CircleNetworkService circleNetwork,
+        TenantSystemStorage tenantSystemStorage,
+        CircleNetworkRequestService requestService)
+        : OdinControllerBase
     {
-        private readonly CircleNetworkService _circleNetwork;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-        public CircleNetworkControllerBase(CircleNetworkService cn, TenantSystemStorage tenantSystemStorage)
-        {
-            _circleNetwork = cn;
-            _tenantSystemStorage = tenantSystemStorage;
-        }
-
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext, cn);
             return result;
         }
 
         [HttpPost("block")]
         public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.Block((OdinId)request.OdinId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.Block((OdinId)request.OdinId, WebOdinContext, cn);
             return result;
         }
 
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext, cn);
             return result;
+        }
+
+        [HttpPost("confirm-connection")]
+        public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            await circleNetwork.ConfirmConnection((OdinId)request.OdinId, WebOdinContext, cn);
+            return Ok();
+        }
+
+        [HttpPost("verify-connection")]
+        public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            await requestService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
+            return Ok();
         }
 
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext, cn);
             return new JsonResult(result);
         }
-        
+
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)request.OdinId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.GetIcr((OdinId)request.OdinId, WebOdinContext, cn);
             return result?.Redacted(omitContactData);
         }
 
@@ -64,8 +76,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext, cn);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -77,8 +89,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
             bool omitContactData = false)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext, cn);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -89,24 +101,24 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("circles/list")]
         public async Task<IEnumerable<OdinId>> GetCircleMembers([FromBody] GetCircleMembersRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetCircleMembers(request.CircleId, WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var result = await circleNetwork.GetCircleMembers(request.CircleId, WebOdinContext, cn);
             return result;
         }
 
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext, cn);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext, cn);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext, cn);
             return true;
         }
     }

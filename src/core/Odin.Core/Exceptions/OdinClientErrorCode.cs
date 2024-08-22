@@ -68,8 +68,8 @@ public enum OdinClientErrorCode
     FileLockedDuringWriteOperation = 4165,
 
     // Connection errors 50xx
-    CannotSendConnectionRequestToExistingIncomingRequest = 5001,
-    CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
+    NotAnAutoConnection = 5001,
+    IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
     BlockedConnection = 5004,
     CannotSendConnectionRequestToValidConnection = 5005, 

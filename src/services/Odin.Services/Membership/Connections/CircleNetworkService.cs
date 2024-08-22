@@ -13,7 +13,6 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
-using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -25,8 +24,6 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
-using Odin.Services.Util;
-using Refit;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
@@ -58,7 +55,7 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var icr = await this.GetIdentityConnectionRegistration(odinId, remoteIcrToken, cn);
+            var icr = await this.GetIcr(odinId, remoteIcrToken, cn);
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
@@ -138,7 +135,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var info = await this.GetIcr(odinId, odinContext, cn);
             if (info is { Status: ConnectionStatus.Connected })
             {
                 _storage.Delete(odinId, cn);
@@ -163,7 +160,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var info = await this.GetIcr(odinId, odinContext, cn);
 
             //TODO: when you block a connection, you must also destroy exchange grant
 
@@ -202,7 +199,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var info = await this.GetIcr(odinId, odinContext, cn);
             if (null != info && info.Status == ConnectionStatus.Blocked)
             {
                 info.Status = ConnectionStatus.Connected;
@@ -220,7 +217,7 @@ namespace Odin.Services.Membership.Connections
         /// <param name="odinContext"></param>
         /// <param name="overrideHack"></param>
         /// <returns></returns>
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn,
+        public async Task<IdentityConnectionRegistration> GetIcr(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn,
             bool overrideHack = false)
         {
             //TODO: need to cache here?
@@ -239,7 +236,7 @@ namespace Odin.Services.Membership.Connections
         /// <param name="odinId"></param>
         /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(
+        public async Task<IdentityConnectionRegistration> GetIcr(
             OdinId odinId,
             ClientAuthenticationToken remoteClientAuthenticationToken,
             DatabaseConnection cn)
@@ -269,7 +266,7 @@ namespace Odin.Services.Membership.Connections
                 odinContext.AssertCanManageConnections();
             }
 
-            var info = await this.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var info = await this.GetIcr(odinId, odinContext, cn);
             return info.Status == ConnectionStatus.Connected;
         }
 
@@ -291,7 +288,7 @@ namespace Odin.Services.Membership.Connections
         /// <returns></returns>
         public async Task AssertConnectionIsNoneOrValid(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var info = await this.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var info = await this.GetIcr(odinId, odinContext, cn);
             this.AssertConnectionIsNoneOrValid(info);
         }
 
@@ -718,6 +715,37 @@ namespace Odin.Services.Membership.Connections
             };
 
             return Task.FromResult(result);
+
+        }
+        
+
+        /// <summary>
+        /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
+        /// </summary>
+        public async Task ConfirmConnection(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var icr = await this.GetIcr(odinId, odinContext, cn);
+
+            if (!icr.IsConnected())
+            {
+                throw new OdinClientException("Cannot confirm identity that is not connected", OdinClientErrorCode.IdentityMustBeConnected);
+            }
+
+            if (!icr.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
+            {
+                throw new OdinClientException("Cannot confirm identity that is not in the AutoConnectionsCircle", OdinClientErrorCode.NotAnAutoConnection);
+            }
+            
+            //TODO: Here we can encrypt the master key as well
+
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
+            {
+                await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
+                await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, cn);
+            });
+
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(

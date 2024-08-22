@@ -131,7 +131,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
-                        var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, cn, overrideHack: true);
+                        var icr = await circleNetworkService.GetIcr(inboxItem.Sender, odinContext, cn, overrideHack: true);
                         var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
                         var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 

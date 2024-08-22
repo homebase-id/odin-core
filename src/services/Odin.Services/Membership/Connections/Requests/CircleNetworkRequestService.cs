@@ -174,7 +174,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             // Check if already connected
-            var existingConnection = await _cns.GetIdentityConnectionRegistration(recipient, odinContext, cn);
+            var existingConnection = await _cns.GetIcr(recipient, odinContext, cn);
             if (existingConnection.Status == ConnectionStatus.Blocked)
             {
                 throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
@@ -301,7 +301,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var sender = odinContext.GetCallerOdinIdOrFail();
             var recipient = _tenantContext.HostOdinId;
 
-            var existingConnection = await _cns.GetIdentityConnectionRegistration(sender, odinContext, cn, true);
+            var existingConnection = await _cns.GetIcr(sender, odinContext, cn, true);
             if (existingConnection.Status == ConnectionStatus.Blocked)
             {
                 throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
@@ -318,7 +318,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return;
                 }
             }
-            
+
             //Check if a request was sent to the sender
             var sentRequest = await GetSentRequestInternal(sender, cn);
             if (null != sentRequest)
@@ -591,7 +591,7 @@ namespace Odin.Services.Membership.Connections.Requests
             return DeletePendingRequestInternal(sender, cn);
         }
 
-        private async Task<bool> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
             Guid randomCode = Guid.NewGuid();
 

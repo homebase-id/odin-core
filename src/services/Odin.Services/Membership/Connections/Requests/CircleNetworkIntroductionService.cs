@@ -14,6 +14,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -104,6 +105,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
     {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.IntroduceMe);
+        
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
         var payloadBytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);

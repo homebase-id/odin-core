@@ -364,7 +364,7 @@ namespace Odin.Services.DataSubscription.Follower
         public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var icr = await _circleNetworkService.GetIcr(odinId, odinContext, cn);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
