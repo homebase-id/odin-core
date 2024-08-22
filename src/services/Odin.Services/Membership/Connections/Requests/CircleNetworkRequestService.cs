@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -594,6 +596,8 @@ namespace Odin.Services.Membership.Connections.Requests
         public async Task<bool> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
             Guid randomCode = Guid.NewGuid();
+            var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), odinContext.PermissionsContext.SharedSecretKey.GetKey());
+            var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
 
             bool success = false;
             try
@@ -607,15 +611,30 @@ namespace Odin.Services.Membership.Connections.Requests
                     CancellationToken.None,
                     async () =>
                     {
-                        var json = OdinSystemSerializer.Serialize(randomCode);
+                        var vc = new VerificationCode()
+                        {
+                            Code = randomCode
+                        };
+
+                        var json = OdinSystemSerializer.Serialize(vc);
+
                         var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
                         var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
                             clientAuthToken.ToAuthenticationToken());
 
                         response = await client.VerifyConnection(encryptedPayload);
-                        success = response.Content != null &&
-                                  response.IsSuccessStatusCode &&
-                                  response.Content.VerificationCode == randomCode;
+                        if (response.IsSuccessStatusCode)
+                        {
+                            //only compare if we get back a good code, so we don't kill
+                            //an ICR because the remote server is not responding
+                            success = ByteArrayUtil.EquiByteArrayCompare(response.Content.Hash, expectedHash);
+                        }
+                        else
+                        {
+                            //TODO: need to handle scenarios here
+                            throw new OdinSystemException("TODO");
+                        }
+                        
                     });
             }
             catch (TryRetryException e)
@@ -695,5 +714,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             return false;
         }
+    }
+
+    public class VerificationCode
+    {
+        public Guid Code { get; set; }
     }
 }

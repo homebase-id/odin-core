@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
@@ -705,15 +704,18 @@ namespace Odin.Services.Membership.Connections
 
         public Task<VerifyConnectionResponse> VerifyConnectionCode(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
-            //TODO: other things here?
             var key = odinContext.PermissionsContext.SharedSecretKey;
             var bytes = payload.Decrypt(key);
+           
+            var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
+            var combined = ByteArrayUtil.Combine(c.Code.ToByteArray(), key.GetKey());
+            var hash = ByteArrayUtil.CalculateSHA256Hash(combined);
 
             var result = new VerifyConnectionResponse()
             {
-                VerificationCode = new Guid(bytes)
+                Hash = hash
             };
-
+            
             return Task.FromResult(result);
 
         }
