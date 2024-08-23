@@ -3,7 +3,7 @@ name: "Host: Build and deploy branch to environment"
 on:
   workflow_dispatch:
     inputs:
-      choice:
+      env_choice:
         type: choice
         description: "Environment"
         options:
@@ -13,6 +13,12 @@ on:
         description: "Frontend branch/commit to include"
         required: true
         default: "main"
+      start_choice:
+        type: choice
+        description: "Start container"
+        options:
+        - 'true'
+        - 'false'
 
 env:
   REGISTRY: ghcr.io
@@ -83,8 +89,9 @@ jobs:
         uses: ./dotyoucore/.github/actions/host/deploy-image-to-environment
         with:
           image_name: ${{ env.IMAGE_WITH_TAG }}
-          env_name: ${{ github.event.inputs.choice }}
+          env_name: ${{ github.event.inputs.env_choice }}
           force_update: 'true'
+          start_container: ${{ github.event.inputs.start_choice }}
           ansible_host: ${{ secrets.ANSIBLE_HOST }}
           ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
           ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
