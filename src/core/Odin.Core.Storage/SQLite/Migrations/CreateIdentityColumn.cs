@@ -7,6 +7,10 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 public static class CreateIdentityColumn
 {
+    // find . -type f -name 'sys.db' -execdir mv {} identity.db \;
+
+    // docker exec identity-host dotnet Odin.Hosting.dll --create-identity-column
+
     //
     // pushd src/apps/Odin.Hosting
     // dotnet clean && dotnet publish -r osx-x64 --self-contained -p:PublishSingleFile=true
