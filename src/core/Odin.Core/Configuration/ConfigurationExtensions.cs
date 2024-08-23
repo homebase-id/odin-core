@@ -63,6 +63,7 @@ public static class ConfigurationExtensions
             }
         }
 
+        result.Sort();
         return result;
     }
 
