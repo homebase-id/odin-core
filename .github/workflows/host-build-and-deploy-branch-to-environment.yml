@@ -3,7 +3,7 @@ name: "Host: Build and deploy branch to environment"
 on:
   workflow_dispatch:
     inputs:
-      choice:
+      env_choice:
         type: choice
         description: "Environment"
         options:
@@ -83,7 +83,7 @@ jobs:
         uses: ./dotyoucore/.github/actions/host/deploy-image-to-environment
         with:
           image_name: ${{ env.IMAGE_WITH_TAG }}
-          env_name: ${{ github.event.inputs.choice }}
+          env_name: ${{ github.event.inputs.env_choice }}
           force_update: 'true'
           ansible_host: ${{ secrets.ANSIBLE_HOST }}
           ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
