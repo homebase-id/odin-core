@@ -6,7 +6,7 @@ on:
       image_tag:
         description: "Docker image tag (e.g., v0.1.96)"
         required: true
-      choice:
+      env_choice:
         type: choice
         description: "Environment"
         options:
@@ -24,7 +24,7 @@ jobs:
       uses: ./.github/actions/host/deploy-image-to-environment
       with:
         image_name: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag }}
-        env_name: ${{ github.event.inputs.choice }}
+        env_name: ${{ github.event.inputs.env_choice }}
         force_update: 'true'
         ansible_host: ${{ secrets.ANSIBLE_HOST }}
         ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
