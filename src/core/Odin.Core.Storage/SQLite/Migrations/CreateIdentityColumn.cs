@@ -7,7 +7,10 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 public static class CreateIdentityColumn
 {
-    // find . -type f -name 'sys.db' -execdir mv {} identity.db \;
+    // sudo find . -type f -name 'sys.db' -execdir sudo mv {} identity.db \;
+
+    // sudo find . -type f -name '*.db-shm' -execdir sudo rm {} \;
+    // sudo find . -type f -name '*.db-wal' -execdir sudo rm {} \;
 
     // docker exec identity-host dotnet Odin.Hosting.dll --create-identity-column
 
@@ -30,8 +33,8 @@ public static class CreateIdentityColumn
 
     //
     // after migration:
-    // find . -type f -name "sys.db" -exec rm -f {} +
-    // find . -type f -name "newsys.db" -execdir mv {} sys.db \;
+    // find . -type f -name "identity.db" -exec rm -f {} +
+    // find . -type f -name "newidentity.db" -execdir mv {} sys.db \;
     //
 
     public static void Execute(string tenantDataRootPath)
@@ -52,9 +55,14 @@ public static class CreateIdentityColumn
         Console.WriteLine(tenantDir);
         var tenantId = Guid.Parse(Path.GetFileName(tenantDir));
         
-        var orgDbPath = Path.Combine(tenantDir, "headers", "sys.db");
-        var oldDbPath = Path.Combine(tenantDir, "headers", "oldsys.db");
-        var newDbPath = Path.Combine(tenantDir, "headers", "newsys.db");
+        var orgDbPath = Path.Combine(tenantDir, "headers", "identity.db");
+        var oldDbPath = Path.Combine(tenantDir, "headers", "oldidentity.db");
+        var newDbPath = Path.Combine(tenantDir, "headers", "newidentity.db");
+
+        if (!File.Exists(orgDbPath))
+        {
+            throw new Exception("Database not found: " + orgDbPath);
+        }
         
         if (File.Exists(oldDbPath)) File.Delete(oldDbPath);
         BackupSqliteDatabase.Execute(orgDbPath, oldDbPath);
