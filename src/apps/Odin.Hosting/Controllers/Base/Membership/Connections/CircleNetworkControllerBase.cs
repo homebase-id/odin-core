@@ -53,7 +53,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             using var cn = tenantSystemStorage.CreateConnection();
             var result = await requestService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
-            return new JsonResult(new { result });
+            return new JsonResult(result);
         }
 
         [HttpPost("troubleshooting-info")]

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -184,7 +182,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if (await this.VerifyConnection(recipient, odinContext, cn))
+                if ((await this.VerifyConnection(recipient, odinContext, cn)).Verified)
                 {
                     //connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -311,8 +309,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                var success = await this.VerifyConnection(sender, odinContext, cn);
-                if (success)
+                if ((await this.VerifyConnection(sender, odinContext, cn)).Verified)
                 {
                     _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
 
@@ -593,7 +590,7 @@ namespace Odin.Services.Membership.Connections.Requests
             return DeletePendingRequestInternal(sender, cn);
         }
 
-        public async Task<bool> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
             Guid randomCode = Guid.NewGuid();
             var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), odinContext.PermissionsContext.SharedSecretKey.GetKey());
@@ -631,10 +628,10 @@ namespace Odin.Services.Membership.Connections.Requests
                         }
                         else
                         {
+                            // If we got back any other type of response, let's tell the caller
                             //TODO: need to handle scenarios here
                             throw new OdinSystemException("TODO");
                         }
-                        
                     });
             }
             catch (TryRetryException e)
@@ -642,7 +639,10 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw e.InnerException ?? e;
             }
 
-            return success;
+            return new IcrVerificationResult()
+            {
+                Verified = success
+            };
         }
 
         private Task DeletePendingRequestInternal(OdinId sender, DatabaseConnection cn)
@@ -714,6 +714,11 @@ namespace Odin.Services.Membership.Connections.Requests
 
             return false;
         }
+    }
+
+    public class IcrVerificationResult
+    {
+        public bool Verified { get; init; }
     }
 
     public class VerificationCode
