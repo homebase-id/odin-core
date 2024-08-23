@@ -52,8 +52,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            await requestService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
-            return Ok();
+            var result = await requestService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
+            return new JsonResult(new { result });
         }
 
         [HttpPost("troubleshooting-info")]
