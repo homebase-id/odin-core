@@ -6,13 +6,20 @@ on:
       image_tag:
         description: "Docker image tag (e.g., v0.1.96)"
         required: true
-      choice:
+      env_choice:
         type: choice
         description: "Environment"
         options:
         - bleeding_edge
         - sandbox
         - production
+      start_choice:
+        type: choice
+        description: "Start container"
+        options:
+        - 'true'
+        - 'false'
+
 
 jobs:
   deploy:
@@ -24,8 +31,9 @@ jobs:
       uses: ./.github/actions/host/deploy-image-to-environment
       with:
         image_name: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag }}
-        env_name: ${{ github.event.inputs.choice }}
+        env_name: ${{ github.event.inputs.env_choice }}
         force_update: 'true'
+        start_container: ${{ github.event.inputs.start_choice }}
         ansible_host: ${{ secrets.ANSIBLE_HOST }}
         ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
         ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}

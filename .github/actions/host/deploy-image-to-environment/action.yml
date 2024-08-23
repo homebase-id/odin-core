@@ -10,6 +10,9 @@ inputs:
   force_update:
     description: "Force update of the Docker image (true/false)"
     required: true
+  start_container:
+    description: "Start the container after deployment (true/false)"
+    required: true
   ansible_host:
     description: "Ansible host"
     required: true
@@ -40,6 +43,6 @@ runs:
           cd $ANSIBLE_WORK_FOLDER
           git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
           cd $ANSIBLE_WORK_FOLDER/ansible
-          ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} identity_host_docker_image=$docker_image_name"
+          ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} start_container=${{ inputs.start_container }}  identity_host_docker_image=$docker_image_name"
           cd /tmp
           rm -rf $ANSIBLE_WORK_FOLDER
