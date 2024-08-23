@@ -426,6 +426,32 @@ namespace Odin.Hosting
             }
 
             //
+            // Command line: export shell env config as bash array
+            //
+            //
+            // Example:
+            //   dotnet run --no-build -- --export-shell-env
+            //
+            if (args.Contains("--export-bash-array-env"))
+            {
+                var (_, appSettingsConfig) = LoadConfig(false);
+                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
+                Console.WriteLine("env_vars=(");
+                foreach (var envVar in envVars)
+                {
+                    Console.WriteLine($"  \"{envVar}\"");
+                }
+                Console.WriteLine(")");
+                Console.WriteLine(
+                    """
+                    for env_var in "${env_vars[@]}"; do
+                      echo $env_var
+                    done
+                    """);
+                return (true, 0);
+            }
+
+            //
             // Command line: dump environment variables
             //
             // examples:
