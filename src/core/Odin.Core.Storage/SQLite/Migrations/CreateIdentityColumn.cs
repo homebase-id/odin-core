@@ -7,7 +7,7 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 public static class CreateIdentityColumn
 {
-    // sudo find . -type f -name 'sys.db' -execdir sudo mv {} identity.db \;
+    // sudo find . -type f -name 'sys.db' -execdir bash -c 'if [ ! -f identity.db ]; then mv "{}" identity.db; else rm "{}"; fi' \;
 
     // sudo find . -type f -name '*.db-shm' -execdir sudo rm {} \;
     // sudo find . -type f -name '*.db-wal' -execdir sudo rm {} \;
