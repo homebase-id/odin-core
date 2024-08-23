@@ -13,6 +13,13 @@ on:
         - bleeding_edge
         - sandbox
         - production
+      start_choice:
+        type: choice
+        description: "Start container"
+        options:
+        - 'true'
+        - 'false'
+
 
 jobs:
   deploy:
