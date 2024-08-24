@@ -22,14 +22,8 @@ public sealed class TenantSystemStorage : IDisposable
             Directory.CreateDirectory(dbPath!);
         }
 
-        string dbName = "identity.db";
-        string finalPath = PathUtil.Combine(dbPath, dbName);
-
-        if (!File.Exists(finalPath))
-        {
-            string oldName = "sys.db";
-            finalPath = PathUtil.Combine(dbPath, oldName);
-        }
+        var dbName = "identity.db";
+        var finalPath = PathUtil.Combine(dbPath, dbName);
 
         IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
         using (var conn = IdentityDatabase.CreateDisposableConnection())
