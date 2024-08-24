@@ -182,7 +182,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if ((await this.VerifyConnection(recipient, odinContext, cn)).Verified)
+                if ((await this.VerifyConnection(recipient, odinContext, cn)).IsValid)
                 {
                     //connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -309,7 +309,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if ((await this.VerifyConnection(sender, odinContext, cn)).Verified)
+                if ((await this.VerifyConnection(sender, odinContext, cn)).IsValid)
                 {
                     _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
 
@@ -641,7 +641,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             return new IcrVerificationResult()
             {
-                Verified = success
+                IsValid = success
             };
         }
 
@@ -718,7 +718,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
     public class IcrVerificationResult
     {
-        public bool Verified { get; init; }
+        public bool IsValid { get; init; }
     }
 
     public class VerificationCode
