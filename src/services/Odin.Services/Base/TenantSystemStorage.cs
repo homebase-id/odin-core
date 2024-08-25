@@ -38,7 +38,6 @@ public sealed class TenantSystemStorage : IDisposable
         Inbox = IdentityDatabase.tblInbox;
         WhoIFollow = IdentityDatabase.tblImFollowing;
         Followers = IdentityDatabase.tblFollowsMe;
-        Feedbox = IdentityDatabase.tblFeedDistributionOutbox;
         AppNotifications = IdentityDatabase.tblAppNotificationsTable;
     }
 
@@ -74,8 +73,7 @@ public sealed class TenantSystemStorage : IDisposable
     public TableAppGrants AppGrants { get; }
     public TableConnections Connections { get; }
     public TableAppNotifications AppNotifications { get; }
-    public TableFeedDistributionOutbox Feedbox { get; }
-    public TableOutbox Outbox { get; }
+   public TableOutbox Outbox { get; }
     public TableInbox Inbox { get; }
     public TableImFollowing WhoIFollow { get; }
     public TableFollowsMe Followers { get; }

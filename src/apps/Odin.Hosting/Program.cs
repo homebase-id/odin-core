@@ -21,6 +21,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -471,6 +472,25 @@ namespace Odin.Hosting
                 }
                 return (true, 0);
             }
+
+            //
+            // Command line: create identity column in databases
+            //
+            // examples:
+            //
+            //   dotnet run --no-build -- --create-identity-column
+            //
+            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --create-identity-column
+            //
+            //
+            if (args.Contains("--create-identity-column"))
+            {
+                var (odinConfiguration, _) = LoadConfig(true);
+                CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
+                return (true, 0);
+            }
+
+
 
             return (false, 0);
         }

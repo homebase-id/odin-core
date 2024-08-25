@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class KeyThreeValueRecord
     {
+        private Guid _identityId;
+        public Guid identityId
+        {
+           get {
+                   return _identityId;
+               }
+           set {
+                  _identityId = value;
+               }
+        }
         private byte[] _key1;
         public byte[] key1
         {
@@ -64,7 +74,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableKeyThreeValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
+        public TableKeyThreeValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "keyThreeValue")
         {
             _cache = cache;
         }
@@ -91,156 +101,187 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyThreeValue("
+                     +"identityId BLOB NOT NULL, "
                      +"key1 BLOB NOT NULL UNIQUE, "
                      +"key2 BLOB , "
                      +"key3 BLOB , "
                      +"data BLOB  "
-                     +", PRIMARY KEY (key1)"
+                     +", PRIMARY KEY (identityId,key1)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(key2);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(identityId,key2);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
                      ;
                     conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, KeyThreeValueRecord item)
+        protected virtual int Insert(DatabaseConnection conn, KeyThreeValueRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
-                {
-                    _insertCommand.CommandText = "INSERT INTO keyThreeValue (key1,key2,key3,data) " +
-                                                 "VALUES ($key1,$key2,$key3,$data)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$key1";
-                    _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$key2";
-                    _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$key3";
-                    _insertCommand.Parameters.Add(_insertParam3);
-                    var _insertParam4 = _insertCommand.CreateParameter();
-                    _insertParam4.ParameterName = "$data";
-                    _insertCommand.Parameters.Add(_insertParam4);
-                _insertParam1.Value = item.key1;
-                _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
-                _insertParam3.Value = item.key3 ?? (object)DBNull.Value;
-                _insertParam4.Value = item.data ?? (object)DBNull.Value;
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT INTO keyThreeValue (identityId,key1,key2,key3,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@key3,@data)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identityId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@key1";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@key2";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@key3";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam5);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.key1;
+                _insertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                _insertParam4.Value = item.key3 ?? (object)DBNull.Value;
+                _insertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
-                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToBase64(), item);
-                 }
+                {
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int TryInsert(DatabaseConnection conn, KeyThreeValueRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyThreeValue (key1,key2,key3,data) " +
-                                             "VALUES (@key1,@key2,@key3,@data)";
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyThreeValue (identityId,key1,key2,key3,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@key3,@data)";
                 var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@key1";
+                _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
                 var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@key2";
+                _insertParam2.ParameterName = "@key1";
                 _insertCommand.Parameters.Add(_insertParam2);
                 var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@key3";
+                _insertParam3.ParameterName = "@key2";
                 _insertCommand.Parameters.Add(_insertParam3);
                 var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@data";
+                _insertParam4.ParameterName = "@key3";
                 _insertCommand.Parameters.Add(_insertParam4);
-                _insertParam1.Value = item.key1;
-                _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
-                _insertParam3.Value = item.key3 ?? (object)DBNull.Value;
-                _insertParam4.Value = item.data ?? (object)DBNull.Value;
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@data";
+                _insertCommand.Parameters.Add(_insertParam5);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.key1;
+                _insertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                _insertParam4.Value = item.key3 ?? (object)DBNull.Value;
+                _insertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
-                   _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToBase64(), item);
-                 }
+                {
+                   _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                }
                 return count;
             } // Using
         }
 
-        public virtual int Upsert(DatabaseConnection conn, KeyThreeValueRecord item)
+        protected virtual int Upsert(DatabaseConnection conn, KeyThreeValueRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
-                {
-                    _upsertCommand.CommandText = "INSERT INTO keyThreeValue (key1,key2,key3,data) " +
-                                                 "VALUES ($key1,$key2,$key3,$data)"+
-                                                 "ON CONFLICT (key1) DO UPDATE "+
-                                                 "SET key2 = $key2,key3 = $key3,data = $data "+
-                                                 ";";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$key1";
-                    _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$key2";
-                    _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$key3";
-                    _upsertCommand.Parameters.Add(_upsertParam3);
-                    var _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertParam4.ParameterName = "$data";
-                    _upsertCommand.Parameters.Add(_upsertParam4);
-                _upsertParam1.Value = item.key1;
-                _upsertParam2.Value = item.key2 ?? (object)DBNull.Value;
-                _upsertParam3.Value = item.key3 ?? (object)DBNull.Value;
-                _upsertParam4.Value = item.data ?? (object)DBNull.Value;
+            using (var _upsertCommand = _database.CreateCommand())
+            {
+                _upsertCommand.CommandText = "INSERT INTO keyThreeValue (identityId,key1,key2,key3,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@key3,@data)"+
+                                             "ON CONFLICT (identityId,key1) DO UPDATE "+
+                                             "SET key2 = @key2,key3 = @key3,data = @data "+
+                                             ";";
+                var _upsertParam1 = _upsertCommand.CreateParameter();
+                _upsertParam1.ParameterName = "@identityId";
+                _upsertCommand.Parameters.Add(_upsertParam1);
+                var _upsertParam2 = _upsertCommand.CreateParameter();
+                _upsertParam2.ParameterName = "@key1";
+                _upsertCommand.Parameters.Add(_upsertParam2);
+                var _upsertParam3 = _upsertCommand.CreateParameter();
+                _upsertParam3.ParameterName = "@key2";
+                _upsertCommand.Parameters.Add(_upsertParam3);
+                var _upsertParam4 = _upsertCommand.CreateParameter();
+                _upsertParam4.ParameterName = "@key3";
+                _upsertCommand.Parameters.Add(_upsertParam4);
+                var _upsertParam5 = _upsertCommand.CreateParameter();
+                _upsertParam5.ParameterName = "@data";
+                _upsertCommand.Parameters.Add(_upsertParam5);
+                _upsertParam1.Value = item.identityId.ToByteArray();
+                _upsertParam2.Value = item.key1;
+                _upsertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                _upsertParam4.Value = item.key3 ?? (object)DBNull.Value;
+                _upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = conn.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToBase64(), item);
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 return count;
-                } // Using
+            } // Using
         }
-        public virtual int Update(DatabaseConnection conn, KeyThreeValueRecord item)
+        protected virtual int Update(DatabaseConnection conn, KeyThreeValueRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
-                {
-                    _updateCommand.CommandText = "UPDATE keyThreeValue " +
-                                                 "SET key2 = $key2,key3 = $key3,data = $data "+
-                                                 "WHERE (key1 = $key1)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$key1";
-                    _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$key2";
-                    _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$key3";
-                    _updateCommand.Parameters.Add(_updateParam3);
-                    var _updateParam4 = _updateCommand.CreateParameter();
-                    _updateParam4.ParameterName = "$data";
-                    _updateCommand.Parameters.Add(_updateParam4);
-                _updateParam1.Value = item.key1;
-                _updateParam2.Value = item.key2 ?? (object)DBNull.Value;
-                _updateParam3.Value = item.key3 ?? (object)DBNull.Value;
-                _updateParam4.Value = item.data ?? (object)DBNull.Value;
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText = "UPDATE keyThreeValue " +
+                                             "SET key2 = @key2,key3 = @key3,data = @data "+
+                                             "WHERE (identityId = @identityId AND key1 = @key1)";
+                var _updateParam1 = _updateCommand.CreateParameter();
+                _updateParam1.ParameterName = "@identityId";
+                _updateCommand.Parameters.Add(_updateParam1);
+                var _updateParam2 = _updateCommand.CreateParameter();
+                _updateParam2.ParameterName = "@key1";
+                _updateCommand.Parameters.Add(_updateParam2);
+                var _updateParam3 = _updateCommand.CreateParameter();
+                _updateParam3.ParameterName = "@key2";
+                _updateCommand.Parameters.Add(_updateParam3);
+                var _updateParam4 = _updateCommand.CreateParameter();
+                _updateParam4.ParameterName = "@key3";
+                _updateCommand.Parameters.Add(_updateParam4);
+                var _updateParam5 = _updateCommand.CreateParameter();
+                _updateParam5.ParameterName = "@data";
+                _updateCommand.Parameters.Add(_updateParam5);
+                _updateParam1.Value = item.identityId.ToByteArray();
+                _updateParam2.Value = item.key1;
+                _updateParam3.Value = item.key2 ?? (object)DBNull.Value;
+                _updateParam4.Value = item.key3 ?? (object)DBNull.Value;
+                _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToBase64(), item);
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
                 return count;
-                } // Using
+            } // Using
         }
 
-        public virtual int GetCountDirty(DatabaseConnection conn)
+        protected virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyThreeValue; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyThreeValue; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
         }
 
-        // SELECT key1,key2,key3,data
-        public KeyThreeValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public override List<string> GetColumnNames()
+        {
+            var sl = new List<string>();
+            sl.Add("identityId");
+            sl.Add("key1");
+            sl.Add("key2");
+            sl.Add("key3");
+            sl.Add("data");
+            return sl;
+        }
+
+        // SELECT identityId,key1,key2,key3,data
+        protected KeyThreeValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<KeyThreeValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -254,7 +295,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 48+1);
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in identityId...");
+                item.identityId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 48+1);
                 if (bytesRead > 48)
                     throw new Exception("Too much data in key1...");
                 if (bytesRead < 16)
@@ -263,11 +314,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.key1, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(1))
+            if (rdr.IsDBNull(2))
                 item.key2 = null;
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 256+1);
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 256+1);
                 if (bytesRead > 256)
                     throw new Exception("Too much data in key2...");
                 if (bytesRead < 0)
@@ -276,11 +327,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.key2, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(2))
+            if (rdr.IsDBNull(3))
                 item.key3 = null;
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 256+1);
+                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 256+1);
                 if (bytesRead > 256)
                     throw new Exception("Too much data in key3...");
                 if (bytesRead < 0)
@@ -289,11 +340,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.key3, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(3))
+            if (rdr.IsDBNull(4))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 1048576+1);
+                bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 1048576+1);
                 if (bytesRead > 1048576)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
@@ -304,49 +355,57 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, byte[] key1)
+        protected int Delete(DatabaseConnection conn, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
-                using (var _delete0Command = _database.CreateCommand())
-                {
-                    _delete0Command.CommandText = "DELETE FROM keyThreeValue " +
-                                                 "WHERE key1 = $key1";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$key1";
-                    _delete0Command.Parameters.Add(_delete0Param1);
+            using (var _delete0Command = _database.CreateCommand())
+            {
+                _delete0Command.CommandText = "DELETE FROM keyThreeValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1";
+                var _delete0Param1 = _delete0Command.CreateParameter();
+                _delete0Param1.ParameterName = "@identityId";
+                _delete0Command.Parameters.Add(_delete0Param1);
+                var _delete0Param2 = _delete0Command.CreateParameter();
+                _delete0Param2.ParameterName = "@key1";
+                _delete0Command.Parameters.Add(_delete0Param2);
 
-                _delete0Param1.Value = key1;
+                _delete0Param1.Value = identityId.ToByteArray();
+                _delete0Param2.Value = key1;
                 var count = conn.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableKeyThreeValueCRUD", key1.ToBase64());
+                    _cache.Remove("TableKeyThreeValueCRUD", identityId.ToString()+key1.ToBase64());
                 return count;
-                } // Using
+            } // Using
         }
 
-        public List<byte[]> GetByKeyTwo(DatabaseConnection conn, byte[] key2)
+        protected List<byte[]> GetByKeyTwo(DatabaseConnection conn, Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 256) throw new Exception("Too long");
-                using (var _get0Command = _database.CreateCommand())
-                {
-                    _get0Command.CommandText = "SELECT data FROM keyThreeValue " +
-                                                 "WHERE key2 = $key2;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$key2";
-                    _get0Command.Parameters.Add(_get0Param1);
+            using (var _get0Command = _database.CreateCommand())
+            {
+                _get0Command.CommandText = "SELECT data FROM keyThreeValue " +
+                                             "WHERE identityId = @identityId AND key2 = @key2;";
+                var _get0Param1 = _get0Command.CreateParameter();
+                _get0Param1.ParameterName = "@identityId";
+                _get0Command.Parameters.Add(_get0Param1);
+                var _get0Param2 = _get0Command.CreateParameter();
+                _get0Param2.ParameterName = "@key2";
+                _get0Command.Parameters.Add(_get0Param2);
 
-                _get0Param1.Value = key2 ?? (object)DBNull.Value;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                _get0Param1.Value = identityId.ToByteArray();
+                _get0Param2.Value = key2 ?? (object)DBNull.Value;
+                lock (conn._lock)
                 {
-                    byte[] result0tmp;
-                    var thelistresult = new List<byte[]>();
-                    if (!rdr.Read()) {
-                        return null;
-                    }
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    {
+                        byte[] result0tmp;
+                        var thelistresult = new List<byte[]>();
+                        if (!rdr.Read()) {
+                            return null;
+                        }
                     byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
                     long bytesRead;
@@ -372,33 +431,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                            break;
                     } // while
                     return thelistresult;
-                } // using
-            } // lock
+                    } // using
+                } // lock
             } // using
         }
 
-        public List<byte[]> GetByKeyThree(DatabaseConnection conn, byte[] key3)
+        protected List<byte[]> GetByKeyThree(DatabaseConnection conn, Guid identityId,byte[] key3)
         {
             if (key3?.Length < 0) throw new Exception("Too short");
             if (key3?.Length > 256) throw new Exception("Too long");
-                using (var _get1Command = _database.CreateCommand())
-                {
-                    _get1Command.CommandText = "SELECT data FROM keyThreeValue " +
-                                                 "WHERE key3 = $key3;";
-                    var _get1Param1 = _get1Command.CreateParameter();
-                    _get1Param1.ParameterName = "$key3";
-                    _get1Command.Parameters.Add(_get1Param1);
+            using (var _get1Command = _database.CreateCommand())
+            {
+                _get1Command.CommandText = "SELECT data FROM keyThreeValue " +
+                                             "WHERE identityId = @identityId AND key3 = @key3;";
+                var _get1Param1 = _get1Command.CreateParameter();
+                _get1Param1.ParameterName = "@identityId";
+                _get1Command.Parameters.Add(_get1Param1);
+                var _get1Param2 = _get1Command.CreateParameter();
+                _get1Param2.ParameterName = "@key3";
+                _get1Command.Parameters.Add(_get1Param2);
 
-                _get1Param1.Value = key3 ?? (object)DBNull.Value;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                _get1Param1.Value = identityId.ToByteArray();
+                _get1Param2.Value = key3 ?? (object)DBNull.Value;
+                lock (conn._lock)
                 {
-                    byte[] result0tmp;
-                    var thelistresult = new List<byte[]>();
-                    if (!rdr.Read()) {
-                        return null;
-                    }
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    {
+                        byte[] result0tmp;
+                        var thelistresult = new List<byte[]>();
+                        if (!rdr.Read()) {
+                            return null;
+                        }
                     byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
                     long bytesRead;
@@ -424,12 +487,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                            break;
                     } // while
                     return thelistresult;
-                } // using
-            } // lock
+                    } // using
+                } // lock
             } // using
         }
 
-        public KeyThreeValueRecord ReadRecordFromReader2(SqliteDataReader rdr, byte[] key2,byte[] key3)
+        protected KeyThreeValueRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 256) throw new Exception("Too long");
@@ -442,6 +505,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 #pragma warning restore CS0168
             var _guid = new byte[16];
             var item = new KeyThreeValueRecord();
+            item.identityId = identityId;
             item.key2 = key2;
             item.key3 = key3;
 
@@ -473,48 +537,52 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public List<KeyThreeValueRecord> GetByKeyTwoThree(DatabaseConnection conn, byte[] key2,byte[] key3)
+        protected List<KeyThreeValueRecord> GetByKeyTwoThree(DatabaseConnection conn, Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 256) throw new Exception("Too long");
             if (key3?.Length < 0) throw new Exception("Too short");
             if (key3?.Length > 256) throw new Exception("Too long");
-                using (var _get2Command = _database.CreateCommand())
-                {
-                    _get2Command.CommandText = "SELECT key1,data FROM keyThreeValue " +
-                                                 "WHERE key2 = $key2 AND key3 = $key3;";
-                    var _get2Param1 = _get2Command.CreateParameter();
-                    _get2Param1.ParameterName = "$key2";
-                    _get2Command.Parameters.Add(_get2Param1);
-                    var _get2Param2 = _get2Command.CreateParameter();
-                    _get2Param2.ParameterName = "$key3";
-                    _get2Command.Parameters.Add(_get2Param2);
+            using (var _get2Command = _database.CreateCommand())
+            {
+                _get2Command.CommandText = "SELECT key1,data FROM keyThreeValue " +
+                                             "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3;";
+                var _get2Param1 = _get2Command.CreateParameter();
+                _get2Param1.ParameterName = "@identityId";
+                _get2Command.Parameters.Add(_get2Param1);
+                var _get2Param2 = _get2Command.CreateParameter();
+                _get2Param2.ParameterName = "@key2";
+                _get2Command.Parameters.Add(_get2Param2);
+                var _get2Param3 = _get2Command.CreateParameter();
+                _get2Param3.ParameterName = "@key3";
+                _get2Command.Parameters.Add(_get2Param3);
 
-                _get2Param1.Value = key2 ?? (object)DBNull.Value;
-                _get2Param2.Value = key3 ?? (object)DBNull.Value;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                _get2Param1.Value = identityId.ToByteArray();
+                _get2Param2.Value = key2 ?? (object)DBNull.Value;
+                _get2Param3.Value = key3 ?? (object)DBNull.Value;
+                lock (conn._lock)
                 {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
-                        _cache.AddOrUpdate("TableKeyThreeValueCRUD", key2.ToBase64()+key3.ToBase64(), null);
-                        return null;
-                    }
-                    var result = new List<KeyThreeValueRecord>();
-                    while (true)
-                    {
-                        result.Add(ReadRecordFromReader2(rdr, key2,key3));
                         if (!rdr.Read())
-                            break;
-                    }
-                    return result;
-                } // using
-            } // lock
+                        {
+                            _cache.AddOrUpdate("TableKeyThreeValueCRUD", identityId.ToString()+key2.ToBase64()+key3.ToBase64(), null);
+                            return null;
+                        }
+                        var result = new List<KeyThreeValueRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader2(rdr, identityId,key2,key3));
+                            if (!rdr.Read())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } // lock
             } // using
         }
 
-        public KeyThreeValueRecord ReadRecordFromReader3(SqliteDataReader rdr, byte[] key1)
+        protected KeyThreeValueRecord ReadRecordFromReader3(SqliteDataReader rdr, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -526,6 +594,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 #pragma warning restore CS0168
             var _guid = new byte[16];
             var item = new KeyThreeValueRecord();
+            item.identityId = identityId;
             item.key1 = key1;
 
             if (rdr.IsDBNull(0))
@@ -569,37 +638,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public KeyThreeValueRecord Get(DatabaseConnection conn, byte[] key1)
+        protected KeyThreeValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyThreeValueCRUD", key1.ToBase64());
+            var (hit, cacheObject) = _cache.Get("TableKeyThreeValueCRUD", identityId.ToString()+key1.ToBase64());
             if (hit)
                 return (KeyThreeValueRecord)cacheObject;
-                using (var _get3Command = _database.CreateCommand())
-                {
-                    _get3Command.CommandText = "SELECT key2,key3,data FROM keyThreeValue " +
-                                                 "WHERE key1 = $key1 LIMIT 1;";
-                    var _get3Param1 = _get3Command.CreateParameter();
-                    _get3Param1.ParameterName = "$key1";
-                    _get3Command.Parameters.Add(_get3Param1);
+            using (var _get3Command = _database.CreateCommand())
+            {
+                _get3Command.CommandText = "SELECT key2,key3,data FROM keyThreeValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;";
+                var _get3Param1 = _get3Command.CreateParameter();
+                _get3Param1.ParameterName = "@identityId";
+                _get3Command.Parameters.Add(_get3Param1);
+                var _get3Param2 = _get3Command.CreateParameter();
+                _get3Param2.ParameterName = "@key1";
+                _get3Command.Parameters.Add(_get3Param2);
 
-                _get3Param1.Value = key1;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
+                _get3Param1.Value = identityId.ToByteArray();
+                _get3Param2.Value = key1;
+                lock (conn._lock)
                 {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        _cache.AddOrUpdate("TableKeyThreeValueCRUD", key1.ToBase64(), null);
-                        return null;
-                    }
-                    var r = ReadRecordFromReader3(rdr, key1);
-                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", key1.ToBase64(), r);
-                    return r;
-                } // using
-            } // lock
+                        if (!rdr.Read())
+                        {
+                            _cache.AddOrUpdate("TableKeyThreeValueCRUD", identityId.ToString()+key1.ToBase64(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader3(rdr, identityId,key1);
+                        _cache.AddOrUpdate("TableKeyThreeValueCRUD", identityId.ToString()+key1.ToBase64(), r);
+                        return r;
+                    } // using
+                } // lock
             } // using
         }
 

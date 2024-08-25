@@ -26,7 +26,7 @@ public class ThreeKeyValueStorageTests
         var finalPath = ":memory:";
         using var db = new IdentityDatabase(identity, finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(myc, true);
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();
