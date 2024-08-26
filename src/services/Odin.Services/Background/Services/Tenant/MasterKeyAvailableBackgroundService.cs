@@ -25,13 +25,17 @@ public sealed class MasterKeyAvailableBackgroundService(
         var accessor = scope.Resolve<MasterKeyContextAccessor>();
         var circleNetworkIntroductionService = scope.Resolve<CircleNetworkIntroductionService>();
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
+        var tenantContext = scope.Resolve<TenantContext>();
         while (!stoppingToken.IsCancellationRequested)
         {
             var mkContext = (IOdinContext)accessor.GetContext();
             if (mkContext != null)
             {
-                using var cn = tenantSystemStorage.CreateConnection();
-                await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(mkContext, cn);
+                if(tenantContext.Settings.AutoAcceptIntroductions)
+                {
+                    using var cn = tenantSystemStorage.CreateConnection();
+                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(mkContext, cn);
+                }
             }
 
             await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken);

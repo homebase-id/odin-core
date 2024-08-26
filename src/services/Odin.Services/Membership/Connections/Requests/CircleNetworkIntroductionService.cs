@@ -105,7 +105,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.IntroduceMe);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.AllowIntroductions);
         
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 

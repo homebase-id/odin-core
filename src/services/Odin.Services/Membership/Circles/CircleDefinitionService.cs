@@ -62,7 +62,7 @@ namespace Odin.Services.Membership.Circles
                     DriveGrants = SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives,
                     Permissions = new PermissionSet()
                     {
-                        Keys = [PermissionKeys.IntroduceMe]
+                        Keys = [PermissionKeys.AllowIntroductions]
                     }
                 }, cn, skipValidation: true);
             }

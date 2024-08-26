@@ -111,6 +111,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
         }
         
+        [Test]
+        public async Task SystemDefault_TenantSettings_AutoAcceptIntroductions_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
+        }
+        
         
         [Test]
         public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanCommentOnAnonymousDrives_IsTrue()

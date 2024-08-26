@@ -26,3 +26,23 @@ public class IntroductionsReceivedNotification : MediatorNotificationBase, IClie
         });
     }
 }
+
+
+public class IntroductionsAcceptedNotification : MediatorNotificationBase, IClientNotification
+{
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.IntroductionAccepted;
+    public Guid NotificationTypeId { get; } = Guid.Parse("");
+
+    public DatabaseConnection DatabaseConnection { get; init; }
+    public OdinId IntroducerOdinId { get; init; }
+    public OdinId Recipient { get; init; }
+
+    public string GetClientData()
+    {
+        return OdinSystemSerializer.Serialize(new
+        {
+            IntroducerOdinId = this.IntroducerOdinId,
+            Recipient = Recipient
+        });
+    }
+}

@@ -251,6 +251,10 @@ public class TenantConfigService
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
+            case TenantConfigFlagNames.AutoAcceptIntroductions:
+                cfg.AutoAcceptIntroductions = bool.Parse(request.Value);
+                break;
+
             default:
                 throw new OdinClientException("Flag name is valid but not handled",
                     OdinClientErrorCode.UnknownFlagName);

@@ -62,7 +62,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
-                .As<INotificationHandler<ConnectionRequestAccepted>>()
+                .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
                 .AsSelf()
                 .SingleInstance();
             
@@ -83,7 +83,7 @@ namespace Odin.Hosting
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
-                .As<INotificationHandler<ConnectionRequestAccepted>>()
+                .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()

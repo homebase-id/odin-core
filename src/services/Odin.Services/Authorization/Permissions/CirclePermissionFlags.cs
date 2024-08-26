@@ -28,7 +28,7 @@ namespace Odin.Services.Authorization.Permissions
         
         public const int SendOnBehalfOfOwner = 707;
         
-        public const int IntroduceMe = 808;
+        public const int AllowIntroductions = 808;
         
         public static readonly List<int> All =
         [
@@ -42,7 +42,7 @@ namespace Odin.Services.Authorization.Permissions
             SendPushNotifications,
             ManageFeed,
             PublishStaticContent,
-            IntroduceMe
+            AllowIntroductions
         ];
     }
 
@@ -76,7 +76,7 @@ namespace Odin.Services.Authorization.Permissions
                 //distributed when posting to a group channel;  intentionally leaving out UseTransitRead
                 PermissionKeys.SendOnBehalfOfOwner,
                 
-                PermissionKeys.IntroduceMe
+                PermissionKeys.AllowIntroductions
             });
         }
 

@@ -22,6 +22,7 @@ public enum ClientNotificationType
     AllReactionsByFileDeleted = 2005,
     AppNotificationAdded = 3001,
     IntroductionsReceived = 4001,
+    IntroductionAccepted = 4002,
 
     Error = 0xBADBEEF,
 }

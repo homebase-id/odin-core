@@ -48,7 +48,7 @@ public class PushNotificationService(
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     IMediator mediator)
-    : INotificationHandler<ConnectionRequestAccepted>,
+    : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
@@ -120,7 +120,7 @@ public class PushNotificationService(
         return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
     }
 
-    public async Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionRequestAcceptedNotification notification, CancellationToken cancellationToken)
     {
         await this.EnqueueNotificationInternal(notification.Recipient, new AppNotificationOptions()
             {

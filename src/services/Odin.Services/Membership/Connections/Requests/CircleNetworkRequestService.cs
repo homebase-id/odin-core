@@ -522,7 +522,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
 
             var originalRequest = await GetSentRequestInternal(odinContext.GetCallerOdinIdOrFail(), cn);
-
+            
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
             {
@@ -541,7 +541,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var tempKey = reply.TempKey.ToSensitiveByteArray();
             var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
-
+            
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat,
                 reply.ContactData,
                 originalRequest.ConnectionRequestOrigin,
@@ -571,14 +571,27 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeleteSentRequestInternal(recipient, cn);
             await this.DeletePendingRequestInternal(recipient, cn);
-
-            await _mediator.Publish(new ConnectionRequestAccepted()
+            
+            if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
-                Sender = (OdinId)originalRequest.SenderOdinId,
-                Recipient = recipient,
-                OdinContext = odinContext,
-                DatabaseConnection = cn
-            });
+                await _mediator.Publish(new IntroductionsAcceptedNotification()
+                {
+                    Recipient = recipient,
+                    IntroducerOdinId = originalRequest.IntroducerOdinId.GetValueOrDefault(),
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
+                });
+            }
+            else
+            {
+                await _mediator.Publish(new ConnectionRequestAcceptedNotification()
+                {
+                    Sender = (OdinId)originalRequest.SenderOdinId,
+                    Recipient = recipient,
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
+                });
+            }
         }
 
         /// <summary>
@@ -730,6 +743,6 @@ namespace Odin.Services.Membership.Connections.Requests
 
     public class VerificationCode
     {
-        public Guid Code { get; set; }
+        public Guid Code { get; init; }
     }
 }
