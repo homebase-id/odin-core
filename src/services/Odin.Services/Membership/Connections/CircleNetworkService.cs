@@ -704,22 +704,31 @@ namespace Odin.Services.Membership.Connections
 
         public Task<VerifyConnectionResponse> VerifyConnectionCode(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
+            if (!odinContext.Caller.IsConnected)
+            {
+                return Task.FromResult(new VerifyConnectionResponse
+                {
+                    IsConnected = false,
+                    Hash = null
+                });
+            }
+
             var key = odinContext.PermissionsContext.SharedSecretKey;
             var bytes = payload.Decrypt(key);
-           
+
             var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
             var combined = ByteArrayUtil.Combine(c.Code.ToByteArray(), key.GetKey());
             var hash = ByteArrayUtil.CalculateSHA256Hash(combined);
 
             var result = new VerifyConnectionResponse()
             {
+                IsConnected = odinContext.Caller.IsConnected,
                 Hash = hash
             };
-            
-            return Task.FromResult(result);
 
+            return Task.FromResult(result);
         }
-        
+
 
         /// <summary>
         /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
@@ -739,7 +748,7 @@ namespace Odin.Services.Membership.Connections
             {
                 throw new OdinClientException("Cannot confirm identity that is not in the AutoConnectionsCircle", OdinClientErrorCode.NotAnAutoConnection);
             }
-            
+
             //TODO: Here we can encrypt the master key as well
 
             await cn.CreateCommitUnitOfWorkAsync(async () =>
@@ -747,7 +756,6 @@ namespace Odin.Services.Membership.Connections
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
                 await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, cn);
             });
-
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(
