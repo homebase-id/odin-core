@@ -596,7 +596,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), odinContext.PermissionsContext.SharedSecretKey.GetKey());
             var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
 
-            bool success = false;
+            var result = new IcrVerificationResult();
             try
             {
                 var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
@@ -622,15 +622,20 @@ namespace Odin.Services.Membership.Connections.Requests
                         response = await client.VerifyConnection(encryptedPayload);
                         if (response.IsSuccessStatusCode)
                         {
+                            var vcr = response.Content;
+                            
                             //only compare if we get back a good code, so we don't kill
                             //an ICR because the remote server is not responding
-                            success = ByteArrayUtil.EquiByteArrayCompare(response.Content.Hash, expectedHash);
+                            result.RemoteIdentityWasConnected = vcr.IsConnected;
+                            if (vcr.IsConnected)
+                            {
+                                result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
+                            }
                         }
                         else
                         {
                             // If we got back any other type of response, let's tell the caller
-                            //TODO: need to handle scenarios here
-                            throw new OdinSystemException("TODO");
+                            throw new OdinSystemException("Cannot verify connection due to remote server error");
                         }
                     });
             }
@@ -639,10 +644,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw e.InnerException ?? e;
             }
 
-            return new IcrVerificationResult()
-            {
-                IsValid = success
-            };
+            return result;
         }
 
         private Task DeletePendingRequestInternal(OdinId sender, DatabaseConnection cn)
@@ -718,7 +720,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
     public class IcrVerificationResult
     {
-        public bool IsValid { get; init; }
+        public bool IsValid { get; set; }
+        
+        /// <summary>
+        /// If true, indicates the remote identity considered the caller as connected; even if the connection was invalid
+        /// </summary>
+        public bool RemoteIdentityWasConnected { get; set; }
     }
 
     public class VerificationCode

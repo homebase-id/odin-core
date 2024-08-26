@@ -4,5 +4,7 @@ namespace Odin.Services.Membership.Connections;
 
 public class VerifyConnectionResponse
 {
-    public byte[] Hash { get; set; }
+    public bool IsConnected { get; init; }
+
+    public byte[] Hash { get; init; }
 }
