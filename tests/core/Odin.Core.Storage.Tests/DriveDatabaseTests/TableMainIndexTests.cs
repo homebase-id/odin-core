@@ -120,7 +120,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     userDate = ud1,
                     archivalStatus = 0,
                     historyStatus = 1,
-                    requiredSecurityGroup = 44
+                    requiredSecurityGroup = 44,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 var cts2 = UnixTimeUtcUnique.Now();
@@ -190,7 +199,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     userDate = ud1,
                     archivalStatus = 0,
                     historyStatus = 1,
-                    fileSystemType = 44
+                    fileSystemType = 44,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 try
@@ -209,7 +227,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         userDate = ud1,
                         archivalStatus = 0,
                         historyStatus = 1,
-                        fileSystemType = 44
+                        fileSystemType = 44,
+                        hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                        hdrVersionTag = SequentialGuid.CreateGuid(),
+                        hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                        hdrTmpDriveType = SequentialGuid.CreateGuid()
                     });
                     Assert.Fail();
                 }
@@ -251,7 +278,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     archivalStatus = 0,
                     historyStatus = 1,
                     requiredSecurityGroup = 44,
-                    byteCount = 7
+                    byteCount = 7,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 var md = db.tblDriveMainIndex.Get(myc, driveId, k1);
