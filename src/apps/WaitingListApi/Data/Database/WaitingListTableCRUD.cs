@@ -14,7 +14,7 @@ namespace WaitingListApi.Data.Database
     {
         private bool _disposed = false;
 
-        public WaitingListTableCrud(WaitingListDatabase db) : base(db)
+        public WaitingListTableCrud(WaitingListDatabase db) : base(db, "waiting_list")
         {
         }
 

@@ -17,10 +17,7 @@ public class FileQueryParams
 
     public IEnumerable<int> ArchivalStatus { get; set; } = null;
 
-    /// <summary>
-    /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
-    /// </summary>
-    public IEnumerable<byte[]> Sender { get; set; } = null;
+    public IEnumerable<string> Sender { get; set; } = null;
 
     public IEnumerable<Guid> GroupId { get; set; } = null;
 
