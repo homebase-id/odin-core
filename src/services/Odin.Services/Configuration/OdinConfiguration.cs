@@ -74,7 +74,7 @@ namespace Odin.Services.Configuration
 
                 if (OutboxBatchSize <= 0)
                 {
-                    throw new OdinSystemException($"{nameof(OutboxBatchSize)} must be greater than 0");
+                    throw new OdinConfigException($"{nameof(OutboxBatchSize)} must be greater than 0");
                 }
             }
 
@@ -94,7 +94,7 @@ namespace Odin.Services.Configuration
 
                 if (DistributionBatchSize <= 0)
                 {
-                    throw new OdinSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
+                    throw new OdinConfigException($"{nameof(DistributionBatchSize)} must be greater than 0");
                 }
 
                 MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);

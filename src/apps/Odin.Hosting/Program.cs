@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -71,41 +73,42 @@ namespace Odin.Hosting
 
         private static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars)
         {
-            const string configPathOverrideVariable = "ODIN_CONFIG_PATH";
+            var configFolder = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
+            var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
+            var configSources = new List<string>();
+            var configBuilder = new ConfigurationBuilder();
 
-            var cfgPathOverride = Environment.GetEnvironmentVariable(configPathOverrideVariable);
-            var configFolder = string.IsNullOrEmpty(cfgPathOverride) ? Environment.CurrentDirectory : cfgPathOverride;
-            Log.Information($"Looking for configuration in folder: {configFolder}");
-
-            const string envVar = "ASPNETCORE_ENVIRONMENT";
-            var env = Environment.GetEnvironmentVariable(envVar) ?? "";
-
-            if (string.IsNullOrEmpty(env))
+            void AddConfigFile(string fileName)
             {
-                throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
-                                              $"This must match your app settings file as follows 'appsettings.ENV.json'");
+                var appSettingsFile = Path.Combine(configFolder, fileName);
+                if (File.Exists(appSettingsFile))
+                {
+                    configSources.Insert(0, appSettingsFile);
+                    configBuilder.AddJsonFile(appSettingsFile, optional: true, reloadOnChange: false);
+                }
             }
 
-            var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            var configPath = Path.Combine(configFolder, appSettingsFile);
+            AddConfigFile("appsettings.json"); // Common env configuration
+            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json"); // Specific env configuration
+            AddConfigFile("appsettings.local.json"); // Local development overrides
 
-            if (!File.Exists(configPath))
-            {
-                throw new OdinSystemException($"Could not find configuration file [{configPath}]");
-            }
-
-            Log.Information($"Loading configuration at [{configPath}]");
-
-            var configBuilder = new ConfigurationBuilder()
-                .AddJsonFile(configPath, optional: false)
-                .AddJsonFile(Path.Combine(configFolder, "appsettings.local.json"), optional: true); // not in source control
+            // Environment variables configuration
             if (includeEnvVars)
             {
                 configBuilder.AddEnvironmentVariables();
+                configSources.Insert(0, "environment variables");
             }
-            var config = configBuilder.Build();
 
-            return (new OdinConfiguration(config), config);
+            try
+            {
+                var config = configBuilder.Build();
+                return (new OdinConfiguration(config), config);
+            }
+            catch (Exception e)
+            {
+                var text = $"{e.Message} - check config sources in this order: {string.Join(", ", configSources)}";
+                throw new Exception(text, e);
+            }
         }
 
         //
@@ -424,6 +427,32 @@ namespace Odin.Hosting
             }
 
             //
+            // Command line: export shell env config as bash array
+            //
+            //
+            // Example:
+            //   dotnet run --no-build -- --export-shell-env
+            //
+            if (args.Contains("--export-bash-array-env"))
+            {
+                var (_, appSettingsConfig) = LoadConfig(false);
+                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
+                Console.WriteLine("env_vars=(");
+                foreach (var envVar in envVars)
+                {
+                    Console.WriteLine($"  \"{envVar}\"");
+                }
+                Console.WriteLine(")");
+                Console.WriteLine(
+                    """
+                    for env_var in "${env_vars[@]}"; do
+                      echo $env_var
+                    done
+                    """);
+                return (true, 0);
+            }
+
+            //
             // Command line: dump environment variables
             //
             // examples:
@@ -443,6 +472,25 @@ namespace Odin.Hosting
                 }
                 return (true, 0);
             }
+
+            //
+            // Command line: create identity column in databases
+            //
+            // examples:
+            //
+            //   dotnet run --no-build -- --create-identity-column
+            //
+            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --create-identity-column
+            //
+            //
+            if (args.Contains("--create-identity-column"))
+            {
+                var (odinConfiguration, _) = LoadConfig(true);
+                CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
+                return (true, 0);
+            }
+
+
 
             return (false, 0);
         }
