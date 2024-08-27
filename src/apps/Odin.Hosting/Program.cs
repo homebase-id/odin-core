@@ -474,19 +474,19 @@ namespace Odin.Hosting
             }
 
             //
-            // Command line: create identity column in databases
+            // Command line: run db migrations
             //
             // examples:
             //
-            //   dotnet run --no-build -- --create-identity-column
+            //   dotnet run --no-build -- --migrate-dbs
             //
-            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --create-identity-column
+            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --migrate-dbs
             //
             //
-            if (args.Contains("--create-identity-column"))
+            if (args.Contains("--migrate-dbs"))
             {
                 var (odinConfiguration, _) = LoadConfig(true);
-                CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
+                // CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
                 return (true, 0);
             }
 

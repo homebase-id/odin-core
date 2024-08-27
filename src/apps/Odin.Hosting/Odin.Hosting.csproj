@@ -25,6 +25,7 @@
     <ItemGroup>
         <PackageReference Include="Autofac" Version="7.1.0" />
         <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="8.0.0" />
+        <PackageReference Include="FluentMigrator.Runner" Version="5.2.0" />
         <PackageReference Include="HttpClientFactoryLite" Version="0.4.0"/>
         <PackageReference Include="JsonModelBinder" Version="2.1.1"/>
         <PackageReference Include="MagicOnion.Abstractions" Version="5.1.8" />
