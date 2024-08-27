@@ -1,16 +1,18 @@
 ﻿using System;
+using Odin.Core.Identity;
+using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections.t;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
@@ -35,7 +37,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             DriveManager = new DriveManagementApiClient(ownerApi, identity);
             Configuration = new OwnerConfigurationApiClient(ownerApi, identity);
 
-            Network = new CircleNetworkApiClient(ownerApi, identity);
+            // Network = new CircleNetworkApiClient(ownerApi, identity);
+            Network = new(identity.OdinId, factory);
             YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
@@ -46,10 +49,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
             Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
-            
+
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
-            Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
+            // Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
+            Connections = new UniversalCircleNetworkRequestsApiClient(identity.OdinId, factory);
 
             AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
         }
@@ -62,10 +66,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public TestIdentity Identity => _identity;
 
+        public OdinId OdinId => _identity.OdinId;
+
         public UniversalFollowerApiClient Follower { get; }
 
         public UniversalDriveReactionClient Reactions { get; }
-        
+
         public UniversalPeerQueryApiClient PeerQuery { get; }
 
         public UniversalPeerDirectApiClient PeerDirect { get; }
@@ -82,9 +88,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public OwnerConfigurationApiClient Configuration { get; }
 
-        public CircleNetworkApiClient Network { get; }
+        // public CircleNetworkApiClient Network { get; }
+        public UniversalCircleNetworkApiClient Network { get; }
 
-        public CircleNetworkRequestsApiClient Connections { get; }
+        public UniversalCircleNetworkRequestsApiClient Connections { get; }
 
         public OwnerAccountManagementApiClient AccountManagement { get; }
 

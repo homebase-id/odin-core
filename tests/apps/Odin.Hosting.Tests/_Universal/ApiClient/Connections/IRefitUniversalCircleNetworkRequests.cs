@@ -1,26 +1,24 @@
-﻿using System;
+﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Services.Authentication.Owner;
-using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
-using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Services.Membership.Connections.Requests;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
+namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 {
-    [Obsolete]
-    public interface IAppCircleNetworkRequestsClient
+    public interface IRefitUniversalCircleNetworkRequests
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        private const string RootPath = "/circles/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
+        private const string IntroductionsRoot = RootPath + "/introductions";
 
         [Post(RootPath + "/sendrequest")]
-        Task<ApiResponse<bool>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
+        Task<ApiResponse<HttpContent>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept")]
-        Task<ApiResponse<bool>> AcceptConnectionRequest([Body] AcceptRequestHeader header);
+        Task<ApiResponse<HttpContent>> AcceptConnectionRequest([Body] AcceptRequestHeader header);
 
         [Get(SentPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
@@ -29,7 +27,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
         Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] OdinIdRequest request);
 
         [Post(SentPathRoot + "/delete")]
-        Task<ApiResponse<bool>> DeleteSentRequest([Body] OdinIdRequest request);
+        Task<ApiResponse<HttpContent>> DeleteSentRequest([Body] OdinIdRequest request);
 
         [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<PendingConnectionRequestHeader>>> GetPendingRequestList([Query] PageOptions pageRequest);
@@ -38,6 +36,9 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
         Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] OdinIdRequest request);
 
         [Post(PendingPathRoot + "/delete")]
-        Task<ApiResponse<bool>> DeletePendingRequest([Body] OdinIdRequest request);
+        Task<ApiResponse<HttpContent>> DeletePendingRequest([Body] OdinIdRequest request);
+
+        [Post(IntroductionsRoot + "/send-introductions")]
+        Task<ApiResponse<IntroductionResult>> SendIntroductions([Body] IntroductionGroup group);
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
@@ -8,6 +9,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Circle
 {
+    [Obsolete]
     public interface ICircleNetworkConnectionsClient
     {
         private const string root_path = AppApiPathConstants.CirclesV1 + "/connections";

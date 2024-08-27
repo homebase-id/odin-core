@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         CircleNetworkService circleNetwork,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
-        [HttpPost("verify-connection")]
+        [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] SharedSecretEncryptedPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
