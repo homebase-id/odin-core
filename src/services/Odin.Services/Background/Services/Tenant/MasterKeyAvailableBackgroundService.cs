@@ -34,7 +34,7 @@ public sealed class MasterKeyAvailableBackgroundService(
                 if(tenantContext.Settings.AutoAcceptIntroductions)
                 {
                     using var cn = tenantSystemStorage.CreateConnection();
-                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(mkContext, cn);
+                    // await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(mkContext, cn);
                 }
             }
 

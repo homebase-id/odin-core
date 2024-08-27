@@ -307,16 +307,17 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
             }
 
-            if (existingConnection.IsConnected())
-            {
-                if ((await this.VerifyConnection(sender, odinContext, cn)).IsValid)
-                {
-                    _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
-
-                    //TODO decide if we should throw an error here?
-                    return;
-                }
-            }
+            //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
+            // if (existingConnection.IsConnected())
+            // {
+            //     if ((await this.VerifyConnection(sender, odinContext, cn)).IsValid)
+            //     {
+            //         _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
+            //
+            //         //TODO decide if we should throw an error here?
+            //         return;
+            //     }
+            // }
 
             //Check if a request was sent to the sender
             var sentRequest = await GetSentRequestInternal(sender, cn);
