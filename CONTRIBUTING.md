@@ -10,14 +10,14 @@ You can also submit an issue, and a maintainer can guide you!
 
 ## Submit a Pull Request 🚀
 
-Branch naming convention is as following
+PR title naming convention is as following
 
-`TYPE-DESCRIPTION`
+`TYPE: DESCRIPTION`
 
 Example:
 
 ```
-doc-readme-typo-fix
+doc: fix typo
 ```
 
 Where `TYPE` can be:
@@ -38,11 +38,10 @@ For the initial start, fork the project and use git clone command to download th
 $ git pull
 ```
 
-2. Create new branch from `main` like: `doc-readme-typo-fix
-`
+2. Create new branch from `main` like: `fix-typo`. You can name your branch as you like
 
 ```bash
-$ git checkout -b doc-readme-typo-fix
+$ git checkout -b fix-typo
 ```
 
 3. Work - commit - repeat (be sure to be in your branch)
