@@ -83,6 +83,10 @@ To run all the tests manually, you can use the following command:
 
 @sebbarg - Please do the honours here ;)
 
+## Code Maintenance
+
+// Add the commands for running the linters, formatters, etc.
+
 ## Other Ways to Help
 
 Pull requests are great, but there are many other areas where you can help:
