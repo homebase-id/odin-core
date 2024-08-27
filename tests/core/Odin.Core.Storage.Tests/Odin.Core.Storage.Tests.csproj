@@ -23,4 +23,8 @@
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ServerDatabaseTests\" />
+  </ItemGroup>
+
 </Project>

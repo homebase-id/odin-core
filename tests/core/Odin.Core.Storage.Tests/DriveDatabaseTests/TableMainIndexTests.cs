@@ -18,7 +18,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = SequentialGuid.CreateGuid().ToByteArray();
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = SequentialGuid.CreateGuid().ToByteArray();
+                var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();

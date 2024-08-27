@@ -62,7 +62,7 @@ jobs:
         run: |
           echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
-      - name: Deploy blackbird_aux
+      - name: Deploy PushNotification
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.ANSIBLE_HOST }}
@@ -75,7 +75,7 @@ jobs:
             echo work folder: $ANSIBLE_WORK_FOLDER
             mkdir $ANSIBLE_WORK_FOLDER
             cd $ANSIBLE_WORK_FOLDER
-            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+            git clone --depth 1 git@github.com:homebase-id/DevOps.git .
             cd $ANSIBLE_WORK_FOLDER/ansible
             ansible-playbook deploy-push-notification.yml -e "push_notification_docker_image=${{ env.DEPLOY_IMAGE }} docker_force_image_update=true"
             cd /tmp

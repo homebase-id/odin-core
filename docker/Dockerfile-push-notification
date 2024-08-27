@@ -1,5 +1,5 @@
 ﻿FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
+LABEL org.opencontainers.image.source="https://github.com/homebase-id/odin-core"
 ARG TARGETARCH
 
 WORKDIR /build
