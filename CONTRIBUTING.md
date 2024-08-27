@@ -20,7 +20,7 @@ Example:
 doc-readme-typo-fix
 ```
 
-When `TYPE` can be:
+Where `TYPE` can be:
 
 - feat - is a new feature
 - doc - documentation only changes
@@ -32,13 +32,13 @@ When `TYPE` can be:
 
 For the initial start, fork the project and use git clone command to download the repository to your computer. A standard procedure for working on an issue would be to:
 
-1. `git pull`, before creating a new branch, pull the changes from upstream. Your master needs to be up to date.
+1. `git pull`, before creating a new branch, pull the changes from upstream. Your main needs to be up to date.
 
 ```bash
 $ git pull
 ```
 
-2. Create new branch from `master` like: `doc-readme-typo-fix
+2. Create new branch from `main` like: `doc-readme-typo-fix
 `
 
 ```bash
@@ -81,7 +81,9 @@ You can open a new issue with this [issue form](https://github.com/homebase-id/o
 
 To run all the tests manually, you can use the following command:
 
-@sebbarg - Please do the honours here ;)
+```bash
+$ dotnet test
+```
 
 ## Code Maintenance
 
