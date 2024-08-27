@@ -31,7 +31,7 @@ public class IntroductionsReceivedNotification : MediatorNotificationBase, IClie
 public class IntroductionsAcceptedNotification : MediatorNotificationBase, IClientNotification
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.IntroductionAccepted;
-    public Guid NotificationTypeId { get; } = Guid.Parse("");
+    public Guid NotificationTypeId { get; } = Guid.Parse("f56ee792-56dd-45fd-8f9e-f96bb5d0e3de");
 
     public DatabaseConnection DatabaseConnection { get; init; }
     public OdinId IntroducerOdinId { get; init; }
