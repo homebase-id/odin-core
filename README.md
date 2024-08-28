@@ -13,10 +13,9 @@ The Homebase project provides everyone with a fully distributed self-sovereign i
 - 🚀 Social Network, including a private secure social network
 - 🚀 Personal Link-tree
 - 🚀 Personal Homepage with Bio, CV.
-- 🚀 Pre-built apps / PWAs for Homebase include Chat, Feed, Photos.
+- 🚀 App Platform - included apps: Chat, Feed, Photos.
 - 🚀 Fully Self-sovereign Identity
 - 🚀 Federated Identity Authentication (YouAuth, similar to OAUTH, but more secure)
-- 🚀 App Platform
 - 🚀 And much more
 
 ## Installation of odin-core (Locally)
