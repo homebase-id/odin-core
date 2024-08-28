@@ -1,4 +1,4 @@
-# HOMEBASE.ID
+# HOMEBASE.ID (ODIN-CORE)
 ##### Open Decentralized Identity Network (ODIN)
 
 [![Build](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main-debug.yml/badge.svg)](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main-debug.yml)
