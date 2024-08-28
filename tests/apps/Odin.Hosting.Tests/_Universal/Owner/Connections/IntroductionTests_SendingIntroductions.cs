@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
 
@@ -60,6 +62,7 @@ public class IntroductionTests_SendingIntroductions
         // Assert: Sam should have a connection request from Merry and visa/versa
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);
         var requestFromMerry = samRequestFromMerryResponse.Content;
@@ -77,7 +80,7 @@ public class IntroductionTests_SendingIntroductions
         Assert.IsTrue(requestFromSam.IntroducerOdinId == TestIdentities.Frodo.OdinId);
         Assert.IsTrue(requestFromSam.CircleIds.Exists(cid => cid == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(requestFromSam.CircleIds.Exists(cid => cid == SystemCircleConstants.ConfirmedConnectionsCircleId));
-        
+
         await Shutdown();
     }
 
@@ -87,28 +90,28 @@ public class IntroductionTests_SendingIntroductions
         await Task.CompletedTask;
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public async Task WillFailToSendConnectionRequestWhenRecipientIsBlocked()
     {
         await Task.CompletedTask;
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public async Task RequestTypeIsAutoWhenSentBecauseOfAnIntroduction()
     {
         await Task.CompletedTask;
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public async Task WillMergeOutgoingRequestWhenExistingRequestAndNewRequestAreAuto()
     {
         await Task.CompletedTask;
         Assert.Inconclusive("TODO");
     }
-    
+
 
     [Test]
     public async Task WhenIntroduceMePermissionNotGivenDuringIntroduction_OneRecipientGetConnectionRequest_SecondRecipientDoesNot()
@@ -117,7 +120,7 @@ public class IntroductionTests_SendingIntroductions
         Assert.Inconclusive("TODO");
     }
 
-    
+
     private async Task Prepare()
     {
         //you have 3 hobbits

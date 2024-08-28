@@ -626,6 +626,16 @@ namespace Odin.Services.Membership.Connections.Requests
             Guid randomCode = Guid.NewGuid();
 
             var icr = await _cns.GetIcr(recipient, odinContext, cn, overrideHack: odinContext.Caller.HasMasterKey);
+
+            if (!icr.IsConnected())
+            {
+                return new IcrVerificationResult
+                {
+                    IsValid = false,
+                    RemoteIdentityWasConnected = null
+                };
+            }
+            
             var icrSharedSecret = icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var expectedHash = _cns.CreateVerificationHash(randomCode, icrSharedSecret);
 
@@ -758,7 +768,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// If true, indicates the remote identity considered the caller as connected; even if the connection was invalid
         /// </summary>
-        public bool RemoteIdentityWasConnected { get; set; }
+        public bool? RemoteIdentityWasConnected { get; set; }
     }
 
     public class VerificationCode

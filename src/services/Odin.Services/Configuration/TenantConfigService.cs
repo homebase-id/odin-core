@@ -387,12 +387,6 @@ public class TenantConfigService
                     }
                 ],
                 PermissionSet = new PermissionSet()
-
-                // PermissionSet = new PermissionSet(
-                //     PermissionKeys.ReadConnections,
-                //     PermissionKeys.SendPushNotifications,
-                //     PermissionKeys.UseTransitRead,
-                //     PermissionKeys.UseTransitWrite)
             },
             Drives =
             [

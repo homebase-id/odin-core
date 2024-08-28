@@ -47,6 +47,7 @@ public class VerifyConnectionTests
 
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
         var result = response.Content;
+        Assert.IsNotNull(result);
         Assert.IsTrue(response.IsSuccessStatusCode);
         Assert.IsTrue(result.IsValid);
         Assert.IsTrue(result.RemoteIdentityWasConnected);
@@ -73,7 +74,7 @@ public class VerifyConnectionTests
 
         var result = response.Content;
         Assert.IsFalse(result.IsValid);
-        Assert.IsTrue(result.RemoteIdentityWasConnected);
+        Assert.IsNull(result.RemoteIdentityWasConnected);
         
         
         await Disconnect();

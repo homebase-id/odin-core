@@ -73,7 +73,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             // force a disconnection before sending the file
             //
             await recipientOwnerClient.Network.DisconnectFrom(senderOwnerClient.OdinId);
-            await senderOwnerClient.Network.DisconnectFrom(recipientOwnerClient.OdinId);
+            // await senderOwnerClient.Network.DisconnectFrom(recipientOwnerClient.OdinId);
             
             var transitOptions = new TransitOptions()
             {
