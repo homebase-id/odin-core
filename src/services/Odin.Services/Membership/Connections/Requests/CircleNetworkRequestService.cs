@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Fluff;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -474,24 +476,39 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var authenticationToken64 = remoteClientAccessToken.ToAuthenticationToken().ToPortableBytes64();
 
-            async Task<bool> TryAcceptRequest()
-            {
-                var json = OdinSystemSerializer.Serialize(acceptedReq);
-                var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), remoteClientAccessToken.SharedSecret);
-                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(senderOdinId);
+            ApiResponse<NoResultResponse> httpResponse = null;
 
-                var response = await client.EstablishConnection(encryptedPayload, authenticationToken64);
-                return response.Content is { Success: true } && response.IsSuccessStatusCode;
+            try
+            {
+                await TryRetry.WithDelayAsync(
+                    _odinConfiguration.Host.PeerOperationMaxAttempts,
+                    _odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () =>
+                    {
+                        var json = OdinSystemSerializer.Serialize(acceptedReq);
+                        var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), remoteClientAccessToken.SharedSecret);
+                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(senderOdinId);
+
+                        httpResponse = await client.EstablishConnection(encryptedPayload, authenticationToken64);
+                    });
+            }
+            catch (TryRetryException)
+            {
+                throw new OdinSystemException($"Failed to establish connection request.  Either response was empty or server returned a failure");
             }
 
-            if (!await TryAcceptRequest())
+            if (!httpResponse.IsSuccessStatusCode)
             {
-                if (!await TryAcceptRequest())
+                if (httpResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
-                    throw new OdinSystemException($"Failed to establish connection request.  Either response was empty or server returned a failure");
+                    // The remote server does not have a corresponding outgoing request for this sender
+                    throw new OdinClientException("The remote identity does not have a corresponding outgoing request.", OdinClientErrorCode.RemoteServerMissingOutgoingRequest);
                 }
+                
+                throw new OdinSystemException($"Failed to establish connection request.  Either response was empty or server returned a failure");
             }
-
+            
             await this.DeleteSentRequestInternal(senderOdinId, cn);
             await this.DeletePendingRequestInternal(senderOdinId, cn);
 
@@ -523,11 +540,11 @@ namespace Odin.Services.Membership.Connections.Requests
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
 
             var originalRequest = await GetSentRequestInternal(odinContext.GetCallerOdinIdOrFail(), cn);
-            
+
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
             {
-                throw new InvalidOperationException("The original request no longer exists in Sent Requests");
+                throw new OdinSecurityException("The original request no longer exists in Sent Requests");
             }
 
             var recipient = (OdinId)originalRequest.Recipient;
@@ -542,7 +559,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var tempKey = reply.TempKey.ToSensitiveByteArray();
             var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
-            
+
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat,
                 reply.ContactData,
                 originalRequest.ConnectionRequestOrigin,
@@ -572,7 +589,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeleteSentRequestInternal(recipient, cn);
             await this.DeletePendingRequestInternal(recipient, cn);
-            
+
             if (originalRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
                 await _mediator.Publish(new IntroductionsAcceptedNotification()
@@ -607,8 +624,10 @@ namespace Odin.Services.Membership.Connections.Requests
         public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
             Guid randomCode = Guid.NewGuid();
-            var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), odinContext.PermissionsContext.SharedSecretKey.GetKey());
-            var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
+
+            var icr = await _cns.GetIcr(recipient, odinContext, cn, overrideHack: odinContext.Caller.HasMasterKey);
+            var icrSharedSecret = icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
+            var expectedHash = _cns.CreateVerificationHash(randomCode, icrSharedSecret);
 
             var result = new IcrVerificationResult();
             try
@@ -637,7 +656,7 @@ namespace Odin.Services.Membership.Connections.Requests
                         if (response.IsSuccessStatusCode)
                         {
                             var vcr = response.Content;
-                            
+
                             //only compare if we get back a good code, so we don't kill
                             //an ICR because the remote server is not responding
                             result.RemoteIdentityWasConnected = vcr.IsConnected;
@@ -735,7 +754,7 @@ namespace Odin.Services.Membership.Connections.Requests
     public class IcrVerificationResult
     {
         public bool IsValid { get; set; }
-        
+
         /// <summary>
         /// If true, indicates the remote identity considered the caller as connected; even if the connection was invalid
         /// </summary>

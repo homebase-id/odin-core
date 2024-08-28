@@ -81,12 +81,6 @@ public class IntroductionTests_AutoAccept
         await Shutdown();
     }
 
-    [Test]
-    public async Task CanAutoAcceptIncomingConnectionRequestsWhenOutgoingRequestExists()
-    {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
-    }
 
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()

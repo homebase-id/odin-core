@@ -717,13 +717,10 @@ namespace Odin.Services.Membership.Connections
             var bytes = payload.Decrypt(key);
 
             var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
-            var combined = ByteArrayUtil.Combine(c.Code.ToByteArray(), key.GetKey());
-            var hash = ByteArrayUtil.CalculateSHA256Hash(combined);
-
             var result = new VerifyConnectionResponse()
             {
                 IsConnected = odinContext.Caller.IsConnected,
-                Hash = hash
+                Hash = this.CreateVerificationHash(c.Code, key)
             };
 
             return Task.FromResult(result);
@@ -1018,6 +1015,13 @@ namespace Odin.Services.Membership.Connections
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
             return connection.AccessGrant.AccessRegistration;
+        }
+
+        public byte[] CreateVerificationHash(Guid randomCode, SensitiveByteArray sharedSecret)
+        {
+            var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), sharedSecret.GetKey());
+            var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
+            return expectedHash;
         }
     }
 }

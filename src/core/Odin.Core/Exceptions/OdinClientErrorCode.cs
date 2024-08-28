@@ -73,6 +73,7 @@ public enum OdinClientErrorCode
     ConnectionRequestToYourself = 5003,
     BlockedConnection = 5004,
     CannotSendConnectionRequestToValidConnection = 5005, 
+    RemoteServerMissingOutgoingRequest = 5006,
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
