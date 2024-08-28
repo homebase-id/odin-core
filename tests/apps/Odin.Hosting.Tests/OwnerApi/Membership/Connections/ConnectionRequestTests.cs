@@ -422,30 +422,31 @@ public class ConnectionRequestTests
     [Description("Sam: Incoming, Frodo: None")]
     public async Task FailToConnect_Sam_Incoming_And_Frodo_Has_Deleted_Outgoing_Request()
     {
+        //I know.. I switch to sam and frodo coz of a clean up issue :( bad me
         var sam = TestIdentities.Samwise;
         var frodo = TestIdentities.Frodo;
 
-        var merryClient = _scaffold.CreateOwnerApiClient(sam);
-        var pippinClient = _scaffold.CreateOwnerApiClient(frodo);
+        var samClient = _scaffold.CreateOwnerApiClient(sam);
+        var frodoClient = _scaffold.CreateOwnerApiClient(frodo);
 
-        await pippinClient.Network.SendConnectionRequestTo(sam);
-        await pippinClient.Network.DeleteSentRequestTo(sam);
+        await frodoClient.Network.SendConnectionRequestTo(sam);
+        await frodoClient.Network.DeleteSentRequestTo(sam);
 
         //
         // Assert state is ready for test
         //
 
-        Assert.IsNotNull(await merryClient.Network.GetIncomingRequestFrom(frodo));
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(frodo));
+        Assert.IsNotNull(await samClient.Network.GetIncomingRequestFrom(frodo));
+        Assert.IsNull(await samClient.Network.GetOutgoingSentRequestTo(frodo));
 
-        Assert.IsNull(await pippinClient.Network.GetIncomingRequestFrom(sam));
-        Assert.IsNull(await pippinClient.Network.GetOutgoingSentRequestTo(sam));
+        Assert.IsNull(await frodoClient.Network.GetIncomingRequestFrom(sam));
+        Assert.IsNull(await frodoClient.Network.GetOutgoingSentRequestTo(sam));
 
 
-        var response = await merryClient.Network.SendConnectionRequestRaw(frodo, new List<GuidId>());
+        var response = await samClient.Network.SendConnectionRequestRaw(frodo, new List<GuidId>());
         Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
 
-        await merryClient.Network.DeleteConnectionRequestFrom(frodo);
+        await samClient.Network.DeleteConnectionRequestFrom(frodo);
     }
 
     [Test]
