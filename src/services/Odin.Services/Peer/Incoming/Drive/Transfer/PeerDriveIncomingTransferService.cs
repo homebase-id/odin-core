@@ -267,6 +267,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext, cn);
 
+            odinContext.Caller.AssertCallerIsConnected();
+            
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext, cn);
 
             if (directWriteSuccess)

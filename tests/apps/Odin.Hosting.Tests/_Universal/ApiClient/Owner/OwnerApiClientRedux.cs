@@ -12,7 +12,6 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections.t;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
@@ -88,7 +87,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public OwnerConfigurationApiClient Configuration { get; }
 
-        // public CircleNetworkApiClient Network { get; }
         public UniversalCircleNetworkApiClient Network { get; }
 
         public UniversalCircleNetworkRequestsApiClient Connections { get; }

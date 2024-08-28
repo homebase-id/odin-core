@@ -30,15 +30,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
+
             var env = new Dictionary<string, string>
             {
                 { "Job__BackgroundJobStartDelaySeconds", "0" },
                 { "Job__CronProcessingInterval", "1" },
-                {"Job__EnableJobBackgroundService", "true"},
-                {"Job__Enabled", "true"},
+                { "Job__EnableJobBackgroundService", "true" },
+                { "Job__Enabled", "true" },
             };
-        
+
             _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
@@ -72,8 +72,9 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             //
             // force a disconnection before sending the file
             //
-            await recipientOwnerClient.Connections.DisconnectFrom(senderOwnerClient.Identity.OdinId);
-
+            await recipientOwnerClient.Network.DisconnectFrom(senderOwnerClient.OdinId);
+            await senderOwnerClient.Network.DisconnectFrom(recipientOwnerClient.OdinId);
+            
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId]
@@ -85,17 +86,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.OdinId] == TransferStatus.Enqueued);
 
             await callerContext.Initialize(senderOwnerClient);
-            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+            var driveClient = new UniversalDriveApiClient(senderOwnerClient.OdinId, callerContext.GetFactory());
 
             await driveClient.WaitForEmptyOutbox(targetDrive);
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                // validate recipient got the file
-
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
@@ -119,7 +118,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             }
 
             // cleanup
-            await senderOwnerClient.Connections.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
+            await senderOwnerClient.Network.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
         }
 
         [Test]
@@ -240,7 +239,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
                 Assert.IsTrue(recipientStatus.IsInOutbox, "file should remain in outbox");
                 Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution, $"status was: {recipientStatus.LatestTransferStatus}");
+                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution,
+                    $"status was: {recipientStatus.LatestTransferStatus}");
                 Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
 
                 //Note: there should also be a job set to rerun this time; not sure how to test this - however.
