@@ -20,7 +20,7 @@ The Homebase project provides everyone with a fully distributed self-sovereign i
 
 ## Installation of odin-core (Locally)
 
-This odin-core repo is the back-end web server.  If you want to run the front-end apps (chat, feed, etc.), see the repo https://github.com/homebase-id/odin-core.
+This odin-core repo is the back-end web server.  If you want to run the front-end apps (chat, feed, etc.), see the repo https://github.com/homebase-id/odin-js.
 
 
 ```bash
