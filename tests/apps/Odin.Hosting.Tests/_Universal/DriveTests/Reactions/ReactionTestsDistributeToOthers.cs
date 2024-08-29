@@ -91,8 +91,9 @@ public class ReactionTestsDistributeToOthers
         var localIdentity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(localIdentity);
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
+        var createDriveResponse = await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        Assert.IsTrue(createDriveResponse.IsSuccessStatusCode);
+        
         List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
 
         //create the drive on recipients

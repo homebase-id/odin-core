@@ -128,7 +128,7 @@ namespace Odin.Services.Membership.Circles
                     SystemCircleConstants.AutoConnectionsCircleId.Value
                 ];
 
-                return Task.FromResult(circles.ExceptBy(excludes, cd=>cd.Id));
+                return Task.FromResult(circles.ExceptBy(excludes, cd => cd.Id));
             }
 
             return Task.FromResult(circles);
@@ -167,8 +167,9 @@ namespace Odin.Services.Membership.Circles
 
                 var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault(), cn);
 
-                //Allow access when OwnerOnly AND the only permission is Write; TODO: this defeats purpose of owneronly drive, i think
-                if (drive.OwnerOnly && ((int)dgr.PermissionedDrive.Permission != (int)DrivePermission.Write))
+                //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
+                var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) || dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.React);   
+                if (drive.OwnerOnly && !hasValidPermission)
                 {
                     throw new OdinSecurityException("Cannot grant access to owner-only drives to circles");
                 }
