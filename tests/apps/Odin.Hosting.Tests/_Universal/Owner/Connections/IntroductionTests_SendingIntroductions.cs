@@ -1,9 +1,10 @@
-using System.Diagnostics;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections;
@@ -57,9 +58,10 @@ public class IntroductionTests_SendingIntroductions
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Samwise.OdinId]);
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
-
-
+        
         // Assert: Sam should have a connection request from Merry and visa/versa
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -69,17 +71,12 @@ public class IntroductionTests_SendingIntroductions
         Assert.IsNotNull(requestFromMerry);
         Assert.IsTrue(requestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(requestFromMerry.IntroducerOdinId == TestIdentities.Frodo.OdinId);
-        Assert.IsTrue(requestFromMerry.CircleIds.Exists(cid => cid == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsFalse(requestFromMerry.CircleIds.Exists(cid => cid == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
-        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Samwise.OdinId);
         var requestFromSam = merryRequestFromSamResponse.Content;
         Assert.IsNotNull(requestFromSam);
         Assert.IsTrue(requestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(requestFromSam.IntroducerOdinId == TestIdentities.Frodo.OdinId);
-        Assert.IsTrue(requestFromSam.CircleIds.Exists(cid => cid == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsFalse(requestFromSam.CircleIds.Exists(cid => cid == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         await Shutdown();
     }
@@ -99,13 +96,6 @@ public class IntroductionTests_SendingIntroductions
     }
 
     [Test]
-    public async Task RequestTypeIsAutoWhenSentBecauseOfAnIntroduction()
-    {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
-    }
-
-    [Test]
     public async Task WillMergeOutgoingRequestWhenExistingRequestAndNewRequestAreAuto()
     {
         await Task.CompletedTask;
@@ -114,10 +104,51 @@ public class IntroductionTests_SendingIntroductions
 
 
     [Test]
-    public async Task WhenIntroduceMePermissionNotGivenDuringIntroduction_OneRecipientGetConnectionRequest_SecondRecipientDoesNot()
+    public async Task WhenAllowIntroductionPermissionNotGivenDuringIntroduction_OneRecipientGetConnectionRequest_SecondRecipientDoesNot()
     {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+
+        await Prepare();
+
+        //removing frodo from Confirmed connections removes the allow introductions permission
+        await samOwnerClient.Network.RevokeCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, TestIdentities.Frodo.OdinId);
+
+        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId]
+        });
+
+        var introResult = response.Content;
+        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId], "sam should reject since frodo does not have allow introductions permission");
+        Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
+        
+        // ensure introductions are processed
+        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        // Sam should get a connection request from merry (via frodo)
+        var incomingRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);
+        Assert.IsTrue(incomingRequestFromMerryResponse.IsSuccessStatusCode);
+        Assert.IsTrue(incomingRequestFromMerryResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+
+        var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(TestIdentities.Merry.OdinId);
+        Assert.IsTrue(outgoingRequestToMerryResponse.StatusCode == HttpStatusCode.NotFound, "sam should not have sent a request");
+
+        var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Samwise.OdinId);
+        Assert.IsTrue(merryRequestFromSamResponse.StatusCode == HttpStatusCode.NotFound, "sam should not have sent a request");
+
+        var getSamConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
+        Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode);
+        Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.None, "sam should not be connected to merry");
+
+        var getMerryConnectionInfoResponse = await samOwnerClient.Network.GetConnectionInfo(TestIdentities.Merry.OdinId);
+        Assert.IsTrue(getMerryConnectionInfoResponse.IsSuccessStatusCode);
+        Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.None, "merry should not be connected to sam");
+
+        await Shutdown();
     }
 
 

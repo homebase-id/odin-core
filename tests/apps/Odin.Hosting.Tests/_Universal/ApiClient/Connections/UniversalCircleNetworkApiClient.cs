@@ -58,7 +58,17 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, TestIdentity recipient)
+    public async Task<ApiResponse<HttpContent>> UpdateCircleDefinition(CircleDefinition definition)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.UpdateCircleDefinition(definition);
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -66,14 +76,14 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
             var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
             {
                 CircleId = circleId,
-                OdinId = recipient.OdinId
+                OdinId = odinId
             });
 
             return apiResponse;
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> RevokeCircle(Guid circleId, TestIdentity recipient)
+    public async Task<ApiResponse<HttpContent>> RevokeCircle(Guid circleId, OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
@@ -81,7 +91,7 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
             var apiResponse = await svc.RevokeCircle(new RevokeCircleMembershipRequest()
             {
                 CircleId = circleId,
-                OdinId = recipient.OdinId
+                OdinId = odinId
             });
 
             return apiResponse;
@@ -111,16 +121,16 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> BlockConnection(TestIdentity recipient)
+    public async Task<ApiResponse<HttpContent>> BlockConnection(OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
-            var apiResponse = await svc.Block(new OdinIdRequest() { OdinId = recipient.OdinId });
+            var apiResponse = await svc.Block(new OdinIdRequest() { OdinId = odinId });
             return apiResponse;
         }
     }
-    
+
     public async Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
@@ -130,13 +140,23 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
             return disconnectResponse;
         }
     }
-    
+
     public async Task<ApiResponse<IcrVerificationResult>> VerifyConnection(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
             var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
             var apiResponse = await connectionsService.VerifyConnection(new OdinIdRequest() { OdinId = recipient });
+            return apiResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<IcrVerificationResult>> ConfirmConnection(OdinId recipient)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            var apiResponse = await connectionsService.ConfirmConnection(new OdinIdRequest() { OdinId = recipient });
             return apiResponse;
         }
     }

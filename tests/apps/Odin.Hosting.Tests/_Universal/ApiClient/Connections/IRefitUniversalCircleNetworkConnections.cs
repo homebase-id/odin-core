@@ -44,5 +44,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/verify-connection")]
         Task<ApiResponse<IcrVerificationResult>> VerifyConnection([Body] OdinIdRequest request);
+
+        [Post(RootPath + "/confirm-connection")]
+        Task<ApiResponse<IcrVerificationResult>> ConfirmConnection([Body] OdinIdRequest request);
     }
 }

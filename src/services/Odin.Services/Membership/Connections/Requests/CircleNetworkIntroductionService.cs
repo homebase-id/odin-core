@@ -177,14 +177,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     /// </summary>
     public async Task SendConnectionRequests(OdinId sender, IdentityIntroduction identityIntroduction, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(identityIntroduction.Identity, odinContext, cn);
-
-        if (hasOutstandingRequest)
-        {
-            //nothing to do
-            _logger.LogDebug("Pending or sent request already exist for introduced identity [{iid}]", identityIntroduction.Identity);
-            return;
-        }
+        // var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(identityIntroduction.Identity, odinContext, cn);
+        //
+        // if (hasOutstandingRequest)
+        // {
+        //     //nothing to do
+        //     _logger.LogDebug("Pending or sent request already exist for introduced identity [{iid}]", identityIntroduction.Identity);
+        //     return;
+        // }
 
         var id = Guid.NewGuid();
         var requestHeader = new ConnectionRequestHeader()
@@ -194,7 +194,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             Message = identityIntroduction.Message,
             IntroducerOdinId = sender,
             ContactData = new ContactRequestData(),
-            CircleIds = [SystemCircleConstants.AutoConnectionsCircleId],
+            CircleIds = [],
             ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
         };
 
