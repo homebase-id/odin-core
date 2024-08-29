@@ -102,8 +102,7 @@ public class IntroductionTests_AutoAccept
 
         await Cleanup();
     }
-
-
+    
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
     {
@@ -151,14 +150,6 @@ public class IntroductionTests_AutoAccept
 
         await Cleanup();
     }
-
-    [Test]
-    public async Task WillMergeOutgoingRequestWhenExistingRequestAndNewRequestAreIntroduced()
-    {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
-    }
-
 
     private async Task Prepare()
     {

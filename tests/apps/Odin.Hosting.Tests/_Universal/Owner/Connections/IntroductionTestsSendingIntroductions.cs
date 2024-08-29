@@ -9,7 +9,7 @@ using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections;
 
-public class IntroductionTests_SendingIntroductions
+public class IntroductionTestsSendingIntroductions
 {
     private WebScaffold _scaffold;
 
@@ -44,39 +44,44 @@ public class IntroductionTests_SendingIntroductions
     [Test]
     public async Task WillSendConnectionRequestToIntroductions()
     {
+        var frodo = TestIdentities.Frodo.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
 
         await Prepare();
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
             Message = "test message from frodo",
-            Recipients = [TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId]
+            Recipients = [sam, merry]
         });
 
-
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Samwise.OdinId]);
-        Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
-        
-        // Assert: Sam should have a connection request from Merry and visa/versa
-        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
 
-        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        // Assert: Sam should have a connection request from Merry and visa/versa
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);
+        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var requestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(requestFromMerry);
         Assert.IsTrue(requestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
-        Assert.IsTrue(requestFromMerry.IntroducerOdinId == TestIdentities.Frodo.OdinId);
+        Assert.IsTrue(requestFromMerry.IntroducerOdinId == frodo);
 
-        var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Samwise.OdinId);
+        var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
         var requestFromSam = merryRequestFromSamResponse.Content;
         Assert.IsNotNull(requestFromSam);
         Assert.IsTrue(requestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
-        Assert.IsTrue(requestFromSam.IntroducerOdinId == TestIdentities.Frodo.OdinId);
+        Assert.IsTrue(requestFromSam.IntroducerOdinId == frodo);
 
         await Shutdown();
     }
@@ -96,10 +101,53 @@ public class IntroductionTests_SendingIntroductions
     }
 
     [Test]
-    public async Task WillMergeOutgoingRequestWhenExistingRequestAndNewRequestAreAuto()
+    public async Task WillMergeOutgoingRequestWhenExistingRequestAndNewRequestAreIntroduced()
     {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
+        var frodo = TestIdentities.Frodo.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+
+        await Prepare();
+
+        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+
+        var introResult = response.Content;
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        // Assert: Sam should have a connection request from Merry and visa/versa
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        var firstRequestFromMerry = samRequestFromMerryResponse.Content;
+        Assert.IsNotNull(firstRequestFromMerry);
+        Assert.IsTrue(firstRequestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        Assert.IsTrue(firstRequestFromMerry.IntroducerOdinId == frodo);
+
+        var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
+        var firstRequestFromSam = merryRequestFromSamResponse.Content;
+        Assert.IsNotNull(firstRequestFromSam);
+        Assert.IsTrue(firstRequestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        Assert.IsTrue(firstRequestFromSam.IntroducerOdinId == frodo);
+        // firstRequestFromSam.ReceivedTimestampMilliseconds
+
+        // Now that both have connection requests, send another introduction and validate they were merged
+
+        await Shutdown();
+
+        Assert.Inconclusive("wip");
     }
 
 
@@ -122,9 +170,10 @@ public class IntroductionTests_SendingIntroductions
         });
 
         var introResult = response.Content;
-        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId], "sam should reject since frodo does not have allow introductions permission");
+        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
+            "sam should reject since frodo does not have allow introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
-        
+
         // ensure introductions are processed
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);

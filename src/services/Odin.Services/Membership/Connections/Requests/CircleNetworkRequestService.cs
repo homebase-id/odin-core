@@ -192,19 +192,22 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
             }
 
-            var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
-            if (incomingRequest != null)
+            if (_tenantContext.Settings.AutoAcceptIntroductions)
             {
-                // just accept the request; using the ACL info (header.CircleIds, etc.)
-                var ac = new AcceptRequestHeader
+                var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
+                if (incomingRequest != null)
                 {
-                    Sender = recipient,
-                    CircleIds = header.CircleIds,
-                    ContactData = header.ContactData
-                };
+                    // just accept the request; using the ACL info (header.CircleIds, etc.)
+                    var ac = new AcceptRequestHeader
+                    {
+                        Sender = recipient,
+                        CircleIds = header.CircleIds,
+                        ContactData = header.ContactData
+                    };
 
-                await this.AcceptConnectionRequest(ac, tryOverrideAcl: false, odinContext, cn);
-                return;
+                    await this.AcceptConnectionRequest(ac, tryOverrideAcl: false, odinContext, cn);
+                    return;
+                }
             }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -503,12 +506,13 @@ namespace Odin.Services.Membership.Connections.Requests
                 if (httpResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
                     // The remote server does not have a corresponding outgoing request for this sender
-                    throw new OdinClientException("The remote identity does not have a corresponding outgoing request.", OdinClientErrorCode.RemoteServerMissingOutgoingRequest);
+                    throw new OdinClientException("The remote identity does not have a corresponding outgoing request.",
+                        OdinClientErrorCode.RemoteServerMissingOutgoingRequest);
                 }
-                
+
                 throw new OdinSystemException($"Failed to establish connection request.  Either response was empty or server returned a failure");
             }
-            
+
             await this.DeleteSentRequestInternal(senderOdinId, cn);
             await this.DeletePendingRequestInternal(senderOdinId, cn);
 
@@ -635,7 +639,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     RemoteIdentityWasConnected = null
                 };
             }
-            
+
             var icrSharedSecret = icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var expectedHash = _cns.CreateVerificationHash(randomCode, icrSharedSecret);
 
