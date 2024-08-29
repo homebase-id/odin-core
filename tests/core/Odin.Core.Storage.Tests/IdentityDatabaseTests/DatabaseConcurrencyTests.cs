@@ -14,11 +14,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseConcurrencyTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
@@ -69,7 +69,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 for (int i = 0; i < 10000; i++)
                 {
@@ -122,7 +122,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 for (int i = 0; i < 10000; i++)
                 {
@@ -152,7 +152,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db1.CreateDisposableConnection())
             {
-                db1.CreateDatabase(myc);
+                db1.CreateDatabase();
                 try
                 {
                     using var db2 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");

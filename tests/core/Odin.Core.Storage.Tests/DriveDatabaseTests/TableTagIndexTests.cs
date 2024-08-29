@@ -12,11 +12,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -47,11 +47,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -90,11 +90,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -123,11 +123,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert the same tagmember on two different keys
         public void InsertDoubletagMemberTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -152,11 +152,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -184,11 +184,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();

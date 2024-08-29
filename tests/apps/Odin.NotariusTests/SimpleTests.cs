@@ -19,7 +19,7 @@ namespace Odin.KeyChainTests
             using var db = new NotaryDatabase("");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

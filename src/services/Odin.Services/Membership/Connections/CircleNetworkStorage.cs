@@ -38,7 +38,7 @@ public class CircleNetworkStorage
 
     public IdentityConnectionRegistration Get(OdinId odinId, DatabaseConnection cn)
     {
-        var record = _tenantSystemStorage.Connections.Get(cn, odinId);
+        var record = _tenantSystemStorage.Connections.Get(odinId);
 
         if (null == record)
         {
@@ -77,14 +77,14 @@ public class CircleNetworkStorage
             }
 
             // remove all app grants, 
-            _tenantSystemStorage.AppGrants.DeleteByIdentity(cn, odinHashId);
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinHashId);
 
             // Now write the latest
             foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant.AppGrants)
             {
                 foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
                 {
-                    _tenantSystemStorage.AppGrants.Upsert(cn, new AppGrantsRecord()
+                    _tenantSystemStorage.AppGrants.Upsert(new AppGrantsRecord()
                     {
                         odinHashId = odinHashId,
                         appId = appId,
@@ -109,7 +109,7 @@ public class CircleNetworkStorage
                 data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
             };
 
-            _tenantSystemStorage.Connections.Upsert(cn, record);
+            _tenantSystemStorage.Connections.Upsert(record);
         });
     }
 
@@ -117,8 +117,8 @@ public class CircleNetworkStorage
     {
         cn.CreateCommitUnitOfWork(() =>
         {
-            _tenantSystemStorage.Connections.Delete(cn, odinId);
-            _tenantSystemStorage.AppGrants.DeleteByIdentity(cn, odinId.ToHashId());
+            _tenantSystemStorage.Connections.Delete(odinId);
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
             _circleMembershipService.DeleteMemberFromAllCircles(odinId, DomainType.Identity, cn);
         });
     }
@@ -127,7 +127,7 @@ public class CircleNetworkStorage
         ConnectionStatus connectionStatus, DatabaseConnection cn)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var records = _tenantSystemStorage.Connections.PagingByCreated(cn, count, (int)connectionStatus, adjustedCursor, out nextCursor);
+        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
         return records.Select(record => MapFromStorage(record, cn));
     }
 
@@ -175,7 +175,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(cn, odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
         {

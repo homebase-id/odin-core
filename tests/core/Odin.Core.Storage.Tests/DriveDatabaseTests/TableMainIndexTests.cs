@@ -10,11 +10,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetSizeTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
@@ -25,11 +25,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f4 = SequentialGuid.CreateGuid();
                 var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-                db.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                db.AddEntryPassalongToUpsert(myc, driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
-                db.AddEntryPassalongToUpsert(myc, driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
-                db.AddEntryPassalongToUpsert(myc, driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
-                db.AddEntryPassalongToUpsert(myc, driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
+                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                db.AddEntryPassalongToUpsert(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
+                db.AddEntryPassalongToUpsert(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
+                db.AddEntryPassalongToUpsert(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
+                db.AddEntryPassalongToUpsert(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
                 var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
                 Assert.AreEqual(count, 5);
@@ -40,11 +40,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetSizeInvalidTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
@@ -57,11 +57,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CannotInsertZeroSizeTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 try
                 {
-                    db.AddEntryPassalongToUpsert(myc, driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
+                    db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
                 }
                 catch (Exception ex)
                 {
@@ -88,11 +88,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -163,11 +163,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertRowDuplicateTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -223,11 +223,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void UpdateRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();

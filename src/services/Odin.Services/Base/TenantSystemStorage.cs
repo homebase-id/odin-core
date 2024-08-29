@@ -28,7 +28,7 @@ public sealed class TenantSystemStorage : IDisposable
         IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
         using (var conn = IdentityDatabase.CreateDisposableConnection())
         {
-            IdentityDatabase.CreateDatabase(conn, false);
+            IdentityDatabase.CreateDatabase(false);
         }
 
         Connections = IdentityDatabase.tblConnections;

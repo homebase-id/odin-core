@@ -15,11 +15,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -58,11 +58,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertCannotInsertDuplicateIdForSameRecipient()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var v2 = SequentialGuid.CreateGuid().ToByteArray();
@@ -86,11 +86,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertCanInsertDuplicateIdForTwoRecipients()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var v2 = SequentialGuid.CreateGuid().ToByteArray();
@@ -114,11 +114,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void GetByTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -139,11 +139,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -231,11 +231,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PriorityTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -271,11 +271,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void NextRunTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -316,11 +316,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void DependencyTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -384,11 +384,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -433,11 +433,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests010");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -464,11 +464,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void NextRunTest2()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests011");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
 
@@ -501,11 +501,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests012");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -548,11 +548,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableOutboxTests013");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();

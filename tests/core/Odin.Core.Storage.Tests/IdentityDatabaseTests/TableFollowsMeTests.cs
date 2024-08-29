@@ -10,11 +10,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 // Let's say that we're Frodo and we're followed by these 5 asir
                 // We have 2 channels we post to.
                 //
@@ -68,11 +68,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertValidFollowerTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
@@ -102,11 +102,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertInvalidFollowerTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var g1 = Guid.NewGuid();
 
@@ -181,11 +181,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Ignore("Later")]
         public void DeleteInvalidTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 int i = db.tblFollowsMe.DeleteByIdentity(myc, null);
                 Debug.Assert(i == 0);
 
@@ -198,11 +198,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var d1 = Guid.NewGuid();
@@ -229,11 +229,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteDriveTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var d1 = Guid.NewGuid();
@@ -271,11 +271,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersInvalidTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var d1 = Guid.NewGuid();
 
                 bool ok = false;
@@ -295,11 +295,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var d1 = Guid.NewGuid();
@@ -333,11 +333,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersPagedTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var i3 = "freja.valhalla.com";

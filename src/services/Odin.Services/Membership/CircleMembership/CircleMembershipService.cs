@@ -33,7 +33,7 @@ public class CircleMembershipService(
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
-        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(cn, memberId);
+        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
         cn.CreateCommitUnitOfWork(() =>
         {
             foreach (var circleMemberRecord in circleMemberRecords)
@@ -42,7 +42,7 @@ public class CircleMembershipService(
                     .ToStringFromUtf8Bytes());
                 if (sd.DomainType == domainType)
                 {
-                    tenantSystemStorage.CircleMemberStorage.Delete(cn, sd.CircleGrant.CircleId, memberId);
+                    tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
                 }
             }
         });
@@ -53,7 +53,7 @@ public class CircleMembershipService(
 
     public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType, DatabaseConnection cn)
     {
-        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(cn, OdinId.ToHashId(domainName)).Select(d =>
+        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
             OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
         );
 
@@ -74,7 +74,7 @@ public class CircleMembershipService(
             }
         }
 
-        var memberBytesList = tenantSystemStorage.CircleMemberStorage.GetCircleMembers(cn, circleId);
+        var memberBytesList = tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
@@ -104,7 +104,7 @@ public class CircleMembershipService(
         };
 
         // tenantSystemStorage.CircleMemberStorage.Insert(circleMemberRecord);
-        tenantSystemStorage.CircleMemberStorage.Upsert(cn, circleMemberRecord);
+        tenantSystemStorage.CircleMemberStorage.Upsert(circleMemberRecord);
         // tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers([circleMemberRecord]);
     }
 

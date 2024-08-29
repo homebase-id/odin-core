@@ -18,7 +18,7 @@ namespace Odin.KeyChain
         /// <param name="_db"></param>
         public static void InitializeDatabase(KeyChainDatabase _db, DatabaseConnection conn)
         {
-            _db.CreateDatabase(conn, dropExistingTables: true); // Remove "true" for production
+            _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
 
             var r = _db.tblKeyChain.GetLastLink(conn);
 

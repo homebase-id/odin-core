@@ -11,11 +11,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -53,11 +53,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -160,11 +160,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -205,11 +205,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -237,11 +237,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitListTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -288,11 +288,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelListTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -332,11 +332,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -372,11 +372,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void DualBoxTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -438,11 +438,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();

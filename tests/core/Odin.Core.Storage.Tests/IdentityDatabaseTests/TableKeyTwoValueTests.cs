@@ -12,11 +12,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
@@ -44,11 +44,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
@@ -83,11 +83,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void UpdateTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
@@ -110,11 +110,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void Update2Test()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
@@ -147,11 +147,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
@@ -179,11 +179,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void UpsertTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var k11 = Guid.NewGuid().ToByteArray();
@@ -219,11 +219,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TableKeyTwoValueTest1()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableTwoKeyValue007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var i1 = Guid.NewGuid().ToByteArray();

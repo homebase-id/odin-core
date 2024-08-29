@@ -173,7 +173,7 @@ namespace Odin.Core.Storage.Tests
             using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using var cn = db.CreateDisposableConnection();
 
-            db.CreateDatabase(cn, true);
+            db.CreateDatabase(true);
             var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             db.tblKeyValue.Insert(cn, kv);
@@ -303,7 +303,7 @@ namespace Odin.Core.Storage.Tests
             using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
 
-            db.CreateDatabase(cn, true); // SEB:TODO make async variant
+            db.CreateDatabase(true); // SEB:TODO make async variant
             var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             db.tblKeyValue.Insert(cn, kv); // SEB:TODO make async variant
@@ -434,7 +434,7 @@ namespace Odin.Core.Storage.Tests
             using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var wasCommitCallCount = myc.TransactionCount();
 
@@ -459,7 +459,7 @@ namespace Odin.Core.Storage.Tests
             using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var wasCommitCallCount = myc.TransactionCount();
 

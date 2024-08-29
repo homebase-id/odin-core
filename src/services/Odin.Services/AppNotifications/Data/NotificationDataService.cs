@@ -40,7 +40,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        _storage.Insert(cn, record);
+        _storage.Insert(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -62,7 +62,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var results = _storage.PagingByCreated(cn, request.Count, request.Cursor, out var cursor);
+        var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -97,7 +97,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var results = _storage.PagingByCreated(cn, int.MaxValue, null, out _);
+        var results = _storage.PagingByCreated(int.MaxValue, null, out _);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -120,7 +120,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var id in request.IdList)
         {
-            _storage.Delete(cn, id);
+            _storage.Delete(id);
         }
 
         return Task.CompletedTask;
@@ -132,11 +132,11 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var update in request.Updates)
         {
-            var record = _storage.Get(cn, update.Id);
+            var record = _storage.Get(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                _storage.Update(cn, record);
+                _storage.Update(record);
             }
         }
 

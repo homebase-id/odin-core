@@ -217,66 +217,65 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(bool dropExistingTables = true)
         {
-            if (conn.db != this)
-                throw new ArgumentException("connection and database object mismatch");
+            using (var conn = this.CreateDisposableConnection())
+            {
+                // Drives
+                tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
+                tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
+                tblDriveTagIndex.EnsureTableExists(conn, dropExistingTables);
+                tblDriveReactions.EnsureTableExists(conn, dropExistingTables);
 
-            // Drives
-            tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
-            tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
-            tblDriveTagIndex.EnsureTableExists(conn, dropExistingTables);
-            tblDriveReactions.EnsureTableExists(conn, dropExistingTables);
+                // Identity
+                tblAppGrants.EnsureTableExists(conn, dropExistingTables);
+                tblKeyValue.EnsureTableExists(conn, dropExistingTables);
+                tblKeyTwoValue.EnsureTableExists(conn, dropExistingTables);
+                TblKeyThreeValue.EnsureTableExists(conn, dropExistingTables);
+                // TblKeyUniqueThreeValue.EnsureTableExists(conn, dropExistingTables);
+                tblInbox.EnsureTableExists(conn, dropExistingTables);
+                tblOutbox.EnsureTableExists(conn, dropExistingTables);
+                tblCircle.EnsureTableExists(conn, dropExistingTables);
+                tblCircleMember.EnsureTableExists(conn, dropExistingTables);
+                tblImFollowing.EnsureTableExists(conn, dropExistingTables);
+                tblFollowsMe.EnsureTableExists(conn, dropExistingTables);
+                tblConnections.EnsureTableExists(conn, dropExistingTables);
+                tblAppNotificationsTable.EnsureTableExists(conn, dropExistingTables);
 
-            // Identity
-            tblAppGrants.EnsureTableExists(conn, dropExistingTables);
-            tblKeyValue.EnsureTableExists(conn, dropExistingTables);
-            tblKeyTwoValue.EnsureTableExists(conn, dropExistingTables);
-            TblKeyThreeValue.EnsureTableExists(conn, dropExistingTables);
-            // TblKeyUniqueThreeValue.EnsureTableExists(conn, dropExistingTables);
-            tblInbox.EnsureTableExists(conn, dropExistingTables);
-            tblOutbox.EnsureTableExists(conn, dropExistingTables);
-            tblCircle.EnsureTableExists(conn, dropExistingTables);
-            tblCircleMember.EnsureTableExists(conn, dropExistingTables);
-            tblImFollowing.EnsureTableExists(conn, dropExistingTables);
-            tblFollowsMe.EnsureTableExists(conn, dropExistingTables);
-            tblConnections.EnsureTableExists(conn, dropExistingTables);
-            tblAppNotificationsTable.EnsureTableExists(conn, dropExistingTables);
-
-            if (dropExistingTables)
-                conn.Vacuum();
+                if (dropExistingTables)
+                    conn.Vacuum();
+            }
         }
 
 
 
 
-        public int BaseUpsertEntryZapZap(DatabaseConnection conn,
-            DriveMainIndexRecord driveMainIndexRecord,
+        public int BaseUpsertEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            if (conn.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
             driveMainIndexRecord.identityId = _identityId;
 
             lock (_dbLock)
             {
-                int n = 0;
-                conn.CreateCommitUnitOfWork(() =>
+                using (var conn = this.CreateDisposableConnection())
                 {
-                    n = tblDriveMainIndex.Upsert(conn, driveMainIndexRecord);
+                    int n = 0;
+                    conn.CreateCommitUnitOfWork(() =>
+                    {
+                        n = tblDriveMainIndex.Upsert(conn, driveMainIndexRecord);
 
-                    tblDriveAclIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+                        tblDriveAclIndex._InternalDeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        tblDriveAclIndex._InternalInsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                        tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
-                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                    //
-                });
+                        // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                        //
+                    });
 
-                return n;
+                    return n;
+                }
             }
         }
 
@@ -288,7 +287,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 int n = 0;
                 conn.CreateCommitUnitOfWork(() =>
                 {
-                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveAclIndex._InternalDeleteAllRows(conn, driveId, fileId);
                     tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
                     n = tblDriveMainIndex.Delete(conn, driveId, fileId);
                 });
@@ -315,8 +314,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     n = tblDriveMainIndex.Update(conn, driveMainIndexRecord);
 
-                    tblDriveAclIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    tblDriveAclIndex._InternalDeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex._InternalInsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
                     tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
                     tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
@@ -332,7 +331,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        public void AddEntryPassalongToUpsert(DatabaseConnection conn, Guid driveId, Guid fileId,
+        public void AddEntryPassalongToUpsert(Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -348,15 +347,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Int32 fileSystemType = (int)FileSystemType.Standard,
             Int32 fileState = 0)
         {
-            if (conn.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
             lock (_dbLock)
             {
-                conn.CreateCommitUnitOfWork(() =>
+                using (var conn = this.CreateDisposableConnection())
                 {
                     var r = new DriveMainIndexRecord()
                     {
@@ -376,8 +372,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         fileSystemType = fileSystemType,
                         byteCount = byteCount
                     };
-                    BaseUpsertEntryZapZap(conn: conn, r, accessControlList: accessControlList, tagIdList: tagIdList);
-                });
+                    BaseUpsertEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
+                }
             }
         }
         /// <summary>

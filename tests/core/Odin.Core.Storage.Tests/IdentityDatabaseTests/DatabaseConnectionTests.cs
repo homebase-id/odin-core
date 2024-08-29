@@ -20,7 +20,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             _db = new IdentityDatabase(Guid.NewGuid(), "massif.db");
             using (var myc = _db.CreateDisposableConnection())
             {
-                _db.CreateDatabase(myc);
+                _db.CreateDatabase();
             }
         }
 
@@ -46,7 +46,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc1 = db1.CreateDisposableConnection())
             {
-                db1.CreateDatabase(myc1);
+                db1.CreateDatabase();
                 db1.tblKeyValue.Insert(myc1, new KeyValueRecord() { key = k1, data = v1 });
 
                 using (var myc2 = db1.CreateDisposableConnection())
@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
@@ -108,6 +108,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
         [Test]
+        [Ignore("No longer relevant, we cannot use memory with new connection design")]
         public void ConnectionDatabaseIncorrectTest()
         {
             using var db1 = new IdentityDatabase(Guid.NewGuid(), ":memory:");
@@ -119,7 +120,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 {
                     try
                     {
-                        db1.CreateDatabase(myc2);
+                        db1.CreateDatabase();
                         Assert.Fail();
                     }
                     catch (ArgumentException)
@@ -147,7 +148,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var r = db.tblKeyValue.Get(myc, k1);
                 Debug.Assert(r == null);

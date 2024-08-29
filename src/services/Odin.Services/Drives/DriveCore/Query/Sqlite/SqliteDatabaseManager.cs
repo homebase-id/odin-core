@@ -185,7 +185,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         try
         {
-            _db.BaseUpsertEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+            _db.BaseUpsertEntryZapZap(driveMainIndexRecord, acl, tags);
             // driveMainIndexRecord created / modified contain the values written to the database
             // @todd you might consider doing this:
             // using (CreateCommitUnitOfWork()) {
@@ -322,7 +322,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task LoadLatestIndex(DatabaseConnection cn)
     {
-        _db.CreateDatabase(cn, false);
+        _db.CreateDatabase(false);
         return Task.CompletedTask;
     }
 

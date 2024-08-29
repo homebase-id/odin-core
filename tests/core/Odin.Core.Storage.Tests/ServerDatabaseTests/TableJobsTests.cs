@@ -12,7 +12,7 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
         
         var count = await db.tblJobs.GetCountAsync(cn);
         Assert.That(count, Is.EqualTo(0));
@@ -31,7 +31,7 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
         
         var nextRun = await db.tblJobs.GetNextRunTime(cn);
         Assert.That(nextRun, Is.Null);
@@ -135,7 +135,7 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
 
         var record = NewJobsRecord();
         record.jobHash = "my unique hash value";

@@ -5,41 +5,56 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableCircleMember : TableCircleMemberCRUD
     {
+        private readonly IdentityDatabase _db;
+
         public TableCircleMember(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
+            _db = db;
         }
 
         ~TableCircleMember()
         {
         }
 
-        public int Delete(DatabaseConnection conn, Guid circleId, Guid memberId)
+        public int Delete(Guid circleId, Guid memberId)
         {
-            return base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, memberId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Delete(conn, _db._identityId, circleId, memberId);
+            }
         }
 
-        public new int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        public int Insert(CircleMemberRecord item)
         {
-            item.identityId = ((IdentityDatabase)_database)._identityId;
-            return base.Insert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
         }
 
-        public new int Upsert(DatabaseConnection conn, CircleMemberRecord item)
+        public int Upsert(CircleMemberRecord item)
         {
-            item.identityId = ((IdentityDatabase)_database)._identityId;
-            return base.Upsert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Upsert(conn, item);
+            }
         }
 
 
-        public List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid circleId)
+        public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
         {
-            var r = base.GetCircleMembers(conn, ((IdentityDatabase) _database)._identityId, circleId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                var r = base.GetCircleMembers(conn, _db._identityId, circleId);
 
-            // The services code doesn't handle null, so I've made this override
-            if (r == null)
-                r = new List<CircleMemberRecord>();
+                // The services code doesn't handle null, so I've made this override
+                if (r == null)
+                    r = new List<CircleMemberRecord>();
 
-            return r;
+                return r;
+            }
         }
 
 
@@ -49,15 +64,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid memberId)
+        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
         {
-            var r = base.GetMemberCirclesAndData(conn, ((IdentityDatabase)_database)._identityId, memberId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                var r = base.GetMemberCirclesAndData(conn, _db._identityId, memberId);
 
-            // The services code doesn't handle null, so I've made this override
-            if (r == null)
-                r = new List<CircleMemberRecord>();
+                // The services code doesn't handle null, so I've made this override
+                if (r == null)
+                    r = new List<CircleMemberRecord>();
 
-            return r;
+                return r;
+            }
         }
 
 
@@ -66,16 +84,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="CircleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void UpsertCircleMembers(DatabaseConnection conn, List<CircleMemberRecord> CircleMemberRecordList)
+        public void UpsertCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
         {
             if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Upsert(conn, CircleMemberRecordList[i]);
-            });
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    for (int i = 0; i < CircleMemberRecordList.Count; i++)
+                    {
+                        CircleMemberRecordList[i].identityId = _db._identityId;
+                        base.Upsert(conn, CircleMemberRecordList[i]);
+                    }
+                });
+            }
         }
 
 
@@ -85,16 +109,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void RemoveCircleMembers(DatabaseConnection conn, Guid circleId, List<Guid> members)
+        public void RemoveCircleMembers(Guid circleId, List<Guid> members)
         {
-            if ((members == null) || (members.Count < 1))
-                throw new Exception("No members supplied (null or empty)");
-
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < members.Count; i++)
-                    base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, members[i]);
-            });
+                if ((members == null) || (members.Count < 1))
+                    throw new Exception("No members supplied (null or empty)");
+
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    for (int i = 0; i < members.Count; i++)
+                        base.Delete(conn, _db._identityId, circleId, members[i]);
+                });
+            }
         }
 
 
@@ -103,21 +130,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteMembersFromAllCircles(DatabaseConnection conn, List<Guid> members)
+        public void DeleteMembersFromAllCircles(List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < members.Count; i++)
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    var circles = GetMemberCirclesAndData(conn, members[i]);
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        var circles = GetMemberCirclesAndData(members[i]);
 
-                    for (int j = 0; j < circles.Count; j++)
-                        base.Delete(conn, ((IdentityDatabase)_database)._identityId, circles[j].circleId, members[i]);
-                }
-            });
+                        for (int j = 0; j < circles.Count; j++)
+                            base.Delete(conn, _db._identityId, circles[j].circleId, members[i]);
+                    }
+                });
+            }
         }
     }
 }

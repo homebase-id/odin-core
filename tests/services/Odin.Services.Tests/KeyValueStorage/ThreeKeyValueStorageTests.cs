@@ -14,7 +14,7 @@ public class ThreeKeyValueStorageTests
         var finalPath = "testdb1.db";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(false);
 
         Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(Guid.Empty); });
     }
@@ -26,7 +26,7 @@ public class ThreeKeyValueStorageTests
         var finalPath = ":memory:";
         using var db = new IdentityDatabase(identity, finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, true);
+        db.CreateDatabase(true);
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();

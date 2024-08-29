@@ -15,11 +15,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Usage example
         public void ExampleUsageTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var p1 = Guid.NewGuid();
@@ -62,11 +62,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void TheMissingOnes()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -85,11 +85,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -106,11 +106,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void IdentityPostDetailsTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -136,11 +136,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDuplicateFailTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -195,11 +195,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -226,11 +226,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void GetPostReactionstest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();
@@ -257,11 +257,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert rows as expected
         public void GetPostReactionsChopTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
                 var k1 = Guid.NewGuid();

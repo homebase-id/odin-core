@@ -40,7 +40,7 @@ namespace Odin.Hosting.Tests.Performance
             _db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
             using (var myc = _db.CreateDisposableConnection())
             {
-                _db.CreateDatabase(myc);
+                _db.CreateDatabase();
                 storage = new SingleKeyValueStorage(testContextKey);
 
                 for (int i = 0; i < KEYS; i++)

@@ -14,7 +14,7 @@ public class TwoKeyValueStorageTests
         var finalPath = ":memory:";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(false);
         Assert.Throws<OdinSystemException>(() => { new TwoKeyValueStorage(Guid.Empty); });
     }
 
@@ -24,7 +24,7 @@ public class TwoKeyValueStorageTests
         var finalPath = ":memory:";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, true);
+        db.CreateDatabase(true);
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();
