@@ -70,15 +70,7 @@ namespace Odin.Services.Configuration
 
             public TransitSection(IConfiguration config)
             {
-                OutboxBatchSize = config.Required<int>($"Transit:{nameof(OutboxBatchSize)}");
-
-                if (OutboxBatchSize <= 0)
-                {
-                    throw new OdinConfigException($"{nameof(OutboxBatchSize)} must be greater than 0");
-                }
             }
-
-            public int OutboxBatchSize { get; init; }
         }
 
         public class FeedSection
@@ -90,18 +82,9 @@ namespace Odin.Services.Configuration
 
             public FeedSection(IConfiguration config)
             {
-                DistributionBatchSize = config.Required<int>("Feed:DistributionBatchSize");
-
-                if (DistributionBatchSize <= 0)
-                {
-                    throw new OdinConfigException($"{nameof(DistributionBatchSize)} must be greater than 0");
-                }
-
                 MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
             }
-
-            public int DistributionBatchSize { get; init; }
-
+            
             public int MaxCommentsInPreview { get; init; }
         }
 
