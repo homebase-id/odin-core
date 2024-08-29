@@ -1,21 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
-using Dapper;
 using DnsClient;
-using FluentMigrator.Runner;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -23,7 +19,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Migrations;
 using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
@@ -48,7 +43,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -235,12 +229,6 @@ namespace Odin.Hosting
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
-
-            services.AddFluentMigratorCore()
-                .ConfigureRunner(rb => rb
-                    .AddSQLite().WithGlobalConnectionString("Data Source=/Users/seb/tmp/aaaaadb.db")
-                    .ScanIn(typeof(CreateDriveMainIndexTable).Assembly).For.Migrations())
-                .AddLogging(lb => lb.AddFluentMigratorConsole()); // SEB:TODO use our logger
         }
 
         // ConfigureContainer is where you can register things directly
@@ -465,17 +453,6 @@ namespace Odin.Hosting
             {
                 var services = app.ApplicationServices;
 
-                SqlMapper.AddTypeHandler(new StringToGuidTypeHandler());
-
-                var runner = services.GetRequiredService<IMigrationRunner>();
-                runner.MigrateUp();
-
-                var id = Guid.NewGuid();
-                using var cn = new SqliteConnection("Data Source=/Users/seb/tmp/aaaaadb.db");
-                cn.Execute("INSERT INTO DriveMainIndex (identityId, Text) VALUES (@identityId, @Text)", new { identityId = id, Text = id.ToString() });
-
-                cn.Query<DriveMainIndexTest>("select * from DriveMainIndex").ToList().ForEach(x => Console.WriteLine($"{x.IdentityId} - {x.Text}"));
-
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
@@ -522,23 +499,5 @@ namespace Odin.Hosting
         }
     }
 
-    class DriveMainIndexTest
-    {
-        public Guid IdentityId { get; set; }
-        public string Text { get; set; }
-    }
-
-    public class StringToGuidTypeHandler : SqlMapper.TypeHandler<Guid>
-    {
-        public override void SetValue(IDbDataParameter parameter, Guid value)
-        {
-            parameter.Value = value.ToString();
-        }
-
-        public override Guid Parse(object value)
-        {
-            return new Guid((string)value);
-        }
-    }
 
 }

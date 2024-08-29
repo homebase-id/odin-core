@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -7,12 +8,16 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Dapper;
+using FluentMigrator.Runner;
+using FluentMigrator.Runner.Initialization;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
@@ -21,6 +26,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Storage.Migrations;
 using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -483,10 +489,47 @@ namespace Odin.Hosting
             //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --migrate-dbs
             //
             //
-            if (args.Contains("--migrate-dbs"))
+            if (args.Contains("--migrate") || args.Contains("--rollback"))
             {
                 var (odinConfiguration, _) = LoadConfig(true);
-                // CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
+
+                var services = new ServiceCollection()
+                    .AddFluentMigratorCore()
+                    .ConfigureRunner(rb => rb
+                        .AddSQLite()
+                        .WithGlobalConnectionString("Data Source=/Users/seb/tmp/aaaaadb.db")
+                        .ScanIn(typeof(CreateDriveMainIndexTable).Assembly).For.Migrations())
+                    .AddLogging(lb =>
+                    {
+                        lb.AddFluentMigratorConsole();
+                    })
+                    .Configure<FluentMigratorLoggerOptions>(opt =>
+                    {
+                        opt.ShowSql = true;
+                    })
+                    .BuildServiceProvider(false);
+
+                // SEB:TODO we need to make sure this runs before tenant background services started.
+                // SEB:TODO we need to lock the database so only one instance of the app migrate the database.
+
+                using (var scope = services.CreateScope())
+                {
+                    var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+                    if (args.Contains("--rollback"))
+                    {
+                        runner.Rollback(1);
+                    }
+                    else
+                    {
+                        runner.MigrateUp();
+                    }
+                }
+
+                // var id = Guid.NewGuid();
+                // using var cn = new SqliteConnection("Data Source=/Users/seb/tmp/aaaaadb.db");
+                // cn.Execute("INSERT INTO DriveMainIndex (identityId, Text) VALUES (@identityId, @Text)", new { identityId = id, Text = id.ToString() });
+                // cn.Query<DriveMainIndexTest>("select * from DriveMainIndex").ToList().ForEach(x => Console.WriteLine($"{x.IdentityId} - {x.Text}"));
+
                 return (true, 0);
             }
 
@@ -495,4 +538,24 @@ namespace Odin.Hosting
             return (false, 0);
         }
     }
+
+    class DriveMainIndexTest
+    {
+        public Guid IdentityId { get; set; }
+        public string Text { get; set; }
+    }
+
+    public class StringToGuidTypeHandler : SqlMapper.TypeHandler<Guid>
+    {
+        public override void SetValue(IDbDataParameter parameter, Guid value)
+        {
+            parameter.Value = value.ToString();
+        }
+
+        public override Guid Parse(object value)
+        {
+            return new Guid((string)value);
+        }
+    }
+
 }
