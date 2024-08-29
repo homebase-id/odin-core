@@ -492,12 +492,15 @@ namespace Odin.Hosting
             if (args.Contains("--migrate") || args.Contains("--rollback"))
             {
                 var (odinConfiguration, _) = LoadConfig(true);
+                
+                var dbPath = Path.Combine(
+                    Environment.GetEnvironmentVariable("HOME") ?? throw new Exception("no way home!"), "tmp/aaaaabc.db");
 
                 var services = new ServiceCollection()
                     .AddFluentMigratorCore()
                     .ConfigureRunner(rb => rb
                         .AddSQLite()
-                        .WithGlobalConnectionString("Data Source=/Users/seb/tmp/aaaaadb.db")
+                        .WithGlobalConnectionString($"Data Source={dbPath}")
                         .ScanIn(typeof(CreateDriveMainIndexTable).Assembly).For.Migrations())
                     .AddLogging(lb =>
                     {
