@@ -20,16 +20,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4 
         with:
-          path: dotyoucore
+          path: odin-core
 
       #
       # Build Frontend
       #
 
       - name: Build frontend
-        uses: ./dotyoucore/.github/actions/host/build-frontend
+        uses: ./odin-core/.github/actions/host/build-frontend
         with:
-          dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_ref: ${{ github.event.inputs.fe_ref }}
 
@@ -61,8 +61,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
         with:
-          context: ./dotyoucore
-          file: ./dotyoucore/docker/Dockerfile-identity-host
+          context: ./odin-core
+          file: ./odin-core/docker/Dockerfile-identity-host
           push: true
           tags: ${{ env.IMAGE_WITH_TAG }}
           labels: ${{ steps.meta.outputs.labels }}

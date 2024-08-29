@@ -2,7 +2,7 @@ name: "Host: Deploy image to environment"
 description: "Deploy a Docker image to a selected environment"
 inputs:
   image_name:
-    description: "Image name to deploy (e.g. ghcr.io/youfoundation/dotyoucore:v0.1.107)"
+    description: "Image name to deploy (e.g. ghcr.io/homebase-id/odin-core:v0.1.107)"
     required: true
   env_name:
     description: "Environment name to deploy to (e.g. bleeding_edge)"
@@ -41,7 +41,7 @@ runs:
           echo "Work folder: $ANSIBLE_WORK_FOLDER"
           mkdir -p $ANSIBLE_WORK_FOLDER
           cd $ANSIBLE_WORK_FOLDER
-          git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+          git clone --depth 1 git@github.com:homebase-id/DevOps.git .
           cd $ANSIBLE_WORK_FOLDER/ansible
           ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} start_container=${{ inputs.start_container }}  identity_host_docker_image=$docker_image_name"
           cd /tmp
