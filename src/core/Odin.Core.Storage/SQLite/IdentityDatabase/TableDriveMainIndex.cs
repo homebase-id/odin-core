@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int UpdateReactionSummary(DatabaseConnection conn, Guid driveId, Guid fileId, string reactionSummary)
+        public int UpdateReactionSummary(Guid driveId, Guid fileId, string reactionSummary)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -110,17 +110,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateCommand.Parameters.Add(_sparam4);
                 _updateCommand.Parameters.Add(_sparam5);
 
-                _sparam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _sparam1.Value = _db._identityId.ToByteArray();
                 _sparam2.Value = driveId.ToByteArray();
                 _sparam3.Value = fileId.ToByteArray();
                 _sparam4.Value = reactionSummary;
                 _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
-                return conn.ExecuteNonQuery(_updateCommand);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return conn.ExecuteNonQuery(_updateCommand);
+                }
             }
         }
 
-        public int UpdateTransferStatus(DatabaseConnection conn, Guid driveId, Guid fileId, string transferStatus)
+        public int UpdateTransferStatus(Guid driveId, Guid fileId, string transferStatus)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -145,13 +148,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateCommand.Parameters.Add(_sparam4);
                 _updateCommand.Parameters.Add(_sparam5);
 
-                _sparam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _sparam1.Value = _db._identityId.ToByteArray();
                 _sparam2.Value = driveId.ToByteArray();
                 _sparam3.Value = fileId.ToByteArray();
                 _sparam4.Value = transferStatus;
                 _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
-                return conn.ExecuteNonQuery(_updateCommand);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return conn.ExecuteNonQuery(_updateCommand);
+                }
             }
         }
 

@@ -11,7 +11,7 @@ public class SingleKeyValueStorageTests
     [Test]
     public void RequireNonEmptyContextKey()
     {
-        var finalPath = "";
+        var finalPath = "SingleKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(true);
@@ -21,7 +21,7 @@ public class SingleKeyValueStorageTests
     [Test]
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
-        using var db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
+        using var db = new IdentityDatabase(Guid.NewGuid(), "SingleKeyValueStorageTests002");
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(true);
 

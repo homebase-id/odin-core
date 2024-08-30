@@ -34,8 +34,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
         // TODO TODD - use moreRows
-        var (results, moreRows) = _db.QueryModified(
-            cn,
+        var (results, moreRows) = _db.metaIndex.QueryModified(
             Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
@@ -66,8 +65,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         if (options.Ordering == Ordering.Default)
         {
-            var (results, moreRows) = _db.QueryBatchAuto(
-                cn,
+            var (results, moreRows) = _db.metaIndex.QueryBatchAuto(
                 Drive.Id,
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
@@ -185,7 +183,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         try
         {
-            _db.BaseUpsertEntryZapZap(driveMainIndexRecord, acl, tags);
+            _db.metaIndex.BaseUpsertEntryZapZap(driveMainIndexRecord, acl, tags);
             // driveMainIndexRecord created / modified contain the values written to the database
             // @todd you might consider doing this:
             // using (CreateCommitUnitOfWork()) {
@@ -304,7 +302,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             byteCount = header.ServerMetadata.FileByteCount
         };
 
-        int n = _db.BaseUpdateEntryZapZap(cn, driveMainIndexRecord, acl, tags);
+        int n = _db.metaIndex.BaseUpdateEntryZapZap(driveMainIndexRecord, acl, tags);
 
         // @todd The modified timestamp in driveMainIndexRecord will be updated with the value written to the index
 
@@ -316,7 +314,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn)
     {
-        _db.DeleteEntry(cn, Drive.Id, file.FileId);
+        _db.metaIndex.DeleteEntry(Drive.Id, file.FileId);
         return Task.CompletedTask;
     }
 
@@ -456,8 +454,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var cursor = options.Cursor;
 
-        var (results, hasMoreRows) = _db.QueryBatch(
-            cn,
+        var (results, hasMoreRows) = _db.metaIndex.QueryBatch(
             Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,

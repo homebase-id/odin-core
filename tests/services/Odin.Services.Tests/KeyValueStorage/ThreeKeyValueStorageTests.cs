@@ -11,7 +11,7 @@ public class ThreeKeyValueStorageTests
     [Test]
     public void RequireNonEmptyContextKey()
     {
-        var finalPath = "testdb1.db";
+        var finalPath = "ThreeKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(false);
@@ -23,7 +23,7 @@ public class ThreeKeyValueStorageTests
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var identity = Guid.NewGuid();
-        var finalPath = ":memory:";
+        var finalPath = "ThreeKeyValueStorageTests002";
         using var db = new IdentityDatabase(identity, finalPath);
         using var myc = db.CreateDisposableConnection();
         db.CreateDatabase(true);

@@ -12,40 +12,35 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void UpdateReactionSummary()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests090");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = SequentialGuid.CreateGuid().ToString();
-                var t1 = SequentialGuid.CreateGuid();
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
 
-                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
 
-                var r = db.tblDriveMainIndex.Get(driveId, f1);
-                var s = r.hdrReactionSummary;
-                var m = r.modified;
-                Debug.Assert(m == null);
+            var r = db.tblDriveMainIndex.Get(driveId, f1);
+            var s = r.hdrReactionSummary;
+            var m = r.modified;
+            Debug.Assert(m == null);
 
-                var s2 = "a new summary";
-                db.tblDriveMainIndex.UpdateReactionSummary(myc, driveId, f1, s2);
-                var r2 = db.tblDriveMainIndex.Get(driveId, f1);
-                var m2 = r2.modified;
-                Debug.Assert(r2.hdrReactionSummary == s2);
-                Debug.Assert(m2 != null);
-            }
+            var s2 = "a new summary";
+            db.tblDriveMainIndex.UpdateReactionSummary(driveId, f1, s2);
+            var r2 = db.tblDriveMainIndex.Get(driveId, f1);
+            var m2 = r2.modified;
+            Debug.Assert(r2.hdrReactionSummary == s2);
+            Debug.Assert(m2 != null);
         }
 
         [Test]
         public void UpdateTransferStatus()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests091");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
                 db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
@@ -53,7 +48,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var s1 = SequentialGuid.CreateGuid().ToString();
                 var t1 = SequentialGuid.CreateGuid();
 
-                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+                db.metaIndex.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
 
                 var r = db.tblDriveMainIndex.Get(driveId, f1);
                 var s = r.hdrTransferStatus;
@@ -61,12 +56,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Debug.Assert(m == null);
 
                 var s2 = "a new transfer status";
-                db.tblDriveMainIndex.UpdateTransferStatus(myc, driveId, f1, s2);
+                db.tblDriveMainIndex.UpdateTransferStatus(driveId, f1, s2);
                 var r2 = db.tblDriveMainIndex.Get(driveId, f1);
                 var m2 = r2.modified;
                 Debug.Assert(r2.hdrTransferStatus == s2);
                 Debug.Assert(m2 != null);
-            }
         }
 
         [Test]
@@ -74,29 +68,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests001");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = SequentialGuid.CreateGuid().ToString();
-                var t1 = SequentialGuid.CreateGuid();
-                var f2 = SequentialGuid.CreateGuid();
-                var f3 = SequentialGuid.CreateGuid();
-                var f4 = SequentialGuid.CreateGuid();
-                var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-                db.AddEntryPassalongToUpsert(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
-                db.AddEntryPassalongToUpsert(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
-                db.AddEntryPassalongToUpsert(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
-                db.AddEntryPassalongToUpsert(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
+            db.metaIndex.AddEntryPassalongToUpsert(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
-                Assert.AreEqual(count, 5);
-                Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
-            }
+            var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
+            Assert.AreEqual(count, 5);
+            Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
         }
 
         [Test]
@@ -104,15 +95,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests002");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
-                Assert.AreEqual(count, 0);
-                Assert.AreEqual(size, 0);
-            }
+            var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
+            Assert.AreEqual(count, 0);
+            Assert.AreEqual(size, 0);
         }
 
 
@@ -121,28 +109,25 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests003");
 
-            using (var myc = db.CreateDisposableConnection())
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
+
+            try
             {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
-
-                var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
-                var s1 = SequentialGuid.CreateGuid().ToString();
-                var t1 = SequentialGuid.CreateGuid();
-                var f2 = SequentialGuid.CreateGuid();
-                var f3 = SequentialGuid.CreateGuid();
-                var f4 = SequentialGuid.CreateGuid();
-                var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
-
-                try
-                {
-                    db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
-                }
-                catch (Exception ex)
-                {
-                    if (!(ex is ArgumentException))
-                        Assert.Fail();
-                }
+                db.metaIndex.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
+            }
+            catch (Exception ex)
+            {
+                if (!(ex is ArgumentException))
+                    Assert.Fail();
             }
         }
 
@@ -152,83 +137,80 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests004");
 
-            using (var myc = db.CreateDisposableConnection())
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
+
+            var k1 = Guid.NewGuid();
+            var cts1 = UnixTimeUtcUnique.Now();
+            var sid1 = Guid.NewGuid().ToByteArray();
+            var tid1 = Guid.NewGuid();
+            var ud1 = UnixTimeUtc.Now();
+
+            var md = db.tblDriveMainIndex.Get(driveId, k1);
+
+            if (md != null)
+                Assert.Fail();
+
+            db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
             {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+                driveId = driveId,
+                fileId = k1,
+                globalTransitId = Guid.NewGuid(),
+                created = cts1,
+                fileType = 7,
+                dataType = 42,
+                senderId = sid1.ToString(),
+                groupId = tid1,
+                uniqueId = Guid.NewGuid(),
+                userDate = ud1,
+                archivalStatus = 0,
+                historyStatus = 1,
+                requiredSecurityGroup = 44,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            });
 
-                var k1 = Guid.NewGuid();
-                var cts1 = UnixTimeUtcUnique.Now();
-                var sid1 = Guid.NewGuid().ToByteArray();
-                var tid1 = Guid.NewGuid();
-                var ud1 = UnixTimeUtc.Now();
+            var cts2 = UnixTimeUtcUnique.Now();
 
-                var md = db.tblDriveMainIndex.Get(driveId, k1);
+            md = db.tblDriveMainIndex.Get(driveId, k1);
 
-                if (md != null)
-                    Assert.Fail();
+            if (md == null)
+                Assert.Fail();
 
-                db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
-                {
-                    driveId = driveId,
-                    fileId = k1,
-                    globalTransitId = Guid.NewGuid(),
-                    created = cts1,
-                    fileType = 7,
-                    dataType = 42,
-                    senderId = sid1.ToString(),
-                    groupId = tid1,
-                    uniqueId = Guid.NewGuid(),
-                    userDate = ud1,
-                    archivalStatus = 0,
-                    historyStatus = 1,
-                    requiredSecurityGroup = 44,
-                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
-                    hdrVersionTag = SequentialGuid.CreateGuid(),
-                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
-                    hdrTmpDriveType = SequentialGuid.CreateGuid()
-                });
+            Assert.IsTrue((md.created.ToUnixTimeUtc() >= cts1.ToUnixTimeUtc()) && (md.created.ToUnixTimeUtc() <= cts2.ToUnixTimeUtc()));
 
-                var cts2 = UnixTimeUtcUnique.Now();
+            if (md.modified != null)
+                Assert.Fail();
 
-                md = db.tblDriveMainIndex.Get(driveId, k1);
+            if (md.fileType != 7)
+                Assert.Fail();
 
-                if (md == null)
-                    Assert.Fail();
+            if (md.dataType != 42)
+                Assert.Fail();
 
-                Assert.IsTrue((md.created.ToUnixTimeUtc() >= cts1.ToUnixTimeUtc()) && (md.created.ToUnixTimeUtc() <= cts2.ToUnixTimeUtc()));
+            Assert.True(md.requiredSecurityGroup == 44);
 
-                if (md.modified != null)
-                    Assert.Fail();
+            if (md.senderId.ToString() != sid1.ToString())
+                Assert.Fail();
 
-                if (md.fileType != 7)
-                    Assert.Fail();
+            if (ByteArrayUtil.muidcmp(md.groupId, tid1) != 0)
+                Assert.Fail();
 
-                if (md.dataType != 42)
-                    Assert.Fail();
+            if (md.userDate != ud1)
+                Assert.Fail();
 
-                Assert.True(md.requiredSecurityGroup == 44);
+            if (md.archivalStatus != 0)
+                Assert.Fail();
 
-                if (md.senderId.ToString() != sid1.ToString())
-                    Assert.Fail();
-
-                if (ByteArrayUtil.muidcmp(md.groupId, tid1) != 0)
-                    Assert.Fail();
-
-                if (md.userDate != ud1)
-                    Assert.Fail();
-
-                if (md.archivalStatus != 0)
-                    Assert.Fail();
-
-                if (md.historyStatus != 1)
-                    Assert.Fail();
-            }
+            if (md.historyStatus != 1)
+                Assert.Fail();
         }
 
         [Test]
@@ -236,17 +218,43 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableMainIndexTests005");
 
-            using (var myc = db.CreateDisposableConnection())
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
+
+            var k1 = Guid.NewGuid();
+            var cts1 = UnixTimeUtcUnique.Now();
+            var sid1 = Guid.NewGuid().ToByteArray();
+            var tid1 = Guid.NewGuid();
+            var ud1 = UnixTimeUtc.Now();
+
+            db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
             {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+                driveId = driveId,
+                fileId = k1,
+                globalTransitId = Guid.NewGuid(),
+                created = cts1,
+                fileType = 7,
+                dataType = 42,
+                senderId = sid1.ToString(),
+                groupId = tid1,
+                uniqueId = Guid.NewGuid(),
+                userDate = ud1,
+                archivalStatus = 0,
+                historyStatus = 1,
+                fileSystemType = 44,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            });
 
-                var k1 = Guid.NewGuid();
-                var cts1 = UnixTimeUtcUnique.Now();
-                var sid1 = Guid.NewGuid().ToByteArray();
-                var tid1 = Guid.NewGuid();
-                var ud1 = UnixTimeUtc.Now();
-
+            try
+            {
                 db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
                 {
                     driveId = driveId,
@@ -272,39 +280,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                     hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
-
-                try
-                {
-                    db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
-                    {
-                        driveId = driveId,
-                        fileId = k1,
-                        globalTransitId = Guid.NewGuid(),
-                        created = cts1,
-                        fileType = 7,
-                        dataType = 42,
-                        senderId = sid1.ToString(),
-                        groupId = tid1,
-                        uniqueId = Guid.NewGuid(),
-                        userDate = ud1,
-                        archivalStatus = 0,
-                        historyStatus = 1,
-                        fileSystemType = 44,
-                        hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
-                        hdrVersionTag = SequentialGuid.CreateGuid(),
-                        hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                        hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
-                        hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                        hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
-                        hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                        hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
-                        hdrTmpDriveType = SequentialGuid.CreateGuid()
-                    });
-                    Assert.Fail();
-                }
-                catch
-                {
-                }
+                Assert.Fail();
+            }
+            catch
+            {
             }
         }
 
