@@ -24,7 +24,7 @@ namespace WaitingListApi
             services.AddSingleton(config);
 
             PrepareEnvironment(config);
-            
+
             Log.Information($"CorsUrl: [{config.Host.CorsUrl}]");
             services.AddCors(setup =>
             {
@@ -116,7 +116,7 @@ namespace WaitingListApi
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "homebase.id v1"));
             // lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
         }
 
