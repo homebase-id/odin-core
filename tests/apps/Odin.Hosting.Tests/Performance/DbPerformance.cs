@@ -56,7 +56,7 @@ namespace Odin.Hosting.Tests.Performance
                     };
 
                     // storage.Upsert<Item>(_keys[i], item);
-                    _db.tblKeyValue.Upsert(myc, new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
+                    _db.tblKeyValue.Upsert(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
                     // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
                 }
             }
@@ -188,7 +188,7 @@ TaskPerformanceTest_Db_MultiThread
                 {
                     sw.Restart();
 
-                    var r = _db.tblKeyValue.Get(myc, _keys[0].ToByteArray());
+                    var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
                     Debug.Assert(r != null);
 
                     timers[count] = sw.ElapsedMilliseconds;

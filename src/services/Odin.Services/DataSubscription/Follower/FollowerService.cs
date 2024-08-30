@@ -123,10 +123,10 @@ namespace Odin.Services.DataSubscription.Follower
             cn.CreateCommitUnitOfWork(() =>
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteByIdentity(cn, identityToFollow);
+                _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord()
+                    _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord()
                         { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
@@ -141,7 +141,7 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord()
+                        _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord()
                             { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
@@ -169,7 +169,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            _tenantStorage.WhoIFollow.DeleteByIdentity(cn, recipient);
+            _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollower(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
@@ -196,7 +196,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetAllFollowers(cn, DefaultMax(max), cursor, out var nextCursor);
+            var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
 
             var result = new CursoredResult<string>()
             {
@@ -219,7 +219,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(cn, DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
+            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
             var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
@@ -236,7 +236,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(cn, DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -254,7 +254,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(cn, DefaultMax(max), cursor, out var nextCursor);
+            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -273,7 +273,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(cn, DefaultMax(max), driveAlias, cursor, out var nextCursor);
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -547,7 +547,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId, DatabaseConnection cn)
         {
-            var dbRecords = _tenantStorage.WhoIFollow.Get(cn, odinId);
+            var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return Task.FromResult<FollowerDefinition>(null);
@@ -586,7 +586,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId, DatabaseConnection cn)
         {
-            var dbRecords = _tenantStorage.Followers.Get(cn, odinId);
+            var dbRecords = _tenantStorage.Followers.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

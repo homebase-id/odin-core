@@ -229,44 +229,41 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void DeleteMembersTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleMemberTests008");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var c1 = Guid.NewGuid();
-                var c2 = Guid.NewGuid();
-                var d1 = Guid.NewGuid().ToByteArray();
+            var c1 = Guid.NewGuid();
+            var c2 = Guid.NewGuid();
+            var d1 = Guid.NewGuid().ToByteArray();
 
-                var m1 = Guid.NewGuid();
-                var m2 = Guid.NewGuid();
-                var m3 = Guid.NewGuid();
-                var m4 = Guid.NewGuid();
-                var m5 = Guid.NewGuid();
+            var m1 = Guid.NewGuid();
+            var m2 = Guid.NewGuid();
+            var m3 = Guid.NewGuid();
+            var m4 = Guid.NewGuid();
+            var m5 = Guid.NewGuid();
 
-                var cl = new List<CircleMemberRecord> {
+            var cl = new List<CircleMemberRecord> {
                 new CircleMemberRecord() { circleId = c1, memberId = m1, data = d1 },
                 new CircleMemberRecord() { circleId = c1, memberId = m2, data = d1 },
                 new CircleMemberRecord() { circleId = c1, memberId = m3, data = d1 } };
 
-                db.tblCircleMember.UpsertCircleMembers(cl);
+            db.tblCircleMember.UpsertCircleMembers(cl);
 
-                var cl2 = new List<CircleMemberRecord> {
+            var cl2 = new List<CircleMemberRecord> {
                 new CircleMemberRecord() { circleId = c2, memberId = m2, data = d1 },
                 new CircleMemberRecord() { circleId = c2, memberId = m3, data = d1 },
                 new CircleMemberRecord() { circleId = c2, memberId = m4, data = d1 },
                 new CircleMemberRecord() { circleId = c2, memberId = m5, data = d1 }
             };
-                db.tblCircleMember.UpsertCircleMembers(cl2);
+            db.tblCircleMember.UpsertCircleMembers(cl2);
 
-                db.tblCircleMember.DeleteMembersFromAllCircles(new List<Guid>() { m1, m2 });
+            db.tblCircleMember.DeleteMembersFromAllCircles(new List<Guid>() { m1, m2 });
 
-                var r = db.tblCircleMember.GetCircleMembers(c1);
-                Debug.Assert(r.Count == 1);
-                Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
+            var r = db.tblCircleMember.GetCircleMembers(c1);
+            Debug.Assert(r.Count == 1);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
 
-                r = db.tblCircleMember.GetCircleMembers(c2);
-                Debug.Assert(r.Count == 3);
-            }
+            r = db.tblCircleMember.GetCircleMembers(c2);
+            Debug.Assert(r.Count == 3);
         }
 
         [Test]

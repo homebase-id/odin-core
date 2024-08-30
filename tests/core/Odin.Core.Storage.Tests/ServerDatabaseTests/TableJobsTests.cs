@@ -10,7 +10,7 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldCountJobs()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldCountJobs");
         using var cn = db.CreateDisposableConnection();
         db.CreateDatabase();
         
@@ -29,7 +29,7 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldGetTheNextJob()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldGetTheNextJob");
         using var cn = db.CreateDisposableConnection();
         db.CreateDatabase();
         
@@ -133,7 +133,7 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldGetJobByHash()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldGetJobByHash");
         using var cn = db.CreateDisposableConnection();
         db.CreateDatabase();
 

@@ -39,12 +39,17 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
+                /* TODO CONNECTIONS - FIX THIS UP!
                 cn.CreateCommitUnitOfWork(() =>
                 {
                     _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
                     _tenantStorage.Followers.Insert(cn,
                         new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
-                });
+                });*/
+
+                // Created sample DeleteAndAddFollower() - take a look
+                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
+                _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -71,7 +76,8 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
-                cn.CreateCommitUnitOfWork(() =>
+                // TODO CONNECTIONS - FIX THIS UP!
+                /*cn.CreateCommitUnitOfWork(() =>
                 {
                     _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
                     foreach (var channel in request.Channels)
@@ -79,7 +85,14 @@ namespace Odin.Services.DataSubscription.Follower
                         _tenantStorage.Followers.Insert(cn,
                             new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
-                });
+                });*/
+
+                // Created sample DeleteAndAddFollower() - take a look - make it a list so it works both here and above?
+                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
+                foreach (var channel in request.Channels)
+                {
+                    _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                }
 
                 return Task.CompletedTask;
             }
@@ -102,7 +115,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             var follower = odinContext.Caller.OdinId;
 
-            _tenantStorage.Followers.DeleteByIdentity(cn, follower);
+            _tenantStorage.Followers.DeleteByIdentity(follower);
             return Task.CompletedTask;
         }
     }

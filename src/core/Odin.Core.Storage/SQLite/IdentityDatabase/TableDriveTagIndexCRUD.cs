@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Odin.Core.Time;
-using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("IdentityDatabase")]
+
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -333,7 +335,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
             using (var _delete1Command = _database.CreateCommand())
             {

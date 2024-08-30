@@ -14,7 +14,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void LogicCommitUnit1Test()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests001");
             using (var myc = db.CreateDisposableConnection())
             {
                 Debug.Assert(myc._nestedCounter == 0);
@@ -42,7 +42,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public async Task LogicCommitUnit1TestAsync()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests002");
             using (var myc = db.CreateDisposableConnection())
             {
                 Debug.Assert(myc._nestedCounter == 0);
@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public async Task LogicCommitUnit1TestAsyncWithException()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -120,7 +120,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public async Task LogicCommitUnit1TestWithMultipleTasks()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests004");
             var tasks = new List<Task>();
 
             for (int i = 0; i < 10; i++)
@@ -162,25 +162,18 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void CreateCommitUnitOfWorkShouldRollbackOnException()
         {
-            int Count(DatabaseConnection cn)
-            {
-                using var cmd = cn.db.CreateCommand();
-                cmd.CommandText = "SELECT COUNT(*) FROM keyValue;";
-                cmd.Connection = cn.Connection;
-                return Convert.ToInt32(cmd.ExecuteScalar());
-            }
-
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
-            using var cn = db.CreateDisposableConnection();
-
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests005");
             db.CreateDatabase(true);
+
             var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
+            using var cn = db.CreateDisposableConnection();
+
             db.tblKeyValue.Insert(cn, kv);
-            Assert.That(Count(cn), Is.EqualTo(1));
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(1));
 
             // First make sure we can provoke a key violation
-            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(cn, kv));
+            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(kv));
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Lets add 3 some rows in two nested transactions
@@ -193,13 +186,13 @@ namespace Odin.Core.Storage.Tests
                 {
                     db.tblKeyValue.Insert(cn,
                         new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                    db.tblKeyValue.Insert(cn,
+                    db.tblKeyValue.Insert(cn, 
                         new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 });
             });
 
             // Make sure they are committed (total row count == 4)
-            Assert.That(Count(cn), Is.EqualTo(4));
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
 
             // Rollback Variant 1
             // Lets add 3 more rows in two nested transactions
@@ -213,10 +206,8 @@ namespace Odin.Core.Storage.Tests
 
                     cn.CreateCommitUnitOfWork(() =>
                     {
-                        db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                         db.tblKeyValue.Insert(cn, kv);
                     });
@@ -225,7 +216,7 @@ namespace Odin.Core.Storage.Tests
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(Count(cn), Is.EqualTo(4));
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
 
             // Rollback Variant 2
             // Lets add 3 more rows in two nested transactions
@@ -245,13 +236,13 @@ namespace Odin.Core.Storage.Tests
                             new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
 
-                    db.tblKeyValue.Insert(cn, kv);
+                    db.tblKeyValue.Insert(cn,kv);
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(Count(cn), Is.EqualTo(4));
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
 
             // Rollback Variant 3
             // Lets add 3 more rows in two nested transactions
@@ -260,24 +251,21 @@ namespace Odin.Core.Storage.Tests
             {
                 cn.CreateCommitUnitOfWork(() =>
                 {
-                    db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     db.tblKeyValue.Insert(cn, kv);
 
                     cn.CreateCommitUnitOfWork(() =>
                     {
-                        db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(Count(cn), Is.EqualTo(4));
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
 
             // Finally a single successful row for good measure
             cn.CreateCommitUnitOfWork(() =>
@@ -285,8 +273,7 @@ namespace Odin.Core.Storage.Tests
                 db.tblKeyValue.Insert(cn,
                     new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             });
-            Assert.That(Count(cn), Is.EqualTo(5));
-
+            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(5));
         }
 
         [Test]
@@ -300,12 +287,11 @@ namespace Odin.Core.Storage.Tests
                 return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
 
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
-            using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
-
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests006");
             db.CreateDatabase(true); // SEB:TODO make async variant
             var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
+            using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
             db.tblKeyValue.Insert(cn, kv); // SEB:TODO make async variant
             Assert.That(await CountAsync(cn), Is.EqualTo(1));
 
@@ -381,7 +367,7 @@ namespace Odin.Core.Storage.Tests
                         return Task.CompletedTask;
                     });
 
-                    db.tblKeyValue.Insert(cn, kv);
+                    db.tblKeyValue.Insert(cn,kv);
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
@@ -431,7 +417,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void Test4()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests007");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();
@@ -456,7 +442,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void Test5()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests008");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();

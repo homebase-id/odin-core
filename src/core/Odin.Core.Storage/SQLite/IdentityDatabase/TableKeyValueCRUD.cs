@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("DatabaseCommitTest")]
+[assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -87,7 +91,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -322,7 +326,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected KeyValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal KeyValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");

@@ -265,9 +265,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         n = tblDriveMainIndex.Upsert(conn, driveMainIndexRecord);
 
-                        tblDriveAclIndex._InternalDeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                        tblDriveAclIndex._InternalInsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                        tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        tblDriveAclIndex.DeleteAllRows(conn, _identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                        tblDriveTagIndex.DeleteAllRows(conn, _identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
                         tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
                         // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
@@ -287,9 +287,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 int n = 0;
                 conn.CreateCommitUnitOfWork(() =>
                 {
-                    tblDriveAclIndex._InternalDeleteAllRows(conn, driveId, fileId);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                    n = tblDriveMainIndex.Delete(conn, driveId, fileId);
+                    tblDriveAclIndex.DeleteAllRows(conn, _identityId, driveId, fileId);
+                    tblDriveTagIndex.DeleteAllRows(conn, _identityId, driveId, fileId);
+                    n = tblDriveMainIndex.Delete(conn, _identityId, driveId, fileId);
                 });
                 return n;
             }
@@ -314,9 +314,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     n = tblDriveMainIndex.Update(conn, driveMainIndexRecord);
 
-                    tblDriveAclIndex._InternalDeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    tblDriveAclIndex._InternalInsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex.DeleteAllRows(conn, _identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, _identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
                     tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
                     // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
-using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -108,7 +110,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual int Insert(DatabaseConnection conn, FollowsMeRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {

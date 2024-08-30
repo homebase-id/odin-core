@@ -28,7 +28,7 @@ public class TwoKeyValueStorage
     public T Get<T>(DatabaseConnection cn, Guid key) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
-        var record = db.tblKeyTwoValue.Get(cn, MakeStorageKey(key));
+        var record = db.tblKeyTwoValue.Get(MakeStorageKey(key));
 
         if (null == record)
         {
@@ -41,7 +41,7 @@ public class TwoKeyValueStorage
     public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] key2) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
-        var list = db.tblKeyTwoValue.GetByKeyTwo(cn, key2);
+        var list = db.tblKeyTwoValue.GetByKeyTwo(key2);
         if (null == list)
         {
             return new List<T>();
@@ -54,13 +54,13 @@ public class TwoKeyValueStorage
     {
         var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyTwoValue.Upsert(cn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(DatabaseConnection cn, Guid id)
     {
         var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyTwoValue.Delete(cn, MakeStorageKey(id));
+        db.tblKeyTwoValue.Delete(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

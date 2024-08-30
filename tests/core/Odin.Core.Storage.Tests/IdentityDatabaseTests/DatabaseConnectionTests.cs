@@ -47,21 +47,21 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc1 = db1.CreateDisposableConnection())
             {
                 db1.CreateDatabase();
-                db1.tblKeyValue.Insert(myc1, new KeyValueRecord() { key = k1, data = v1 });
+                db1.tblKeyValue.Insert(myc1, new KeyValueRecord() { identityId = db1._identityId, key = k1, data = v1 });
 
                 using (var myc2 = db1.CreateDisposableConnection())
                 {
                     myc2.CreateCommitUnitOfWork(() =>
                     {
-                        db1.tblKeyValue.Insert(myc2, new KeyValueRecord() { key = k2, data = v2 });
+                        db1.tblKeyValue.Insert(myc2, new KeyValueRecord() { identityId = db1._identityId, key = k2, data = v2 });
                         myc2.Dispose(); // Will trigger rollback
                     });
                 }
 
-                var r = db1.tblKeyValue.Get(myc1, k1);
+                var r = db1.tblKeyValue.Get(myc1, db1._identityId, k1);
                 Assert.IsNotNull(r);
 
-                r = db1.tblKeyValue.Get(myc1, k2);
+                r = db1.tblKeyValue.Get(myc1, db1._identityId, k2);
                 Assert.IsNull(r);
             }
         }
@@ -85,13 +85,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(myc, k1);
+                var r = db.tblKeyValue.Get(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k2, data = v2 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(myc, k1);
+                r = db.tblKeyValue.Get(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
 
@@ -99,7 +99,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 using (var myc2 = db.CreateDisposableConnection())
                 {
-                    r = db.tblKeyValue.Get(myc2, k1);
+                    r = db.tblKeyValue.Get(k1);
                     if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                         Assert.Fail();
                 }
@@ -107,29 +107,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             }
         }
 
-        [Test]
-        [Ignore("No longer relevant, we cannot use memory with new connection design")]
-        public void ConnectionDatabaseIncorrectTest()
-        {
-            using var db1 = new IdentityDatabase(Guid.NewGuid(), ":memory:");
-            using var db2 = new IdentityDatabase(Guid.NewGuid(), ":memory:");
-
-            using (var myc1 = db1.CreateDisposableConnection())
-            {
-                using (var myc2 = db2.CreateDisposableConnection())
-                {
-                    try
-                    {
-                        db1.CreateDatabase();
-                        Assert.Fail();
-                    }
-                    catch (ArgumentException)
-                    {
-                        Assert.Pass();
-                    }
-                }
-            }
-        }
 
         /// <summary>
         /// Ensure that we can reuse prepared statments over two connections
@@ -150,22 +127,22 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             {
                 db.CreateDatabase();
 
-                var r = db.tblKeyValue.Get(myc, k1);
+                var r = db.tblKeyValue.Get(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k2, data = v2 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(myc, k1);
+                r = db.tblKeyValue.Get(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
             }
 
             using (var myc2 = db.CreateDisposableConnection())
             {
-                db.tblKeyValue.Insert(myc2, new KeyValueRecord() { key = k3, data = v3 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k3, data = v3 });
 
-                var r = db.tblKeyValue.Get(myc2, k3);
+                var r = db.tblKeyValue.Get(k3);
                 if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
                     Assert.Fail();
             }
@@ -192,9 +169,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     var k1 = Guid.NewGuid().ToByteArray();
                     var v1 = Guid.NewGuid().ToByteArray();
 
-                    var r = _db.tblKeyValue.Get(myc, k1);
-                    _db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
-                    r = _db.tblKeyValue.Get(myc, k1);
+                    var r = _db.tblKeyValue.Get(k1);
+                    _db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                    r = _db.tblKeyValue.Get(k1);
                     timers[i] = sw.ElapsedMilliseconds;
                 }
             }

@@ -204,11 +204,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                 DriveMainIndexRecord ru = null;
                 DriveMainIndexRecord rt = null;
 
-                rf = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId);
+                rf = _db.tblDriveMainIndex.Get(Drive.Id, metadata.File.FileId);
                 if (metadata.AppData.UniqueId.HasValue)
-                    ru = _db.tblDriveMainIndex.GetByUniqueId(cn, Drive.Id, metadata.AppData.UniqueId);
+                    ru = _db.tblDriveMainIndex.GetByUniqueId(Drive.Id, metadata.AppData.UniqueId);
                 if (metadata.GlobalTransitId.HasValue)
-                    rt = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, Drive.Id, metadata.GlobalTransitId);
+                    rt = _db.tblDriveMainIndex.GetByGlobalTransitId(Drive.Id, metadata.GlobalTransitId);
 
                 string s = "";
                 DriveMainIndexRecord r = null;
@@ -410,13 +410,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn)
     {
-        var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(cn, Drive.Id);
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(Drive.Id);
         return Task.FromResult((count, size));
     }
 
     public Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn)
     {
-        var record = _db.tblDriveMainIndex.GetByGlobalTransitId(cn, driveId, globalTransitId);
+        var record = _db.tblDriveMainIndex.GetByGlobalTransitId(driveId, globalTransitId);
         if (null == record)
         {
             return Task.FromResult((Guid?)null);
@@ -432,7 +432,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     
     public Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn)
     {
-        var record = _db.tblDriveMainIndex.GetByUniqueId(cn, driveId, uniqueId);
+        var record = _db.tblDriveMainIndex.GetByUniqueId(driveId, uniqueId);
         
         if (null == record)
         {

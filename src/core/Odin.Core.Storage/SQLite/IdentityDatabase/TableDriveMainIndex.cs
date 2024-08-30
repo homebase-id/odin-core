@@ -7,8 +7,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableDriveMainIndex : TableDriveMainIndexCRUD
     {
+        private readonly IdentityDatabase _db;
+
         public TableDriveMainIndex(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
+            _db = db;
         }
 
 
@@ -23,46 +26,67 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public DriveMainIndexRecord GetByUniqueId(DatabaseConnection conn, Guid driveId, Guid? uniqueId)
+        public DriveMainIndexRecord GetByUniqueId(Guid driveId, Guid? uniqueId)
         {
-            return base.GetByUniqueId(conn, ((IdentityDatabase)conn.db)._identityId, driveId, uniqueId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.GetByUniqueId(conn, _db._identityId, driveId, uniqueId);
+            }
         }
 
-        public DriveMainIndexRecord GetByGlobalTransitId(DatabaseConnection conn, Guid driveId, Guid? globalTransitId)
+        public DriveMainIndexRecord GetByGlobalTransitId(Guid driveId, Guid? globalTransitId)
         {
-            return base.GetByGlobalTransitId(conn, ((IdentityDatabase)conn.db)._identityId, driveId, globalTransitId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.GetByGlobalTransitId(conn, _db._identityId, driveId, globalTransitId);
+            }
         }
 
 
-
-        public DriveMainIndexRecord Get(DatabaseConnection conn, Guid driveId, Guid fileId)
+        public DriveMainIndexRecord Get(Guid driveId, Guid fileId)
         {
-            return base.Get(conn, ((IdentityDatabase) conn.db)._identityId, driveId, fileId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+            }
         }
 
-        public new int Insert(DatabaseConnection conn, DriveMainIndexRecord item)
+        public int Insert(DriveMainIndexRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Insert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
         }
 
-        public int Delete(DatabaseConnection conn, Guid driveId, Guid fileId)
+        public int Delete(Guid driveId, Guid fileId)
         {
-            return base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Delete(conn, _db._identityId, driveId, fileId);
+            }
         }
 
-        public new int Update(DatabaseConnection conn, DriveMainIndexRecord item)
+        public int Update(DriveMainIndexRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Update(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Update(conn, item);
+            }
         }
-        public new int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
+
+        public int Upsert(DriveMainIndexRecord item)
         { 
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Upsert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Upsert(conn, item);
+            }
         }
 
-        public (Int64, Int64) GetDriveSizeDirty(DatabaseConnection conn, Guid driveId)
+        public (Int64, Int64) GetDriveSizeDirty(Guid driveId)
         {
             using (var _sizeCommand = _database.CreateCommand())
             {
@@ -78,9 +102,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _sizeCommand.Parameters.Add(_sparam2);
 
                 _sparam1.Value = driveId.ToByteArray();
-                _sparam2.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _sparam2.Value = _db._identityId.ToByteArray();
 
-                lock (conn._lock)
+                using (var conn = _db.CreateDisposableConnection())
                 {
                     using (SqliteDataReader rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
                     {
@@ -102,7 +126,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// For testing only. Updates the updatedTimestamp for the supplied item.
         /// </summary>
         /// <param name="fileId">Item to touch</param>
-        public int TestTouch(DatabaseConnection conn, Guid driveId, Guid fileId)
+        public int TestTouch(Guid driveId, Guid fileId)
         {
             using (var _touchCommand = _database.CreateCommand())
             {
@@ -127,9 +151,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _tparam1.Value = fileId.ToByteArray();
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
                 _tparam3.Value = driveId.ToByteArray();
-                _tparam4.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _tparam4.Value = _db._identityId.ToByteArray();
 
-                return conn.ExecuteNonQuery(_touchCommand);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return conn.ExecuteNonQuery(_touchCommand);
+                }
             }
         }
    }

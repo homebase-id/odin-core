@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 db.AddEntryPassalongToUpsert(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
                 db.AddEntryPassalongToUpsert(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
+                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
                 Assert.AreEqual(count, 5);
                 Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
             }
@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
-                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(myc, driveId);
+                var (count, size) = db.tblDriveMainIndex.GetDriveSizeDirty(driveId);
                 Assert.AreEqual(count, 0);
                 Assert.AreEqual(size, 0);
             }
@@ -101,12 +101,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
-                var md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                var md = db.tblDriveMainIndex.Get(driveId, k1);
 
                 if (md != null)
                     Assert.Fail();
 
-                db.tblDriveMainIndex.Insert(myc, new DriveMainIndexRecord()
+                db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
                 {
                     driveId = driveId,
                     fileId = k1,
@@ -125,7 +125,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var cts2 = UnixTimeUtcUnique.Now();
 
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
 
                 if (md == null)
                     Assert.Fail();
@@ -176,7 +176,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
-                db.tblDriveMainIndex.Insert(myc, new DriveMainIndexRecord()
+                db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
                 {
                     driveId = driveId,
                     fileId = k1,
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 try
                 {
-                    db.tblDriveMainIndex.Insert(myc, new DriveMainIndexRecord()
+                    db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
                     {
                         driveId = driveId,
                         fileId = k1,
@@ -236,7 +236,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var tid1 = Guid.NewGuid();
                 var ud1 = UnixTimeUtc.Now();
 
-                db.tblDriveMainIndex.Insert(myc, new DriveMainIndexRecord()
+                db.tblDriveMainIndex.Insert(new DriveMainIndexRecord()
                 {
                     driveId = driveId,
                     fileId = k1,
@@ -254,54 +254,54 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     byteCount = 7
                 });
 
-                var md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                var md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (md.modified != null)
                     Assert.Fail();
 
                 md.fileType = 8;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (md.fileType != 8)
                     Assert.Fail();
 
                 md.dataType = 43;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (md.dataType != 43)
                     Assert.Fail();
 
                 var sid2 = "frodo.baggins";
                 md.senderId = sid2;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (sid2 != md.senderId)
                     Assert.Fail();
 
                 var tid2 = Guid.NewGuid();
                 md.groupId = tid2;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (ByteArrayUtil.muidcmp(tid2, md.groupId) != 0)
                     Assert.Fail();
 
                 Guid? uid = Guid.NewGuid();
                 md.uniqueId = uid;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (ByteArrayUtil.muidcmp(uid, md.uniqueId) != 0)
                     Assert.Fail();
 
                 uid = null;
                 md.uniqueId = uid;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (md.uniqueId != null)
                     Assert.Fail();
 
                 var gtid2 = Guid.NewGuid();
                 md.globalTransitId = gtid2;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (ByteArrayUtil.muidcmp(gtid2, md.globalTransitId) != 0)
                     Assert.Fail();
 
@@ -309,18 +309,18 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var ud2 = UnixTimeUtc.Now();
                 md.userDate = ud2;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 if (ud2 != md.userDate)
                     Assert.Fail();
 
                 md.requiredSecurityGroup = 55;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 Assert.True(md.requiredSecurityGroup == 55);
 
                 md.byteCount = 42;
                 db.tblDriveMainIndex.Update(myc, md);
-                md = db.tblDriveMainIndex.Get(myc, driveId, k1);
+                md = db.tblDriveMainIndex.Get(driveId, k1);
                 Assert.True(md.byteCount == 42);
 
                 if (md.modified?.uniqueTime == 0)

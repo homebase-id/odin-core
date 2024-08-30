@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("IdentityDatabase")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -40,14 +43,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        /// <summary>
-        /// Do not call outside DB layers
-        /// </summary>
-        public int _InternalDeleteAllRows(DatabaseConnection conn, Guid driveId, Guid fileId)
-        {
-             return base.DeleteAllRows(conn, _db._identityId, driveId, fileId);
-        }
-
         public int Insert(DriveAclIndexRecord item)
         {
             item.identityId = _db._identityId;
@@ -58,7 +53,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void _InternalInsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        internal void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;

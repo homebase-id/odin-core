@@ -141,7 +141,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     for (int i = 0; i < members.Count; i++)
                     {
-                        var circles = GetMemberCirclesAndData(members[i]);
+                        var circles = base.GetMemberCirclesAndData(conn, _db._identityId, members[i]);
 
                         for (int j = 0; j < circles.Count; j++)
                             base.Delete(conn, _db._identityId, circles[j].circleId, members[i]);

@@ -23,7 +23,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            tenantSystemStorage.Inbox.Insert(cn, new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+            tenantSystemStorage.Inbox.Insert(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             PerformanceCounter.IncrementCounter("Inbox Item Added");
 
@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task<InboxStatus> GetStatus(Guid driveId, DatabaseConnection cn)
         {
-            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
+            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
 
             return await Task.FromResult(new InboxStatus()
             {
@@ -45,7 +45,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public InboxStatus GetPendingCount(Guid driveId, DatabaseConnection cn)
         {
-            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
+            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
             return new InboxStatus()
             {
                 TotalItems = p.totalCount,
@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize, DatabaseConnection cn)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = tenantSystemStorage.Inbox.PopSpecificBox(cn, driveId, batchSize == 0 ? 1 : batchSize);
+            var records = tenantSystemStorage.Inbox.PopSpecificBox(driveId, batchSize == 0 ? 1 : batchSize);
 
             if (null == records)
             {
@@ -84,7 +84,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Task MarkComplete(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCommitList(cn, marker, file.DriveId, [file.FileId]);
+            tenantSystemStorage.Inbox.PopCommitList(marker, file.DriveId, [file.FileId]);
             
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
 
@@ -93,7 +93,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Task MarkFailure(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
         {
-            tenantSystemStorage.Inbox.PopCancelList(cn, marker, file.DriveId, [file.FileId]);
+            tenantSystemStorage.Inbox.PopCancelList(marker, file.DriveId, [file.FileId]);
             
             PerformanceCounter.IncrementCounter("Inbox Mark Failure");
 
@@ -102,7 +102,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
-            var recovered = tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
+            var recovered = tenantSystemStorage.Inbox.PopRecoverDead(time);
             
             PerformanceCounter.IncrementCounter("Inbox Recover Dead");
 

@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("IdentityDatabase")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -428,7 +431,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -528,7 +531,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -828,7 +831,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
