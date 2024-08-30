@@ -163,9 +163,18 @@ namespace Odin.Services.Membership.Connections
 
             //TODO: when you block a connection, you must also destroy exchange grant
 
-            if (null != info && info.Status == ConnectionStatus.Connected)
+            if (info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
+                this.SaveIcr(info, odinContext, cn);
+                return true;
+            }
+
+            if (info.Status == ConnectionStatus.Blocked || info.Status == ConnectionStatus.None)
+            {
+                info.Status = ConnectionStatus.Blocked;
+                info.Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 this.SaveIcr(info, odinContext, cn);
                 return true;
             }

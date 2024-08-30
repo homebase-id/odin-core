@@ -212,22 +212,41 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinClientException oce)
             {
-                logger.LogError(oce,
-                    "Processing Inbox -> UniqueId Conflict: " +
-                    "\nSender: {sender}. " +
-                    "\nInbox InstructionType: {instructionType}. " +
-                    "\nTemp File:{f}. " +
-                    "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
-                    "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
-                    "\nAction: Marking Complete",
-                    inboxItem.Sender,
+                if (oce.ErrorCode == OdinClientErrorCode.ExistingFileWithUniqueId)
+                {
+                    logger.LogError(oce,
+                        "Processing Inbox -> UniqueId Conflict: " +
+                        "\nSender: {sender}. " +
+                        "\nInbox InstructionType: {instructionType}. " +
+                        "\nTemp File:{f}. " +
+                        "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                        "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
+                        "\nAction: Marking Complete",
+                        inboxItem.Sender,
+                        inboxItem.InstructionType,
+                        tempFile,
+                        inboxItem.GlobalTransitId,
+                        Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
+                        Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                        Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+                }
+
+                await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+            }
+            catch (OdinSecurityException securityException)
+            {
+                logger.LogWarning(securityException,
+                    "Processing Inbox -> Inbox InstructionType: {instructionType}. " +
+                    "OdinSecurityException: Failed with Temp File:{f}. " +
+                    "Inbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                    "PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
                     inboxItem.InstructionType,
                     tempFile,
                     inboxItem.GlobalTransitId,
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-
+                
                 await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
             }
             catch (Exception e)

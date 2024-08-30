@@ -57,7 +57,7 @@ public class CircleNetworkStorage
             OriginalContactData = icr.OriginalContactData,
             IntroducerOdinId = icr.IntroducerOdinId,
             ConnectionOrigin = Enum.GetName(icr.ConnectionRequestOrigin),
-            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData,
+            EncryptedClientAccessToken = icr.EncryptedClientAccessToken?.EncryptedData,
         };
 
         cn.CreateCommitUnitOfWork(() =>
@@ -66,7 +66,7 @@ public class CircleNetworkStorage
 
             //Reconcile circle grants in the table
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity, cn);
-            foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
+            foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
             {
                 var circleMembers =
                     _circleMembershipService.GetDomainsInCircle(circleId, odinContext, cn, overrideHack: true);
@@ -82,7 +82,7 @@ public class CircleNetworkStorage
             _tenantSystemStorage.AppGrants.DeleteByIdentity(cn, odinHashId);
 
             // Now write the latest
-            foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant.AppGrants)
+            foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
             {
                 foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
                 {
@@ -99,8 +99,8 @@ public class CircleNetworkStorage
             // Clearing these so they are not serialized on
             // the connections record.  Instead, we give them
             // each their own table
-            icrAccessRecord.AccessGrant.AppGrants.Clear();
-            icrAccessRecord.AccessGrant.CircleGrants.Clear();
+            icrAccessRecord.AccessGrant?.AppGrants?.Clear();
+            icrAccessRecord.AccessGrant?.CircleGrants?.Clear();
 
             var record = new ConnectionsRecord()
             {

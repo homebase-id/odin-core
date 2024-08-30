@@ -231,22 +231,35 @@ namespace Odin.Services.Membership.Connections.Requests
                 TempEncryptedFeedDriveStorageKey = default
             };
 
-            async Task<bool> TrySendRequest()
+            async Task<ApiResponse<NoResultResponse>> TrySendRequest()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
                 var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(PublicPrivateKeyType.OnlineKey,
                     (OdinId)header.Recipient, payloadBytes, cn);
                 var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
-                return response.Content is { Success: true } && response.IsSuccessStatusCode;
+                return response;
+                // return response.Content is { Success: true } && response.IsSuccessStatusCode;
             }
 
-            if (!await TrySendRequest())
+            var response = await TrySendRequest();
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                throw new OdinSecurityException("Remote server denied connection");
+            }
+
+            if (!response.IsSuccessStatusCode && response.Content!.Success)
             {
                 //public key might be invalid, destroy the cache item
                 await _publicPrivateKeyService.InvalidateRecipientRsaPublicKey((OdinId)header.Recipient, cn);
 
-                if (!await TrySendRequest())
+                var response2 = await TrySendRequest();
+                if (response2.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    throw new OdinSecurityException("Remote server denied connection");
+                }
+                
+                if (!response2.IsSuccessStatusCode && response2.Content!.Success)
                 {
                     throw new OdinClientException("Failed to establish connection request");
                 }
@@ -309,7 +322,8 @@ namespace Odin.Services.Membership.Connections.Requests
             var existingConnection = await _cns.GetIcr(sender, odinContext, cn, true);
             if (existingConnection.Status == ConnectionStatus.Blocked)
             {
-                throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
+                // throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
+                throw new OdinSecurityException("Identity is blocked");
             }
 
             //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial

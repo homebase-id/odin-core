@@ -87,17 +87,78 @@ public class IntroductionTestsSendingIntroductions
     }
 
     [Test]
-    public async Task WillFailToSendConnectionRequestWhenRecipientAlreadyConnectedWithValidConnection()
+    public async Task WillFailWithBadRequestToSendConnectionRequestWhenRecipientAlreadyConnectedWithValidConnection()
     {
-        await Task.CompletedTask;
+        await Prepare();
+
+        // send a new connection request sam to frodo
+        // should give back bad request
+
         Assert.Inconclusive("TODO");
+    }
+
+    [Test]
+    public async Task WillFailToSendConnectionRequestViaIntroductionWhenRecipientIsBlocked()
+    {
+        var frodo = TestIdentities.Frodo.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        // Merry blocks sam
+        var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
+        Assert.IsTrue(blockResponse.IsSuccessStatusCode);
+
+        var samInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(sam);
+        Assert.IsTrue(samInfoResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samInfoResponse.Content.Status == ConnectionStatus.Blocked);
+
+        await Prepare();
+
+        var firstIntroductionResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+        
+        var introResult = firstIntroductionResponse.Content;
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        
+        // Assert: Sam should have a connection request from Merry and visa/versa
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        var firstRequestFromMerry = samRequestFromMerryResponse.Content;
+        Assert.IsNull(firstRequestFromMerry, "merry should not have been able to send a request to sam");
+
+        var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
+        var firstRequestFromSam = merryRequestFromSamResponse.Content;
+        Assert.IsNull(firstRequestFromSam, "merry should not have a request from sam");
     }
 
     [Test]
     public async Task WillFailToSendConnectionRequestWhenRecipientIsBlocked()
     {
-        await Task.CompletedTask;
-        Assert.Inconclusive("TODO");
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
+        Assert.IsTrue(blockResponse.IsSuccessStatusCode);
+
+        var samInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(sam);
+        Assert.IsTrue(samInfoResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samInfoResponse.Content.Status == ConnectionStatus.Blocked);
+
+        var requestToMerryResponse = await samOwnerClient.Connections.SendConnectionRequest(merry);
+        Assert.IsTrue(requestToMerryResponse.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -116,13 +177,13 @@ public class IntroductionTestsSendingIntroductions
 
         await Prepare();
 
-        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        var firstIntroductionResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
             Message = "test message from frodo",
             Recipients = [sam, merry]
         });
 
-        var introResult = response.Content;
+        var introResult = firstIntroductionResponse.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
@@ -141,13 +202,37 @@ public class IntroductionTestsSendingIntroductions
         Assert.IsNotNull(firstRequestFromSam);
         Assert.IsTrue(firstRequestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(firstRequestFromSam.IntroducerOdinId == frodo);
-        // firstRequestFromSam.ReceivedTimestampMilliseconds
 
+        //
         // Now that both have connection requests, send another introduction and validate they were merged
+        //
+
+        var secondInvitationResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+        Assert.IsTrue(secondInvitationResponse.IsSuccessStatusCode);
+
+        // Assert: Sam should have a connection request from Merry and visa/versa
+        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        var samRequestFromMerryResponse2 = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        var secondRequestFromMerry = samRequestFromMerryResponse2.Content;
+        Assert.IsNotNull(secondRequestFromMerry);
+        Assert.IsTrue(secondRequestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        Assert.IsTrue(secondRequestFromMerry.IntroducerOdinId == frodo);
+        Assert.IsTrue(secondRequestFromMerry.ReceivedTimestampMilliseconds > firstRequestFromMerry.ReceivedTimestampMilliseconds);
+
+        var merryRequestFromSamResponse2 = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
+        var secondRequestFromSam = merryRequestFromSamResponse2.Content;
+        Assert.IsNotNull(secondRequestFromSam);
+        Assert.IsTrue(secondRequestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        Assert.IsTrue(secondRequestFromSam.IntroducerOdinId == frodo);
+        Assert.IsTrue(secondRequestFromSam.ReceivedTimestampMilliseconds > firstRequestFromSam.ReceivedTimestampMilliseconds);
 
         await Shutdown();
-
-        Assert.Inconclusive("wip");
     }
 
 

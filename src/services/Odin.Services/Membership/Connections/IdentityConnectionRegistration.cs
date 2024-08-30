@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -9,6 +10,7 @@ namespace Odin.Services.Membership.Connections
     /// <summary>
     /// Specifies that an identity shares a connection with another identity (i.e. friend request)
     /// </summary>
+    [DebuggerDisplay("{OdinId.DomainName} with Status {Status}")]
     public class IdentityConnectionRegistration
     {
         private ConnectionStatus _status;
