@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Security.Cryptography;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -7,6 +9,66 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class TableMainIndexTests
     {
+        [Test]
+        public void UpdateReactionSummary()
+        {
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase();
+                var driveId = Guid.NewGuid();
+
+                var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+                var s1 = SequentialGuid.CreateGuid().ToString();
+                var t1 = SequentialGuid.CreateGuid();
+
+                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+
+                var r = db.tblDriveMainIndex.Get(driveId, f1);
+                var s = r.hdrReactionSummary;
+                var m = r.modified;
+                Debug.Assert(m == null);
+
+                var s2 = "a new summary";
+                db.tblDriveMainIndex.UpdateReactionSummary(myc, driveId, f1, s2);
+                var r2 = db.tblDriveMainIndex.Get(driveId, f1);
+                var m2 = r2.modified;
+                Debug.Assert(r2.hdrReactionSummary == s2);
+                Debug.Assert(m2 != null);
+            }
+        }
+
+        [Test]
+        public void UpdateTransferStatus()
+        {
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase();
+                var driveId = Guid.NewGuid();
+
+                var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+                var s1 = SequentialGuid.CreateGuid().ToString();
+                var t1 = SequentialGuid.CreateGuid();
+
+                db.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+
+                var r = db.tblDriveMainIndex.Get(driveId, f1);
+                var s = r.hdrTransferStatus;
+                var m = r.modified;
+                Debug.Assert(m == null);
+
+                var s2 = "a new transfer status";
+                db.tblDriveMainIndex.UpdateTransferStatus(myc, driveId, f1, s2);
+                var r2 = db.tblDriveMainIndex.Get(driveId, f1);
+                var m2 = r2.modified;
+                Debug.Assert(r2.hdrTransferStatus == s2);
+                Debug.Assert(m2 != null);
+            }
+        }
+
         [Test]
         public void GetSizeTest()
         {
@@ -120,7 +182,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     userDate = ud1,
                     archivalStatus = 0,
                     historyStatus = 1,
-                    requiredSecurityGroup = 44
+                    requiredSecurityGroup = 44,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 var cts2 = UnixTimeUtcUnique.Now();
@@ -190,7 +261,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     userDate = ud1,
                     archivalStatus = 0,
                     historyStatus = 1,
-                    fileSystemType = 44
+                    fileSystemType = 44,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 try
@@ -209,7 +289,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         userDate = ud1,
                         archivalStatus = 0,
                         historyStatus = 1,
-                        fileSystemType = 44
+                        fileSystemType = 44,
+                        hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                        hdrVersionTag = SequentialGuid.CreateGuid(),
+                        hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                        hdrTmpDriveType = SequentialGuid.CreateGuid()
                     });
                     Assert.Fail();
                 }
@@ -251,7 +340,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     archivalStatus = 0,
                     historyStatus = 1,
                     requiredSecurityGroup = 44,
-                    byteCount = 7
+                    byteCount = 7,
+                    hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                    hdrVersionTag = SequentialGuid.CreateGuid(),
+                    hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                    hdrTmpDriveType = SequentialGuid.CreateGuid()
                 });
 
                 var md = db.tblDriveMainIndex.Get(driveId, k1);

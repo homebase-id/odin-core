@@ -15,7 +15,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test1()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -44,7 +44,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test2()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -82,7 +82,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test3()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {

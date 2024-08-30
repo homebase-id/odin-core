@@ -462,7 +462,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                             uniqueId = Guid.NewGuid(),
                             archivalStatus = 42,
                             userDate = new UnixTimeUtc(),
-                            requiredSecurityGroup = 55
+                            requiredSecurityGroup = 55,
+                            hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                            hdrVersionTag = SequentialGuid.CreateGuid(),
+                            hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                            hdrTmpDriveType = SequentialGuid.CreateGuid()
                         };
                         _testDatabase.tblDriveMainIndex.Insert(r);
                         //_testDatabase.tblDriveMainIndex.Insert(r);

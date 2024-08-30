@@ -105,79 +105,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 #endif
         }
 
-        void Upgrade(DatabaseConnection conn, TableBase table)
-        {
-            using (var cmd = this.CreateCommand())
-            {
-                conn.CreateCommitUnitOfWork(() =>
-                {
-                    var columns = table.GetColumnNames();
-                    Debug.Assert(columns[0] == "identityId");
-
-                    // 1. Rename the old table
-                    cmd.CommandText = $"ALTER TABLE {table._tableName} RENAME TO old_{table._tableName};";
-                    conn.ExecuteNonQuery(cmd);
-
-                    // 2. Create the new table
-                    table.EnsureTableExists(conn);
-
-                    // 3. Copy the data
-                    cmd.CommandText = $"INSERT INTO {table._tableName} ({string.Join(",", columns)}) SELECT $identity as identityId, {string.Join(",", columns).Skip(1)} FROM old_appGrants;";
-                    var _insertParam1 = cmd.CreateParameter();
-                    _insertParam1.ParameterName = "$identityId";
-                    cmd.Parameters.Add(_insertParam1);
-                    _insertParam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
-                    conn.ExecuteNonQuery(cmd);
-
-                    // 4. Validate data copy
-                    cmd.CommandText = $"SELECT COUNT(*) FROM old_{table._tableName};";
-                    var oldTableCount = (long)conn.ExecuteScalar(cmd);
-
-                    cmd.CommandText = $"SELECT COUNT(*) FROM {table._tableName};";
-                    var newTableCount = (long)conn.ExecuteScalar(cmd);
-                    if (oldTableCount != newTableCount)
-                    {
-                        throw new Exception("Data copy validation failed: row counts do not match.");
-                    }
-
-                    // 5. Drop the old table
-                    cmd.CommandText = $"DROP TABLE old_{table._tableName};";
-                    conn.ExecuteNonQuery(cmd);
-                });
-            }
-        }
-
-        void RunUpgradeToIdentityDatabaseTables()
-        {
-            using (var conn = this.CreateDisposableConnection())
-            {
-                Console.Write($"Upgrading identity {_identityId} ... ");
-                conn.CreateCommitUnitOfWork(() =>
-                {
-                    // Drive tables
-                    Upgrade(conn, tblDriveMainIndex);
-                    Upgrade(conn, tblDriveAclIndex);
-                    Upgrade(conn, tblDriveTagIndex);
-                    Upgrade(conn, tblDriveReactions);
-
-
-                    // Identity tables
-                    Upgrade(conn, tblAppGrants);
-                    Upgrade(conn, tblKeyValue);
-                    Upgrade(conn, tblKeyTwoValue);
-                    Upgrade(conn, TblKeyThreeValue);
-                    Upgrade(conn, tblInbox);
-                    Upgrade(conn, tblOutbox);
-                    Upgrade(conn, tblImFollowing);
-                    Upgrade(conn, tblFollowsMe);
-                    Upgrade(conn, tblCircle);
-                    Upgrade(conn, tblCircleMember);
-                    Upgrade(conn, tblConnections);
-                    Upgrade(conn, tblAppNotificationsTable);
-                });
-                Console.WriteLine($"success");
-            }
-        }
 
         public override void ClearCache()
         {
@@ -370,7 +297,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         historyStatus = 0,
                         requiredSecurityGroup = requiredSecurityGroup,
                         fileSystemType = fileSystemType,
-                        byteCount = byteCount
+                        byteCount = byteCount,
+                        hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                        hdrVersionTag = SequentialGuid.CreateGuid(),
+                        hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                        hdrTmpDriveType = SequentialGuid.CreateGuid()
                     };
                     BaseUpsertEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
                 }
@@ -420,7 +356,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         historyStatus = 0,
                         requiredSecurityGroup = requiredSecurityGroup ?? 999,
                         fileSystemType = fileSystemType,
-                        byteCount = byteCount ?? 1
+                        byteCount = byteCount ?? 1,
+                        hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                        hdrVersionTag = SequentialGuid.CreateGuid(),
+                        hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                        hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                        hdrTmpDriveType = SequentialGuid.CreateGuid()
                     };
                     BaseUpdateEntryZapZap(conn: conn, r, accessControlList: accessControlList, tagIdList: tagIdList);
                 });

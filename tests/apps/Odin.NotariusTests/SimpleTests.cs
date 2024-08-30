@@ -16,7 +16,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test1()
         {
-            using var db = new NotaryDatabase("");
+            using var db = new NotaryDatabase("NotariusTest001");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();

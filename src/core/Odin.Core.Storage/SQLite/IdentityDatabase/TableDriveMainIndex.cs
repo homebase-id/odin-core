@@ -42,7 +42,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-
         public DriveMainIndexRecord Get(Guid driveId, Guid fileId)
         {
             using (var conn = _db.CreateDisposableConnection())
@@ -83,6 +82,76 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var conn = _db.CreateDisposableConnection())
             {
                 return base.Upsert(conn, item);
+            }
+        }
+
+        public int UpdateReactionSummary(DatabaseConnection conn, Guid driveId, Guid fileId, string reactionSummary)
+        {
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText =
+                    $"UPDATE driveMainIndex SET modified=@modified,hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+
+                var _sparam1 = _updateCommand.CreateParameter();
+                var _sparam2 = _updateCommand.CreateParameter();
+                var _sparam3 = _updateCommand.CreateParameter();
+                var _sparam4 = _updateCommand.CreateParameter();
+                var _sparam5 = _updateCommand.CreateParameter();
+
+                _sparam1.ParameterName = "@identityId";
+                _sparam2.ParameterName = "@driveId";
+                _sparam3.ParameterName = "@fileId";
+                _sparam4.ParameterName = "@hdrReactionSummary";
+                _sparam5.ParameterName = "@modified";
+
+                _updateCommand.Parameters.Add(_sparam1);
+                _updateCommand.Parameters.Add(_sparam2);
+                _updateCommand.Parameters.Add(_sparam3);
+                _updateCommand.Parameters.Add(_sparam4);
+                _updateCommand.Parameters.Add(_sparam5);
+
+                _sparam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _sparam2.Value = driveId.ToByteArray();
+                _sparam3.Value = fileId.ToByteArray();
+                _sparam4.Value = reactionSummary;
+                _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+
+                return conn.ExecuteNonQuery(_updateCommand);
+            }
+        }
+
+        public int UpdateTransferStatus(DatabaseConnection conn, Guid driveId, Guid fileId, string transferStatus)
+        {
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText =
+                    $"UPDATE driveMainIndex SET modified=@modified,hdrTransferStatus=@hdrTransferStatus WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+
+                var _sparam1 = _updateCommand.CreateParameter();
+                var _sparam2 = _updateCommand.CreateParameter();
+                var _sparam3 = _updateCommand.CreateParameter();
+                var _sparam4 = _updateCommand.CreateParameter();
+                var _sparam5 = _updateCommand.CreateParameter();
+
+                _sparam1.ParameterName = "@identityId";
+                _sparam2.ParameterName = "@driveId";
+                _sparam3.ParameterName = "@fileId";
+                _sparam4.ParameterName = "@hdrTransferStatus";
+                _sparam5.ParameterName = "@modified";
+
+                _updateCommand.Parameters.Add(_sparam1);
+                _updateCommand.Parameters.Add(_sparam2);
+                _updateCommand.Parameters.Add(_sparam3);
+                _updateCommand.Parameters.Add(_sparam4);
+                _updateCommand.Parameters.Add(_sparam5);
+
+                _sparam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _sparam2.Value = driveId.ToByteArray();
+                _sparam3.Value = fileId.ToByteArray();
+                _sparam4.Value = transferStatus;
+                _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+
+                return conn.ExecuteNonQuery(_updateCommand);
             }
         }
 
