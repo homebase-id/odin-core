@@ -74,7 +74,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             conn.CreateCommitUnitOfWork(() =>
             {
                 for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Upsert(conn, CircleMemberRecordList[i]);
+                {
+                    CircleMemberRecordList[i].identityId = ((IdentityDatabase)_database)._identityId;
+                    base.Upsert(conn, CircleMemberRecordList[i]);
+
+                }
             });
         }
 

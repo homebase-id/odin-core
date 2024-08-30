@@ -141,8 +141,6 @@ namespace WaitingListApi
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                     .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Error)
                     .MinimumLevel.Override("Odin.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
-                    .MinimumLevel.Override("Odin.Services.Transit.Outbox", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Odin.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
