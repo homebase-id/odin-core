@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -143,7 +144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, ConnectionsRecord item)
+        internal virtual int Insert(DatabaseConnection conn, ConnectionsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -193,7 +194,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, ConnectionsRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, ConnectionsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -243,7 +244,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, ConnectionsRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, ConnectionsRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -304,7 +305,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, ConnectionsRecord item)
+        internal virtual int Update(DatabaseConnection conn, ConnectionsRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -354,7 +355,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -382,7 +383,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified
-        protected ConnectionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal ConnectionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -459,7 +460,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,OdinId identity)
+        internal int Delete(DatabaseConnection conn, Guid identityId,OdinId identity)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -481,7 +482,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected ConnectionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity)
+        internal ConnectionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -543,7 +544,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected ConnectionsRecord Get(DatabaseConnection conn, Guid identityId,OdinId identity)
+        internal ConnectionsRecord Get(DatabaseConnection conn, Guid identityId,OdinId identity)
         {
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
             if (hit)
@@ -578,7 +579,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId, string inCursor, out string nextCursor)
+        internal List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -628,7 +629,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using 
         } // PagingGet
 
-        protected List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId,Int32 status, string inCursor, out string nextCursor)
+        internal List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId,Int32 status, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -682,7 +683,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using 
         } // PagingGet
 
-        protected List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -736,7 +737,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using 
         } // PagingGet
 
-        protected List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -95,7 +96,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Insert(DatabaseConnection conn, CircleMemberRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -126,7 +127,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, CircleMemberRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -157,7 +158,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, CircleMemberRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -188,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Update(DatabaseConnection conn, CircleMemberRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -220,7 +221,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -244,7 +245,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,circleId,memberId,data
-        protected CircleMemberRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal CircleMemberRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -299,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -325,7 +326,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
+        internal CircleMemberRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -353,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected CircleMemberRecord Get(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal CircleMemberRecord Get(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
             if (hit)
@@ -392,7 +393,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid circleId)
+        internal CircleMemberRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -429,7 +430,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid identityId,Guid circleId)
+        internal List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid identityId,Guid circleId)
         {
             using (var _get1Command = _database.CreateCommand())
             {
@@ -466,7 +467,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,Guid memberId)
+        internal CircleMemberRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -503,7 +504,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid identityId,Guid memberId)
+        internal List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid identityId,Guid memberId)
         {
             using (var _get2Command = _database.CreateCommand())
             {

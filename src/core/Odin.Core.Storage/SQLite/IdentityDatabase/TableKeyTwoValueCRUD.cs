@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -101,7 +102,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, KeyTwoValueRecord item)
+        internal virtual int Insert(DatabaseConnection conn, KeyTwoValueRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -132,7 +133,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, KeyTwoValueRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, KeyTwoValueRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -163,7 +164,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, KeyTwoValueRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, KeyTwoValueRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -194,7 +195,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, KeyTwoValueRecord item)
+        internal virtual int Update(DatabaseConnection conn, KeyTwoValueRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -226,7 +227,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -250,7 +251,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,key1,key2,data
-        protected KeyTwoValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal KeyTwoValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<KeyTwoValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -311,7 +312,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,byte[] key1)
+        internal int Delete(DatabaseConnection conn, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -336,7 +337,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key2)
+        internal KeyTwoValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
@@ -378,7 +379,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<KeyTwoValueRecord> GetByKeyTwo(DatabaseConnection conn, Guid identityId,byte[] key2)
+        internal List<KeyTwoValueRecord> GetByKeyTwo(DatabaseConnection conn, Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
@@ -417,7 +418,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,byte[] key1)
+        internal KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -460,7 +461,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected KeyTwoValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key1)
+        internal KeyTwoValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");

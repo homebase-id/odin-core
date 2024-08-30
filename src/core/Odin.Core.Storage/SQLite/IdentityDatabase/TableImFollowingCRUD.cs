@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -105,7 +106,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, ImFollowingRecord item)
+        internal virtual int Insert(DatabaseConnection conn, ImFollowingRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -143,7 +144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, ImFollowingRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, ImFollowingRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -181,7 +182,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, ImFollowingRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, ImFollowingRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -230,7 +231,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, ImFollowingRecord item)
+        internal virtual int Update(DatabaseConnection conn, ImFollowingRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -268,7 +269,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -293,7 +294,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,driveId,created,modified
-        protected ImFollowingRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal ImFollowingRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -346,7 +347,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,OdinId identity,Guid driveId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,OdinId identity,Guid driveId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -372,7 +373,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected ImFollowingRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
+        internal ImFollowingRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -401,7 +402,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected ImFollowingRecord Get(DatabaseConnection conn, Guid identityId,OdinId identity,Guid driveId)
+        internal ImFollowingRecord Get(DatabaseConnection conn, Guid identityId,OdinId identity,Guid driveId)
         {
             var (hit, cacheObject) = _cache.Get("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString());
             if (hit)
@@ -440,7 +441,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected ImFollowingRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,OdinId identity)
+        internal ImFollowingRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -478,7 +479,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<ImFollowingRecord> Get(DatabaseConnection conn, Guid identityId,OdinId identity)
+        internal List<ImFollowingRecord> Get(DatabaseConnection conn, Guid identityId,OdinId identity)
         {
             using (var _get1Command = _database.CreateCommand())
             {

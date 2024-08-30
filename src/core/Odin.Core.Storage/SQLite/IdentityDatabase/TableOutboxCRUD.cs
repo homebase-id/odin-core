@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -206,7 +207,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, OutboxRecord item)
+        internal virtual int Insert(DatabaseConnection conn, OutboxRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -275,7 +276,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, OutboxRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, OutboxRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -344,7 +345,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, OutboxRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, OutboxRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -424,7 +425,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, OutboxRecord item)
+        internal virtual int Update(DatabaseConnection conn, OutboxRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -493,7 +494,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -527,7 +528,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
-        protected OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<OutboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -658,7 +659,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -689,7 +690,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        internal OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -786,7 +787,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<OutboxRecord> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal List<OutboxRecord> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
             using (var _get0Command = _database.CreateCommand())
             {
@@ -826,7 +827,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -920,7 +921,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected OutboxRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal OutboxRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
