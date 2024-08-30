@@ -208,9 +208,18 @@ namespace Odin.Services.Membership.Connections
             odinContext.AssertCanManageConnections();
 
             var info = await this.GetIcr(odinId, odinContext, cn);
-            if (null != info && info.Status == ConnectionStatus.Blocked)
+            if (info.Status == ConnectionStatus.Blocked)
             {
-                info.Status = ConnectionStatus.Connected;
+                bool isValid = info.AccessGrant?.IsValid() ?? false;
+
+                if (isValid)
+                {
+                    info.Status = ConnectionStatus.Connected;
+                    this.SaveIcr(info, odinContext, cn);
+                    return true;
+                }
+                
+                info.Status = ConnectionStatus.None;
                 this.SaveIcr(info, odinContext, cn);
                 return true;
             }

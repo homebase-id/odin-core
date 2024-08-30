@@ -100,7 +100,7 @@ public class IntroductionTestsSendingIntroductions
     [Test]
     public async Task WillFailToSendConnectionRequestViaIntroductionWhenRecipientIsBlocked()
     {
-        var frodo = TestIdentities.Frodo.OdinId;
+        // var frodo = TestIdentities.Frodo.OdinId;
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
 
@@ -175,6 +175,9 @@ public class IntroductionTestsSendingIntroductions
         await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
         await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
 
+        var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
+        Assert.IsTrue(blockResponse.IsSuccessStatusCode);
+        
         await Prepare();
 
         var firstIntroductionResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
