@@ -147,11 +147,6 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
-        // Kill these two since they are stored in different columns
-        // and by the SaveReactionSummary and SaveTransferHistory methods
-        header.ServerMetadata.TransferHistory = null;
-        header.FileMetadata.ReactionPreview = null;
-
         var driveMainIndexRecord = new DriveMainIndexRecord
         {
             identityId = default,
@@ -180,11 +175,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
             hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
             hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
-
+            
+            hdrServerData = OdinSystemSerializer.Serialize(header.ServerMetadata),
+            
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
-
-            hdrServerData = OdinSystemSerializer.Serialize(header.ServerMetadata),
             // this is handled by the SaveTransferHistory method
             // hdrTransferStatus = OdinSystemSerializer.Serialize(header.ServerMetadata.TransferHistory),
 
@@ -282,8 +277,12 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         //Now overwrite with column specific values
         header.FileMetadata.VersionTag = record.hdrVersionTag;
         header.FileMetadata.AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(record.hdrAppData);
-        header.FileMetadata.ReactionPreview = OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
-        header.ServerMetadata.TransferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferStatus);
+        header.FileMetadata.ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
+            ? null
+            : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
+        header.ServerMetadata.TransferHistory = string.IsNullOrEmpty(record.hdrTransferStatus)
+            ? null
+            : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferStatus);
 
         return Task.FromResult(header);
     }

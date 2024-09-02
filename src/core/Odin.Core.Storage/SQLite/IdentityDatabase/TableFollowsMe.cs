@@ -81,6 +81,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 int n = 0;
                 var r = base.Get(conn, _db._identityId, identity);
 
+                if (r == null)
+                {
+                    return 0;
+                }
+                
                 conn.CreateCommitUnitOfWork(() =>
                 {
                     for (int i = 0; i < r.Count; i++)

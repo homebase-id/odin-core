@@ -182,7 +182,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 128) throw new Exception("Too long");
+                    if (value?.Length > 153) throw new Exception("Too long");
                   _hdrEncryptedKeyHeader = value;
                }
         }
@@ -216,7 +216,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrReactionSummary;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    // if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 2048) throw new Exception("Too long");
                   _hdrReactionSummary = value;
                }
@@ -241,8 +241,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrTransferStatus;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    // if (value == null) throw new Exception("Cannot be null");
+                    // if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 2048) throw new Exception("Too long");
                   _hdrTransferStatus = value;
                }
@@ -256,7 +256,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 2048) throw new Exception("Too long");
+                    // if (value?.Length > 2048) throw new Exception("Too long");
+                    if (value?.Length > 2048 * 3) throw new Exception("Too long");
                   _hdrFileMetaData = value;
                }
         }
@@ -353,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"hdrAppData STRING NOT NULL, "
                      +"hdrReactionSummary STRING , "
                      +"hdrServerData STRING NOT NULL, "
-                     +"hdrTransferStatus STRING NOT NULL, "
+                     +"hdrTransferStatus STRING, "
                      +"hdrFileMetaData STRING NOT NULL, "
                      +"hdrTmpDriveAlias BLOB NOT NULL, "
                      +"hdrTmpDriveType BLOB NOT NULL, "
@@ -373,8 +374,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _insertCommand = _database.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferStatus,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferStatus,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
+                _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
                 _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
@@ -432,15 +433,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var _insertParam19 = _insertCommand.CreateParameter();
                 _insertParam19.ParameterName = "@hdrAppData";
                 _insertCommand.Parameters.Add(_insertParam19);
-                var _insertParam20 = _insertCommand.CreateParameter();
-                _insertParam20.ParameterName = "@hdrReactionSummary";
-                _insertCommand.Parameters.Add(_insertParam20);
+
+                // Todd: Removed from this general update since it has as specialized method
+                // var _insertParam20 = _insertCommand.CreateParameter();
+                // _insertParam20.ParameterName = "@hdrReactionSummary";
+                // _insertCommand.Parameters.Add(_insertParam20);
+                
                 var _insertParam21 = _insertCommand.CreateParameter();
                 _insertParam21.ParameterName = "@hdrServerData";
                 _insertCommand.Parameters.Add(_insertParam21);
-                var _insertParam22 = _insertCommand.CreateParameter();
-                _insertParam22.ParameterName = "@hdrTransferStatus";
-                _insertCommand.Parameters.Add(_insertParam22);
+
+                // Todd: Removed from this general update since it has as specialized method
+                // var _insertParam22 = _insertCommand.CreateParameter();
+                // _insertParam22.ParameterName = "@hdrTransferStatus";
+                // _insertCommand.Parameters.Add(_insertParam22);
+
                 var _insertParam23 = _insertCommand.CreateParameter();
                 _insertParam23.ParameterName = "@hdrFileMetaData";
                 _insertCommand.Parameters.Add(_insertParam23);
@@ -475,9 +482,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam17.Value = item.hdrEncryptedKeyHeader;
                 _insertParam18.Value = item.hdrVersionTag.ToByteArray();
                 _insertParam19.Value = item.hdrAppData;
-                _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                // _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 _insertParam21.Value = item.hdrServerData;
-                _insertParam22.Value = item.hdrTransferStatus;
+                // _insertParam22.Value = item.hdrTransferStatus;
                 _insertParam23.Value = item.hdrFileMetaData;
                 _insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
                 _insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
@@ -623,10 +630,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferStatus,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferStatus,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
+                _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferStatus = @hdrTransferStatus,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "RETURNING created, modified;";
                 var _upsertParam1 = _upsertCommand.CreateParameter();
                 _upsertParam1.ParameterName = "@identityId";
@@ -685,15 +692,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var _upsertParam19 = _upsertCommand.CreateParameter();
                 _upsertParam19.ParameterName = "@hdrAppData";
                 _upsertCommand.Parameters.Add(_upsertParam19);
-                var _upsertParam20 = _upsertCommand.CreateParameter();
-                _upsertParam20.ParameterName = "@hdrReactionSummary";
-                _upsertCommand.Parameters.Add(_upsertParam20);
+                
+                // Todd: Removed from this general update since it has as specialized method
+                // var _upsertParam20 = _upsertCommand.CreateParameter();
+                // _upsertParam20.ParameterName = "@hdrReactionSummary";
+                // _upsertCommand.Parameters.Add(_upsertParam20);
+
                 var _upsertParam21 = _upsertCommand.CreateParameter();
                 _upsertParam21.ParameterName = "@hdrServerData";
                 _upsertCommand.Parameters.Add(_upsertParam21);
-                var _upsertParam22 = _upsertCommand.CreateParameter();
-                _upsertParam22.ParameterName = "@hdrTransferStatus";
-                _upsertCommand.Parameters.Add(_upsertParam22);
+                
+                // Todd: Removed from this general update since it has as specialized method
+                // var _upsertParam22 = _upsertCommand.CreateParameter();
+                // _upsertParam22.ParameterName = "@hdrTransferStatus";
+                // _upsertCommand.Parameters.Add(_upsertParam22);
+                
                 var _upsertParam23 = _upsertCommand.CreateParameter();
                 _upsertParam23.ParameterName = "@hdrFileMetaData";
                 _upsertCommand.Parameters.Add(_upsertParam23);
@@ -729,9 +742,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam17.Value = item.hdrEncryptedKeyHeader;
                 _upsertParam18.Value = item.hdrVersionTag.ToByteArray();
                 _upsertParam19.Value = item.hdrAppData;
-                _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                // _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 _upsertParam21.Value = item.hdrServerData;
-                _upsertParam22.Value = item.hdrTransferStatus;
+                // _upsertParam22.Value = item.hdrTransferStatus;
                 _upsertParam23.Value = item.hdrFileMetaData;
                 _upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
                 _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
@@ -1583,14 +1596,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(18))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.hdrTransferStatus = null;
             else
             {
                 item.hdrTransferStatus = rdr.GetString(18);
             }
 
             if (rdr.IsDBNull(19))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.hdrFileMetaData = null;
             else
             {
                 item.hdrFileMetaData = rdr.GetString(19);
@@ -1818,7 +1831,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(18))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.hdrTransferStatus = null;
             else
             {
                 item.hdrTransferStatus = rdr.GetString(18);

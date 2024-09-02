@@ -6,7 +6,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -94,6 +93,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, db);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, db, raiseEvent: true);
 
+                    
                     await mediator.Publish(new NewFeedItemReceived()
                     {
                         Sender = odinContext.GetCallerOdinIdOrFail(),

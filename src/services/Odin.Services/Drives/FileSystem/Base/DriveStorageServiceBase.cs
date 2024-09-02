@@ -13,7 +13,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -98,7 +97,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return df;
         }
 
-        public async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
+        private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
             IOdinContext odinContext, IdentityDatabase db,
             bool raiseEvent = false, bool ignoreFeedDistribution = false)
         {
@@ -1002,6 +1001,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.FileMetadata.AppData.UniqueId = null;
 
             await this.UpdateActiveFileHeader(file, header, odinContext, db, raiseEvent: true);
+            await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext, db);
+
         }
 
         public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext, IdentityDatabase db)
