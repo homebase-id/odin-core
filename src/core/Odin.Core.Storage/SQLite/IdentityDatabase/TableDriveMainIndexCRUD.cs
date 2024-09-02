@@ -1361,7 +1361,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(18))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.hdrTransferStatus = null;
             else
             {
                 item.hdrTransferStatus = rdr.GetString(18);

@@ -1002,7 +1002,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await this.UpdateActiveFileHeader(file, header, odinContext, db, raiseEvent: true);
             await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext, db);
-
         }
 
         public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext, IdentityDatabase db)

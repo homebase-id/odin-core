@@ -175,9 +175,9 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
             hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
             hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
-            
+
             hdrServerData = OdinSystemSerializer.Serialize(header.ServerMetadata),
-            
+
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
             // this is handled by the SaveTransferHistory method
@@ -253,7 +253,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task SaveReactionSummary(Guid fileId, ReactionSummary summary, IdentityDatabase db)
     {
-        var json = OdinSystemSerializer.Serialize(summary);
+        var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);
         _db.tblDriveMainIndex.UpdateReactionSummary(Drive.Id, fileId, json);
         return Task.CompletedTask;
     }

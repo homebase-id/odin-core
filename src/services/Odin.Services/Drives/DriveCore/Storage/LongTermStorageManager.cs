@@ -74,7 +74,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         
         public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
         {
-            OdinValidationUtils.AssertNotNull(summary, nameof(summary));
             var mgr = await GetDbManager(db);
             await mgr.SaveReactionSummary(fileId, summary, db);
         }
