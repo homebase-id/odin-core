@@ -16,21 +16,7 @@ main() {
   echo "your normal Docker tools to start/stop/update etc."
   echo
 
-  #
-  # Check that Docker is installed
-  #
-  if ! command -v docker &> /dev/null; then
-      echo "Error: Docker is not installed. Please install Docker and try again."
-      exit 1
-  fi
-
-  #
-  # Check we have sufficent privileges to run Docker commands
-  #
-  if ! docker info > /dev/null 2>&1; then
-      echo "Error: You do not have sufficient access to interact with Docker."
-      exit 1
-  fi
+  check_prerequisites
 
   # We can only run on port 80 and 443 for the time being
   ODIN_HTTP_PORT=80
@@ -145,6 +131,30 @@ main() {
       echo
       echo "  docker logs -f ${ODIN_CONTAINER_NAME}"
       echo
+  fi
+}
+
+###############################################################################
+#
+# check_prerequisites
+#
+###############################################################################
+
+check_prerequisites() {
+  #
+  # Check that Docker is installed
+  #
+  if ! command -v docker &> /dev/null; then
+      echo "Error: Docker is not installed. Please install Docker and try again."
+      exit 1
+  fi
+
+  #
+  # Check we have sufficent privileges to run Docker commands
+  #
+  if ! docker info > /dev/null 2>&1; then
+      echo "Error: You do not have sufficient access to interact with Docker."
+      exit 1
   fi
 }
 
