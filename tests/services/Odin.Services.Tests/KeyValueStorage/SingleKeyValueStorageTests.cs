@@ -31,18 +31,18 @@ public class SingleKeyValueStorageTests
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
         const string expectedValue1 = "some value";
-        singleKvp1.Upsert(myc, pk, expectedValue1);
-        Assert.IsTrue(singleKvp1.Get<string>(myc, pk) == expectedValue1);
-        singleKvp1.Delete(myc, pk);
-        Assert.IsTrue(singleKvp1.Get<string>(myc, pk) == null);
+        singleKvp1.Upsert(db, pk, expectedValue1);
+        Assert.IsTrue(singleKvp1.Get<string>(db, pk) == expectedValue1);
+        singleKvp1.Delete(db, pk);
+        Assert.IsTrue(singleKvp1.Get<string>(db, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
         var singleKvp2 = new SingleKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
-        singleKvp2.Upsert(myc, pk, expectedValue2);
-        Assert.IsTrue(singleKvp2.Get<string>(myc, pk) == expectedValue2);
+        singleKvp2.Upsert(db, pk, expectedValue2);
+        Assert.IsTrue(singleKvp2.Get<string>(db, pk) == expectedValue2);
 
-        singleKvp2.Delete(myc, pk);
-        Assert.IsTrue(singleKvp2.Get<string>(myc, pk) == null);
+        singleKvp2.Delete(db, pk);
+        Assert.IsTrue(singleKvp2.Get<string>(db, pk) == null);
     }
 }

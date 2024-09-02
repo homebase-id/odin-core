@@ -25,7 +25,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     public StorageDrive Drive { get; init; } = drive;
 
     public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType,
-        FileQueryParams qp, QueryModifiedResultOptions options, DatabaseConnection cn)
+        FileQueryParams qp, QueryModifiedResultOptions options, IdentityDatabase db)
     {
         var callerContext = odinContext.Caller;
 
@@ -57,7 +57,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
 
     public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext,
-        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, DatabaseConnection cn)
+        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, IdentityDatabase db)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
@@ -88,7 +88,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         }
 
         // if the caller was explicit in how they want results...
-        return GetBatchExplicitOrdering(odinContext, fileSystemType, qp, options, cn);
+        return GetBatchExplicitOrdering(odinContext, fileSystemType, qp, options, db);
     }
 
     private List<Guid> GetAcl(IOdinContext odinContext)
@@ -131,7 +131,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             return "{" + v1Str + "," + v2Str + "}";
     }
 
-    public Task UpdateCurrentIndex(ServerFileHeader header, DatabaseConnection cn)
+    public Task UpdateCurrentIndex(ServerFileHeader header, IdentityDatabase db)
     {
         if (null == header)
         {
@@ -146,7 +146,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         // This really doesn't belong here IMO, delete should be handled before this is called and never called with this flag
         if (header.ServerMetadata.DoNotIndex)
         {
-            return HardDeleteFromIndex(metadata.File, cn);
+            return HardDeleteFromIndex(metadata.File, db);
         }
 
         var acl = new List<Guid>();
@@ -250,12 +250,12 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     /// Soft deleting a file
     /// </summary>
     /// <param name="header"></param>
-    /// <param name="cn"></param>
+    /// <param name="db"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="OdinClientException"></exception>
-    public Task SoftDeleteFromIndex(ServerFileHeader header, DatabaseConnection cn)
+    public Task SoftDeleteFromIndex(ServerFileHeader header, IdentityDatabase db)
     {
         if (null == header)
         {
@@ -312,13 +312,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return Task.CompletedTask;
     }
 
-    public Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn)
+    public Task HardDeleteFromIndex(InternalDriveFileId file, IdentityDatabase db)
     {
         _db.metaIndex.DeleteEntry(Drive.Id, file.FileId);
         return Task.CompletedTask;
     }
 
-    public Task LoadLatestIndex(DatabaseConnection cn)
+    public Task LoadLatestIndex(IdentityDatabase db)
     {
         _db.CreateDatabase(false);
         return Task.CompletedTask;
@@ -332,9 +332,9 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         // _db.Dispose();
     }
 
-    public void AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
+    public void AddReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db)
     {
-        _db.tblDriveReactions.Insert(cn, new DriveReactionsRecord()
+        _db.tblDriveReactions.Insert(db, new DriveReactionsRecord()
         {
             driveId = Drive.Id,
             identity = odinId,
@@ -343,24 +343,24 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         });
     }
 
-    public void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn)
+    public void DeleteReactions(OdinId odinId, Guid fileId, IdentityDatabase db)
     {
-        _db.tblDriveReactions.DeleteAllReactions(cn, Drive.Id, odinId, fileId);
+        _db.tblDriveReactions.DeleteAllReactions(db, Drive.Id, odinId, fileId);
     }
 
-    public void DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn)
+    public void DeleteReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db)
     {
-        _db.tblDriveReactions.Delete(cn, Drive.Id, odinId, fileId, reaction);
+        _db.tblDriveReactions.Delete(db, Drive.Id, odinId, fileId, reaction);
     }
 
-    public (List<string>, int) GetReactions(Guid fileId, DatabaseConnection cn)
+    public (List<string>, int) GetReactions(Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetPostReactions(cn, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetPostReactions(db, Drive.Id, fileId);
     }
 
-    public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, DatabaseConnection cn)
+    public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, IdentityDatabase db)
     {
-        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(cn, Drive.Id, fileId);
+        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(db, Drive.Id, fileId);
 
         var results = new List<ReactionCount>();
 
@@ -376,19 +376,19 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return (results, total);
     }
 
-    public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, DatabaseConnection cn)
+    public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactionDetails(cn, identity, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactionDetails(db, identity, Drive.Id, fileId);
     }
 
-    public int GetReactionCountByIdentity(OdinId odinId, Guid fileId, DatabaseConnection cn)
+    public int GetReactionCountByIdentity(OdinId odinId, Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactions(cn, odinId, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactions(db, odinId, Drive.Id, fileId);
     }
 
-    public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, DatabaseConnection cn)
+    public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, IdentityDatabase db)
     {
-        var items = _db.tblDriveReactions.PagingByRowid(cn, maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
+        var items = _db.tblDriveReactions.PagingByRowid(db, maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
@@ -406,13 +406,13 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return (results, nextCursor);
     }
 
-    public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn)
+    public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(IdentityDatabase db)
     {
         var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(Drive.Id);
         return Task.FromResult((count, size));
     }
 
-    public Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn)
+    public Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db)
     {
         var record = _db.tblDriveMainIndex.GetByGlobalTransitId(driveId, globalTransitId);
         if (null == record)
@@ -428,7 +428,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return Task.FromResult((Guid?)null);
     }
     
-    public Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn)
+    public Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db)
     {
         var record = _db.tblDriveMainIndex.GetByUniqueId(driveId, uniqueId);
         
@@ -446,7 +446,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     }
 
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
-        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, DatabaseConnection cn)
+        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, IdentityDatabase db)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
 

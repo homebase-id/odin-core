@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -31,7 +32,7 @@ public class FollowerAuthenticationService
     /// <summary>
     /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, DatabaseConnection cn)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -49,7 +50,7 @@ public class FollowerAuthenticationService
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken, cn);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken, db);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -65,9 +66,9 @@ public class FollowerAuthenticationService
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token, DatabaseConnection cn)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
     {
-        var permissionContext = await _followerService.CreateFollowerPermissionContext(callerOdinId, token, cn);
+        var permissionContext = await _followerService.CreateFollowerPermissionContext(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

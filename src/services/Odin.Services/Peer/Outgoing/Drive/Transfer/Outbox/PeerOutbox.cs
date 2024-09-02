@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task AddItem(OutboxFileItem fileItem, DatabaseConnection cn, bool useUpsert = false)
+        public Task AddItem(OutboxFileItem fileItem, IdentityDatabase db, bool useUpsert = false)
         {
             var record = new OutboxRecord()
             {
@@ -48,7 +48,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public Task MarkComplete(Guid marker, DatabaseConnection cn)
+        public Task MarkComplete(Guid marker, IdentityDatabase db)
         {
             tenantSystemStorage.Outbox.CompleteAndRemove(marker);
             
@@ -60,7 +60,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun, DatabaseConnection cn)
+        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun, IdentityDatabase db)
         {
             tenantSystemStorage.Outbox.CheckInAsCancelled(marker, nextRun);
             
@@ -69,7 +69,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
+        public Task<int> RecoverDead(UnixTimeUtc time, IdentityDatabase db)
         {
             var recovered = tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(time);
             
@@ -78,7 +78,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.FromResult(recovered);
         }
 
-        public async Task<OutboxFileItem> GetNextItem(DatabaseConnection cn)
+        public async Task<OutboxFileItem> GetNextItem(IdentityDatabase db)
         {
             var record = tenantSystemStorage.Outbox.CheckOutItem();
             
@@ -113,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await Task.FromResult(item);
         }
 
-        public Task<bool> HasOutboxFileItem(OutboxFileItem fileItem, DatabaseConnection cn)
+        public Task<bool> HasOutboxFileItem(OutboxFileItem fileItem, IdentityDatabase db)
         {
             var records = tenantSystemStorage.Outbox.Get(fileItem.File.DriveId, fileItem.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
@@ -123,7 +123,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
+        public async Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, IdentityDatabase db)
         {
             var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(driveId);
             return await Task.FromResult(new OutboxDriveStatus()
@@ -138,7 +138,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Get time until the next scheduled item should run (if any).
         /// </summary>
-        public async Task<TimeSpan?> NextRun(DatabaseConnection cn)
+        public async Task<TimeSpan?> NextRun(IdentityDatabase db)
         {
             var nextRun = tenantSystemStorage.Outbox.NextScheduledItem();
             if (nextRun == null)

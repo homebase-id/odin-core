@@ -31,7 +31,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimeterFollowRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        public Task AcceptFollower(PerimeterFollowRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
             //
             //TODO: where to store the request.ClientAuthToken ??
@@ -101,7 +101,7 @@ namespace Odin.Services.DataSubscription.Follower
             {
                 Sender = (OdinId)request.OdinId,
                 OdinContext = odinContext,
-                DatabaseConnection = cn
+                db = db
             });
 
             return Task.CompletedTask;
@@ -111,7 +111,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Removes the caller from the list of followers so they no longer recieve updates
         /// </summary>
         /// <returns></returns>
-        public Task AcceptUnfollowRequest(IOdinContext odinContext, DatabaseConnection cn)
+        public Task AcceptUnfollowRequest(IOdinContext odinContext, IdentityDatabase db)
         {
             var follower = odinContext.Caller.OdinId;
 

@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -30,7 +31,7 @@ public class SendFileOutboxWorkerAsync(
     IOdinHttpClientFactory odinHttpClientFactory
 ) : OutboxWorkerBase(fileItem, logger)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
@@ -52,7 +53,7 @@ public class SendFileOutboxWorkerAsync(
             Guid globalTransitId = default;
 
             await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync",
-                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(FileItem, odinContext, cn, cancellationToken); });
+                async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(FileItem, odinContext, db, cancellationToken); });
 
             logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
@@ -68,7 +69,7 @@ public class SendFileOutboxWorkerAsync(
                             "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
             var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-            await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+            await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
 
             logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
                             "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
@@ -82,7 +83,7 @@ public class SendFileOutboxWorkerAsync(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, db, e);
             }
             catch (Exception exception)
             {
@@ -100,7 +101,7 @@ public class SendFileOutboxWorkerAsync(
     }
 
     private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-        DatabaseConnection cn,
+        IdentityDatabase db,
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -110,7 +111,7 @@ public class SendFileOutboxWorkerAsync(
         var instructionSet = FileItem.State.TransferInstructionSet;
         var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
 
-        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, db);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
@@ -182,7 +183,7 @@ public class SendFileOutboxWorkerAsync(
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
+                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, db);
                 var payloadStream = p.Stream;
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -192,7 +193,7 @@ public class SendFileOutboxWorkerAsync(
                 {
                     var (thumbStream, thumbHeader) =
                         await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
-                            odinContext, cn);
+                            odinContext, db);
 
                     var thumbnailKey =
                         $"{payloadKey}" +
@@ -256,7 +257,7 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
@@ -270,14 +271,14 @@ public class SendFileOutboxWorkerAsync(
 
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
 
         return nextRunTime;
     }
 
     protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
 
@@ -289,6 +290,6 @@ public class SendFileOutboxWorkerAsync(
         };
 
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
     }
 }

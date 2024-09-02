@@ -82,8 +82,8 @@ public class ConfigurationController : OdinControllerBase
     public async Task<bool> InitializeIdentity([FromBody] InitialSetupRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        using var cn = _tenantSystemStorage.CreateConnection();
-        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext, cn);
+        // using var cn = _tenantSystemStorage.CreateConnection();
+        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext, null);
         return true;
     }
 

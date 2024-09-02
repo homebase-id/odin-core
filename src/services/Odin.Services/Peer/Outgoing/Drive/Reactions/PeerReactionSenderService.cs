@@ -8,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Base;
@@ -32,9 +33,9 @@ public class PeerReactionSenderService(
 {
 
     /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, db);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         ApiResponse<HttpContent> response = null;
@@ -56,9 +57,9 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext, db);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -80,9 +81,9 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext, db);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -103,9 +104,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext, db);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -126,9 +127,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext, db);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         try
         {
@@ -146,9 +147,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext, db);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
