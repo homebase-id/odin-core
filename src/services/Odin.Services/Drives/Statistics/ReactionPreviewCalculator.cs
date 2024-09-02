@@ -81,7 +81,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
             HandleFileDeleted(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
-        await fs.Storage.UpdateReactionPreview(new InternalDriveFileId()
+        await fs.Storage.UpdateReactionSummary(new InternalDriveFileId()
             {
                 FileId = referencedFileHeader.FileId,
                 DriveId = referenceFileDriveId
@@ -176,7 +176,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
 
         preview.Reactions = dict;
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext, notification.db);
+        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext, notification.db);
     }
 
     public async Task Handle(ReactionContentDeletedNotification notification, CancellationToken cancellationToken)
@@ -215,7 +215,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
 
         preview.Reactions = dict;
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext, notification.db);
+        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext, notification.db);
     }
 
     public async Task Handle(AllReactionsByFileDeleted notification, CancellationToken cancellationToken)
@@ -236,6 +236,6 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
             preview.Reactions.Clear();
         }
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext, notification.db);
+        await fs.Storage.UpdateReactionSummary(targetFile, preview, odinContext, notification.db);
     }
 }

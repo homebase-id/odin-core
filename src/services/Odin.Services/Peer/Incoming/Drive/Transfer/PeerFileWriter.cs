@@ -46,7 +46,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, db);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, db);
 
                 if (bytes == null)
                 {
@@ -362,7 +362,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
-            await fs.Storage.UpdateReactionPreview(targetFile, metadata.ReactionPreview, odinContext, db);
+            await fs.Storage.UpdateReactionSummary(targetFile, metadata.ReactionPreview, odinContext, db);
 
             //note: we also update the key header because it might have been changed by the sender
             await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, db);

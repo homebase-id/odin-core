@@ -38,24 +38,20 @@ namespace Odin.Services.Drives.DriveCore.Query
             QueryBatchResultOptions options, IdentityDatabase db);
 
         /// <summary>
-        /// Updates the current index that is in use.
+        /// Saves the file to the database
         /// </summary>
-        Task UpdateCurrentIndex(ServerFileHeader metadata, IdentityDatabase db);
+        Task SaveFileHeader(ServerFileHeader metadata, IdentityDatabase db);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is
         /// </summary>
-        /// <param name="metadata"></param>
-        /// <param name="cn"></param>
         /// <returns></returns>
-        Task SoftDeleteFromIndex(ServerFileHeader metadata, IdentityDatabase db);
+        Task SoftDeleteFileHeader(ServerFileHeader metadata, IdentityDatabase db);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
-        /// <param name="file"></param>
-        /// <returns></returns>
-        Task HardDeleteFromIndex(InternalDriveFileId file, IdentityDatabase db);
+        Task HardDeleteFileHeader(InternalDriveFileId file, IdentityDatabase db);
 
         Task LoadLatestIndex(IdentityDatabase db);
 
@@ -80,5 +76,11 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db);
 
         Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db);
+
+        Task<ServerFileHeader> GetFileHeader(Guid fileId, FileSystemType fileSystemType);
+        
+        Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db);
+        
+        Task SaveReactionSummary(Guid fileId, ReactionSummary summary, IdentityDatabase db);
     }
 }

@@ -11,7 +11,7 @@ using Odin.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Odin.Services.Drives.Reactions;
 
-//TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive 
+//TODO: include checks to ensure the file exists
 
 /// <summary>
 /// Manages reactions to files
