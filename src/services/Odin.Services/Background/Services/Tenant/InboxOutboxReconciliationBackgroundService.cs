@@ -30,11 +30,9 @@ public class InboxOutboxReconciliationBackgroundService(
 
             var recoveredOutboxItems = 0;
             var recoveredInboxItems = 0;
-            using (var cn = tenantSystemStorage.CreateConnection())
-            {
-                recoveredOutboxItems = await outbox.RecoverDead(time, cn);
-                recoveredInboxItems = await inbox.RecoverDead(time, cn);
-            }
+
+            recoveredOutboxItems = await outbox.RecoverDead(time, tenantSystemStorage.IdentityDatabase);
+            recoveredInboxItems = await inbox.RecoverDead(time, tenantSystemStorage.IdentityDatabase);
 
             if (recoveredOutboxItems > 0)
             {

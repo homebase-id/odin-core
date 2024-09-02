@@ -17,45 +17,42 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest001");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var p1 = Guid.NewGuid();
+            var p1 = Guid.NewGuid();
 
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = p1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = p1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = p1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = p1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":smiley:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = p1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = p1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = p1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = p1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":smiley:" });
 
-                int n = db.tblDriveReactions.GetIdentityPostReactions(myc, new OdinId("frodo.baggins.me"), driveId, p1);
-                Assert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
+            int n = db.tblDriveReactions.GetIdentityPostReactions(db, new OdinId("frodo.baggins.me"), driveId, p1);
+            Assert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
 
-                // Added: 3 lol, 2 wink, 1 smiley to post 'p1'
+            // Added: 3 lol, 2 wink, 1 smiley to post 'p1'
 
-                // Now get the reactions to the post
+            // Now get the reactions to the post
 
-                var (r, c) = db.tblDriveReactions.GetPostReactions(myc, driveId, p1);
-                Debug.Assert(c == 6);
-                Debug.Assert(r.Count == 3);
-                Debug.Assert(r[0] == ":lol:");
-                Debug.Assert(r[1] == ":wink:");
-                Debug.Assert(r[2] == ":smiley:");
+            var (r, c) = db.tblDriveReactions.GetPostReactions(db, driveId, p1);
+            Debug.Assert(c == 6);
+            Debug.Assert(r.Count == 3);
+            Debug.Assert(r[0] == ":lol:");
+            Debug.Assert(r[1] == ":wink:");
+            Debug.Assert(r[2] == ":smiley:");
 
-                Int32? cursor = 0;
-                var r2 = db.tblDriveReactions.PagingByRowid(myc, 5, cursor, out cursor, driveId, p1);
-                Debug.Assert(r2.Count == 5);
-                Debug.Assert(cursor != null);
+            Int32? cursor = 0;
+            var r2 = db.tblDriveReactions.PagingByRowid(db, 5, cursor, out cursor, driveId, p1);
+            Debug.Assert(r2.Count == 5);
+            Debug.Assert(cursor != null);
 
-                r2 = db.tblDriveReactions.PagingByRowid(myc, 5, cursor, out cursor, driveId, p1);
-                Debug.Assert(r2.Count == 1);
-                Debug.Assert(cursor == null, message: "rdr.HasRows is the sinner");
+            r2 = db.tblDriveReactions.PagingByRowid(db, 5, cursor, out cursor, driveId, p1);
+            Debug.Assert(r2.Count == 1);
+            Debug.Assert(cursor == null, message: "rdr.HasRows is the sinner");
 
-                // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
-            }
+            // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }
 
         [Test]
@@ -64,21 +61,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest002");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var k1 = Guid.NewGuid();
-                var a1 = new List<Guid>();
-                a1.Add(Guid.NewGuid());
+            var k1 = Guid.NewGuid();
+            var a1 = new List<Guid>();
+            a1.Add(Guid.NewGuid());
 
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
 
-                var (ra1, ra2, n) = db.tblDriveReactions.GetPostReactionsWithDetails(myc, driveId, k1);
-            }
+            var (ra1, ra2, n) = db.tblDriveReactions.GetPostReactionsWithDetails(db, driveId, k1);
+
         }
 
         [Test]
@@ -108,27 +103,25 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest004");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var k1 = Guid.NewGuid();
-                var a1 = new List<Guid>();
-                a1.Add(Guid.NewGuid());
+            var k1 = Guid.NewGuid();
+            var a1 = new List<Guid>();
+            a1.Add(Guid.NewGuid());
 
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":smile:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":smile:" });
 
-                string[] array = { ":lol:", ":wink:", ":smile:" };
-                var rs = db.tblDriveReactions.GetIdentityPostReactionDetails(myc, new OdinId("frodo.baggins.me"), driveId, k1);
-                Assert.IsTrue(array.Contains(rs[0]));
-                Assert.IsTrue(array.Contains(rs[1]));
-                Assert.IsTrue(array.Contains(rs[2]));
-                Assert.IsTrue(rs[0] != rs[1]);
-                Assert.IsTrue(rs[1] != rs[2]);
-            }
+            string[] array = { ":lol:", ":wink:", ":smile:" };
+            var rs = db.tblDriveReactions.GetIdentityPostReactionDetails(db, new OdinId("frodo.baggins.me"), driveId, k1);
+            Assert.IsTrue(array.Contains(rs[0]));
+            Assert.IsTrue(array.Contains(rs[1]));
+            Assert.IsTrue(array.Contains(rs[2]));
+            Assert.IsTrue(rs[0] != rs[1]);
+            Assert.IsTrue(rs[1] != rs[2]);
+
         }
 
 
@@ -197,28 +190,25 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest006");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid();
 
-                // The duplicate insert will fail unless the row was successfully deleted
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Delete(myc, driveId, new OdinId("frodo.baggins.me"), k1, ":lol:");
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Delete(myc, driveId, new OdinId("frodo.baggins.me"), k1, ":lol:");
+            // The duplicate insert will fail unless the row was successfully deleted
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Delete(db, driveId, new OdinId("frodo.baggins.me"), k1, ":lol:");
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Delete(db, driveId, new OdinId("frodo.baggins.me"), k1, ":lol:");
 
-                // The duplicate insert(s) will fail unless the rows were successfully deleted
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.DeleteAllReactions(myc, driveId, new OdinId("frodo.baggins.me"), k1);
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                int n = db.tblDriveReactions.GetIdentityPostReactions(myc, new OdinId("frodo.baggins.me"), driveId, k1);
-                Assert.IsTrue(n == 2);
-            }
+            // The duplicate insert(s) will fail unless the rows were successfully deleted
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.DeleteAllReactions(db, driveId, new OdinId("frodo.baggins.me"), k1);
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            int n = db.tblDriveReactions.GetIdentityPostReactions(db, new OdinId("frodo.baggins.me"), driveId, k1);
+            Assert.IsTrue(n == 2);
         }
 
 
@@ -228,29 +218,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest007");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid();
 
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":smiley:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":smiley:" });
 
-                // 3 lol, 2 wink, 1 smiley
+            // 3 lol, 2 wink, 1 smiley
 
-                var (r, c) = db.tblDriveReactions.GetPostReactions(myc, driveId, k1);
-                Debug.Assert(c == 6);
-                Debug.Assert(r.Count == 3);
-                Debug.Assert(r[0] == ":lol:");
-                Debug.Assert(r[1] == ":wink:");
-                Debug.Assert(r[2] == ":smiley:");
-            }
+            var (r, c) = db.tblDriveReactions.GetPostReactions(db, driveId, k1);
+            Debug.Assert(c == 6);
+            Debug.Assert(r.Count == 3);
+            Debug.Assert(r[0] == ":lol:");
+            Debug.Assert(r[1] == ":wink:");
+            Debug.Assert(r[2] == ":smiley:");
         }
 
         [Test]
@@ -259,33 +246,30 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableReactionsTest008");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var driveId = Guid.NewGuid();
+            db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
-                var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid();
 
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":lol:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":smiley:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":skull:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":wagon:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":heart:" });
-                db.tblDriveReactions.Insert(myc, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":cat:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":smiley:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":skull:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":wagon:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":heart:" });
+            db.tblDriveReactions.Insert(db, new DriveReactionsRecord { driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = k1, singleReaction = ":cat:" });
 
-                // 3 lol, 2 wink, 1 smiley, 4 additionals; total of 7 emojis, 10 reactions
+            // 3 lol, 2 wink, 1 smiley, 4 additionals; total of 7 emojis, 10 reactions
 
-                var (r, c) = db.tblDriveReactions.GetPostReactions(myc, driveId, k1);
-                Debug.Assert(c == 10);
-                Debug.Assert(r.Count == 5);
-                Debug.Assert(r[0] == ":lol:");
-                Debug.Assert(r[1] == ":wink:");
-                // It'll probably be fairly random which of the last ones are 'in' given they all have the same count
-            }
+            var (r, c) = db.tblDriveReactions.GetPostReactions(db, driveId, k1);
+            Debug.Assert(c == 10);
+            Debug.Assert(r.Count == 5);
+            Debug.Assert(r[0] == ":lol:");
+            Debug.Assert(r[1] == ":wink:");
+            // It'll probably be fairly random which of the last ones are 'in' given they all have the same count
         }
     }
 }

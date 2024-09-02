@@ -46,11 +46,6 @@ public sealed class TenantSystemStorage : IDisposable
         IdentityDatabase.Dispose();
     }
 
-    public DatabaseConnection CreateConnection()
-    {
-        return IdentityDatabase.CreateDisposableConnection();
-    }
-
     public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
     {
         return new SingleKeyValueStorage(contextKey);
@@ -73,7 +68,7 @@ public sealed class TenantSystemStorage : IDisposable
     public TableAppGrants AppGrants { get; }
     public TableConnections Connections { get; }
     public TableAppNotifications AppNotifications { get; }
-   public TableOutbox Outbox { get; }
+    public TableOutbox Outbox { get; }
     public TableInbox Inbox { get; }
     public TableImFollowing WhoIFollow { get; }
     public TableFollowsMe Followers { get; }

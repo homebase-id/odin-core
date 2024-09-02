@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public new int Insert(IdentityDatabase db, DriveReactionsRecord item)
+        public int Insert(IdentityDatabase db, DriveReactionsRecord item)
         {
             item.identityId = db._identityId;
 

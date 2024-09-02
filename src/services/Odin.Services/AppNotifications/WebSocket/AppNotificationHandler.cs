@@ -375,7 +375,6 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.ProcessInbox:
                 {
-                    using var cn = tenantSystemStorage.CreateConnection();
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {

@@ -69,7 +69,7 @@ public class TenantConfigService
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
-        using var db = _tenantSystemStorage.IdentityDatabase;
+        var db = _tenantSystemStorage.IdentityDatabase;
         _tenantContext.UpdateSystemConfig(GetTenantSettings(db));
     }
 

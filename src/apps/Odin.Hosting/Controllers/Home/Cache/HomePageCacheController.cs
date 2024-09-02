@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Drives;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared;
@@ -42,8 +43,8 @@ public class HomePageCacheController : OdinControllerBase
     [HttpPost("qbc")]
     public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        return await this.GetOrCache(request, cn);
+        var db = _tenantSystemStorage.IdentityDatabase;
+        return await this.GetOrCache(request, db);
     }
 
     [SwaggerOperation(Tags = new[] { HomePageSwaggerTag })]
@@ -63,16 +64,16 @@ public class HomePageCacheController : OdinControllerBase
             Queries = sections
         };
 
-        using var cn = _tenantSystemStorage.CreateConnection();
-        var result = await GetOrCache(request, cn);
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var result = await GetOrCache(request, db);
         return result;
     }
 
-    private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request, DatabaseConnection cn)
+    private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request, IdentityDatabase db)
     {
         // tell the browser to check in ever 1 minutes
         const int minutes = 1;
         AddGuestApiCacheHeader(minutes);
-        return await _cachingService.GetResult(request, WebOdinContext, _tenantContext.HostOdinId, cn);
+        return await _cachingService.GetResult(request, WebOdinContext, _tenantContext.HostOdinId, db);
     }
 }

@@ -29,8 +29,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent([FromBody] AddReactionRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await base.AddReaction(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            await base.AddReaction(request, db);
             return NoContent();
         }
 
@@ -39,8 +39,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] DeleteReactionRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await base.DeleteReaction(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            await base.DeleteReaction(request, db);
             return NoContent();
         }
 
@@ -49,8 +49,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await base.DeleteAllReactions(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            await base.DeleteAllReactions(request, db);
             return NoContent();
         }
 
@@ -59,8 +59,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("list")]
         public async Task<GetReactionsResponse> GetAllReactions2([FromBody] GetReactionsRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await base.GetReactions(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            return await base.GetReactions(request, db);
         }
         
         /// <summary>
@@ -70,8 +70,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] GetReactionsRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await base.GetReactionCounts(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            return await base.GetReactionCounts(request, db);
         }
         
         /// <summary>
@@ -81,8 +81,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await base.GetReactionsByIdentityAndFile(request, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            return await base.GetReactionsByIdentityAndFile(request, db);
         }
     }
 }
