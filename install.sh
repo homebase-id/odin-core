@@ -71,7 +71,7 @@ main() {
       --env Admin__ApiPort="${ODIN_ADMIN_PORT}" \
       --env Admin__Domain='your-admin-domain-here.example.com' \
       --env Admin__ExportTargetPath='/tmp/odin-export' \
-      --env CertificateRenewal__CertificateAuthorityAssociatedEmail='your-certificate-email-here@example.com' \
+      --env CertificateRenewal__CertificateAuthorityAssociatedEmail='your-certificate-email-here@homebase.id' \
       --env CertificateRenewal__UseCertificateAuthorityProductionServers='True' \
       --env Host__CacheSlidingExpirationSeconds='15' \
       --env Host__Http1Only='False' \
