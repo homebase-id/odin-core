@@ -76,6 +76,7 @@ public class DnsLookupService : IDnsLookupService
             Name = "",
             Domain = domain,
             Value = dns.ApexARecord,
+            AltValue = dns.ApexARecord,
             Description = "A Record"
         });
 
@@ -86,6 +87,7 @@ public class DnsLookupService : IDnsLookupService
             Name = "",
             Domain = domain,
             Value = dns.ApexAliasRecord,
+            AltValue = dns.ApexAliasRecord,
             Description = "Apex flattened CNAME / ALIAS / ANAME"
         });
 
@@ -95,7 +97,8 @@ public class DnsLookupService : IDnsLookupService
             Type = "CNAME",
             Name = DnsConfigurationSet.PrefixCertApi,
             Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
-            Value = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
+            Value = dns.ApexAliasRecord,
+            AltValue = domain,
             Description = "CAPI CNAME"
         });
 
@@ -105,7 +108,8 @@ public class DnsLookupService : IDnsLookupService
             Type = "CNAME",
             Name = DnsConfigurationSet.PrefixFile,
             Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
-            Value = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
+            Value = dns.ApexAliasRecord,
+            AltValue = domain,
             Description = "FILE CNAME"
         });
 
@@ -142,7 +146,8 @@ public class DnsLookupService : IDnsLookupService
                 domain,
                 record.Name,
                 record.Type,
-                record.Value);
+                record.Value,
+                record.AltValue);
 
             record.QueryResults[authority.AuthorativeNameServer] = recordStatus;
             record.Records[authority.AuthorativeNameServer] = records.ToArray();
@@ -176,7 +181,8 @@ public class DnsLookupService : IDnsLookupService
                     domain,
                     record.Name,
                     record.Type,
-                    record.Value);
+                    record.Value,
+                    record.AltValue);
 
                 record.QueryResults[resolver] = recordStatus;
                 record.Records[resolver] = records.ToArray();
@@ -270,7 +276,8 @@ public class DnsLookupService : IDnsLookupService
         string domain,
         string label,
         string type,
-        string expectedValue)
+        string expectedValue,
+        string expectedAltValue)
     {
         var result = DnsLookupRecordStatus.Unknown;
         List<string> records;
@@ -290,7 +297,7 @@ public class DnsLookupService : IDnsLookupService
         var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
         if (response?.Answers.AaaaRecords().Any() == true)
         {
-            records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
+            records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
             result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
         }
         else
@@ -300,16 +307,16 @@ public class DnsLookupService : IDnsLookupService
                 case "A":
                     recordType = QueryType.A;
                     response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
-                    records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
-                    result = VerifyDnsValue(records, expectedValue);
+                    records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? [];
+                    result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
 
                 case "ALIAS":
                 case "CNAME":
                     recordType = QueryType.CNAME;
                     response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
-                    records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? new List<string>();
-                    result = VerifyDnsValue(records, expectedValue);
+                    records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? [];
+                    result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
 
                 default:
@@ -336,7 +343,10 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private static DnsLookupRecordStatus VerifyDnsValue(IReadOnlyCollection<string> records, string expectedValue)
+    private static DnsLookupRecordStatus VerifyDnsValue(
+        IReadOnlyCollection<string> records, 
+        string expectedValue,
+        string expectedAltValue)
     {
         if (records.Count < 1)
         {
@@ -346,7 +356,8 @@ public class DnsLookupService : IDnsLookupService
         {
             return DnsLookupRecordStatus.MultipleRecordsNotSupported;
         }
-        if (records.First() != expectedValue)
+        var record = records.First();
+        if (record != expectedValue && record != expectedAltValue)
         {
             return DnsLookupRecordStatus.IncorrectValue;
         }

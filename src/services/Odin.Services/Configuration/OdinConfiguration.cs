@@ -144,9 +144,7 @@ namespace Odin.Services.Configuration
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
-                    config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"),
-                    config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
-                    config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
+                    config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
 
                 InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
 
