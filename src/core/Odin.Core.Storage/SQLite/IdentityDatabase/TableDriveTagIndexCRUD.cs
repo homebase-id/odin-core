@@ -438,7 +438,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
                         if (!rdr.Read()) {
-                            return null;
+                            return thelistresult;
                         }
                     byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
