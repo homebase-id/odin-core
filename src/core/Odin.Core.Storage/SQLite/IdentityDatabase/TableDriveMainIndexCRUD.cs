@@ -773,7 +773,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveMainIndex " +
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferStatus = @hdrTransferStatus,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
                 var _updateParam1 = _updateCommand.CreateParameter();
                 _updateParam1.ParameterName = "@identityId";
@@ -832,15 +832,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var _updateParam19 = _updateCommand.CreateParameter();
                 _updateParam19.ParameterName = "@hdrAppData";
                 _updateCommand.Parameters.Add(_updateParam19);
-                var _updateParam20 = _updateCommand.CreateParameter();
-                _updateParam20.ParameterName = "@hdrReactionSummary";
-                _updateCommand.Parameters.Add(_updateParam20);
+                // var _updateParam20 = _updateCommand.CreateParameter();
+                // _updateParam20.ParameterName = "@hdrReactionSummary";
+                // _updateCommand.Parameters.Add(_updateParam20);
                 var _updateParam21 = _updateCommand.CreateParameter();
                 _updateParam21.ParameterName = "@hdrServerData";
                 _updateCommand.Parameters.Add(_updateParam21);
-                var _updateParam22 = _updateCommand.CreateParameter();
-                _updateParam22.ParameterName = "@hdrTransferStatus";
-                _updateCommand.Parameters.Add(_updateParam22);
+                // var _updateParam22 = _updateCommand.CreateParameter();
+                // _updateParam22.ParameterName = "@hdrTransferStatus";
+                // _updateCommand.Parameters.Add(_updateParam22);
                 var _updateParam23 = _updateCommand.CreateParameter();
                 _updateParam23.ParameterName = "@hdrFileMetaData";
                 _updateCommand.Parameters.Add(_updateParam23);
@@ -876,9 +876,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam17.Value = item.hdrEncryptedKeyHeader;
                 _updateParam18.Value = item.hdrVersionTag.ToByteArray();
                 _updateParam19.Value = item.hdrAppData;
-                _updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                // _updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 _updateParam21.Value = item.hdrServerData;
-                _updateParam22.Value = item.hdrTransferStatus;
+                // _updateParam22.Value = item.hdrTransferStatus;
                 _updateParam23.Value = item.hdrFileMetaData;
                 _updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
                 _updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
