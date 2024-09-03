@@ -135,20 +135,20 @@ namespace Odin.Services.Configuration
 
             public RegistrySection(IConfiguration config)
             {
-                PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
-                PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
+                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
+                PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
                 ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
                 ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
-                ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
+                ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
                     config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
 
-                InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
+                InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
