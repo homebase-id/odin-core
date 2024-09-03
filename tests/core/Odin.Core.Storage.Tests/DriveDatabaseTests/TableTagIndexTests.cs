@@ -183,8 +183,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableTagIndexTests006");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
                 db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
@@ -205,7 +203,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 // Check that k1 is now gone
                 var md = db.tblDriveTagIndex.Get(driveId, k1);
-                if (md != null)
+                if (md.Count != 0)
                     Assert.Fail();
 
                 // Remove one of the tagmembers from the list, delete it, and make sure we have the other one
@@ -219,7 +217,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
                     Assert.Fail();
-            }
         }
     }
 }
