@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.Registration;
 
 [ApiController]
 [Route("/api/registration/v1/registration")]
+[ServiceFilter(typeof(RegistrationRestrictedAttribute))]
 public class RegistrationController : ControllerBase
 {
     private readonly IIdentityRegistrationService _regService;
