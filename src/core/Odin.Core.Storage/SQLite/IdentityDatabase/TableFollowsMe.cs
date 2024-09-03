@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public int DeleteByIdentity(string identity)
         {
-            if (identity == null)
+            if (identity == null || identity == "")
                 return 0;
 
             using (var conn = _db.CreateDisposableConnection())

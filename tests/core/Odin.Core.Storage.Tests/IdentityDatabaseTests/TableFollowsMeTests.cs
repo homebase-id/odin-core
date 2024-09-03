@@ -178,7 +178,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        [Ignore("Later")]
         public void DeleteInvalidTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest004");

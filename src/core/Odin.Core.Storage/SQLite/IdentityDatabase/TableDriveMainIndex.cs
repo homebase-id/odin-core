@@ -50,7 +50,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(DriveMainIndexRecord item)
+        internal int Insert(DriveMainIndexRecord item)
         {
             item.identityId = _db._identityId;
             using (var conn = _db.CreateDisposableConnection())
@@ -123,12 +123,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int UpdateTransferStatus(Guid driveId, Guid fileId, string transferStatus)
+        public int UpdateTransferHistory(Guid driveId, Guid fileId, string transferHistory)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText =
-                    $"UPDATE driveMainIndex SET modified=@modified,hdrTransferStatus=@hdrTransferStatus WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+                    $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
                 var _sparam1 = _updateCommand.CreateParameter();
                 var _sparam2 = _updateCommand.CreateParameter();
@@ -139,7 +139,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _sparam1.ParameterName = "@identityId";
                 _sparam2.ParameterName = "@driveId";
                 _sparam3.ParameterName = "@fileId";
-                _sparam4.ParameterName = "@hdrTransferStatus";
+                _sparam4.ParameterName = "@hdrTransferHistory";
                 _sparam5.ParameterName = "@modified";
 
                 _updateCommand.Parameters.Add(_sparam1);
@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _sparam1.Value = _db._identityId.ToByteArray();
                 _sparam2.Value = driveId.ToByteArray();
                 _sparam3.Value = fileId.ToByteArray();
-                _sparam4.Value = transferStatus;
+                _sparam4.Value = transferHistory;
                 _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
                 using (var conn = _db.CreateDisposableConnection())
