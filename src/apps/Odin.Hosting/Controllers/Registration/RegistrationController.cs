@@ -140,12 +140,21 @@ public class RegistrationController : ControllerBase
     /// </summary>
     /// <param name="apex"></param>
     /// <param name="prefix"></param>
+    /// <param name="invitationCode"></param>
     /// <returns></returns>
     [HttpPost("create-managed-domain/{apex}/{prefix}")]
-    public async Task<IActionResult> CreateManagedDomain(string prefix, string apex)
+    public async Task<IActionResult> CreateManagedDomain(
+        string prefix,
+        string apex,
+        [FromQuery(Name = "invitation-code")] string invitationCode)
     {
         prefix = prefix.Trim();
         apex = apex.Trim();
+
+        if (!await _regService.IsValidInvitationCode(invitationCode))
+        {
+            throw new BadRequestException(message: "Invalid or expired Invitation Code");
+        }
 
         var available = await _regService.IsManagedDomainAvailable(prefix, apex);
         if (!available)

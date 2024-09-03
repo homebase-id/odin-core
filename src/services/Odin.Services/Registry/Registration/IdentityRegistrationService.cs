@@ -97,6 +97,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
     {
+        // Only return list of managed apexes if we have DNS server config
+        var noDnsServerConfig =
+            string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey) &&
+            string.IsNullOrEmpty(_configuration.Registry.PowerDnsHostAddress);
+
+        if (noDnsServerConfig)
+        {
+            return Task.FromResult(new List<OdinConfiguration.RegistrySection.ManagedDomainApex>());
+        }
+
         return Task.FromResult(_configuration.Registry.ManagedDomainApexes);
     }
 
@@ -306,7 +316,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (!_configuration.Registry.InvitationCodes.Any())
+        if (_configuration.Registry.InvitationCodes.Count == 0)
         {
             return Task.FromResult(true);
         }
