@@ -452,7 +452,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
-                            return null;
+                            return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
                         while (true)
@@ -526,7 +526,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
-                            return null;
+                            return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
                         while (true)

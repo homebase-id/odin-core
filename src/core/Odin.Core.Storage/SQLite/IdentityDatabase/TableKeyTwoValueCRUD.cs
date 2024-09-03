@@ -403,7 +403,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key2.ToBase64(), null);
-                            return null;
+                            return new List<KeyTwoValueRecord>();
                         }
                         var result = new List<KeyTwoValueRecord>();
                         while (true)

@@ -437,7 +437,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString(), null);
-                            return null;
+                            return new List<AppGrantsRecord>();
                         }
                         var result = new List<AppGrantsRecord>();
                         while (true)

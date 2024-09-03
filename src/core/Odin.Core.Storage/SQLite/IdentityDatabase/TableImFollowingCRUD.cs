@@ -501,7 +501,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
-                            return null;
+                            return new List<ImFollowingRecord>();
                         }
                         var result = new List<ImFollowingRecord>();
                         while (true)
