@@ -111,6 +111,7 @@ main() {
       --env Registry__ProvisioningDomain='provisioning.dotyou.cloud' \
       --env Registry__ProvisioningEmailLogoHref='https://homebase.id/' \
       --env Registry__ProvisioningEmailLogoImage='https://homebase.id/logo-email.png' \
+      --env Registry__ProvisioningEnabled='True' \
       --env Serilog__MinimumLevel__Default='Debug' \
       --env Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Authentication='Error' \
       --env Serilog__MinimumLevel__Override__Microsoft.AspNetCore='Warning' \
