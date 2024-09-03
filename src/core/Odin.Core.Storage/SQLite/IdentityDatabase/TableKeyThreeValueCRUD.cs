@@ -405,7 +405,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
                         if (!rdr.Read()) {
-                            return null;
+                            return thelistresult;
                         }
                     byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
@@ -461,7 +461,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
                         if (!rdr.Read()) {
-                            return null;
+                            return thelistresult;
                         }
                     byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
