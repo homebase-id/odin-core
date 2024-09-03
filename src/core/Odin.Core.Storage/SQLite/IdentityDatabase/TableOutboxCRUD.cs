@@ -812,7 +812,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         if (!rdr.Read())
                         {
-                            return null;
+                            return new List<OutboxRecord>();
                         }
                         var result = new List<OutboxRecord>();
                         while (true)

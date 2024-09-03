@@ -468,7 +468,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                             hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
                             hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
                             hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                            hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                            hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
                             hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                             hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                             hdrTmpDriveType = SequentialGuid.CreateGuid()

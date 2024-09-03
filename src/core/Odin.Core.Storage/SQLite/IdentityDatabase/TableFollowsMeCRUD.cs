@@ -521,7 +521,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity, null);
-                            return null;
+                            return new List<FollowsMeRecord>();
                         }
                         var result = new List<FollowsMeRecord>();
                         while (true)

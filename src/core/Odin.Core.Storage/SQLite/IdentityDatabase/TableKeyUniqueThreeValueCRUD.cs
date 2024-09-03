@@ -577,7 +577,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key2.ToBase64()+key3.ToBase64(), null);
-                            return null;
+                            return new List<KeyUniqueThreeValueRecord>();
                         }
                         var result = new List<KeyUniqueThreeValueRecord>();
                         while (true)

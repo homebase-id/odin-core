@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
@@ -73,7 +74,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();
-                var i1 = "odin.valhalla.com";
+                var i1 = new OdinId("odin.valhalla.com");
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
 
@@ -93,7 +94,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 // Test non ASCII
                 db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "ødin.valhalla.com", driveId = g1 });
-                r = db.tblFollowsMe.Get("ødin.valhalla.com");
+                r = db.tblFollowsMe.Get(new OdinId("ødin.valhalla.com"));
                 Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0);
             }
         }
@@ -178,24 +179,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        [Ignore("Later")]
-        public void DeleteInvalidTest()
-        {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest004");
-
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                int i = db.tblFollowsMe.DeleteByIdentity(null);
-                Debug.Assert(i == 0);
-
-                i = db.tblFollowsMe.DeleteByIdentity("");
-                Debug.Assert(i == 0);
-            }
-        }
-
-
-        [Test]
         public void DeleteTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest005");
@@ -203,8 +186,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();
-                var i1 = "odin.valhalla.com";
-                var i2 = "thor.valhalla.com";
+                var i1 = new OdinId("odin.valhalla.com");
+                var i2 = new OdinId("thor.valhalla.com");
                 var d1 = Guid.NewGuid();
                 var d2 = Guid.NewGuid();
 
@@ -234,8 +217,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();
-                var i1 = "odin.valhalla.com";
-                var i2 = "thor.valhalla.com";
+                var i1 = new OdinId("odin.valhalla.com");
+                var i2 = new OdinId("thor.valhalla.com");
                 var d1 = Guid.NewGuid();
                 var d2 = Guid.NewGuid();
 

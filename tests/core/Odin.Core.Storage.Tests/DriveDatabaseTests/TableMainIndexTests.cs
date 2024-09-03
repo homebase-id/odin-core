@@ -51,15 +51,15 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 db.metaIndex.AddEntryPassalongToUpsert(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
 
                 var r = db.tblDriveMainIndex.Get(driveId, f1);
-                var s = r.hdrTransferStatus;
+                var s = r.hdrTransferHistory;
                 var m = r.modified;
                 Debug.Assert(m == null);
 
                 var s2 = "a new transfer status";
-                db.tblDriveMainIndex.UpdateTransferStatus(driveId, f1, s2);
+                db.tblDriveMainIndex.UpdateTransferHistory(driveId, f1, s2);
                 var r2 = db.tblDriveMainIndex.Get(driveId, f1);
                 var m2 = r2.modified;
-                Debug.Assert(r2.hdrTransferStatus == s2);
+                Debug.Assert(r2.hdrTransferHistory == s2);
                 Debug.Assert(m2 != null);
         }
 
@@ -171,7 +171,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
@@ -275,7 +275,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                     hdrTmpDriveType = SequentialGuid.CreateGuid()
@@ -325,7 +325,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                    hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                    hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                     hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                     hdrTmpDriveType = SequentialGuid.CreateGuid()

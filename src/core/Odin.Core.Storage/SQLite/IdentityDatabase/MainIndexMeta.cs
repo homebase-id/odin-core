@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Org.BouncyCastle.Crypto.Engines;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -38,7 +36,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     int n = 0;
                     conn.CreateCommitUnitOfWork(() =>
                     {
-                        n = _db.tblDriveMainIndex.Upsert(conn, driveMainIndexRecord);
+                        n = _db.tblDriveMainIndex.UpdateAllButReactionsAndTransfer(conn, driveMainIndexRecord);
 
                         _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
                         _db.tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
@@ -98,111 +96,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-
-        /// <summary>
-        /// Only kept to not change all tests! Do not use.
-        /// </summary>
-        public void AddEntryPassalongToUpsert(Guid driveId, Guid fileId,
-            Guid? globalTransitId,
-            Int32 fileType,
-            Int32 dataType,
-            string senderId,
-            Guid? groupId,
-            Guid? uniqueId,
-            Int32 archivalStatus,
-            UnixTimeUtc userDate,
-            Int32 requiredSecurityGroup,
-            List<Guid> accessControlList,
-            List<Guid> tagIdList,
-            Int64 byteCount,
-            Int32 fileSystemType = (int)FileSystemType.Standard,
-            Int32 fileState = 0)
-        {
-            if (byteCount < 1)
-                throw new ArgumentException("byteCount must be at least 1");
-
-            var r = new DriveMainIndexRecord()
-            {
-                driveId = driveId,
-                fileId = fileId,
-                globalTransitId = globalTransitId,
-                fileState = fileState,
-                userDate = userDate,
-                fileType = fileType,
-                dataType = dataType,
-                senderId = senderId,
-                groupId = groupId,
-                uniqueId = uniqueId,
-                archivalStatus = archivalStatus,
-                historyStatus = 0,
-                requiredSecurityGroup = requiredSecurityGroup,
-                fileSystemType = fileSystemType,
-                byteCount = byteCount,
-                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
-                hdrVersionTag = SequentialGuid.CreateGuid(),
-                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
-                hdrTmpDriveType = SequentialGuid.CreateGuid()
-            };
-            BaseUpsertEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
-        }
-
-
-        /// <summary>
-        /// Only kept to not change all tests! Do not use.
-        /// </summary>
-        public int UpdateEntryZapZapPassAlong(Guid driveId, Guid fileId,
-            Guid? globalTransitId = null,
-            Int32? fileState = null,
-            Int32? fileType = null,
-            Int32? dataType = null,
-            string senderId = null,
-            Guid? groupId = null,
-            Guid? uniqueId = null,
-            Int32? archivalStatus = null,
-            UnixTimeUtc? userDate = null,
-            Int32? requiredSecurityGroup = null,
-            Int64? byteCount = null,
-            List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null,
-            Int32 fileSystemType = 0)
-        {
-            int n = 0;
-            var r = new DriveMainIndexRecord()
-            {
-                driveId = driveId,
-                fileId = fileId,
-                globalTransitId = globalTransitId,
-                fileState = fileState ?? 0,
-                userDate = userDate ?? UnixTimeUtc.ZeroTime,
-                fileType = fileType ?? 0,
-                dataType = dataType ?? 0,
-                senderId = senderId,
-                groupId = groupId,
-                uniqueId = uniqueId,
-                archivalStatus = archivalStatus ?? 0,
-                historyStatus = 0,
-                requiredSecurityGroup = requiredSecurityGroup ?? 999,
-                fileSystemType = fileSystemType,
-                byteCount = byteCount ?? 1,
-                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
-                hdrVersionTag = SequentialGuid.CreateGuid(),
-                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTransferStatus = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
-                hdrTmpDriveType = SequentialGuid.CreateGuid()
-            };
-            BaseUpdateEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
-
-            return n;
-        }
 
 
 
@@ -830,5 +723,114 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
+        //
+        // THESE ARE HERE FOR LEGACY REASONS FOR TESTING JUST BECAUSE I'M
+        // TOO LAZY TO REWRITE THE TESTS
+        //
+
+        /// <summary>
+        /// Only kept to not change all tests! Do not use.
+        /// </summary>
+        internal void AddEntryPassalongToUpsert(Guid driveId, Guid fileId,
+            Guid? globalTransitId,
+            Int32 fileType,
+            Int32 dataType,
+            string senderId,
+            Guid? groupId,
+            Guid? uniqueId,
+            Int32 archivalStatus,
+            UnixTimeUtc userDate,
+            Int32 requiredSecurityGroup,
+            List<Guid> accessControlList,
+            List<Guid> tagIdList,
+            Int64 byteCount,
+            Int32 fileSystemType = (int)FileSystemType.Standard,
+            Int32 fileState = 0)
+        {
+            if (byteCount < 1)
+                throw new ArgumentException("byteCount must be at least 1");
+
+            var r = new DriveMainIndexRecord()
+            {
+                driveId = driveId,
+                fileId = fileId,
+                globalTransitId = globalTransitId,
+                fileState = fileState,
+                userDate = userDate,
+                fileType = fileType,
+                dataType = dataType,
+                senderId = senderId,
+                groupId = groupId,
+                uniqueId = uniqueId,
+                archivalStatus = archivalStatus,
+                historyStatus = 0,
+                requiredSecurityGroup = requiredSecurityGroup,
+                fileSystemType = fileSystemType,
+                byteCount = byteCount,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            };
+            BaseUpsertEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
+        }
+
+
+        /// <summary>
+        /// Only kept to not change all tests! Do not use.
+        /// </summary>
+        internal int UpdateEntryZapZapPassAlong(Guid driveId, Guid fileId,
+            Guid? globalTransitId = null,
+            Int32? fileState = null,
+            Int32? fileType = null,
+            Int32? dataType = null,
+            string senderId = null,
+            Guid? groupId = null,
+            Guid? uniqueId = null,
+            Int32? archivalStatus = null,
+            UnixTimeUtc? userDate = null,
+            Int32? requiredSecurityGroup = null,
+            Int64? byteCount = null,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null,
+            Int32 fileSystemType = 0)
+        {
+            int n = 0;
+            var r = new DriveMainIndexRecord()
+            {
+                driveId = driveId,
+                fileId = fileId,
+                globalTransitId = globalTransitId,
+                fileState = fileState ?? 0,
+                userDate = userDate ?? UnixTimeUtc.ZeroTime,
+                fileType = fileType ?? 0,
+                dataType = dataType ?? 0,
+                senderId = senderId,
+                groupId = groupId,
+                uniqueId = uniqueId,
+                archivalStatus = archivalStatus ?? 0,
+                historyStatus = 0,
+                requiredSecurityGroup = requiredSecurityGroup ?? 999,
+                fileSystemType = fileSystemType,
+                byteCount = byteCount ?? 1,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            };
+            BaseUpdateEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
+
+            return n;
+        }
     }
 }

@@ -247,7 +247,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     public Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db)
     {
         var json = OdinSystemSerializer.Serialize(history);
-        _db.tblDriveMainIndex.UpdateTransferStatus(Drive.Id, fileId, json);
+        _db.tblDriveMainIndex.UpdateTransferHistory(Drive.Id, fileId, json);
         return Task.CompletedTask;
     }
 
@@ -280,9 +280,9 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         header.FileMetadata.ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
             ? null
             : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
-        header.ServerMetadata.TransferHistory = string.IsNullOrEmpty(record.hdrTransferStatus)
+        header.ServerMetadata.TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
             ? null
-            : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferStatus);
+            : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
 
         return Task.FromResult(header);
     }

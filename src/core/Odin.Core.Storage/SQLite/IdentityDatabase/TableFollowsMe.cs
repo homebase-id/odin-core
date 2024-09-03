@@ -32,11 +32,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public int Delete(string identity, Guid driveId)
+        public int Delete(OdinId identity, Guid driveId)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                return base.Delete(conn, _db._identityId, identity, driveId);
+                return base.Delete(conn, _db._identityId, identity.DomainName, driveId);
             }
         }
 
@@ -57,11 +57,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowsMeRecord> Get(string identity)
+        public List<FollowsMeRecord> Get(OdinId identity)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                var r = base.Get(conn, _db._identityId, identity);
+                var r = base.Get(conn, _db._identityId, identity.DomainName);
 
                 if (r == null)
                     r = new List<FollowsMeRecord>();
@@ -71,15 +71,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int DeleteByIdentity(string identity)
+        public int DeleteByIdentity(OdinId identity)
         {
-            if (identity == null)
-                return 0;
-
             using (var conn = _db.CreateDisposableConnection())
             {
                 int n = 0;
-                var r = base.Get(conn, _db._identityId, identity);
+                var r = base.Get(conn, _db._identityId, identity.DomainName);
 
                 if (r == null)
                 {
@@ -90,7 +87,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     for (int i = 0; i < r.Count; i++)
                     {
-                        n += base.Delete(conn, _db._identityId, identity, r[i].driveId);
+                        n += base.Delete(conn, _db._identityId, identity.DomainName, r[i].driveId);
                     }
                 });
 

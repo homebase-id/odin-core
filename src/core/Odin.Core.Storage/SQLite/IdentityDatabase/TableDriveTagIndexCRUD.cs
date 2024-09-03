@@ -5,8 +5,6 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("IdentityDatabase")]
-
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class DriveTagIndexRecord

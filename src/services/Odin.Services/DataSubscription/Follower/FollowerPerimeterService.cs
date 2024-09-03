@@ -48,7 +48,7 @@ namespace Odin.Services.DataSubscription.Follower
                 });*/
 
                 // Created sample DeleteAndAddFollower() - take a look
-                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
+                _tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
                 _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
@@ -88,7 +88,7 @@ namespace Odin.Services.DataSubscription.Follower
                 });*/
 
                 // Created sample DeleteAndAddFollower() - take a look - make it a list so it works both here and above?
-                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
+                _tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
                 foreach (var channel in request.Channels)
                 {
                     _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
@@ -115,7 +115,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             var follower = odinContext.Caller.OdinId;
 
-            _tenantStorage.Followers.DeleteByIdentity(follower);
+            _tenantStorage.Followers.DeleteByIdentity(new OdinId(follower));
             return Task.CompletedTask;
         }
     }

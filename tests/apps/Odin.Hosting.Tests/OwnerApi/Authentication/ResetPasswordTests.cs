@@ -12,6 +12,7 @@ using Odin.Services.Registry.Registration;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Refit;
+using Odin.Core.Identity;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
@@ -103,7 +104,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(secondLogin.IsSuccessStatusCode);
         }
 
-        private async Task<ApiResponse<OwnerAuthenticationResult>> Login(string identity, string password)
+        private async Task<ApiResponse<OwnerAuthenticationResult>> Login(OdinId identity, string password)
         {
             var authClient = _scaffold.OldOwnerApi.CreateAnonymousClient(identity);
 
