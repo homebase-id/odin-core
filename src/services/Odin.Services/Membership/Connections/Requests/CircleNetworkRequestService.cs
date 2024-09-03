@@ -691,7 +691,11 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             var existingOutgoingRequest = await this.GetSentRequestInternal(recipient, cn);
-            if (null != existingOutgoingRequest)
+            if (null == existingOutgoingRequest)
+            {
+                await CreateAndSendRequestInternal(header, odinContext, cn);
+            }
+            else
             {
                 if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 {
