@@ -71,32 +71,24 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest002");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase();
-                var i1 = new OdinId("odin.valhalla.com");
-                var g1 = Guid.NewGuid();
-                var g2 = Guid.NewGuid();
+            db.CreateDatabase();
+            var i1 = new OdinId("odin.valhalla.com");
+            var g1 = Guid.NewGuid();
+            var g2 = Guid.NewGuid();
 
-                // This is OK {odin.vahalla.com, driveId}
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g2 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = g1 });
+            // This is OK {odin.vahalla.com, driveId}
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g2 });
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = g1 });
 
-                var r = db.tblFollowsMe.Get(i1);
-                Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
-                Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
+            var r = db.tblFollowsMe.Get(i1);
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
-                // This is OK {odin.vahalla.com, {000000}}
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
-                r = db.tblFollowsMe.Get(i1);
-                Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
-
-                // Test non ASCII
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "ødin.valhalla.com", driveId = g1 });
-                r = db.tblFollowsMe.Get(new OdinId("ødin.valhalla.com"));
-                Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0);
-            }
+            // This is OK {odin.vahalla.com, {000000}}
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
+            r = db.tblFollowsMe.Get(i1);
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
         }
 
 

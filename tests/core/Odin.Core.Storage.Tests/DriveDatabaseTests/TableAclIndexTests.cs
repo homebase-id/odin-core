@@ -14,8 +14,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableAclIndexTests001");
 
-            using (var myc = db.CreateDisposableConnection())
-            {
                 db.CreateDatabase();
                 var driveId = Guid.NewGuid();
 
@@ -25,14 +23,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var md = db.tblDriveAclIndex.Get(driveId, k1);
 
-                if (md != null)
+                if (md.Count != 0)
                     Assert.Fail();
 
                 db.tblDriveAclIndex.InsertRows(driveId, k1, a1);
 
                 md = db.tblDriveAclIndex.Get(driveId, k1);
 
-                if (md == null)
+                if (md.Count == 0)
                     Assert.Fail();
 
                 if (md.Count != 1)
@@ -40,7 +38,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
                     Assert.Fail();
-            }
         }
 
         [Test]
