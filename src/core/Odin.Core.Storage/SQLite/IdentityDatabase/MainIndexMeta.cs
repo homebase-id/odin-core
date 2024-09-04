@@ -23,36 +23,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int BaseUpsertEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
-            List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null)
-        {
-            driveMainIndexRecord.identityId = _db._identityId;
-
-            lock (_dbLock)
-            {
-                using (var conn = _db.CreateDisposableConnection())
-                {
-                    int n = 0;
-                    conn.CreateCommitUnitOfWork(() =>
-                    {
-                        n = _db.tblDriveMainIndex.UpdateAllButReactionsAndTransfer(conn, driveMainIndexRecord);
-
-                        _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                        _db.tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                        _db.tblDriveTagIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                        _db.tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
-
-                        // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                        //
-                    });
-
-                    return n;
-                }
-            }
-        }
-
-
         public int DeleteEntry(Guid driveId, Guid fileId)
         {
             using (var conn = _db.CreateDisposableConnection())
@@ -68,6 +38,44 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
+
+
+        /// <summary>
+        /// By design does NOT update the TransferHistory and ReactionSummary fields, even when 
+        /// they are specified in the record.
+        /// </summary>
+        /// <param name="driveMainIndexRecord"></param>
+        /// <param name="accessControlList"></param>
+        /// <param name="tagIdList"></param>
+        /// <returns></returns>
+        public int BaseUpsertEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null)
+        {
+            driveMainIndexRecord.identityId = _db._identityId;
+
+            lock (_dbLock)
+            {
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    int n = 0;
+                    conn.CreateCommitUnitOfWork(() =>
+                    {
+                        n = _db.tblDriveMainIndex.UpsertAllButReactionsAndTransfer(conn, driveMainIndexRecord);
+
+                        _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        _db.tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                        _db.tblDriveTagIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        _db.tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+
+                        // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                        //
+                    });
+
+                    return n;
+                }
+            }
+        }
 
 
         public int BaseUpdateEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
