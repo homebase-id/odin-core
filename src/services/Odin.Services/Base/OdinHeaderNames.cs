@@ -2,6 +2,9 @@ namespace Odin.Services.Base
 {
     public static class OdinHeaderNames
     {
+        
+        public static string EstablishConnectionAuthToken = "X-DI-EC-ClientAuthToken";
+        
         public static string ClientAuthToken = "X-DI-ClientAuthToken";
         
         /// <summary>

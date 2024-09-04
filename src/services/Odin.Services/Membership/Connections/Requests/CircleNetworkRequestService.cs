@@ -398,9 +398,13 @@ namespace Odin.Services.Membership.Connections.Requests
                     {
                         var json = OdinSystemSerializer.Serialize(acceptedReq);
                         var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), remoteClientAccessToken.SharedSecret);
-                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(senderOdinId);
+                        var d = new Dictionary<string, string>()
+                        {
+                            { OdinHeaderNames.EstablishConnectionAuthToken, authenticationToken64 }
+                        };
+                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(senderOdinId, headers: d);
 
-                        httpResponse = await client.EstablishConnection(encryptedPayload, authenticationToken64);
+                        httpResponse = await client.EstablishConnection(encryptedPayload);
                     });
             }
             catch (TryRetryException)
@@ -448,6 +452,8 @@ namespace Odin.Services.Membership.Connections.Requests
             // therefore, all operations that require master key or owner access must have already been completed
 
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
+
+
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
 
             var originalRequest = await GetSentRequestInternal(odinContext.GetCallerOdinIdOrFail(), cn);

@@ -19,7 +19,7 @@ namespace Odin.Services.Membership.Connections.Requests
         Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] RsaEncryptedPayload request);
 
         [Post(RootPath + "/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, string authenticationToken64);
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply);
         
         /// <summary>
         /// Makes an introduction between two identities

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage;
@@ -17,18 +18,18 @@ namespace Odin.Services.Base
     public class OdinHttpClientFactory : IOdinHttpClientFactory
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        
+
         private readonly ICertificateServiceFactory _certificateServiceFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICorrelationContext _correlationContext;
         private readonly OdinConfiguration _config;
 
-        public static string HttpFactoryKey(string domain) => $"{nameof(OdinHttpClientFactory)}.{domain}"; 
-        
+        public static string HttpFactoryKey(string domain) => $"{nameof(OdinHttpClientFactory)}.{domain}";
+
         public OdinHttpClientFactory(
             IHttpClientFactory httpClientFactory,
-            ICertificateServiceFactory certificateServiceFactory, 
-            TenantContext tenantContext, 
+            ICertificateServiceFactory certificateServiceFactory,
+            TenantContext tenantContext,
             ICorrelationContext correlationContext,
             OdinConfiguration config)
         {
@@ -38,24 +39,25 @@ namespace Odin.Services.Base
             _correlationContext = correlationContext;
             _config = config;
         }
-        
+
         //
-        
+
         public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
         {
             return this.CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
         }
-        
+
         //
-        
-        public T CreateClient<T>(OdinId odinId, FileSystemType? fileSystemType = null)
+
+        public T CreateClient<T>(OdinId odinId, FileSystemType? fileSystemType = null, Dictionary<string, string> headers = null)
         {
-            return this.CreateClientInternal<T>(odinId, null, fileSystemType);
+            return this.CreateClientInternal<T>(odinId, null, fileSystemType, headers);
         }
-        
+
         //
-        
-        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType)
+
+        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType,
+            Dictionary<string, string> headers = null)
         {
             var httpClientKey = HttpFactoryKey(_tenantContext.HostOdinId.DomainName);
             var httpClient = _httpClientFactory.CreateClient(httpClientKey);
@@ -67,7 +69,7 @@ namespace Odin.Services.Base
                 Port = _config.Host.DefaultHttpsPort
             }.Uri;
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
-            
+
             if (fileSystemType.HasValue)
             {
                 httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
@@ -83,17 +85,24 @@ namespace Odin.Services.Base
                 //TODO: need to encrypt this token somehow? (shared secret?)
                 httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
-            
+
+            if (null != headers)
+            {
+                foreach (var header in headers)
+                {
+                    if (!httpClient.DefaultRequestHeaders.TryGetValues(header.Key, out _))
+                    {
+                        httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+                    }
+                }
+            }
+
             var ogClient = RestService.For<T>(httpClient);
             return ogClient;
         }
 
         //
-
     }
-    
-    //
-   
-    
-}
 
+    //
+}
