@@ -1001,7 +1001,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.FileMetadata.AppData.UniqueId = null;
 
             await this.UpdateActiveFileHeader(file, header, odinContext, db, raiseEvent: true);
-            await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext, db);
+            if (header.FileMetadata.ReactionPreview == null)
+            {
+                var lts = await GetLongTermStorageManager(file.DriveId, db);
+                await lts.DeleteReactionSummary(file.FileId, db);
+            }
+            else
+            {
+                await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext, db);
+            }
+            
         }
 
         public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext, IdentityDatabase db)
@@ -1143,11 +1152,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
+            // TODO CONNECTIONS - need a transaction here
             var lts = await GetLongTermStorageManager(file.DriveId, db);
             await lts.DeleteAttachments(file.FileId);
             await this.WriteFileHeaderInternal(deletedServerFileHeader, db);
-            await lts.SaveReactionHistory(deletedServerFileHeader.FileMetadata.File.FileId, null, db);
-            await lts.SaveTransferHistory(deletedServerFileHeader.FileMetadata.File.FileId, null, db);
+            await lts.DeleteReactionSummary(deletedServerFileHeader.FileMetadata.File.FileId, db);
+            await lts.DeleteTransferHistory(deletedServerFileHeader.FileMetadata.File.FileId, db);
 
             if (await ShouldRaiseDriveEvent(file, db))
             {

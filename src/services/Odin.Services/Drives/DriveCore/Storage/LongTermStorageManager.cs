@@ -64,7 +64,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var mgr = await GetDbManager(db);
             await mgr.SaveFileHeader(header, db);
         }
-        
+
         public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
@@ -78,13 +78,26 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var mgr = await GetDbManager(db);
             await mgr.SaveTransferHistory(fileId, history, db);
         }
-        
+
+        public async Task DeleteTransferHistory(Guid fileId, IdentityDatabase db)
+        {
+            var mgr = await GetDbManager(db);
+            await mgr.SaveTransferHistory(fileId, null, db);
+        }
+
         public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
         {
+            OdinValidationUtils.AssertNotNull(summary, nameof(summary));
             var mgr = await GetDbManager(db);
             await mgr.SaveReactionSummary(fileId, summary, db);
         }
-        
+
+        public async Task DeleteReactionSummary(Guid fileId, IdentityDatabase db)
+        {
+            var mgr = await GetDbManager(db);
+            await mgr.SaveReactionSummary(fileId, null, db);
+        }
+
         public async Task DeleteThumbnailFile(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height, int width)
         {
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
