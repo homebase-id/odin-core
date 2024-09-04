@@ -17,7 +17,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _db = new IdentityDatabase(Guid.NewGuid(), "massif.db");
+            _db = new IdentityDatabase(Guid.NewGuid(), Guid.NewGuid()+ToString()+".db");
             using (var myc = _db.CreateDisposableConnection())
             {
                 _db.CreateDatabase();
@@ -170,8 +170,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     var v1 = Guid.NewGuid().ToByteArray();
 
                     var r = _db.tblKeyValue.Get(k1);
-                    _db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
-                    r = _db.tblKeyValue.Get(k1);
+                    _db.tblKeyValue.Insert(myc, new KeyValueRecord() { identityId = _db._identityId, key = k1, data = v1 });
+                    r = _db.tblKeyValue.Get(myc, _db._identityId, k1);
                     timers[i] = sw.ElapsedMilliseconds;
                 }
             }
