@@ -142,29 +142,35 @@ public class IntroductionTestsSendingIntroductions
         
         var unblockResponse = await merryOwnerClient.Network.UnblockConnection(sam);
         Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
+        
+        await Shutdown();
+
     }
 
     [Test]
     public async Task WillFailToSendConnectionRequestWhenRecipientIsBlocked()
     {
-        var sam = TestIdentities.Samwise.OdinId;
-        var merry = TestIdentities.Merry.OdinId;
+        var frodo = TestIdentities.Frodo.OdinId;
+        var pippin = TestIdentities.Pippin.OdinId;
 
-        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
+        var frodoOnwerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
-        var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
+        var blockResponse = await pippinOwnerClient.Network.BlockConnection(frodo);
         Assert.IsTrue(blockResponse.IsSuccessStatusCode);
 
-        var samInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(sam);
-        Assert.IsTrue(samInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(samInfoResponse.Content.Status == ConnectionStatus.Blocked);
+        var frodoInfoResponse = await pippinOwnerClient.Network.GetConnectionInfo(frodo);
+        Assert.IsTrue(frodoInfoResponse.IsSuccessStatusCode);
+        Assert.IsTrue(frodoInfoResponse.Content.Status == ConnectionStatus.Blocked);
 
-        var requestToMerryResponse = await samOwnerClient.Connections.SendConnectionRequest(merry);
-        Assert.IsTrue(requestToMerryResponse.StatusCode == HttpStatusCode.Forbidden);
+        var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(pippin);
+        Assert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.Forbidden);
         
-        var unblockResponse = await merryOwnerClient.Network.UnblockConnection(sam);
+        var unblockResponse = await pippinOwnerClient.Network.UnblockConnection(frodo);
         Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
+        
+        await Shutdown();
+
     }
 
     [Test]
