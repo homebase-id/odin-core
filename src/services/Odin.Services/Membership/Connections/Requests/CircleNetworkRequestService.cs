@@ -204,8 +204,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public async Task ReceiveConnectionRequest(RsaEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
-            //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the odin network
-            //_context.GetCurrent().AssertCanManageConnections();
+            odinContext.Caller.AssertCallerIsAuthenticated();
 
             //TODO: check robot detection code
 
@@ -706,10 +705,12 @@ namespace Odin.Services.Membership.Connections.Requests
                 if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 {
                     //overwrite this with new request and send it
+                    await CreateAndSendRequestInternal(header, odinContext, cn);
                 }
                 else if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                 {
                     //merge with existing request
+                    throw new NotImplementedException("TODO: merge with existing request and resend");
                 }
             }
         }
@@ -756,13 +757,12 @@ namespace Odin.Services.Membership.Connections.Requests
                     }
                     else if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                     {
-                        //TODO: Clean this up
+                        // Resend the request 
                         var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                         var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(
                             keyStoreKey,
                             ClientTokenType.IdentityConnectionRegistration);
 
-                        // Resend the request
                         var redactedRequest = existingOutgoingRequest;
                         redactedRequest.ClientAccessToken64 = clientAccessToken.ToPortableBytes64();
                         redactedRequest.PendingAccessExchangeGrant = null;

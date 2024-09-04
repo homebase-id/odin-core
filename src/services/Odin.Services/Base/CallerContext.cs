@@ -72,7 +72,9 @@ namespace Odin.Services.Base
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
+        
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
+        public bool IsAuthenticated => this.SecurityLevel == SecurityGroupType.Authenticated;
 
         public void AssertHasMasterKey()
         {
@@ -97,6 +99,14 @@ namespace Odin.Services.Base
             }
         }
 
+        public void AssertCallerIsAuthenticated()
+        {
+            if (!IsAuthenticated)
+            {
+                throw new OdinSecurityException("Caller must be authenticated");
+            }
+        }
+        
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>
