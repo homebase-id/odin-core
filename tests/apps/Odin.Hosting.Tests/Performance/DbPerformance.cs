@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests.Performance
 
         private WebScaffold _scaffold;
         private IdentityDatabase _db;
-        private SingleKeyValueStorage storage;
+        // private SingleKeyValueStorage storage;
         private Guid[] _keys = new Guid[KEYS];
 
         public class Item
