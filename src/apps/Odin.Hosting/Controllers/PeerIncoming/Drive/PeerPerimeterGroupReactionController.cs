@@ -21,15 +21,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("add")]
         public async Task<PeerResponseCode> AddReactionContent(RemoteReactionRequestRedux request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await groupReactionInboxRouterService.AddReaction(request, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await groupReactionInboxRouterService.AddReaction(request, WebOdinContext, db);
         }
 
         [HttpPost("delete")]
         public async Task<PeerResponseCode> DeleteReactionContent([FromBody] RemoteReactionRequestRedux request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await groupReactionInboxRouterService.DeleteReaction(request, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await groupReactionInboxRouterService.DeleteReaction(request, WebOdinContext, db);
         }
     }
 }

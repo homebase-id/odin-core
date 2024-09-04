@@ -24,12 +24,12 @@ public abstract class DriveStatusControllerBase(
             Type = type
         });
 
-        using var cn = tenantSystemStorage.CreateConnection();
+        var db = tenantSystemStorage.IdentityDatabase;
         var status = new DriveStatus()
         {
-            Inbox = await peerInbox.GetStatus(driveId, cn),
-            Outbox = await peerOutbox.GetOutboxStatus(driveId, cn),
-            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext, cn)
+            Inbox = await peerInbox.GetStatus(driveId, db),
+            Outbox = await peerOutbox.GetOutboxStatus(driveId, db),
+            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext, db)
         };
 
         return new JsonResult(status);

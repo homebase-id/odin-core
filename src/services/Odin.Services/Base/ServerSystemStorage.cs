@@ -26,7 +26,7 @@ public sealed class ServerSystemStorage : IDisposable
         var finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new ServerDatabase(finalPath);
         using var cn = _db.CreateDisposableConnection();
-        _db.CreateDatabase(cn, false);
+        _db.CreateDatabase(false);
     }
 
     public void Dispose()

@@ -6,34 +6,52 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase;
 
 public class TableAppNotifications: TableAppNotificationsCRUD
 {
+    private readonly IdentityDatabase _db;
+
     public TableAppNotifications(IdentityDatabase db, CacheHelper cache) : base(db, cache)
     {
+        _db = db;
     }
 
-    public AppNotificationsRecord Get(DatabaseConnection conn, Guid notificationId)
+    public AppNotificationsRecord Get(Guid notificationId)
     {
-        return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, notificationId);
+        using (var myc = _db.CreateDisposableConnection())
+        {
+            return base.Get(myc, _db._identityId, notificationId);
+        }
     }
 
-    public new int Insert(DatabaseConnection conn, AppNotificationsRecord item)
+    public int Insert(AppNotificationsRecord item)
     {
-        item.identityId = ((IdentityDatabase)conn.db)._identityId;
-        return base.Insert(conn, item);
+        item.identityId = _db._identityId;
+        using (var myc = _db.CreateDisposableConnection())
+        {
+            return base.Insert(myc, item);
+        }
     }
 
-    public new int Update(DatabaseConnection conn, AppNotificationsRecord item)
+    public int Update(AppNotificationsRecord item)
     {
-        item.identityId = ((IdentityDatabase)conn.db)._identityId;
-        return base.Update(conn, item);
+        item.identityId = _db._identityId;
+        using (var myc = _db.CreateDisposableConnection())
+        {
+            return base.Update(myc, item);
+        }
     }
 
-    public List<AppNotificationsRecord> PagingByCreated(DatabaseConnection conn, int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+    public List<AppNotificationsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
     {
-        return base.PagingByCreated(conn, count, ((IdentityDatabase)conn.db)._identityId, inCursor, out nextCursor); 
+        using (var myc = _db.CreateDisposableConnection())
+        {
+            return base.PagingByCreated(myc, count, _db._identityId, inCursor, out nextCursor);
+        }
     }
 
-    public int Delete(DatabaseConnection conn, Guid notificationId)
+    public int Delete(Guid notificationId)
     {
-        return base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, notificationId);
+        using (var myc = _db.CreateDisposableConnection())
+        {
+            return base.Delete(myc, _db._identityId, notificationId);
+        }
     }
 }

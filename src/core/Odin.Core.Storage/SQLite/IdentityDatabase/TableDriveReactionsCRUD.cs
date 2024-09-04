@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -105,7 +106,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, DriveReactionsRecord item)
+        internal virtual int Insert(DatabaseConnection conn, DriveReactionsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -139,7 +140,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, DriveReactionsRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, DriveReactionsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -173,7 +174,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, DriveReactionsRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, DriveReactionsRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -206,7 +207,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, DriveReactionsRecord item)
+        internal virtual int Update(DatabaseConnection conn, DriveReactionsRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -241,7 +242,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -265,7 +266,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        protected virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
+        internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
             using (var _getCountDriveCommand = _database.CreateCommand())
             {
@@ -283,7 +284,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,identity,postId,singleReaction
-        protected DriveReactionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveReactionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -339,7 +340,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -374,7 +375,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected int DeleteAllReactions(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId)
+        internal int DeleteAllReactions(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
             using (var _delete1Command = _database.CreateCommand())
             {
@@ -402,7 +403,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected DriveReactionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        internal DriveReactionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -422,7 +423,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected DriveReactionsRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        internal DriveReactionsRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");

@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests.Performance
 
         private WebScaffold _scaffold;
         private IdentityDatabase _db;
-        private SingleKeyValueStorage storage;
+        // private SingleKeyValueStorage storage;
         private Guid[] _keys = new Guid[KEYS];
 
         public class Item
@@ -38,28 +38,28 @@ namespace Odin.Hosting.Tests.Performance
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
             _db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
-            using (var myc = _db.CreateDisposableConnection())
-            {
-                _db.CreateDatabase(myc);
-                storage = new SingleKeyValueStorage(testContextKey);
-
-                for (int i = 0; i < KEYS; i++)
-                {
-                    _keys[i] = Guid.NewGuid();
-                    var v1 = Guid.NewGuid().ToByteArray();
-
-                    // Create an instance of Item
-                    var item = new Item
-                    {
-                        Name = $"Test Item {i}",
-                        Data = new byte[] { (byte)(i % 256), 2, 3, 4, 5, /* ... */ } // This should contain 50 elements
-                    };
-
-                    // storage.Upsert<Item>(_keys[i], item);
-                    _db.tblKeyValue.Upsert(myc, new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
-                    // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
-                }
-            }
+            // using (var myc = _db.CreateDisposableConnection())
+            // {
+            //     _db.CreateDatabase();
+            //     storage = new SingleKeyValueStorage(testContextKey);
+            //
+            //     for (int i = 0; i < KEYS; i++)
+            //     {
+            //         _keys[i] = Guid.NewGuid();
+            //         var v1 = Guid.NewGuid().ToByteArray();
+            //
+            //         // Create an instance of Item
+            //         var item = new Item
+            //         {
+            //             Name = $"Test Item {i}",
+            //             Data = new byte[] { (byte)(i % 256), 2, 3, 4, 5, /* ... */ } // This should contain 50 elements
+            //         };
+            //
+            //         // storage.Upsert<Item>(_keys[i], item);
+            //         _db.tblKeyValue.Upsert(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
+            //         // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
+            //     }
+            // }
         }
 
         [OneTimeTearDown]
@@ -188,7 +188,7 @@ TaskPerformanceTest_Db_MultiThread
                 {
                     sw.Restart();
 
-                    var r = _db.tblKeyValue.Get(myc, _keys[0].ToByteArray());
+                    var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
                     Debug.Assert(r != null);
 
                     timers[count] = sw.ElapsedMilliseconds;

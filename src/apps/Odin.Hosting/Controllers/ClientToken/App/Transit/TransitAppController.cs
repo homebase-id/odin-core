@@ -18,8 +18,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
         public async Task<InboxStatus> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
-            using var cn = tenantSystemStorage.CreateConnection();
-            var result = await peerInboxProcessor.ProcessInbox(request.TargetDrive, WebOdinContext, cn, request.BatchSize);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var result = await peerInboxProcessor.ProcessInbox(request.TargetDrive, WebOdinContext, db, request.BatchSize);
             return result;
         }
     }

@@ -14,23 +14,23 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseConcurrencyTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(myc, k1);
+                var r = db.tblKeyValue.Get(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k2, data = v2 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(myc, k1);
+                r = db.tblKeyValue.Get(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
             }
@@ -48,13 +48,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             void writeDB1(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 10000; i++)
-                    db.tblKeyValue.Update(myc, new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Update(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
             void writeDB2(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 10000; i++)
-                    db.tblKeyTwoValue.Insert(myc, new KeyTwoValueRecord()
+                    db.tblKeyTwoValue.Insert(new KeyTwoValueRecord()
                     { key1 = Rows[i], key2 = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             }
 
@@ -62,19 +62,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             {
                 for (int i = 0; i < 10000; i++)
-                    db.tblKeyValue.Get(myc, Rows[i]);
+                    db.tblKeyValue.Get(Rows[i]);
             }
 
             using var db = new IdentityDatabase(Guid.NewGuid(), ""); // 1ms commit frequency
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 for (int i = 0; i < 10000; i++)
                 {
                     Rows.Add(Guid.NewGuid().ToByteArray());
-                    db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Insert(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
                 }
 
                 Thread tw1 = new Thread(() => writeDB1(db, myc));
@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             {
                 for (int i = 0; i < 10000; i++)
                 {
-                    db.tblKeyTwoValue.Update(myc, new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyTwoValue.Update(new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 }
             }
 
@@ -112,7 +112,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             {
                 for (int i = 0; i < 3; i++)
                 {
-                    var r = db.tblKeyTwoValue.GetByKeyTwo(myc, Guid.Empty.ToByteArray());
+                    var r = db.tblKeyTwoValue.GetByKeyTwo(Guid.Empty.ToByteArray());
                     if (r.Count != 10000)
                         Assert.Fail();
                 }
@@ -122,12 +122,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 for (int i = 0; i < 10000; i++)
                 {
                     Rows.Add(Guid.NewGuid().ToByteArray());
-                    db.tblKeyTwoValue.Insert(myc, new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 }
 
                 Thread tr = new Thread(() => readDB(db, myc));
@@ -152,7 +152,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db1.CreateDisposableConnection())
             {
-                db1.CreateDatabase(myc);
+                db1.CreateDatabase();
                 try
                 {
                     using var db2 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");

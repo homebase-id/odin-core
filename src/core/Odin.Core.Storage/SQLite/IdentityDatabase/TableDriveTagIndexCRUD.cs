@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -92,7 +93,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -122,7 +123,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -152,7 +153,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -181,7 +182,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -212,7 +213,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -235,7 +236,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        protected virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
+        internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
             using (var _getCountDriveCommand = _database.CreateCommand())
             {
@@ -253,7 +254,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,fileId,tagId
-        protected DriveTagIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveTagIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -305,7 +306,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -333,7 +334,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
             using (var _delete1Command = _database.CreateCommand())
             {
@@ -357,7 +358,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected DriveTagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal DriveTagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -373,7 +374,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected DriveTagIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal DriveTagIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             using (var _get0Command = _database.CreateCommand())
             {
@@ -411,7 +412,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected List<Guid> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal List<Guid> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
             using (var _get1Command = _database.CreateCommand())
             {
@@ -437,7 +438,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
                         if (!rdr.Read()) {
-                            return null;
+                            return thelistresult;
                         }
                     byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -142,7 +143,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual int Insert(DatabaseConnection conn, AppNotificationsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -192,7 +193,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -242,7 +243,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
             using (var _upsertCommand = _database.CreateCommand())
             {
@@ -303,7 +304,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual int Update(DatabaseConnection conn, AppNotificationsRecord item)
         {
             using (var _updateCommand = _database.CreateCommand())
             {
@@ -353,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -381,7 +382,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified
-        protected AppNotificationsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal AppNotificationsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -461,7 +462,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid notificationId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -483,7 +484,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected AppNotificationsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid notificationId)
+        internal AppNotificationsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -545,7 +546,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected AppNotificationsRecord Get(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal AppNotificationsRecord Get(DatabaseConnection conn, Guid identityId,Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
@@ -580,7 +581,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected List<AppNotificationsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal List<AppNotificationsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
