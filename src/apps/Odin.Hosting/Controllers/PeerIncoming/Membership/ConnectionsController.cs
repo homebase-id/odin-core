@@ -17,10 +17,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("verify-identity-connection")]
-        public async Task<IActionResult> VerifyConnection([FromBody] SharedSecretEncryptedPayload payload)
+        public async Task<IActionResult> VerifyConnection()
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            var code = await circleNetwork.VerifyConnectionCode(payload, WebOdinContext, cn);
+            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, cn);
             return new JsonResult(code);
         }
     }

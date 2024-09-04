@@ -34,7 +34,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// A temporary encryption key used during the connection process
         /// </summary>
         public byte[] TempRawKey { get; set; }
-        
+
+        public Guid VerificationRandomCode { get; set; }
+        public byte[] VerificationHash { get; set; }
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.

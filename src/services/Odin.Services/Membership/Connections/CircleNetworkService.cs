@@ -218,7 +218,7 @@ namespace Odin.Services.Membership.Connections
                     this.SaveIcr(info, odinContext, cn);
                     return true;
                 }
-                
+
                 info.Status = ConnectionStatus.None;
                 this.SaveIcr(info, odinContext, cn);
                 return true;
@@ -312,17 +312,11 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Adds the specified odinId to your network
         /// </summary>
-        /// <param name="odinIdentity">The public key certificate containing the domain name which will be connected</param>
-        /// <param name="accessGrant">The access to be given to this connection</param>
-        /// <param name="encryptedCat">The keys used when accessing the remote identity</param>
-        /// <param name="contactData"></param>
-        /// <param name="introducerOdinId"></param>
-        /// <param name="odinContext"></param>
-        /// <param name="connectionRequestOrigin"></param>
         /// <returns></returns>
         public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
+            byte[] verificationHash,
             IOdinContext odinContext, DatabaseConnection cn)
         {
             //TODO: need to add security that this method can be called
@@ -334,18 +328,9 @@ namespace Odin.Services.Membership.Connections
 
             var odinId = (OdinId)odinIdentity;
 
-            //Note: we will just overwrite the record
-            //1. validate current connection state
-            // var info = await this.GetIdentityConnectionRegistrationInternal(odinId);
-
-            // if (info.Status != ConnectionStatus.None)
-            // {
-            //     throw new OdinSecurityException("invalid connection state");
-            // }
-
             //TODO: need to scan the YouAuthServiceClassic to see if this user has a HomeAppIdentityRegistration
 
-            //2. add the record to the list of connections
+            // Add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
             {
                 OdinId = odinId,
@@ -356,7 +341,8 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = accessGrant,
                 EncryptedClientAccessToken = encryptedCat,
                 ConnectionRequestOrigin = connectionRequestOrigin,
-                IntroducerOdinId = introducerOdinId
+                IntroducerOdinId = introducerOdinId,
+                VerificationHash = verificationHash
             };
 
             this.SaveIcr(newConnection, odinContext, cn);
@@ -720,28 +706,31 @@ namespace Odin.Services.Membership.Connections
             //
         }
 
-        public Task<VerifyConnectionResponse> VerifyConnectionCode(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<VerifyConnectionResponse> VerifyConnectionCode(IOdinContext odinContext, DatabaseConnection cn)
         {
             if (!odinContext.Caller.IsConnected)
             {
-                return Task.FromResult(new VerifyConnectionResponse
+                return new VerifyConnectionResponse
                 {
                     IsConnected = false,
                     Hash = null
-                });
+                };
             }
 
-            var key = odinContext.PermissionsContext.SharedSecretKey;
-            var bytes = payload.Decrypt(key);
+            //look up the verification hash on the caller's icr
+            var callerIcr = await this.GetIcr(odinContext.GetCallerOdinIdOrFail(), odinContext, cn, true);
 
-            var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
+            // var key = odinContext.PermissionsContext.SharedSecretKey;
+            // var bytes = payload.Decrypt(key);
+            // var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
             var result = new VerifyConnectionResponse()
             {
                 IsConnected = odinContext.Caller.IsConnected,
-                Hash = this.CreateVerificationHash(c.Code, key)
+                // Hash = this.CreateVerificationHash(c.Code, key)
+                Hash = callerIcr.VerificationHash
             };
 
-            return Task.FromResult(result);
+            return result;
         }
 
 

@@ -123,11 +123,11 @@ public class IntroductionTestsSendingIntroductions
             Message = "test message from frodo",
             Recipients = [sam, merry]
         });
-        
+
         var introResult = firstIntroductionResponse.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
-        
+
         // Assert: Sam should have a connection request from Merry and visa/versa
         await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -139,6 +139,9 @@ public class IntroductionTestsSendingIntroductions
         var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
         var firstRequestFromSam = merryRequestFromSamResponse.Content;
         Assert.IsNull(firstRequestFromSam, "merry should not have a request from sam");
+        
+        var unblockResponse = await merryOwnerClient.Network.UnblockConnection(sam);
+        Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
     }
 
     [Test]
@@ -159,6 +162,9 @@ public class IntroductionTestsSendingIntroductions
 
         var requestToMerryResponse = await samOwnerClient.Connections.SendConnectionRequest(merry);
         Assert.IsTrue(requestToMerryResponse.StatusCode == HttpStatusCode.Forbidden);
+        
+        var unblockResponse = await merryOwnerClient.Network.UnblockConnection(sam);
+        Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
     }
 
     [Test]
@@ -175,9 +181,6 @@ public class IntroductionTestsSendingIntroductions
         await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
         await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
 
-        var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
-        Assert.IsTrue(blockResponse.IsSuccessStatusCode);
-        
         await Prepare();
 
         var firstIntroductionResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup

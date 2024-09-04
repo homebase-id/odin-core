@@ -54,7 +54,7 @@ public class VerifyConnectionTests
         
         await Disconnect();
     }
-
+    
     [Test]
     public async Task VerifyConnectionFailsWhenRecipientNotConnected()
     {
@@ -79,7 +79,8 @@ public class VerifyConnectionTests
         
         await Disconnect();
     }
-
+    
+    
     private async Task Disconnect()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);

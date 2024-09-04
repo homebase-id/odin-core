@@ -56,6 +56,7 @@ public class CircleNetworkStorage
             AccessGrant = icr.AccessGrant,
             OriginalContactData = icr.OriginalContactData,
             IntroducerOdinId = icr.IntroducerOdinId,
+            VerificationHash64 = icr.VerificationHash?.ToBase64(),
             ConnectionOrigin = Enum.GetName(icr.ConnectionRequestOrigin),
             EncryptedClientAccessToken = icr.EncryptedClientAccessToken?.EncryptedData,
         };
@@ -205,7 +206,8 @@ public class CircleNetworkStorage
                 EncryptedData = data.EncryptedClientAccessToken
             },
             ConnectionRequestOrigin = connectionOrigin,
-            IntroducerOdinId = introducerOdinId
+            IntroducerOdinId = introducerOdinId,
+            VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()
         };
     }
 }
@@ -227,5 +229,7 @@ public class IcrAccessRecord
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
     public string IntroducerOdinId { get; init; }
+    
+    public string VerificationHash64 { get; init; }
     public string ConnectionOrigin { get; init; }
 }

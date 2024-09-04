@@ -31,7 +31,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Verifies a connection is valid between two identities
         /// </summary>
         [Post(RootPath + "/verify-identity-connection")]
-        Task<ApiResponse<VerifyConnectionResponse>> VerifyConnection([Body] SharedSecretEncryptedPayload request);
+        Task<ApiResponse<VerifyConnectionResponse>> VerifyConnection();
 
     }
 }
