@@ -64,6 +64,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var mgr = await GetDbManager(db);
             await mgr.SaveFileHeader(header, db);
         }
+        
+        public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
+        {
+            OdinValidationUtils.AssertNotNull(header, nameof(header));
+            var mgr = await GetDbManager(db);
+            await mgr.SoftDeleteFileHeader(header, db);
+        }
 
         public async Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db)
         {

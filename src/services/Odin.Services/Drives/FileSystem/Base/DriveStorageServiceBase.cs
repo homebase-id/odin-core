@@ -1146,6 +1146,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var lts = await GetLongTermStorageManager(file.DriveId, db);
             await lts.DeleteAttachments(file.FileId);
             await this.WriteFileHeaderInternal(deletedServerFileHeader, db);
+            await lts.SaveReactionHistory(deletedServerFileHeader.FileMetadata.File.FileId, null, db);
+            await lts.SaveTransferHistory(deletedServerFileHeader.FileMetadata.File.FileId, null, db);
 
             if (await ShouldRaiseDriveEvent(file, db))
             {
