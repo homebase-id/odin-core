@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -82,6 +84,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
         var recipients = group.Recipients.ToOdinIdList();
 
+        // group.Signature = Sign();
         var result = new IntroductionResult();
         foreach (var recipient in recipients.Without(odinContext.Tenant))
         {
@@ -99,13 +102,27 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         return result;
     }
 
+    public SignatureData Sign(byte[] data, SensitiveByteArray password, IOdinContext odinContext)
+    {
+        OdinId signer = odinContext.GetCallerOdinIdOrFail();
+        EccFullKeyData testEccKey = new EccFullKeyData(password, EccKeySize.P384, 1);
+        SignatureData signature = SignatureData.NewSignature(data, signer, password, testEccKey);
+        return signature;
+    }
+
+    public bool VerifySignature(SignatureData signature, byte[] data)
+    {
+        bool isValid = SignatureData.Verify(signature, data);
+        return isValid;
+    }
+
     /// <summary>
     /// Stores an incoming introduction
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.AllowIntroductions);
-        
+
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
         var payloadBytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
@@ -122,7 +139,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             // Note: we do not check if you're already connected or
             // have blocked the identity being introduced as we do not 
             // want to communicate any such information to the introducer
-            
+
             var iid = new IdentityIntroduction()
             {
                 IntroducerOdinId = introducerOdinId,
