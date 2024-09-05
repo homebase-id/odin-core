@@ -38,6 +38,13 @@ This repo includes several pre-built identities for local development and testin
 
 > Their certificates are located in `odin-core/services/Odin.Hosting/https` and are updated every 3 months. You need to ensure they're up to date locally.
 
+## Contributing
+
+Contributions are highly Welcomed 💙 . Feel free to open PRs for small issues such as typos. For large issues or features, please open an issue and wait for it to be assigned to you.
+
+You can reach out to us on our [Discord](<INSERT DISCORD LINK>) server if you have any questions or need help.
+
+
 ### Security disclosures
 
 If you discover any security issues, please send an email to security@homebase.id. The email is automatically CCed to the entire team and we'll respond promptly.

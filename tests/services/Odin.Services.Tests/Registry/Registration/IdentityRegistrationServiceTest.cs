@@ -91,7 +91,7 @@ public class IdentityRegistrationServiceTest
         {
             Registry = new OdinConfiguration.RegistrySection
             {
-                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord, "", ""),
+                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord),
                 ManagedDomainApexes = new List<OdinConfiguration.RegistrySection.ManagedDomainApex>
                 {
                     new()

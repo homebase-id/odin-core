@@ -1,0 +1,43 @@
+﻿FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+LABEL org.opencontainers.image.source="https://github.com/homebase-id/odin-core"
+ARG TARGETARCH
+
+WORKDIR /build
+
+COPY ./common-project.props ./
+
+# Copy project files for restoring
+COPY src/core/Odin.Core/Odin.Core.csproj                src/core/Odin.Core/
+COPY src/apps/Odin.SetupHelper/Odin.SetupHelper.csproj  src/apps/Odin.SetupHelper/
+
+# Restore dependencies
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core/Odin.Core.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/apps/Odin.SetupHelper/Odin.SetupHelper.csproj
+
+# Copy the rest for building
+COPY src/core/Odin.Core/                    src/core/Odin.Core/
+COPY src/apps/Odin.SetupHelper/             src/apps/Odin.SetupHelper/
+
+# Build release
+RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.SetupHelper/Odin.SetupHelper.csproj -c Release -o out
+
+# Create runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
+RUN echo "alias l='ls -lah'" >> ~/.bashrc
+RUN echo "alias ll='ls -lh'" >> ~/.bashrc
+
+RUN apt-get update -q && \
+    apt-get install -yq \
+    curl \
+    less \
+    netcat-openbsd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /build/out .
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "Odin.SetupHelper.dll"]
