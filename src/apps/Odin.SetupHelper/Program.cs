@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Odin.Core.Cache;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
@@ -59,26 +60,79 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapGet("/ping", () => "pong");
 
+app.MapGet("/api/v1/probe-tcp/{domainName}/{hostPort}",
+    async (string domainName, string hostPort, IGenericMemoryCache cache) =>
+        await TcpProbe(domainName, hostPort, cache));
+
 app.MapGet("/api/v1/probe-http/{domainName}/{hostPort}",
     async (string domainName, string hostPort, IHttpClientFactory httpClientFactory, IGenericMemoryCache cache) =>
-        await Request("http", domainName, hostPort, httpClientFactory, cache));
+        await HttpProbe("http", domainName, hostPort, httpClientFactory, cache));
 
 app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
     async (string domainName, string hostPort, IHttpClientFactory httpClientFactory, IGenericMemoryCache cache) =>
-        await Request("https", domainName, hostPort, httpClientFactory, cache));
+        await HttpProbe("https", domainName, hostPort, httpClientFactory, cache));
 
 app.Run();
 return;
 
 //
 
-async Task<IResult> Request(
+async Task<IResult> TcpProbe(
+    string domainName,
+    string hostPort,
+    IGenericMemoryCache cache)
+{
+    domainName = domainName.ToLower();
+    if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
+    {
+        return Results.BadRequest("Invalid domain name");
+    }
+
+    if (!int.TryParse(hostPort, out var port))
+    {
+        return Results.BadRequest("Invalid port number");
+    }
+
+    if (port is < 1 or > 65535)
+    {
+        return Results.BadRequest("Port number out of range");
+    }
+
+    var cacheKey = $"tcp:{domainName}:{port}";
+    if (cache.TryGet<RequestResult>(cacheKey, out var requestResult) && requestResult != null)
+    {
+        return requestResult.Success
+            ? Results.Ok($"{requestResult.Message} [cache hit]")
+            : Results.BadRequest($"{requestResult.Message} [cache hit]");
+    }
+
+    try
+    {
+        using var tcpClient = new TcpClient();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await tcpClient.ConnectAsync(domainName, port, cts.Token);
+        var result = new RequestResult(true, $"Successfully connected to TCP: {domainName}:{port}");
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        return Results.Ok(result.Message);
+    }
+    catch (Exception)
+    {
+        var result = new RequestResult(false, $"Failed to connect to TCP: {domainName}:{port}");
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        return Results.BadRequest(result.Message);
+    }
+}
+
+//
+
+async Task<IResult> HttpProbe(
     string scheme,
     string domainName,
     string hostPort,
     IHttpClientFactory httpClientFactory,
     IGenericMemoryCache cache)
 {
+    domainName = domainName.ToLower();
     if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
     {
         return Results.BadRequest("Invalid domain name");
