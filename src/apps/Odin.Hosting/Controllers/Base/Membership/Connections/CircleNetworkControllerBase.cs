@@ -6,14 +6,14 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Verification;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
     public abstract class CircleNetworkControllerBase(
         CircleNetworkService circleNetwork,
         TenantSystemStorage tenantSystemStorage,
-        CircleNetworkRequestService requestService)
+        CircleNetworkVerificationService verificationService)
         : OdinControllerBase
     {
         [HttpPost("unblock")]
@@ -52,7 +52,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
             using var cn = tenantSystemStorage.CreateConnection();
-            var result = await requestService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
+            var result = await verificationService.VerifyConnection((OdinId)request.OdinId, WebOdinContext, cn);
             return new JsonResult(result);
         }
 

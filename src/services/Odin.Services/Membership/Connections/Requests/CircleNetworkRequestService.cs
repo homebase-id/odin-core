@@ -27,6 +27,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Util;
 using Refit;
@@ -56,6 +57,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly DriveManager _driveManager;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly FollowerService _followerService;
+        private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
@@ -74,6 +76,7 @@ namespace Odin.Services.Membership.Connections.Requests
             DriveManager driveManager,
             FollowerService followerService,
             FileSystemResolver fileSystemResolver,
+            CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration)
             : base(odinHttpClientFactory, cns, fileSystemResolver)
         {
@@ -88,6 +91,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _driveManager = driveManager;
             _followerService = followerService;
+            _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
 
 
@@ -179,7 +183,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if ((await this.VerifyConnection(recipient, odinContext, cn)).IsValid)
+                if ((await _verificationService.VerifyConnection(recipient, odinContext, cn)).IsValid)
                 {
                     //connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -221,7 +225,7 @@ namespace Odin.Services.Membership.Connections.Requests
             //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
             if (existingConnection.IsConnected())
             {
-                if ((await this.VerifyConnection(sender, odinContext, cn)).IsValid)
+                if ((await _verificationService.VerifyConnection(sender, odinContext, cn)).IsValid)
                 {
                     _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
             
@@ -547,74 +551,7 @@ namespace Odin.Services.Membership.Connections.Requests
             odinContext.AssertCanManageConnections();
             return DeletePendingRequestInternal(sender, cn);
         }
-
-        public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            var icr = await _cns.GetIcr(recipient, odinContext, cn, overrideHack: true);
-
-            if (!icr.IsConnected())
-            {
-                return new IcrVerificationResult
-                {
-                    IsValid = false,
-                    RemoteIdentityWasConnected = null
-                };
-            }
-
-            var expectedHash = icr!.VerificationHash;
-
-            var result = new IcrVerificationResult();
-            try
-            {
-                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
-
-                ApiResponse<VerifyConnectionResponse> response;
-                await TryRetry.WithDelayAsync(
-                    _odinConfiguration.Host.PeerOperationMaxAttempts,
-                    _odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () =>
-                    {
-                        // var vc = new VerificationCode()
-                        // {
-                        //     Code = randomCode
-                        // };
-                        //
-                        // var json = OdinSystemSerializer.Serialize(vc);
-
-                        // var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                        var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
-                            clientAuthToken.ToAuthenticationToken());
-
-                        // response = await client.VerifyConnection(encryptedPayload);
-                        response = await client.VerifyConnection();
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var vcr = response.Content;
-
-                            //only compare if we get back a good code, so we don't kill
-                            //an ICR because the remote server is not responding
-                            result.RemoteIdentityWasConnected = vcr.IsConnected;
-                            if (vcr.IsConnected)
-                            {
-                                result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
-                            }
-                        }
-                        else
-                        {
-                            // If we got back any other type of response, let's tell the caller
-                            throw new OdinSystemException("Cannot verify connection due to remote server error");
-                        }
-                    });
-            }
-            catch (TryRetryException e)
-            {
-                throw e.InnerException ?? e;
-            }
-
-            return result;
-        }
-
+        
         public async Task<bool> HasPendingOrSentRequest(OdinId identity, IOdinContext odinContext, DatabaseConnection cn)
         {
             var hasPendingRequest = await GetPendingRequest(identity, odinContext, cn);

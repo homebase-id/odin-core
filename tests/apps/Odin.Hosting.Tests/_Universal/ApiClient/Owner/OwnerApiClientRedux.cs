@@ -1,6 +1,7 @@
 ﻿using System;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
+using Odin.Hosting.Tests._Universal.ApiClient.DataConversion;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Follower;
@@ -51,10 +52,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
-            // Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
             Connections = new UniversalCircleNetworkRequestsApiClient(identity.OdinId, factory);
 
             AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
+
+            DataConversion = new UniversalDataConversionApiClient(identity.OdinId, factory);
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -94,5 +96,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public OwnerAccountManagementApiClient AccountManagement { get; }
 
         public YouAuthDomainApiClient YouAuth { get; }
+
+        public UniversalDataConversionApiClient DataConversion { get; }
     }
 }

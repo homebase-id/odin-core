@@ -7,9 +7,9 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 
-namespace Odin.Hosting.Tests._Universal.Owner.Connections;
+namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
-public class IntroductionTestsSendingIntroductions
+public class SendingIntroductionsTests
 {
     private WebScaffold _scaffold;
 
@@ -83,18 +83,20 @@ public class IntroductionTestsSendingIntroductions
         Assert.IsTrue(requestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(requestFromSam.IntroducerOdinId == frodo);
 
-        await Shutdown();
+        await Cleanup();
     }
 
     [Test]
-    public async Task WillFailWithBadRequestToSendConnectionRequestWhenRecipientAlreadyConnectedWithValidConnection()
+    public async Task WillFailToSendConnectionRequestWithBadRequestWhenRecipientAlreadyConnectedWithValidConnection()
     {
         await Prepare();
 
-        // send a new connection request sam to frodo
-        // should give back bad request
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var sendConnectionRequestResponse = await samOwnerClient.Connections.SendConnectionRequest(TestIdentities.Frodo.OdinId);
+        Assert.IsTrue(sendConnectionRequestResponse.StatusCode == HttpStatusCode.BadRequest);
+        
+        await Cleanup();
 
-        Assert.Inconclusive("TODO");
     }
 
     [Test]
@@ -139,12 +141,11 @@ public class IntroductionTestsSendingIntroductions
         var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
         var firstRequestFromSam = merryRequestFromSamResponse.Content;
         Assert.IsNull(firstRequestFromSam, "merry should not have a request from sam");
-        
+
         var unblockResponse = await merryOwnerClient.Network.UnblockConnection(sam);
         Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
-        
-        await Shutdown();
 
+        await Cleanup();
     }
 
     [Test]
@@ -165,12 +166,11 @@ public class IntroductionTestsSendingIntroductions
 
         var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(pippin);
         Assert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.Forbidden);
-        
+
         var unblockResponse = await pippinOwnerClient.Network.UnblockConnection(frodo);
         Assert.IsTrue(unblockResponse.IsSuccessStatusCode);
-        
-        await Shutdown();
 
+        await Cleanup();
     }
 
     [Test]
@@ -244,7 +244,7 @@ public class IntroductionTestsSendingIntroductions
         Assert.IsTrue(secondRequestFromSam.IntroducerOdinId == frodo);
         Assert.IsTrue(secondRequestFromSam.ReceivedTimestampMilliseconds > firstRequestFromSam.ReceivedTimestampMilliseconds);
 
-        await Shutdown();
+        await Cleanup();
     }
 
 
@@ -294,7 +294,7 @@ public class IntroductionTestsSendingIntroductions
         Assert.IsTrue(getMerryConnectionInfoResponse.IsSuccessStatusCode);
         Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.None, "merry should not be connected to sam");
 
-        await Shutdown();
+        await Cleanup();
     }
 
 
@@ -316,7 +316,7 @@ public class IntroductionTestsSendingIntroductions
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
     }
 
-    private async Task Shutdown()
+    private async Task Cleanup()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -327,5 +327,8 @@ public class IntroductionTestsSendingIntroductions
 
         await merry.Connections.DisconnectFrom(frodo.Identity.OdinId);
         await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
+
+        await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
+        await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
     }
 }

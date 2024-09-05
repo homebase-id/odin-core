@@ -76,7 +76,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// A hash generated when the connection is established based a random code and the shared secret
         /// </summary>
-        public byte[] VerificationHash { get; init; }
+        public byte[] VerificationHash { get; set; }
 
         public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {

@@ -23,6 +23,8 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Verification;
+using Odin.Services.Util;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
@@ -716,17 +718,18 @@ namespace Odin.Services.Membership.Connections
                     Hash = null
                 };
             }
-
+            
             //look up the verification hash on the caller's icr
             var callerIcr = await this.GetIcr(odinContext.GetCallerOdinIdOrFail(), odinContext, cn, true);
 
-            // var key = odinContext.PermissionsContext.SharedSecretKey;
-            // var bytes = payload.Decrypt(key);
-            // var c = OdinSystemSerializer.Deserialize<VerificationCode>(bytes.ToStringFromUtf8Bytes());
+            if (callerIcr.VerificationHash?.Length == 0)
+            {
+                throw new OdinSecurityException("Cannot verify caller");
+            }
+
             var result = new VerifyConnectionResponse()
             {
                 IsConnected = odinContext.Caller.IsConnected,
-                // Hash = this.CreateVerificationHash(c.Code, key)
                 Hash = callerIcr.VerificationHash
             };
 
@@ -760,6 +763,29 @@ namespace Odin.Services.Membership.Connections
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
                 await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, cn);
             });
+        }
+
+        public async Task<bool> UpdateVerificationHash(OdinId odinId, Guid randomCode, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            if (!odinContext.Caller.IsOwner)
+            {
+                odinContext.Caller.AssertCallerIsConnected();
+                OdinValidationUtils.AssertIsTrue(odinId == odinContext.GetCallerOdinIdOrFail(), "caller does not match target identity");
+            }
+            
+            var icr = await this.GetIcr(odinId, odinContext, cn);
+
+            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
+            {
+                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+                var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
+
+                icr.VerificationHash = hash;
+                this.SaveIcr(icr, odinContext, cn);
+                return true;
+            }
+
+            return false;
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(

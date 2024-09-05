@@ -43,8 +43,10 @@ using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
+using Odin.Services.DataConversion;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
 namespace Odin.Hosting
@@ -179,7 +181,8 @@ namespace Odin.Hosting
 
             cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
             cb.RegisterType<CircleNetworkIntroductionService>().AsSelf().SingleInstance();
-
+            cb.RegisterType<CircleNetworkVerificationService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
@@ -223,7 +226,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+            cb.RegisterType<DataConversionService>().AsSelf().SingleInstance();
 
             // Background services
             cb.AddTenantBackgroundServices(tenant);

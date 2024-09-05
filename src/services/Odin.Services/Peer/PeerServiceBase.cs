@@ -24,6 +24,9 @@ namespace Odin.Services.Peer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver)
     {
+        protected readonly IOdinHttpClientFactory OdinHttpClientFactory = odinHttpClientFactory;
+
+        protected readonly CircleNetworkService CircleNetworkService = circleNetworkService;
         protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
 
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
@@ -52,7 +55,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
+            var icr = await CircleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -74,13 +77,13 @@ namespace Odin.Services.Peer
 
             if (token == null)
             {
-                var httpClient = odinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
+                var httpClient = OdinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
                 return (null, httpClient);
             }
             else
             {
                 var httpClient =
-                    odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                    OdinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
                 return (token, httpClient);
             }
         }

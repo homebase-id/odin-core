@@ -119,9 +119,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
         foreach (var identity in introduction.Identities.ToOdinIdList())
         {
-            //TODO validate you're not already connected to request.Identity and that you're not blocked
-            // var existingConnection = this._circleNetworkService.GetIdentityConnectionAccessRegistration(identity,...);
-
+            // Note: we do not check if you're already connected or
+            // have blocked the identity being introduced as we do not 
+            // want to communicate any such information to the introducer
+            
             var iid = new IdentityIntroduction()
             {
                 IntroducerOdinId = introducerOdinId,

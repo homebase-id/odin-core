@@ -6,11 +6,10 @@ using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
-using Org.BouncyCastle.Math.EC.Multiplier;
 
-namespace Odin.Hosting.Tests._Universal.Owner.Connections;
+namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
-public class IntroductionTests_AutoAccept
+public class AutoAcceptTests
 {
     private WebScaffold _scaffold;
 
@@ -183,7 +182,5 @@ public class IntroductionTests_AutoAccept
         
         await merry.Connections.DisconnectFrom(sam.OdinId);
         await sam.Connections.DisconnectFrom(merry.OdinId);
-
-        
     }
 }

@@ -26,12 +26,5 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         [Post(RootPath + "/make-introduction")]
         Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request);
-     
-        /// <summary>
-        /// Verifies a connection is valid between two identities
-        /// </summary>
-        [Post(RootPath + "/verify-identity-connection")]
-        Task<ApiResponse<VerifyConnectionResponse>> VerifyConnection();
-
     }
 }

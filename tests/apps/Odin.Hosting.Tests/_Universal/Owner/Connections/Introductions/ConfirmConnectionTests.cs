@@ -6,9 +6,9 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 
-namespace Odin.Hosting.Tests._Universal.Owner.Connections;
+namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
-public class IntroductionTests_ConfirmConnections
+public class ConfirmConnectionTests
 {
     private WebScaffold _scaffold;
 
@@ -90,7 +90,7 @@ public class IntroductionTests_ConfirmConnections
         Assert.IsTrue(merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
         
-        await Shutdown();
+        await Cleanup();
     }
 
     private async Task Prepare()
@@ -111,7 +111,7 @@ public class IntroductionTests_ConfirmConnections
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
     }
 
-    private async Task Shutdown()
+    private async Task Cleanup()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -122,5 +122,9 @@ public class IntroductionTests_ConfirmConnections
 
         await merry.Connections.DisconnectFrom(frodo.Identity.OdinId);
         await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
+        
+        await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
+        await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
+
     }
 }

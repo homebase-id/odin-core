@@ -1,19 +1,22 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Verification;
+using Refit;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
     [ApiController]
     [Route(PeerApiPathConstants.InvitationsV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork,
+        AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class ConnectionsController(
         CircleNetworkService circleNetwork,
+        CircleNetworkVerificationService verificationService,
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("verify-identity-connection")]
@@ -22,6 +25,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             using var cn = tenantSystemStorage.CreateConnection();
             var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, cn);
             return new JsonResult(code);
+        }
+
+        [HttpPost("update-remote-verification-hash")]
+        public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext, cn);
+            return Ok();
         }
     }
 }
