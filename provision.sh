@@ -65,7 +65,7 @@ prompt_choice() {
 
   while true; do
     # Prompt the user
-    read -p "$prompt_message " choice
+    read -r -p "$prompt_message " choice
 
     # Convert the choice to lowercase using tr
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
@@ -77,9 +77,6 @@ prompt_choice() {
         return 0
       fi
     done
-
-    # If we reach here, the input was invalid
-    echo "Invalid selection, please enter one of: ${valid_responses[*]}"
   done
 }
 

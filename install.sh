@@ -1,6 +1,10 @@
 #!/bin/bash
 set -eou pipefail
 
+#
+# Linter: https://www.shellcheck.net/
+#
+
 ###############################################################################
 #
 # main
@@ -26,36 +30,47 @@ main() {
   # Docker image
   if [[ -z "${ODIN_DOCKER_IMAGE:-}" ]]; then
       ODIN_DOCKER_IMAGE="ghcr.io/homebase-id/odin-core:latest"
-      read -p "Homebas Docker image [${ODIN_DOCKER_IMAGE}]: " input
+      read -r -p "Homebase Docker image [${ODIN_DOCKER_IMAGE}]: " input
       ODIN_DOCKER_IMAGE="${input:-$ODIN_DOCKER_IMAGE}"
   fi
 
   # Input container name
   if [[ -z "${ODIN_CONTAINER_NAME:-}" ]]; then
       ODIN_CONTAINER_NAME="identity-host"
-      read -p "Docker container name [${ODIN_CONTAINER_NAME}]: " input
+      read -r -p "Docker container name [${ODIN_CONTAINER_NAME}]: " input
       ODIN_CONTAINER_NAME="${input:-$ODIN_CONTAINER_NAME}"
   fi
 
-  # Input root path
+  # Input root directory
   if [[ -z "${ODIN_ROOT_PATH:-}" ]]; then
       ODIN_ROOT_PATH="/srv/homebase/${ODIN_CONTAINER_NAME}"
-      read -p "Root dirctory [${ODIN_ROOT_PATH}]: " input
+      read -r -p "Docker volume mount root directory [${ODIN_ROOT_PATH}]: " input
       ODIN_ROOT_PATH="${input:-$ODIN_ROOT_PATH}"
   fi
 
+  # Run container detached
+  if [[ -z "${ODIN_RUN_DETACHED:-}" ]]; then
+      ODIN_RUN_DETACHED=$(prompt_choice "Run container detached? (y/n):" "y" "n")
+  fi
+  if [[ "$ODIN_RUN_DETACHED" == "y" ]]; then
+      attached_or_detached_opts=(--detach --restart always)
+  else
+      attached_or_detached_opts=(--rm)
+  fi
+
   echo
-  echo --------------------------------------------------------------------------
+  echo --------------------------------------------------------------------------------
   echo
-  echo "Docker image:             ${ODIN_DOCKER_IMAGE}"
-  echo "Docker container name:    ${ODIN_CONTAINER_NAME}"
-  echo "Root direcotory:          ${ODIN_ROOT_PATH}"
+  echo "Docker image:                       ${ODIN_DOCKER_IMAGE}"
+  echo "Docker container name:              ${ODIN_CONTAINER_NAME}"
+  echo "Docker volume mount root directory: ${ODIN_ROOT_PATH}"
+  echo "Docker run container detached:      ${ODIN_RUN_DETACHED}"
   echo
-  echo --------------------------------------------------------------------------
+  echo --------------------------------------------------------------------------------
   echo
 
-  continue_install=$(prompt_choice "Start Docker container now? (y/n):" "y" "yes" "n" "no")
-  if [[ "$continue_install" != "y" && "$continue_install" != "yes" ]]; then
+  continue_install=$(prompt_choice "Start Docker container now? (y/n):" "y" "n")
+  if [[ "$continue_install" != "y" ]]; then
       exit 1
   fi
 
@@ -63,8 +78,7 @@ main() {
 
   docker run \
       --name "${ODIN_CONTAINER_NAME}" \
-      --detach \
-      --restart always \
+      "${attached_or_detached_opts[@]}" \
       --env Admin__ApiEnabled='False' \
       --env Admin__ApiKey='your-secret-api-key-here' \
       --env Admin__ApiKeyHttpHeaderName='Odin-Admin-Api-Key' \
@@ -98,16 +112,6 @@ main() {
       --env Registry__DnsResolvers__2='9.9.9.9' \
       --env Registry__DnsResolvers__3='208.67.222.222' \
       --env Registry__InvitationCodes__0='anabolicfrolic' \
-      --env Registry__ManagedDomainApexes__0__Apex='demo.rocks' \
-      --env Registry__ManagedDomainApexes__0__PrefixLabels__0='First' \
-      --env Registry__ManagedDomainApexes__0__PrefixLabels__1='Surname' \
-      --env Registry__ManagedDomainApexes__1__Apex='id.pub' \
-      --env Registry__ManagedDomainApexes__1__PrefixLabels__0='First' \
-      --env Registry__ManagedDomainApexes__1__PrefixLabels__1='Surname' \
-      --env Registry__ManagedDomainApexes__2__Apex='indie.social' \
-      --env Registry__ManagedDomainApexes__2__PrefixLabels__0='Name' \
-      --env Registry__PowerDnsApiKey='replace_with_top_secret_powerdns_api_key' \
-      --env Registry__PowerDnsHostAddress='dns.id.pub' \
       --env Registry__ProvisioningDomain='provisioning.dotyou.cloud' \
       --env Registry__ProvisioningEmailLogoHref='https://homebase.id/' \
       --env Registry__ProvisioningEmailLogoImage='https://homebase.id/logo-email.png' \
@@ -116,15 +120,15 @@ main() {
       --env Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Authentication='Error' \
       --env Serilog__MinimumLevel__Override__Microsoft.AspNetCore='Warning' \
       --env Serilog__MinimumLevel__Override__Microsoft='Information' \
-      --publish ${ODIN_HTTP_PORT}:${ODIN_HTTP_PORT} \
-      --publish ${ODIN_HTTPS_PORT}:${ODIN_HTTPS_PORT} \
-      --publish ${ODIN_ADMIN_PORT}:${ODIN_ADMIN_PORT} \
-      --volume ${ODIN_ROOT_PATH}:/homebase \
+      --publish "${ODIN_HTTP_PORT}":"${ODIN_HTTP_PORT}" \
+      --publish "${ODIN_HTTPS_PORT}":"${ODIN_HTTPS_PORT}" \
+      --publish "${ODIN_ADMIN_PORT}":"${ODIN_ADMIN_PORT}" \
       --pull always \
-      ${ODIN_DOCKER_IMAGE}
+      --volume "${ODIN_ROOT_PATH}":/homebase \
+      "${ODIN_DOCKER_IMAGE}"
 
 
-  if [ $? -eq 0 ]; then
+  if [[ $? -eq 0 && $ODIN_RUN_DETACHED == 'y' ]]; then
       echo
       echo "Docker container started."
       echo
@@ -172,7 +176,7 @@ prompt_choice() {
 
   while true; do
     # Prompt the user
-    read -p "$prompt_message " choice
+    read -r -p "$prompt_message " choice
 
     # Convert the choice to lowercase using tr
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
@@ -184,9 +188,6 @@ prompt_choice() {
         return 0
       fi
     done
-
-    # If we reach here, the input was invalid
-    echo "Invalid selection, please enter one of: ${valid_responses[*]}"
   done
 }
 
