@@ -1,0 +1,38 @@
+{
+  "configurations": [
+    {
+      "name": "Odin.Hosting (no symbols)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Odin.Hosting",
+      "program": "${workspaceFolder}/src/apps/Odin.Hosting/bin/Debug/net8.0/Odin.Hosting.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/apps/Odin.Hosting",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "console": "integratedTerminal",
+      "stopAtEntry": false,
+      "justMyCode": true
+    },
+    {
+      "name": "Odin.Hosting (with symbols)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Odin.Hosting",
+      "program": "${workspaceFolder}/src/apps/Odin.Hosting/bin/Debug/net8.0/Odin.Hosting.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/apps/Odin.Hosting",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "console": "integratedTerminal",
+      "stopAtEntry": true,
+      "justMyCode": false,
+      "symbolOptions": {
+        "searchMicrosoftSymbolServer": true,
+        "searchNuGetOrgSymbolServer": true
+      }
+    }
+  ]
+}
