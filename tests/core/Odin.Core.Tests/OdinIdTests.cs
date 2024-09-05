@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 
 namespace Odin.Core.Tests
 {
@@ -18,7 +19,7 @@ namespace Odin.Core.Tests
         [Test(Description = "Can cast to string")]
         public void CanCastToStringTest()
         {
-            string gandalf_as_string = (OdinId) gandalf;
+            string gandalf_as_string = (OdinId)gandalf;
 
             Assert.IsTrue(gandalf_as_string == gandalf);
             Assert.IsFalse(gandalf_as_string == sam);
@@ -28,7 +29,7 @@ namespace Odin.Core.Tests
         public void CanCastFromStringTest()
         {
             string id = "arwen.middleearth.life";
-            OdinId arwen = (OdinId) id;
+            OdinId arwen = (OdinId)id;
             Assert.IsTrue(string.Equals(id, arwen.ToString(), StringComparison.InvariantCultureIgnoreCase));
         }
 
@@ -54,10 +55,11 @@ namespace Odin.Core.Tests
                 OdinId id = new OdinId(null); // Null illegal
                 bOk = false;
             }
-            catch 
+            catch
             {
                 bOk = true;
             }
+
             Assert.IsTrue(bOk);
 
             try
@@ -69,6 +71,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
+
             Assert.IsTrue(bOk);
 
             try
@@ -80,6 +83,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
+
             Assert.IsTrue(bOk);
 
             try
@@ -91,8 +95,39 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
+
             Assert.IsTrue(bOk);
         }
 
+        [Test]
+        public void CanSerializeAndDeserialize()
+        {
+            var c1 = new OdinSerializedTestClass()
+            {
+                OdinIdAsString = "frodo.dotyou.cloud",
+                OdinId = frodo
+            };
+
+            var json = OdinSystemSerializer.Serialize(c1);
+            var c2 = OdinSystemSerializer.Deserialize<OdinSerializedTestClass>(json);
+
+            Assert.IsTrue(c1.OdinId == c2.OdinId);
+            Assert.IsTrue(c1.OdinIdAsString == c2.OdinId);
+            Assert.IsTrue(c1.OdinId.DomainName == c2.OdinId);
+        }
+
+        [Test]
+        public void CanEmbedInString()
+        {
+            var s1 = $"this is a string of odinid: {frodo}";
+            var s2 = $"this is a string of odinid: {frodo.DomainName}";
+            Assert.IsTrue(s1 == s2);
+        }
+    }
+
+    internal class OdinSerializedTestClass
+    {
+        public string OdinIdAsString { get; init; }
+        public OdinId OdinId { get; init; }
     }
 }

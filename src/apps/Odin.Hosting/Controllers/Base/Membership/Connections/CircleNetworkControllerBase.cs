@@ -98,7 +98,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
             using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext, cn);
+            await _circleNetwork.GrantCircle(request.CircleId, request.OdinId, WebOdinContext, cn);
             return true;
         }
 
