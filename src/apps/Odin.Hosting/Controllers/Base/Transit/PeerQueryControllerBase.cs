@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("header")]
-        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] OdinId odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
             return await this.GetFileHeader(
@@ -123,7 +123,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] OdinId odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] string key)
         {
             FileChunk chunk = this.GetChunk(null, null);
@@ -171,7 +171,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] string payloadKey,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] OdinId odinId, [FromQuery] Guid fileId, [FromQuery] string payloadKey,
             [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)

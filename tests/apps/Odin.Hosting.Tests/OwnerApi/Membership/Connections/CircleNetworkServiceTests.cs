@@ -952,7 +952,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).DomainName == null);
         }
 
-        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
+        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, OdinId odinId, ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });

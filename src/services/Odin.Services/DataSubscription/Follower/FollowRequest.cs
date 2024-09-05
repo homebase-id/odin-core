@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Core.Identity;
 using Odin.Services.Drives;
 
 namespace Odin.Services.DataSubscription.Follower;
@@ -8,7 +9,7 @@ public class FollowRequest
     /// <summary>
     /// The identity subscribing
     /// </summary>
-    public string OdinId { get; set; }
+    public OdinId OdinId { get; set; }
 
     /// <summary>
     /// How the identity wants to be notified
@@ -33,10 +34,10 @@ public class PerimeterFollowRequest : FollowRequest
 
 public class UnfollowRequest
 {
-    public string OdinId { get; set; }
+    public OdinId OdinId { get; set; }
 }
 
 public class SynchronizeFeedHistoryRequest
 {
-    public string OdinId { get; set; }
+    public OdinId OdinId { get; set; }
 }

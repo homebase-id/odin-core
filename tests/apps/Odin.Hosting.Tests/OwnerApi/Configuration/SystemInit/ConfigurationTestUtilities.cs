@@ -50,7 +50,7 @@ public class ConfigurationTestUtilities
         Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).DomainName == null);
     }
 
-    public async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
+    public async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, OdinId odinId, ConnectionStatus expected)
     {
         var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
         var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });

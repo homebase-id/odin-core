@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Identity;
 
 namespace Odin.Services.Drives;
 
@@ -27,7 +28,7 @@ public class CommentPreview
     /// as the file referencing them so we only need the fileId
     /// </summary>
     public Guid FileId { get; set; }
-    public string OdinId { get; set; }
+    public OdinId OdinId { get; set; }
 
     public string Content { get; set; }
 

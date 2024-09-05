@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -248,7 +249,7 @@ public class CircleNetworkApiClient
         }
     }
 
-    private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
+    private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, OdinId odinId, ConnectionStatus expected)
     {
         var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
         var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });

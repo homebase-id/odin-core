@@ -120,7 +120,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
             {
                 Created = updatedFileHeader.FileMetadata.Created,
                 Updated = updatedFileHeader.FileMetadata.Updated,
-                OdinId = odinContext.Caller.OdinId,
+                OdinId = odinContext.Caller.OdinId.Value,
                 IsEncrypted = updatedFileHeader.FileMetadata.IsEncrypted,
                 Content = updatedFileHeader.FileMetadata.AppData.Content,
                 Reactions = new List<ReactionContentPreview>()
@@ -145,7 +145,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
             FileId = updatedFileHeader.FileMetadata.File.FileId,
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
-            OdinId = odinContext.Caller.OdinId,
+            OdinId = odinContext.Caller.OdinId.Value,
             IsEncrypted = isEncrypted,
             Content = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()
