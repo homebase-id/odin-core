@@ -13,6 +13,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
+        public new DriveAclIndexRecord Get(DatabaseConnection conn, Guid driveId, Guid fileId, Guid aclMemberId)
+        {
+            return base.Get(conn, ((IdentityDatabase) conn.db)._identityId, driveId, fileId, aclMemberId);
+        }
+
+        public List<Guid> Get(DatabaseConnection conn, Guid driveId, Guid fileId)
+        {
+            return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+        }
+
+        public int DeleteAllRows(DatabaseConnection conn, Guid driveId, Guid fileId)
+        {
+            return base.DeleteAllRows(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+        }
+
+        public new int Insert(DatabaseConnection conn, DriveAclIndexRecord item)
+        {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+            return base.Insert(conn, item);
+        }
 
         public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
@@ -22,11 +42,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             // Since we are writing multiple rows we do a logic unit here
             conn.CreateCommitUnitOfWork(() =>
             {
-                var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
+                var item = new DriveAclIndexRecord() { identityId = ((IdentityDatabase)conn.db)._identityId, driveId = driveId, fileId = fileId };
+
                 for (int i = 0; i < accessControlList.Count; i++)
                 {
                     item.aclMemberId = accessControlList[i];
-                    Insert(conn, item);
+                    base.Insert(conn, item);
                 }
             });
         }
@@ -40,7 +61,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 for (int i = 0; i < accessControlList.Count; i++)
                 {
-                    Delete(conn, driveId, fileId, accessControlList[i]);
+                    base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId, accessControlList[i]);
                 }
             });
         }

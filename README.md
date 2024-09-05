@@ -1,63 +1,50 @@
-# Homebase.id
+# HOMEBASE.ID (ODIN-CORE)
 
-[![Build](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main.yml/badge.svg)](https://github.com/YouFoundation/dotyoucore/actions/workflows/host-build-and-test-main.yml)
+##### Open Decentralized Identity Network (ODIN)
 
-### Setup
+[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-debug.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-debug.yml)
+[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-release.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-release.yml)
 
-Notes:
+####
 
-- The API tests use frodo.dotyou.cloud, sam.dotyou.cloud, merry.dotyou.cloud and pippin.dotyou.cloud. Public DNS has these configured to point to 127.0.0.1. If you want to test offline be sure to add these to your hosts file and be sure to also add them all with the 'capi.' prefix as well (e.g. capi.samwisegamgee.me)
-- For UI work, you should pull the monorepo of the react-client-apps and run `npm run start:owner` `npm run start:public` for the owner- and public-app respectively. The web Odin.Hosting project uses a proxy server to serve these in the dev env.
-  - https://github.com/YouFoundation/dotyoucore-js
-- !!! Serialization
-  - Use the DotYouSystemSerializer for all serialization.
-    - This contains the global serializer settings needed across the solution
-    - If an overload is missing, add it. This uses System.Text.Json.
-  - You should not import NewtonsoftJson. (nothing is wrong with it, we just need to stick w/ one library and formatter)
+The Homebase project provides everyone with a fully distributed self-sovereign identity, private communications, and encrypted data storage - owned by you.
 
-Steps:
+- 🚀 Fully distributed, nobody controls the Homebase network.
+- 🚀 Private secure communication
+- 🚀 Private secure storage
+- 🚀 Social Network, including a private secure social network
+- 🚀 Personal Link-tree
+- 🚀 Personal Homepage with Bio, CV.
+- 🚀 App Platform - included apps: Chat, Feed, Photos.
+- 🚀 Fully Self-sovereign Identity
+- 🚀 Federated Identity Authentication (YouAuth, similar to OAUTH, but more secure)
+- 🚀 And much more
 
-1. Install dotnet sdk v6+
-2. Clone this repo: `git@github.com:YouFoundation/DotYouCore.git`
-3. Clone the repo dotyoucore-lib in a sibling folder to dotyoucore `git@github.com:YouFoundation/dotyoucore-lib.git`
-4. Clone the front-end monorepo: `git@github.com:YouFoundation/dotyoucore-js.git`
-5. See instructions in dotyoucore-js for running the individual apps
+## Installation of odin-core (Locally)
 
-To run the identity server
+This odin-core repo is the back-end web server. If you want to run the front-end apps (chat, feed, etc.), see the repo https://github.com/homebase-id/odin-js.
 
-1. `dotyoucore/dotnet restore`
-2. `dotnet run --project Odin.Hosting/Odin.Hosting.csproj`
+```bash
+clone this repo
+dotnet run
+```
 
-After you have run the public-app and owner-app projects, you can navigate to https://frodo.dotyou.cloud or https://sam.dotyou.cloud
+This repo includes several pre-built identities for local development and testing.
 
-### Other
+- frodo.dotyou.cloud
+- sam.dotyou.cloud
+- pippin.dotyou.cloud
+- merry.dotyou.cloud
 
-#### Preconfigured tenants in dev
+> Their certificates are located in `odin-core/services/Odin.Hosting/https` and are updated every 3 months. You need to ensure they're up to date locally.
 
-- https://frodo.dotyou.cloud/
-- https://sam.dotyou.cloud/
-- https://merry.dotyou.cloud/
-- https://pippin.dotyou.cloud/
+## Contributing
 
-#### Provisioning site
+Contributions are highly Welcomed 💙 . Feel free to open PRs for small issues such as typos. For large issues or features, please open an issue and wait for it to be assigned to you.
 
-- Dev: https://provisioning.dotyou.cloud
-- Demo: https://demo.provisioning.id.pub
+You can reach out to us on our [Discord](<INSERT DISCORD LINK>) server if you have any questions or need help.
 
-#### 127.0.0.1 domains
 
-All folders in `dotyoucore/services/Odin.Hosting/https` ending in 'dotyou.cloud' contain certificates for domains with an A record pointing to 127.0.0.1.
+### Security disclosures
 
-Certficates are updated automatically on the demo-box. Download them by running the script `get-certificates.sh`
-
-#### SSL Notes
-
-Generate New CSR w/o requiring a passphase.
-
-`openssl req -new -newkey rsa:2048 -nodes -keyout private.key -out domain-name.csr`
-
-Running from your Mac-M1
-
-- You can run but will not be able to debug due to Sqlite's incompatibility with M1's architecture
-
-`dotnet run --project Odin.Hosting/Odin.Hosting.csproj -r osx-x64`
+If you discover any security issues, please send an email to security@homebase.id. The email is automatically CCed to the entire team and we'll respond promptly.

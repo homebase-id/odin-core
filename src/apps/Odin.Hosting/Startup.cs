@@ -39,6 +39,7 @@ using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
+using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
@@ -227,6 +228,8 @@ namespace Odin.Hosting
                 config.Admin.ApiPort,
                 config.Admin.Domain));
 
+            services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
+
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
@@ -285,14 +288,20 @@ namespace Odin.Hosting
             app.UseHsts();
 
             // Provisioning mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
-                a => Provisioning.Map(a, env, logger));
+            if (config.Registry.ProvisioningEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                    a => Provisioning.Map(a, env, logger));
+            }
 
             // Admin mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Admin.Domain,
-                a => Admin.Map(a, env, logger));
+            if (config.Admin.ApiEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Admin.Domain,
+                    a => Admin.Map(a, env, logger));
+            }
 
             app.UseMultiTenancy();
 

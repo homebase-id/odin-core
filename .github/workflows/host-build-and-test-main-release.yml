@@ -21,11 +21,11 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore ./dotyoucore.sln
+        run: dotnet restore ./odin-core.sln
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="NOISY_NEIGHBOUR" ./dotyoucore.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="NOISY_NEIGHBOUR" ./odin-core.sln
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal ./dotyoucore.sln
+        run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
 

@@ -20,6 +20,14 @@ public class AppNotificationAddedNotification(Guid typeId) : MediatorNotificatio
 
     public string GetClientData()
     {
-        return OdinSystemSerializer.Serialize(this);
+        return OdinSystemSerializer.Serialize(new
+        {
+            Id,
+            SenderId,
+            Timestamp,
+            AppNotificationOptions,
+            NotificationType,
+            NotificationTypeId
+        });
     }
 }

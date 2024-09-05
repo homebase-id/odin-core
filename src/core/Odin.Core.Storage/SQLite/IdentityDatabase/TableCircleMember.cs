@@ -13,9 +13,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public new virtual List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid circleId)
+        public int Delete(DatabaseConnection conn, Guid circleId, Guid memberId)
         {
-            var r = base.GetCircleMembers(conn, circleId);
+            return base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, memberId);
+        }
+
+        public new int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        {
+            item.identityId = ((IdentityDatabase)_database)._identityId;
+            return base.Insert(conn, item);
+        }
+
+        public new int Upsert(DatabaseConnection conn, CircleMemberRecord item)
+        {
+            item.identityId = ((IdentityDatabase)_database)._identityId;
+            return base.Upsert(conn, item);
+        }
+
+
+        public List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid circleId)
+        {
+            var r = base.GetCircleMembers(conn, ((IdentityDatabase) _database)._identityId, circleId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
@@ -31,9 +49,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid memberId)
+        public List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid memberId)
         {
-            var r = base.GetMemberCirclesAndData(conn, memberId);
+            var r = base.GetMemberCirclesAndData(conn, ((IdentityDatabase)_database)._identityId, memberId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
@@ -56,7 +74,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             conn.CreateCommitUnitOfWork(() =>
             {
                 for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Upsert(conn, CircleMemberRecordList[i]);
+                {
+                    CircleMemberRecordList[i].identityId = ((IdentityDatabase)_database)._identityId;
+                    base.Upsert(conn, CircleMemberRecordList[i]);
+
+                }
             });
         }
 
@@ -75,7 +97,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             conn.CreateCommitUnitOfWork(() =>
             {
                 for (int i = 0; i < members.Count; i++)
-                    Delete(conn, circleId, members[i]);
+                    base.Delete(conn, ((IdentityDatabase)_database)._identityId, circleId, members[i]);
             });
         }
 
@@ -97,7 +119,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     var circles = GetMemberCirclesAndData(conn, members[i]);
 
                     for (int j = 0; j < circles.Count; j++)
-                        Delete(conn, circles[j].circleId, members[i]);
+                        base.Delete(conn, ((IdentityDatabase)_database)._identityId, circles[j].circleId, members[i]);
                 }
             });
         }

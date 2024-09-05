@@ -70,15 +70,7 @@ namespace Odin.Services.Configuration
 
             public TransitSection(IConfiguration config)
             {
-                OutboxBatchSize = config.Required<int>($"Transit:{nameof(OutboxBatchSize)}");
-
-                if (OutboxBatchSize <= 0)
-                {
-                    throw new OdinSystemException($"{nameof(OutboxBatchSize)} must be greater than 0");
-                }
             }
-
-            public int OutboxBatchSize { get; init; }
         }
 
         public class FeedSection
@@ -90,18 +82,9 @@ namespace Odin.Services.Configuration
 
             public FeedSection(IConfiguration config)
             {
-                DistributionBatchSize = config.Required<int>("Feed:DistributionBatchSize");
-
-                if (DistributionBatchSize <= 0)
-                {
-                    throw new OdinSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
-                }
-
                 MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
             }
-
-            public int DistributionBatchSize { get; init; }
-
+            
             public int MaxCommentsInPreview { get; init; }
         }
 
@@ -137,6 +120,7 @@ namespace Odin.Services.Configuration
             public string ProvisioningDomain { get; init; }
             public string ProvisioningEmailLogoImage { get; init; }
             public string ProvisioningEmailLogoHref { get; init; }
+            public bool ProvisioningEnabled { get; init; }
             
             public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
 
@@ -151,21 +135,20 @@ namespace Odin.Services.Configuration
 
             public RegistrySection(IConfiguration config)
             {
-                PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
-                PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
+                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
+                PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
                 ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
                 ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
+                ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
-                ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
+                ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
-                    config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"),
-                    config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
-                    config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
+                    config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
 
-                InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
+                InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }

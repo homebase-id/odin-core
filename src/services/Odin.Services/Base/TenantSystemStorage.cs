@@ -22,14 +22,8 @@ public sealed class TenantSystemStorage : IDisposable
             Directory.CreateDirectory(dbPath!);
         }
 
-        string dbName = "identity.db";
-        string finalPath = PathUtil.Combine(dbPath, dbName);
-
-        if (!File.Exists(finalPath))
-        {
-            string oldName = "sys.db";
-            finalPath = PathUtil.Combine(dbPath, oldName);
-        }
+        var dbName = "identity.db";
+        var finalPath = PathUtil.Combine(dbPath, dbName);
 
         IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
         using (var conn = IdentityDatabase.CreateDisposableConnection())
@@ -44,7 +38,6 @@ public sealed class TenantSystemStorage : IDisposable
         Inbox = IdentityDatabase.tblInbox;
         WhoIFollow = IdentityDatabase.tblImFollowing;
         Followers = IdentityDatabase.tblFollowsMe;
-        Feedbox = IdentityDatabase.tblFeedDistributionOutbox;
         AppNotifications = IdentityDatabase.tblAppNotificationsTable;
     }
 
@@ -80,8 +73,7 @@ public sealed class TenantSystemStorage : IDisposable
     public TableAppGrants AppGrants { get; }
     public TableConnections Connections { get; }
     public TableAppNotifications AppNotifications { get; }
-    public TableFeedDistributionOutbox Feedbox { get; }
-    public TableOutbox Outbox { get; }
+   public TableOutbox Outbox { get; }
     public TableInbox Inbox { get; }
     public TableImFollowing WhoIFollow { get; }
     public TableFollowsMe Followers { get; }
