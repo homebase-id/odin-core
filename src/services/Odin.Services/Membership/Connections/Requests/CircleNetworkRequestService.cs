@@ -228,7 +228,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 if ((await _verificationService.VerifyConnection(sender, odinContext, cn)).IsValid)
                 {
                     _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
-            
+
                     //TODO decide if we should throw an error here?
                     return;
                 }
@@ -483,7 +483,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 throw new OdinSecurityException("The original request's verification has does not match the reply");
             }
-            
+
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
 
             var tempKey = reply.TempKey.ToSensitiveByteArray();
@@ -551,7 +551,7 @@ namespace Odin.Services.Membership.Connections.Requests
             odinContext.AssertCanManageConnections();
             return DeletePendingRequestInternal(sender, cn);
         }
-        
+
         public async Task<bool> HasPendingOrSentRequest(OdinId identity, IOdinContext odinContext, DatabaseConnection cn)
         {
             var hasPendingRequest = await GetPendingRequest(identity, odinContext, cn);
@@ -748,7 +748,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 TempEncryptedFeedDriveStorageKey = default
             };
 
-            await TrySendRequestInternal((OdinId)header.Recipient, outgoingRequest, cn);
+            await TrySendRequestInternal((OdinId)header.Recipient, outgoingRequest, odinContext, cn);
 
             outgoingRequest.VerificationHash = _cns.CreateVerificationHash(outgoingRequest.VerificationRandomCode, clientAccessToken.SharedSecret);
 
@@ -797,14 +797,19 @@ namespace Odin.Services.Membership.Connections.Requests
             return (clientAccessToken, grant);
         }
 
-        private async Task TrySendRequestInternal(OdinId recipient, ConnectionRequest request, DatabaseConnection cn)
+        private async Task TrySendRequestInternal(OdinId recipient, ConnectionRequest request, IOdinContext odinContext, DatabaseConnection cn)
         {
             async Task<ApiResponse<NoResultResponse>> Send()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
                 var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(PublicPrivateKeyType.OnlineKey,
                     recipient, payloadBytes, cn);
-                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient);
+
+                var token = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+                var client = token == null
+                    ? _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient)
+                    : _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient, token.ToAuthenticationToken());
+
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
                 return response;
             }

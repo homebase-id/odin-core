@@ -50,7 +50,8 @@ public class CircleNetworkVerificationService(
         var result = new IcrVerificationResult();
         try
         {
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+            var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, cn, false);
 
             ApiResponse<VerifyConnectionResponse> response;
             await TryRetry.WithDelayAsync(
@@ -63,6 +64,7 @@ public class CircleNetworkVerificationService(
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.VerifyConnection();
+                    
                     if (response.IsSuccessStatusCode)
                     {
                         var vcr = response.Content;
@@ -89,7 +91,7 @@ public class CircleNetworkVerificationService(
 
         return result;
     }
-    
+
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>

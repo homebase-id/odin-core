@@ -146,27 +146,27 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
         public async Task FailToSendReadReceiptWhenNotConnectedOnRecipientSide(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
-            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
             const DrivePermission senderDrivePermissions = DrivePermission.Write;
             const DrivePermission recipientDrivePermissions = DrivePermission.Read;
 
             var targetDrive = callerContext.TargetDrive;
-            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, senderDrivePermissions, recipientDrivePermissions);
+            await PrepareScenario(frodoOwnerClient, samOwnerClient, targetDrive, senderDrivePermissions, recipientDrivePermissions);
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId]
+                Recipients = [samOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
-                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+                await AssertCanUploadEncryptedMetadata(frodoOwnerClient, samOwnerClient, targetDrive, transitOptions);
 
-            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+            await samOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
-            await callerContext.Initialize(recipientOwnerClient);
-            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+            await callerContext.Initialize(samOwnerClient);
+            var driveClient = new UniversalDriveApiClient(samOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             //
             // Send the read receipt
@@ -181,7 +181,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             //
             // Severe the connection
             //
-            await recipientOwnerClient.Connections.DisconnectFrom(senderOwnerClient.Identity.OdinId);
+            await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);
 
             var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
 
@@ -190,7 +190,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(sendReadReceiptResult);
             var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
             Assert.IsNotNull(item, "no record for file");
-            var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
+            var statusItem = item.Status.SingleOrDefault(i => i.Recipient == frodoOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
             Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.NotConnectedToOriginalSender);
 
@@ -198,20 +198,21 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             // Assert the read receipt was not updated on the sender's file
             //
 
-            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
+            await frodoOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+            var uploadedFileResponse1 = await frodoOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
             Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(samOwnerClient.Identity.OdinId, out var recipientStatus));
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
-            await senderOwnerClient.Connections.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
+            await frodoOwnerClient.Connections.DisconnectFrom(samOwnerClient.Identity.OdinId);
+            await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);
         }
 
         [Test]
@@ -379,6 +380,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == senderUploadResult.NewVersionTag);
 
             await senderOwnerClient.Connections.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
+            await recipientOwnerClient.Connections.DisconnectFrom(senderOwnerClient.Identity.OdinId);
         }
 
         [Test]

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 
@@ -28,6 +29,8 @@ public class IntroductionGroup
     /// List of identities receiving the request
     /// </summary>
     public List<string> Recipients { get; init; }
+
+    public SignatureData Signature { get; set; }
 }
 
 public class IdentityIntroduction

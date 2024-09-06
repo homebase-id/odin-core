@@ -23,7 +23,6 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
-using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Util;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 

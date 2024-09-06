@@ -82,16 +82,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
 
-        var recipients = group.Recipients.ToOdinIdList();
-
-        // group.Signature = Sign();
+        var recipients = group.Recipients.ToOdinIdList().Without(odinContext.Tenant);
+        var bytes = ByteArrayUtil.Combine(recipients.Select(i => i.ToByteArray()).ToArray());
+        group.Signature = Sign(bytes, odinContext);
+        
         var result = new IntroductionResult();
-        foreach (var recipient in recipients.Without(odinContext.Tenant))
+        foreach (var recipient in recipients)
         {
             var introduction = new Introduction
             {
                 Message = group.Message,
-                Identities = recipients.Without(recipient).ToDomainNames(),
+                Identities = recipients.ToDomainNames(),
                 Timestamp = UnixTimeUtc.Now()
             };
 
@@ -100,20 +101,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         }
 
         return result;
-    }
-
-    public SignatureData Sign(byte[] data, SensitiveByteArray password, IOdinContext odinContext)
-    {
-        OdinId signer = odinContext.GetCallerOdinIdOrFail();
-        EccFullKeyData testEccKey = new EccFullKeyData(password, EccKeySize.P384, 1);
-        SignatureData signature = SignatureData.NewSignature(data, signer, password, testEccKey);
-        return signature;
-    }
-
-    public bool VerifySignature(SignatureData signature, byte[] data)
-    {
-        bool isValid = SignatureData.Verify(signature, data);
-        return isValid;
     }
 
     /// <summary>
@@ -222,6 +209,23 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     {
         var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(cn, _receivedIntroductionDataType);
         return Task.FromResult(results.ToList());
+    }
+
+    private SignatureData Sign(byte[] data, IOdinContext odinContext)
+    {
+        var password = Guid.NewGuid().ToByteArray().ToSensitiveByteArray();
+
+        OdinId signer = odinContext.GetCallerOdinIdOrFail();
+
+        var eccKey = new EccFullKeyData(password, EccKeySize.P384, 1);
+        var signature = SignatureData.NewSignature(data, signer, password, eccKey);
+        return signature;
+    }
+
+    private bool VerifySignature(SignatureData signature, byte[] data)
+    {
+        bool isValid = SignatureData.Verify(signature, data);
+        return isValid;
     }
 
     private Guid MakeReceivedIntroductionKey(OdinId recipient)

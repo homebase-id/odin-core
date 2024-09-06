@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -37,6 +38,39 @@ public class VerifyConnectionTests
 
 
     [Test]
+    public async Task ReproFailedVerificationWhenSendingConnectionRequestWhereSenderNotConnectedButRecipientIs()
+    {
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        await frodo.Network.DisconnectFrom(sam.OdinId);
+
+        // resend it since we're already connected
+        var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+
+        await Disconnect();
+    }
+    [Test]
+    public async Task WillVerifyValidConnectionWhenAlreadyConnectedAndReturnBadRequest()
+    {
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        // resend it since we're already connected
+        var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+
+        await Disconnect();
+    }
+
+    [Test]
     public async Task CanVerifyValidConnection()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -51,10 +85,10 @@ public class VerifyConnectionTests
         Assert.IsTrue(response.IsSuccessStatusCode);
         Assert.IsTrue(result.IsValid);
         Assert.IsTrue(result.RemoteIdentityWasConnected);
-        
+
         await Disconnect();
     }
-    
+
     [Test]
     public async Task VerifyConnectionFailsWhenRecipientNotConnected()
     {
@@ -64,7 +98,7 @@ public class VerifyConnectionTests
         await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
 
-        
+
         //
         // Now: have frodo delete it but sam keep it
         //
@@ -75,12 +109,12 @@ public class VerifyConnectionTests
         var result = response.Content;
         Assert.IsFalse(result.IsValid);
         Assert.IsNull(result.RemoteIdentityWasConnected);
-        
-        
+
+
         await Disconnect();
     }
-    
-    
+
+
     private async Task Disconnect()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);

@@ -48,6 +48,19 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
+    
+    public static IOdinContext UseTransitRead(IOdinContext odinContext)
+    {
+        var patchedContext = odinContext.Clone();
+
+        //Note TryAdd because this might have already been added when multiple files are coming in
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd("use-transit-read",
+            new PermissionGroup(
+                new PermissionSet([PermissionKeys.UseTransitRead]),
+                new List<DriveGrant>(), null, null));
+
+        return patchedContext;
+    }
 
     public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
