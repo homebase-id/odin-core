@@ -65,6 +65,7 @@ namespace Odin.Services.Peer
 
                 return null;
             }
+            
 
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }

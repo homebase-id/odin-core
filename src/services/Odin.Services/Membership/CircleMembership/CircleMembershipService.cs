@@ -129,7 +129,7 @@ public class CircleMembershipService(
         SensitiveByteArray keyStoreKey,
         IOdinContext odinContext, DatabaseConnection cn)
     {
-        var list = CircleNetworkUtils.AddSystemCircles(circleIds, origin);
+        var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
         return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, cn);
     }
 

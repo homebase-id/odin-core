@@ -8,12 +8,12 @@ namespace Odin.Services.Membership.Connections;
 
 public static class CircleNetworkUtils
 {
-    public static List<GuidId> AddSystemCircles(List<GuidId> circleIds, ConnectionRequestOrigin origin)
+    public static List<GuidId> EnsureSystemCircles(List<GuidId> circleIds, ConnectionRequestOrigin origin)
     {
         var list = circleIds ?? new List<GuidId>();
 
         // Always put identities in the system circle
-        list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+        list.EnsureItem(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
 
         switch (origin)
         {

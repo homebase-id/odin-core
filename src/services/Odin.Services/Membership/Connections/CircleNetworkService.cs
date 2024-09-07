@@ -431,7 +431,7 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var list = CircleNetworkUtils.AddSystemCircles(circleIds, origin);
+            var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
             return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, cn);
         }
 

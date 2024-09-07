@@ -101,7 +101,7 @@ namespace Odin.Services.Base
 
         public void AssertCallerIsAuthenticated()
         {
-            if (!IsAuthenticated)
+            if ((int)this.SecurityLevel < (int)SecurityGroupType.Authenticated)
             {
                 throw new OdinSecurityException("Caller must be authenticated");
             }

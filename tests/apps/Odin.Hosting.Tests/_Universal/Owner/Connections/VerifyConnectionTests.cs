@@ -35,10 +35,31 @@ public class VerifyConnectionTests
     {
         _scaffold.AssertLogEvents();
     }
-
-
+    
     [Test]
-    public async Task ReproFailedVerificationWhenSendingConnectionRequestWhereSenderNotConnectedButRecipientIs()
+    public async Task VerificationReturnsFalseWhenRecipientNotConnectedButSenderIs()
+    {
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        await sam.Network.DisconnectFrom(frodo.OdinId);
+
+        // resend it since we're already connected
+        var response = await frodo.Network.VerifyConnection(sam.OdinId);
+        
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+        Assert.IsNotNull(response.Content);
+        Assert.IsFalse(response.Content.IsValid);
+        Assert.IsFalse(response.Content.RemoteIdentityWasConnected);
+        
+        await Disconnect();
+    }
+    
+    [Test]
+    public async Task VerificationReturnsFalseWhenSenderNotConnectedButRecipientIs()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -49,11 +70,15 @@ public class VerifyConnectionTests
         await frodo.Network.DisconnectFrom(sam.OdinId);
 
         // resend it since we're already connected
-        var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        var response = await frodo.Network.VerifyConnection(sam.OdinId);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+        Assert.IsNotNull(response.Content);
+        Assert.IsFalse(response.Content.IsValid);
+        Assert.IsNull(response.Content.RemoteIdentityWasConnected);
 
         await Disconnect();
     }
+
     [Test]
     public async Task WillVerifyValidConnectionWhenAlreadyConnectedAndReturnBadRequest()
     {
@@ -65,7 +90,7 @@ public class VerifyConnectionTests
 
         // resend it since we're already connected
         var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, $"Status code was {response.StatusCode}");
 
         await Disconnect();
     }
@@ -76,7 +101,7 @@ public class VerifyConnectionTests
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await frodo.Connections.SendConnectionRequest(sam.OdinId);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
 
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
@@ -113,8 +138,48 @@ public class VerifyConnectionTests
 
         await Disconnect();
     }
+    
+    
+    [Test]
+    public async Task CanSendConnectionRequestWhenSenderNotConnectedButRecipientIsConnected()
+    {
+        // This causes an issue because the verification fails as it cannot get to the ICR key
+        // this is because the sender is not connected to the recipient
+        // but the recipient has a record of the sender
+        
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
+        await frodo.Connections.SendConnectionRequest(sam.OdinId);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
 
+        await frodo.Network.DisconnectFrom(sam.OdinId);
+
+        // resend it since we're already connected
+        var response = await frodo.Connections.SendConnectionRequest(sam.OdinId);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK);
+
+        await Disconnect();
+    }
+
+    [Test]
+    public async Task CanSendingConnectionRequestWhenRecipientNotConnectedButSenderIsConnected()
+    {
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        await sam.Network.DisconnectFrom(frodo.OdinId);
+
+        // resend it since we're already connected
+        var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+
+        await Disconnect();
+    }
+    
     private async Task Disconnect()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -126,5 +191,8 @@ public class VerifyConnectionTests
 
         await merry.Connections.DisconnectFrom(frodo.Identity.OdinId);
         await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
+
+        await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
+        await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
     }
 }

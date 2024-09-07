@@ -17,6 +17,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -221,16 +222,24 @@ namespace Odin.Services.Membership.Connections.Requests
                 // throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
                 throw new OdinSecurityException("Identity is blocked");
             }
-
+            
             //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
             if (existingConnection.IsConnected())
             {
-                if ((await _verificationService.VerifyConnection(sender, odinContext, cn)).IsValid)
+                try
                 {
-                    _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
+                    if ((await _verificationService.VerifyConnection(sender, odinContext, cn)).IsValid)
+                    {
+                        _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
 
-                    //TODO decide if we should throw an error here?
-                    return;
+                        //TODO decide if we should throw an error here?
+                        return;
+                    }
+                }
+                catch (OdinIdentityVerificationException)
+                {
+                    // This can occur if the sender does not have access to the ICR
+                    //No-op, ignore this issue
                 }
             }
 
@@ -724,10 +733,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
-                if (!circles.Exists(c => c == SystemCircleConstants.AutoConnectionsCircleId))
-                {
-                    circles.Add(SystemCircleConstants.AutoConnectionsCircleId);
-                }
+                circles.EnsureItem(SystemCircleConstants.AutoConnectionsCircleId);
             }
 
             var (clientAccessToken, grant) = await CreateTokenAndGrant(keyStoreKey, circles, header.ConnectionRequestOrigin, odinContext, cn);

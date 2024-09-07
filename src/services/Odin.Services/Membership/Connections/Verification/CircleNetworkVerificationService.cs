@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections.Requests;
@@ -30,6 +32,12 @@ public class CircleNetworkVerificationService(
 
     public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
     {
+        if (odinContext.Caller.SecurityLevel == SecurityGroupType.Authenticated)
+        {
+            //if the caller is only authenticated, there will be no ICR so verification will fail
+            throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
+        }
+        
         var icr = await CircleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
 
         if (!icr.IsConnected())
@@ -51,7 +59,17 @@ public class CircleNetworkVerificationService(
         try
         {
             var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
-            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, cn, false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, cn, failIfNotConnected: false);
+
+            if (null == clientAuthToken)
+            {
+                // icr shows as connected but we cannot get to the ICR, this means that 
+                return new IcrVerificationResult
+                {
+                    IsValid = false,
+                    RemoteIdentityWasConnected = null
+                };
+            }
 
             ApiResponse<VerifyConnectionResponse> response;
             await TryRetry.WithDelayAsync(
@@ -60,21 +78,31 @@ public class CircleNetworkVerificationService(
                 CancellationToken.None,
                 async () =>
                 {
-                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
-                        clientAuthToken.ToAuthenticationToken());
+                    var client = clientAuthToken == null
+                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkVerificationClient>(recipient)
+                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
+                            clientAuthToken.ToAuthenticationToken());
 
                     response = await client.VerifyConnection();
-                    
+
+                    // Only compare if we get back a good code, so we don't kill
+                    // an ICR because the remote server is not responding
                     if (response.IsSuccessStatusCode)
                     {
-                        var vcr = response.Content;
-
-                        //only compare if we get back a good code, so we don't kill
-                        //an ICR because the remote server is not responding
-                        result.RemoteIdentityWasConnected = vcr.IsConnected;
-                        if (vcr.IsConnected)
+                        if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) && bool.Parse(values.Single()))
                         {
-                            result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
+                            //the remote ICR is dead
+                            result.RemoteIdentityWasConnected = false;
+                            result.IsValid = false;
+                        }
+                        else
+                        {
+                            var vcr = response.Content;
+                            result.RemoteIdentityWasConnected = vcr.IsConnected;
+                            if (vcr.IsConnected)
+                            {
+                                result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
+                            }
                         }
                     }
                     else
@@ -83,6 +111,11 @@ public class CircleNetworkVerificationService(
                         throw new OdinSystemException("Cannot verify connection due to remote server error");
                     }
                 });
+        }
+        catch (OdinSecurityException ex)
+        {
+            //cannot get to ICR Key
+            throw new OdinIdentityVerificationException("Cannot perform verification", ex);
         }
         catch (TryRetryException e)
         {
