@@ -1,5 +1,7 @@
 using System.Net.Sockets;
+using DnsClient;
 using Odin.Core.Cache;
+using Odin.Core.Dns;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Util;
@@ -32,6 +34,7 @@ builder.Services.AddSwaggerGen();
 //
 // HttpClientFactory
 //
+
 builder.Services.AddHttpClient("NoRedirectClient", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(2);
@@ -44,6 +47,9 @@ builder.Services.AddHttpClient("NoRedirectClient", client =>
 //
 // Misc
 //
+
+builder.Services.AddSingleton<ILookupClient, LookupClient>();
+builder.Services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
 builder.Services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
 builder.Services.AddSingleton<ICorrelationContext, CorrelationContext>();
 builder.Services.AddSingleton<IGenericMemoryCache, GenericMemoryCache>();
@@ -72,10 +78,14 @@ app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
     async (string domainName, string hostPort, IHttpClientFactory httpClientFactory, IGenericMemoryCache cache) =>
         await HttpProbe("https", domainName, hostPort, httpClientFactory, cache));
 
-app.Run();
-return;
+app.MapGet("/api/v1/resolve-ip4/{domainName}",
+    async (string domainName, IGenericMemoryCache cache, IAuthoritativeDnsLookup authoritativeDnsLookup, ILookupClient lookupClient) =>
+        await ResolveIp(domainName, cache, authoritativeDnsLookup, lookupClient));
 
-//
+
+app.Run();
+
+////////////////////////////////////////////////////////////////////////
 
 async Task<IResult> TcpProbe(
     string domainName,
@@ -199,6 +209,59 @@ async Task<IResult> HttpProbe(
         cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
         return Results.BadRequest(result.Message);
     }
+}
+
+//
+
+async Task<IResult> ResolveIp(
+    string domainName,
+    IGenericMemoryCache cache,
+    IAuthoritativeDnsLookup authoritativeDnsLookup,
+    ILookupClient lookupClient)
+{
+    domainName = domainName.ToLower();
+    if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
+    {
+        return Results.BadRequest("Invalid domain name");
+    }
+
+    var cacheKey = $"resolve-ip:{domainName}";
+    if (cache.TryGet<RequestResult>(cacheKey, out var requestResult) && requestResult != null)
+    {
+        return requestResult.Success
+            ? Results.Ok($"{requestResult.Message} [cache hit]")
+            : Results.BadRequest($"{requestResult.Message} [cache hit]");
+    }
+
+    RequestResult result;
+    var authoritativeResult = await authoritativeDnsLookup.LookupDomainAuthority(domainName);
+    if (authoritativeResult.Exception != null)
+    {
+        result = new RequestResult(false, $"Failed to resolve ip: {authoritativeResult.Exception.Message}");
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        return Results.BadRequest(result.Message);
+    }
+
+    if (authoritativeResult.AuthoritativeNameServer == "")
+    {
+        result = new RequestResult(false, $"No authoritative name server found for {domainName}");
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        return Results.BadRequest(result.Message);
+    }
+
+    HER!
+
+    return Results.Ok(authoritativeResult.AuthoritativeNameServer);
+
+
+    // var result = await lookupClient.QueryAsync(domainName, QueryType.A);
+    // if (result.HasError)
+    // {
+    //     return Results.BadRequest(result.ErrorMessage);
+    // }
+    //
+    // var addresses = result.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+    //return Results.Ok(string.Join(", ", addresses));
 }
 
 //
