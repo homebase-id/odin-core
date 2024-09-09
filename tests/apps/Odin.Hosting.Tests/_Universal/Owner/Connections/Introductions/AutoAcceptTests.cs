@@ -63,7 +63,7 @@ public class AutoAcceptTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        //ensure sam sends a requst
+        //ensure sam sends a request
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(TestIdentities.Merry.OdinId);

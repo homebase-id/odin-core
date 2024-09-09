@@ -121,7 +121,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         introduction.Timestamp = UnixTimeUtc.Now();
         var introducerOdinId = odinContext.GetCallerOdinIdOrFail();
 
-        foreach (var identity in introduction.Identities.ToOdinIdList())
+        foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
             // Note: we do not check if you're already connected or
             // have blocked the identity being introduced as we do not 
