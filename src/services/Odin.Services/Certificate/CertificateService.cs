@@ -138,7 +138,7 @@ namespace Odin.Services.Certificate
             {
                 if (sans != null) // don't verify system domains (e.g. provisioning, admin, etc)
                 {
-                    var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+                    var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
                     if (!areDnsRecordsOk)
                     {
                         _logger.LogWarning(
