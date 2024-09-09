@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Serialization;
 
@@ -52,9 +53,28 @@ public static class OdinSystemSerializer
     {
         return JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
     }
+    
+    public static T DeserializeOrThrow<T>(string json)
+    {
+        var result = JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
+        
+        if (result == null)
+        {
+            throw new OdinSystemException("Failed to deserialize data");
+        }
+
+        return result;
+    }
 
     public static async Task<T?> Deserialize<T>(Stream utf8Json, CancellationToken cancellationToken = default)
     {
         return await JsonSerializer.DeserializeAsync<T>(utf8Json, JsonSerializerOptions, cancellationToken);
     }
+
+    public static T SlowDeepCloneObject<T>(T source)
+    {
+        var json = Serialize(source);
+        return DeserializeOrThrow<T>(json);
+    }
+    
 }

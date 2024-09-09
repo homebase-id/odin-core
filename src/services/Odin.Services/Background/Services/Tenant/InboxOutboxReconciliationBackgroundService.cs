@@ -17,13 +17,13 @@ public class InboxOutboxReconciliationBackgroundService(
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
     PeerOutboxProcessorBackgroundService outboxProcessor)
-    : AbstractBackgroundService
+    : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("Reconciling inbox and outbox");
+            logger.LogDebug("{service} is running", GetType().Name);
             
             var ageSeconds = config.Host.InboxOutboxRecoveryAgeSeconds;
             var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(ageSeconds)));
@@ -39,15 +39,17 @@ public class InboxOutboxReconciliationBackgroundService(
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                outboxProcessor.WakeUp(); // signal outbox processor to get to work                
+                outboxProcessor.PulseBackgroundProcessor(); // signal outbox processor to get to work                
             }
 
             if (recoveredInboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} inbox items", recoveredOutboxItems);
             }
-            
-            await SleepAsync(TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationDelaySeconds), stoppingToken);
+
+            var interval = TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds);
+            logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
+            await SleepAsync(interval, stoppingToken);
         }
     }
 }

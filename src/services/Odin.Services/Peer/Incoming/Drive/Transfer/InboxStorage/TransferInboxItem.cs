@@ -50,8 +50,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
 
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
-        
+
         //Feed bolt-ons
         public EccEncryptedPayload EncryptedFeedPayload { get; set; }
+
+        /// <summary>
+        /// Generic field to hold serialized information for the given <see cref="InstructionType"/>
+        /// </summary>
+        public byte[] Data { get; init; }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -16,6 +15,7 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
     private AppApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
+    public DrivePermission DrivePermission { get; } = DrivePermission.ReadWrite;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -30,7 +30,7 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = TargetDrive,
-                        Permission = DrivePermission.ReadWrite
+                        Permission = DrivePermission
                     }
                 }
             },

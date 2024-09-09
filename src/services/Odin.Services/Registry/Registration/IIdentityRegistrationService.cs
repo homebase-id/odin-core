@@ -26,10 +26,10 @@ public interface IIdentityRegistrationService
     Task<List<DnsConfig>> GetDnsConfiguration(string domain);
 
     /// <summary>
-    /// Verifies if DNS records are correctly configured using authorative name servers
+    /// Verifies if DNS records are correctly configured using authoritative name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain);
+    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain);
 
 
     /// <summary>
@@ -60,7 +60,7 @@ public interface IIdentityRegistrationService
     public Task DeleteOwnDomain(string domain);
     
     //
-    // Helpers
+    // OldHelpers
     //
     Task<bool> CanConnectToHostAndPort(string domain, int port);
     Task<bool> HasValidCertificate(string domain);

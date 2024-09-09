@@ -18,79 +18,27 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         /// </summary>
         /// <returns></returns>
         [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpPost(ApiV2PathConstants.UploadFile)]
-        public Task<UploadResult> UploadFile()
+        [HttpPost(ApiV2PathConstants.CreateFile)]
+        public Task<UploadResult> CreateFile()
         {
             return Task.FromResult(new UploadResult()
             {
             });
+        }
+        
+        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
+        [HttpPatch(ApiV2PathConstants.UpdateFile)]
+        public Task<IActionResult> UpdateFile()
+        {
+            return Task.FromResult(new OkResult() as IActionResult);
         }
 
         [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpPost(ApiV2PathConstants.UploadPayload)]
-        public Task<UploadResult> UploadPayload()
+        [HttpDelete(ApiV2PathConstants.DeleteFile)]
+        public Task<IActionResult> DeleteFile([FromBody] DeleteFileRequestV2 request)
         {
-            return Task.FromResult(new UploadResult()
-            {
-            });
+            return Task.FromResult(Ok() as IActionResult);
         }
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpDelete(ApiV2PathConstants.DeletePayload)]
-        public Task<UploadResult> DeletePayloadPayload()
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpPost(ApiV2PathConstants.SendReadReceipts)]
-        public Task<UploadResult> SendReadReceipt(SendReadReceiptRequest request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpDelete(ApiV2PathConstants.DeleteFiles)]
-        public Task<UploadResult> Delete([FromBody] DeleteFileRequestV2 request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpGet(ApiV2PathConstants.GetHeader)]
-        public Task<UploadResult> GetHeader([FromQuery] GetFileRequestV2 request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpGet(ApiV2PathConstants.GetThumb)]
-        public Task<UploadResult> GetThumb([FromQuery] GetFileRequestV2 request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpGet(ApiV2PathConstants.GetPayload)]
-        public Task<UploadResult> GetPayload([FromQuery] GetFileRequestV2 request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
-
-        // }
+        
     }
 }

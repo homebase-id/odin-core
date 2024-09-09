@@ -1,5 +1,6 @@
 using System;
 using Odin.Core;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives
 {
@@ -12,17 +13,17 @@ namespace Odin.Services.Drives
         /// The drive to access
         /// </summary>
         public TargetDrive TargetDrive { get; set; }
-        
+
         /// <summary>
         /// The fileId to retrieve
         /// </summary>
         public Guid FileId { get; set; }
-        
+
         public byte[] ToKey()
         {
             return ByteArrayUtil.Combine(FileId.ToByteArray(), TargetDrive.ToKey());
         }
-        
+
         public bool HasValue()
         {
             return FileId != Guid.Empty && TargetDrive.IsValid();
@@ -42,7 +43,7 @@ namespace Odin.Services.Drives
         {
             return !(d1 == d2);
         }
-        
+
         public bool Equals(ExternalFileIdentifier other)
         {
             if (ReferenceEquals(null, other)) return false;
@@ -66,6 +67,15 @@ namespace Odin.Services.Drives
         public override string ToString()
         {
             return $"File:[{this.FileId}]\tTargetDrive:[{this.TargetDrive}]";
+        }
+
+        public FileIdentifier ToFileIdentifier()
+        {
+            return new FileIdentifier()
+            {
+                FileId = this.FileId,
+                TargetDrive = this.TargetDrive
+            };
         }
     }
 }

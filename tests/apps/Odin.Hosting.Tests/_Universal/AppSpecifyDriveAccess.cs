@@ -17,6 +17,7 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
     private AppApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
+    public DrivePermission DrivePermission { get; } = permission;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -31,7 +32,7 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = TargetDrive,
-                        Permission = permission
+                        Permission = DrivePermission
                     }
                 }
             },

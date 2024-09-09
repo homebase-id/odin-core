@@ -1,16 +1,11 @@
-﻿using Microsoft.VisualBasic.FileIO;
-using Odin.Core.Exceptions;
+﻿using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static NodaTime.TimeZones.ZoneEqualityComparer;
 
 
 /*
@@ -47,7 +42,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableKeyThreeValue TblKeyThreeValue = null;
         public readonly TableInbox tblInbox = null;
         public readonly TableOutbox tblOutbox = null;
-        public readonly TableFeedDistributionOutbox tblFeedDistributionOutbox = null;
         public readonly TableImFollowing tblImFollowing = null;
         public readonly TableFollowsMe tblFollowsMe = null;
         public readonly TableCircle tblCircle = null;
@@ -56,7 +50,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableAppNotifications tblAppNotificationsTable = null;
 
         // Other
-        private readonly Guid _identityId;
+        public readonly Guid _identityId;
         public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
@@ -87,7 +81,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             TblKeyThreeValue = new TableKeyThreeValue(this, _cache);
             tblInbox = new TableInbox(this, _cache);
             tblOutbox = new TableOutbox(this, _cache);
-            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this, _cache);
             tblCircle = new TableCircle(this, _cache);
             tblCircleMember = new TableCircleMember(this, _cache);
             tblFollowsMe = new TableFollowsMe(this, _cache);
@@ -110,6 +103,80 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (!_wasDisposed)
                Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #endif
+        }
+
+        void Upgrade(DatabaseConnection conn, TableBase table)
+        {
+            using (var cmd = this.CreateCommand())
+            {
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    var columns = table.GetColumnNames();
+                    Debug.Assert(columns[0] == "identityId");
+
+                    // 1. Rename the old table
+                    cmd.CommandText = $"ALTER TABLE {table._tableName} RENAME TO old_{table._tableName};";
+                    conn.ExecuteNonQuery(cmd);
+
+                    // 2. Create the new table
+                    table.EnsureTableExists(conn);
+
+                    // 3. Copy the data
+                    cmd.CommandText = $"INSERT INTO {table._tableName} ({string.Join(",", columns)}) SELECT $identity as identityId, {string.Join(",", columns).Skip(1)} FROM old_appGrants;";
+                    var _insertParam1 = cmd.CreateParameter();
+                    _insertParam1.ParameterName = "$identityId";
+                    cmd.Parameters.Add(_insertParam1);
+                    _insertParam1.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                    conn.ExecuteNonQuery(cmd);
+
+                    // 4. Validate data copy
+                    cmd.CommandText = $"SELECT COUNT(*) FROM old_{table._tableName};";
+                    var oldTableCount = (long)conn.ExecuteScalar(cmd);
+
+                    cmd.CommandText = $"SELECT COUNT(*) FROM {table._tableName};";
+                    var newTableCount = (long)conn.ExecuteScalar(cmd);
+                    if (oldTableCount != newTableCount)
+                    {
+                        throw new Exception("Data copy validation failed: row counts do not match.");
+                    }
+
+                    // 5. Drop the old table
+                    cmd.CommandText = $"DROP TABLE old_{table._tableName};";
+                    conn.ExecuteNonQuery(cmd);
+                });
+            }
+        }
+
+        void RunUpgradeToIdentityDatabaseTables()
+        {
+            using (var conn = this.CreateDisposableConnection())
+            {
+                Console.Write($"Upgrading identity {_identityId} ... ");
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    // Drive tables
+                    Upgrade(conn, tblDriveMainIndex);
+                    Upgrade(conn, tblDriveAclIndex);
+                    Upgrade(conn, tblDriveTagIndex);
+                    Upgrade(conn, tblDriveReactions);
+
+
+                    // Identity tables
+                    Upgrade(conn, tblAppGrants);
+                    Upgrade(conn, tblKeyValue);
+                    Upgrade(conn, tblKeyTwoValue);
+                    Upgrade(conn, TblKeyThreeValue);
+                    Upgrade(conn, tblInbox);
+                    Upgrade(conn, tblOutbox);
+                    Upgrade(conn, tblImFollowing);
+                    Upgrade(conn, tblFollowsMe);
+                    Upgrade(conn, tblCircle);
+                    Upgrade(conn, tblCircleMember);
+                    Upgrade(conn, tblConnections);
+                    Upgrade(conn, tblAppNotificationsTable);
+                });
+                Console.WriteLine($"success");
+            }
         }
 
         public override void ClearCache()
@@ -135,7 +202,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             TblKeyThreeValue.Dispose();
             tblInbox.Dispose();
             tblOutbox.Dispose();
-            tblFeedDistributionOutbox.Dispose();
             tblCircle.Dispose();
             tblImFollowing.Dispose();
             tblFollowsMe.Dispose();
@@ -170,7 +236,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             // TblKeyUniqueThreeValue.EnsureTableExists(conn, dropExistingTables);
             tblInbox.EnsureTableExists(conn, dropExistingTables);
             tblOutbox.EnsureTableExists(conn, dropExistingTables);
-            tblFeedDistributionOutbox.EnsureTableExists(conn, dropExistingTables);
             tblCircle.EnsureTableExists(conn, dropExistingTables);
             tblCircleMember.EnsureTableExists(conn, dropExistingTables);
             tblImFollowing.EnsureTableExists(conn, dropExistingTables);
@@ -192,6 +257,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
+
+            driveMainIndexRecord.identityId = _identityId;
 
             lock (_dbLock)
             {
@@ -239,6 +306,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
+            driveMainIndexRecord.identityId = _identityId;
+
             lock (_dbLock)
             {
                 int n = 0;
@@ -267,7 +336,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
-            byte[] senderId,
+            string senderId,
             Guid? groupId,
             Guid? uniqueId,
             Int32 archivalStatus,
@@ -298,7 +367,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         userDate = userDate,
                         fileType = fileType,
                         dataType = dataType,
-                        senderId = senderId?.ToString(),
+                        senderId = senderId,
                         groupId = groupId,
                         uniqueId = uniqueId,
                         archivalStatus = archivalStatus,
@@ -319,7 +388,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Int32? fileState = null,
             Int32? fileType = null,
             Int32? dataType = null,
-            byte[] senderId = null,
+            string senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
             Int32? archivalStatus = null,
@@ -348,7 +417,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         userDate = userDate ?? UnixTimeUtc.ZeroTime,
                         fileType = fileType ?? 0,
                         dataType = dataType ?? 0,
-                        senderId = senderId?.ToString(),
+                        senderId = senderId,
                         groupId = groupId,
                         uniqueId = uniqueId,
                         archivalStatus = archivalStatus ?? 0,
@@ -366,7 +435,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,
-            List<byte[]> senderidAnyOf,
+            List<string> senderidAnyOf,
             List<Guid> groupIdAnyOf,
             UnixTimeUtcRange userdateSpan,
             List<Guid> tagsAllOf,
@@ -375,6 +444,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             string leftJoin = "";
 
+            listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(_identityId.ToByteArray())}'");
             listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
             listWhere.Add($"(fileSystemType == {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
@@ -387,7 +457,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //
             if (IsSet(aclAnyOf))
             {
-                leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
+                leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.identityId = cir.identityId AND driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
 
 
                 listWhere.Add($"(  (cir.fileId IS NULL) OR cir.aclMemberId IN ({HexList(aclAnyOf)})  )");
@@ -421,7 +491,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(tagsAnyOf))
             {
-                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
+                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(archivalStatusAnyOf))
@@ -431,7 +501,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(senderidAnyOf))
             {
-                listWhere.Add($"senderid IN ({HexList(senderidAnyOf)})");
+                listWhere.Add($"senderid IN ({UnsafeStringList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
@@ -489,7 +559,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -666,7 +736,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -811,7 +881,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
-            List<byte[]> senderidAnyOf = null,
+            List<string> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
             List<Int32> archivalStatusAnyOf = null,
@@ -933,23 +1003,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             return s;
         }
+        
+        private string UnsafeStringList(List<string> list)
+        {
+            // WARNING! This does not do anything to escape the strings.
+            // It's up to the caller to ensure the strings are safe.
+            return string.Join(", ", list.Select(item => "'" + item + "'"));
+        }
 
         /// <summary>
         /// Returns true if the list should be used in the query
         /// </summary>
         private bool IsSet(List<byte[]> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
         }
 
         private bool IsSet(List<Guid> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
         }
 
         private bool IsSet(List<int> list)
         {
-            return list != null && list.Any();
+            return list?.Count > 0;
+        }
+
+        private bool IsSet(List<string> list)
+        {
+            return list?.Count > 0;
         }
 
         private string AndIntersectHexList(List<Guid> list)

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Odin.Core.Exceptions;
 
 namespace Odin.Services.Authorization.Acl
 {
+    [DebuggerDisplay("RSG:{RequiredSecurityGroup}, Circles:{RequiredCircleCount} OdinIds:{RequiredOdinIdCount}")]
     public class AccessControlList
     {
         public static AccessControlList OwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
@@ -61,7 +63,8 @@ namespace Odin.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.OdinIdList?.Count() ?? 0) > 0)
                 {
-                    throw new OdinClientException("Cannot specify circle or identity list when required security group is anonymous or owner", OdinClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
+                    throw new OdinClientException("Cannot specify circle or identity list when required security group is anonymous or owner",
+                        OdinClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }
             }
 
@@ -74,5 +77,11 @@ namespace Odin.Services.Authorization.Acl
             //     }
             // }
         }
+
+        //
+
+        private int RequiredCircleCount => CircleIdList?.Count ?? 0;
+
+        private int RequiredOdinIdCount => OdinIdList?.Count ?? 0;
     }
 }

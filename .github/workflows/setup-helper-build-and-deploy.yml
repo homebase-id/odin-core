@@ -1,0 +1,82 @@
+name: "SetupHelper: Build and deploy container"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: "${{ github.repository }}-setup-helper"
+  BRANCH_NAME: ""
+  DEPLOY_IMAGE: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4 
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          file: ./docker/Dockerfile-setup-helper
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=setup.homebase.id
+
+      #
+      # Deploy
+      #
+      - name: Get the branch name
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+
+      - name: Create image deploy name
+        run: |
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
+
+      - name: Output DEPLOY_IMAGE
+        run: |
+          echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
+
+      - name: Deploy SetupHelper
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script_stop: true
+          script: |
+            source $HOME/.profile
+            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo work folder: $ANSIBLE_WORK_FOLDER
+            mkdir $ANSIBLE_WORK_FOLDER
+            cd $ANSIBLE_WORK_FOLDER
+            git clone --depth 1 git@github.com:homebase-id/DevOps.git .
+            cd $ANSIBLE_WORK_FOLDER/ansible
+            ansible-playbook deploy-setup-helper.yml -e "setup_helper_docker_image=${{ env.DEPLOY_IMAGE }} docker_force_image_update=true"
+            cd /tmp
+            rm -rf $ANSIBLE_WORK_FOLDER

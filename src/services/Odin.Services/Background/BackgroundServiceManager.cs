@@ -42,7 +42,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
         
         if (_stoppingCts.IsCancellationRequested)
         {
-            throw new InvalidOperationException("The background service is stopping.");
+            throw new InvalidOperationException("The background service manager is stopping.");
         }
 
         using (await _mutex.LockAsync())
@@ -76,7 +76,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
             
             // SEB:NOTE
             // Since BackgroundServiceManager did not create the background service,
-            // therefore it is not responsible for disposing it. 
+            // it is not responsible for disposing it.
         }
     }
 
@@ -112,7 +112,7 @@ public sealed class BackgroundServiceManager(IServiceProvider services, string o
         
         // SEB:NOTE
         // Since BackgroundServiceManager did not create the background service,
-        // therefore it is not responsible for disposing it. 
+        // it is not responsible for disposing it.
     }
     
     //

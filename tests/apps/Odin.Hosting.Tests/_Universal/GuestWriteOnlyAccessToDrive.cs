@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -18,6 +17,7 @@ public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermission
     private GuestApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
+    public DrivePermission DrivePermission { get; } = DrivePermission.Write;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -34,7 +34,7 @@ public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermission
                         PermissionedDrive = new()
                         {
                             Drive = TargetDrive,
-                            Permission = DrivePermission.Write
+                            Permission = DrivePermission
                         }
                     }
                 },

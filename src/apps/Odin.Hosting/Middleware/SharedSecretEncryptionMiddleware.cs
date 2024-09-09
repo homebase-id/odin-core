@@ -59,7 +59,6 @@ namespace Odin.Hosting.Middleware
 
                 OwnerApiPathConstants.YouAuthV1,
                 OwnerApiPathConstants.AuthV1,
-                $"{OwnerApiPathConstants.PeerV1}/outbox/processor",
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",

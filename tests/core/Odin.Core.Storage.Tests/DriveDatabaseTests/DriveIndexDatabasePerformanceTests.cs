@@ -139,7 +139,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 stopWatch.Start();
                 for (int i = 1; i < _performanceIterations; i++)
                 {
-                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                    _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
                 stopWatch.Stop();
             }
@@ -196,7 +196,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 {
                     for (int i = 1; i < _performanceIterations; i++)
                     {
-                        _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                        _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                     }
                 });
                 stopWatch.Stop();
@@ -251,7 +251,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 {
                     for (int i = 1; i < _performanceIterations; i++)
                     {
-                        _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                        _testDatabase.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                     }
                 });
                 stopWatch.Stop();
@@ -420,7 +420,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             //
             for (int count = 0; count < iterations; count++)
             {
-                db.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                db.AddEntryPassalongToUpsert(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
 
             return timers;

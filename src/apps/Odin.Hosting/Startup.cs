@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Tasks;
@@ -41,8 +42,8 @@ using Odin.Hosting.Authentication.Unified;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Controllers.APIv2.Base;
+using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
-using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
@@ -87,12 +88,13 @@ namespace Odin.Hosting
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             //
-            // Job stuff
+            // Background and job stuff
             //
-            services.AddJobManagementServices(config);
+            services.AddSystemBackgroundServices();
+            services.AddJobManagerServices();
+            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers(options => { options.Conventions.Add(new ApiV2RouteConvention()); })
                 .AddJsonOptions(options =>
@@ -196,7 +198,7 @@ namespace Odin.Hosting
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
+            services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
             services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
@@ -228,6 +230,8 @@ namespace Odin.Hosting
                 config.Admin.ApiKeyHttpHeaderName,
                 config.Admin.ApiPort,
                 config.Admin.Domain));
+
+            services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
 
@@ -263,9 +267,6 @@ namespace Odin.Hosting
             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-            
-            // System background services
-            builder.RegisterSystemBackgroundServices();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -290,14 +291,20 @@ namespace Odin.Hosting
             app.UseHsts();
 
             // Provisioning mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
-                a => Provisioning.Map(a, env, logger));
+            if (config.Registry.ProvisioningEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                    a => Provisioning.Map(a, env, logger));
+            }
 
             // Admin mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Admin.Domain,
-                a => Admin.Map(a, env, logger));
+            if (config.Admin.ApiEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Admin.Domain,
+                    a => Admin.Map(a, env, logger));
+            }
 
             app.UseMultiTenancy();
 
@@ -460,12 +467,8 @@ namespace Odin.Hosting
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                var jobManager = services.GetRequiredService<IJobManager>();
-                jobManager.Initialize().BlockingWait();
-                
                 // Start system background services
-                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
-                systemBackgroundServiceManager.StartSystemBackgroundServices(services).Wait();
+                services.StartSystemBackgroundServices().BlockingWait();
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -481,21 +484,12 @@ namespace Odin.Hosting
                 //
                 // Shutdown all tenant background services
                 //
-                var multitenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
-                var registry = services.GetRequiredService<IIdentityRegistry>();
-                var registrations = registry.GetList().Result;
-                foreach (var registration in registrations.Results)
-                {
-                    var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-                    var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-                    backgroundServiceManager.ShutdownAsync().BlockingWait();
-                }
+                services.ShutdownTenantBackgroundServices().BlockingWait();                
                 
                 //
                 // Shutdown system background services
                 //
-                var systemBackgroundServiceManager = services.GetRequiredService<IBackgroundServiceManager>();
-                systemBackgroundServiceManager.ShutdownAsync().BlockingWait();
+                services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
 

@@ -1,402 +1,355 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Quartz;
-using Quartz.Impl;
-using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Time;
+using Odin.Services.Base;
 
 namespace Odin.Services.JobManagement;
-#nullable enable
 
-//
+#nullable enable
 
 public interface IJobManager
 {
-    Task Initialize(Func<Task>? configureJobs = null);
-    Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob;
-    Task<JobResponse> GetResponse(JobKey jobKey);
-    Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class;
-    Task<bool> Exists(JobKey jobKey);
-    Task<bool> Delete(JobKey jobKey);
-    Task<bool> Delete(AbstractJobSchedule jobSchedule);
+    T NewJob<T>() where T : AbstractJob;
+    Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
+    Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
+    Task<long> CountJobsAsync();
+    Task<bool> DeleteJobAsync(Guid jobId);
+    Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
+    Task<bool> JobExistsAsync(Guid jobId);
+    Task DeleteExpiredJobsAsync();
 }
 
 //
 
-public sealed class JobManagerConfig
-{
-    public string DatabaseDirectory { get; init; } = "";
-    public bool ConnectionPooling { get; init; } = true;
-    public int SchedulerThreadCount { get; init; }
-}
-
-//
-
-public sealed class JobManager(
+public class JobManager(
     ILogger<JobManager> logger,
-    ILoggerFactory loggerFactory,
     ICorrelationContext correlationContext,
-    IJobFactory jobFactory,
-    IJobListener jobListener,
-    JobManagerConfig config
-    ) : IJobManager, IAsyncDisposable
+    IServiceProvider serviceProvider,
+    ServerSystemStorage serverSystemStorage,
+    JobRunnerBackgroundService jobRunnerBackgroundService)
+    : IJobManager
 {
-    private bool _disposing;
-    private readonly AsyncLock _mutex = new();
-    private readonly Dictionary<string, IScheduler> _schedulers = new();
-
+    private readonly TableJobs _tblJobs = serverSystemStorage.Jobs;
+    
     //
 
-    public async Task Initialize(Func<Task>? configureJobs)
+    public T NewJob<T>() where T : AbstractJob
     {
-        Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
-
-        using (await _mutex.LockAsync())
-        {
-            logger.LogDebug("Creating schedulers");
-            await CreateSchedulers();
-        }
-
-        if (configureJobs != null)
-        {
-            await configureJobs();
-        }
-
-        using (await _mutex.LockAsync())
-        {
-            logger.LogDebug("Starting schedulers");
-            await StartSchedulers();
-        }
+        return serviceProvider.GetRequiredService<T>();
     }
 
     //
-
-    public async Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob
+    
+    public async Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null)
     {
-        using (await _mutex.LockAsync())
+        var jobId = Guid.NewGuid();
+        
+        schedule ??= new JobSchedule();
+
+        var record = new JobsRecord
         {
-            // Sanity
-            if (_disposing)
-            {
-                throw new JobManagerException("JobManager is shutting down");
-            }
-
-            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
-            if (scheduler == null)
-            {
-                throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
-            }
-
-            var exists = await scheduler.CheckExists(jobSchedule.JobKey);
-            if (exists)
-            {
-                // The JobKey is static per AbstractJobSchedule instance and has to be unique.
-                throw new JobManagerException(
-                    $"JobKey {jobSchedule.JobKey} already exists. An instance of AbstractJobSchedule cannot schedule more than one job.");
-            }
-
-            var scheduledJobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
-            if (scheduledJobKey != null)
-            {
-                logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, scheduledJobKey);
-                return scheduledJobKey;
-            }
-
-            var (jobBuilder, triggerBuilders) = await jobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
-            if (triggerBuilders.Count == 0)
-            {
-                // Sanity: we don't want to schedule a job without triggers
-                return new JobKey("non-scheduled-job");
-            }
-
-            jobBuilder.WithIdentity(jobSchedule.JobKey);
-            jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
-            jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
-            jobBuilder.UsingJobData(JobConstants.JobTypeName, typeof(TJob).FullName);
-
-            var job = jobBuilder.Build();
-            foreach (var triggerBuilder in triggerBuilders)
-            {
-                var trigger = triggerBuilder.Build();
-                await scheduler.ScheduleJob(job, trigger);
-            }
-
-            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobSchedule.JobKey);
-
-            return jobSchedule.JobKey;
-        }
-    }
-
-    //
-
-    public async Task<JobResponse> GetResponse(JobKey jobKey)
-    {
-        var response = new JobResponse
-        {
-            Status = JobStatus.NotFound,
-            JobKey = jobKey.ToString(),
+            id = jobId,
+            name = job.Name,
+            state = (int)JobState.Scheduled,
+            priority = schedule.Priority,
+            nextRun = Math.Max(schedule.RunAt.ToUnixTimeMilliseconds(), DateTimeOffset.Now.ToUnixTimeMilliseconds()),
+            lastRun = null,
+            runCount = 0,
+            maxAttempts = Math.Max(1, schedule.MaxAttempts),
+            retryDelay = Math.Max(0, (long)schedule.RetryDelay.TotalMilliseconds),
+            onSuccessDeleteAfter = Math.Max(0, (long)schedule.OnSuccessDeleteAfter.TotalMilliseconds),
+            onFailureDeleteAfter = Math.Max(0, (long)schedule.OnFailureDeleteAfter.TotalMilliseconds),
+            expiresAt = null,
+            correlationId = correlationContext.Id,
+            jobType = job.JobType,
+            jobData = job.SerializeJobData(),
+            jobHash = job.CreateJobHash(),
+            lastError = null,
         };
-
-        using (await _mutex.LockAsync())
+        
+        using (var cn = await CreateConnectionAsync())
         {
-            var schedulerGroup = jobKey.SchedulerGroup();
-            if (schedulerGroup == null)
+            if (record.jobHash == null)
             {
-                return response;
+                logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
+                    jobId, job.Name, schedule.RunAt.ToString("O"));
+                _tblJobs.Insert(cn, record);
             }
-
-            var scheduler = GetScheduler(schedulerGroup.Value);
-            if (scheduler == null)
+            else
             {
-                return response;
+                logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
+                    jobId, job.Name, schedule.RunAt.ToString("O"));
+                var inserted = _tblJobs.TryInsert(cn, record);
+                if (inserted == 0)
+                {
+                    // Job already exists, lets look it up using the jobHash
+                    var existingRecord = await _tblJobs.GetJobByHash(cn, record.jobHash);
+                    if (existingRecord != null)
+                    {
+                        logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
+                            existingRecord.id, existingRecord.name);
+                        return existingRecord.id;
+                    }
+                    logger.LogError("Could not find job with hash {hash}", record.jobHash);
+                    throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
+                }
             }
-
-            var job = await scheduler.GetJobDetail(jobKey);
-            if (job == null || !job.Key.Equals(jobKey))
-            {
-                return response;
-            }
-
-            var jobData = job.JobDataMap;
-            jobData.TryGetString(JobConstants.StatusKey, out var status);
-            jobData.TryGetString(JobConstants.JobErrorMessageKey, out var errorMessage);
-            jobData.TryGetString(JobConstants.JobResponseDataKey, out var data);
-
-            response.Status = Helpers.JobStatusFromStatusValue(status ?? "");
-            response.Error = errorMessage;
-            response.Data = data;
-
-            return response;
         }
+        
+        // Signal job runner to wake up
+        jobRunnerBackgroundService.PulseBackgroundProcessor();
+
+        return jobId;
     }
 
     //
-
-    public async Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class
+    
+    // SEB:NOTE
+    // This method attempts to run the job immediately. It does not check the job's schedule.
+    // You should only call this directly when testing the job.
+    public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        var response = await GetResponse(jobKey);
-        if (response.Data == null)
+        // DO NOT check cancellationToken here. It will orphan the job if we bail at this point!
+
+        var job = await GetJobAsync<AbstractJob>(jobId);
+        if (job?.Record == null)
         {
-            return (response, null);
+            logger.LogError("Job {jobId} not found", jobId);
+            return;
         }
 
-        var data = OdinSystemSerializer.Deserialize<T>(response.Data);
-        if (data == null)
+        correlationContext.Id = job.Record.correlationId;
+
+        if (job.State is not (JobState.Scheduled or JobState.Preflight))
         {
-            throw new JobManagerException("Error deserializing JobResponse.Data");
+            logger.LogError("Job {jobId} is in wrong state: {state}", jobId, job.State);
+            return;
         }
-
-        return (response, data);
-    }
-
-    //
-
-    public async Task<bool> Exists(JobKey jobKey)
-    {
-        using (await _mutex.LockAsync())
-        {
-            var schedulerGroup = jobKey.SchedulerGroup();
-            if (schedulerGroup == null)
-            {
-                return false;
-            }
-
-            var scheduler = GetScheduler(schedulerGroup.Value);
-            if (scheduler == null)
-            {
-                return false;
-            }
-
-            return await scheduler.CheckExists(jobKey);
-        }
-    }
-
-    //
-
-    public async Task<bool> Delete(JobKey jobKey)
-    {
+        
         //
-        // Race condition in Quartz when deleting here:
-        //   https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Core/QuartzScheduler.cs#L690
-        // It seems to work better if we explicitly unschedule the triggers before deleting the job.
+        // Execute the job
         //
-        using (await _mutex.LockAsync())
+
+        JobExecutionResult result;
+        string? errorMessage = null;
+        var record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
+        try
         {
-            var schedulerGroup = jobKey.SchedulerGroup();
-            if (schedulerGroup == null)
+            logger.LogInformation("JobManager starting job {jobId} ({name})", jobId, job.Record?.name);
+            record.state = (int)JobState.Running;
+            record.runCount++;
+            record.lastRun = UnixTimeUtc.Now();
+            await UpdateAsync(record);
+
+            result = await job.Run(cancellationToken);
+            
+            // DO NOT RELOAD THE JOB AFTER THIS POINT!
+        }
+        catch (OperationCanceledException ex)
+        {
+            // Host is probably terminating. Pick up job next time it starts.
+            // We add 3 seconds for good measure, mostly to not confuse the test runner.
+            result = JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(3)); 
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            result = JobExecutionResult.Fail();
+            errorMessage = ex.Message;
+        }
+        
+        // DO NOT RELOAD THE JOB AFTER THIS POINT!
+        
+        //
+        // Success?
+        //
+        if (result.Result == RunResult.Success)
+        {
+            logger.LogInformation("JobManager completed job {jobId} ({name}) successfully", 
+                record.id, record.name);
+
+            if (record.onSuccessDeleteAfter == 0)
             {
-                return false;
+                await DeleteAsync(record);
             }
-
-            var scheduler = GetScheduler(schedulerGroup.Value);
-            if (scheduler == null)
+            else
             {
-                return false;
+                record.state = (int)JobState.Succeeded;
+                record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onSuccessDeleteAfter);
+                record.lastError = null;
+                record.jobData = job.SerializeJobData();
+                await UpdateAsync(record);
             }
-
-            var triggers = await scheduler.GetTriggersOfJob(jobKey);
-            foreach (var trigger in triggers)
+        }
+        
+        //
+        // Reschedule?
+        //
+        else if (result.Result == RunResult.Reschedule)
+        {
+            logger.LogInformation("JobManager rescheduled job {jobId} ({name}) for {runat}", 
+                record.id, record.name, result.RescheduleAt.ToString("O"));
+            record.state = (int)JobState.Scheduled;
+            record.nextRun = result.RescheduleAt.ToUnixTimeMilliseconds();
+            record.runCount = 0;
+            record.lastError = errorMessage ?? "job was rescheduled";
+            record.jobData = job.SerializeJobData();
+            await UpdateAsync(record);
+        }
+        
+        //
+        // Abort?
+        //
+        else if (result.Result == RunResult.Abort)
+        {
+            logger.LogInformation("JobManager deleted job {jobId} ({name})", 
+                record.id, record.name);
+            await DeleteAsync(record);
+        }
+        
+        //
+        // Fail?
+        //
+        else if (result.Result == RunResult.Fail)
+        {
+            record.lastError = errorMessage ?? "unspecified error";
+            record.jobData = job.SerializeJobData();
+            if (record.runCount < record.maxAttempts)
             {
-                await scheduler.UnscheduleJob(trigger.Key);
+                var runAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(record.retryDelay);
+                logger.LogWarning(
+                    "JobManager rescheduling unsuccessful job {jobId} ({name}) [{attempt}/{maxAttempt}] for {runat}, Error: {errorMessage}",
+                    record.id, record.name, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
+                record.state = (int)JobState.Scheduled;
+                record.nextRun = runAt.ToUnixTimeMilliseconds();
             }
-
-            var deleted = await scheduler.DeleteJob(jobKey);
-            if (deleted)
+            else
             {
-                // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
+                logger.LogError(
+                    "JobManager giving up on unsuccessful job {jobId} ({name}) after {attempts} attempts. Error: {errorMessage}",
+                    record.id, record.name, record.runCount, record.lastError);
+                if (record.onFailureDeleteAfter == 0)
+                {
+                    await DeleteAsync(record);
+                }
+                else
+                {
+                    record.state = (int)JobState.Failed;
+                    record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                }
             }
-            return deleted;
+            await UpdateAsync(record);
         }
+        
+        //
+        // Oh dear...
+        //
+        else
+        {
+            throw new OdinSystemException($"Invalid run result {result.Result}. Did you forget to set it?");
+        }
+    }
+    
+    //
+
+    public async Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
+    {
+        JobsRecord record;
+        using (var cn = await CreateConnectionAsync())
+        {
+            record = _tblJobs.Get(cn, jobId);
+        }
+    
+        if (record == null)
+        {
+            return null;
+        }
+
+        var job = AbstractJob.CreateInstance<T>(serviceProvider, record);
+    
+        return job;
+    }
+    
+    //
+    
+    public async Task<long> CountJobsAsync()
+    {
+        using var cn = await CreateConnectionAsync();
+        var result = await _tblJobs.GetCountAsync(cn);
+        return result;
+    }
+    
+    //
+    
+    public async Task<bool> JobExistsAsync(Guid jobId)
+    {
+        using var cn = await CreateConnectionAsync();
+        var result = await _tblJobs.JobIdExists(cn, jobId);
+        return result;
+    }
+    
+    //
+
+    public async Task<bool> DeleteJobAsync(Guid jobId)
+    {
+        using var cn = await CreateConnectionAsync();
+        var result = _tblJobs.Delete(cn, jobId);
+        return result > 0;
+    }
+    
+    //
+
+    public async Task DeleteExpiredJobsAsync()
+    {
+        using var cn = await CreateConnectionAsync();
+        await _tblJobs.DeleteExpiredJobs(cn);
     }
 
     //
 
-    public async Task<bool> Delete(AbstractJobSchedule jobSchedule)
+    private Task<DatabaseConnection> CreateConnectionAsync()
     {
-        using (await _mutex.LockAsync())
-        {
-            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
-            if (scheduler == null)
-            {
-                return false;
-            }
+        return Task.FromResult(serverSystemStorage.CreateConnection());
+    } 
+    
+    //
 
-            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobSchedule.SchedulingKey));
-            var deleted = await scheduler.DeleteJobs(jobKeys);
-            if (deleted)
-            {
-                // logger.LogDebug("Explicitly deleted {JobId}", jobScheduler.JobId);
-            }
-            return deleted;
-        }
+    private async Task<int> UpdateAsync(JobsRecord record)
+    {
+        using var cn = await CreateConnectionAsync();
+        var updated = _tblJobs.Update(cn, record);
+        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        return updated;
     }
 
     //
 
-    public async ValueTask DisposeAsync()
+    private async Task<int> UpsertAsync(JobsRecord record)
     {
-        using (await _mutex.LockAsync())
-        {
-            _disposing = true;
-            await ShutdownSchedulers();
-        }
+        using var cn = await CreateConnectionAsync();
+        var updated = _tblJobs.Upsert(cn, record);
+        jobRunnerBackgroundService.PulseBackgroundProcessor();       
+        return updated;
     }
-
+    
     //
-
-    private async Task CreateSchedulers()
+    
+    private async Task<int> DeleteAsync(JobsRecord record)
     {
-        if (_disposing)
-        {
-            throw new JobManagerException("JobManager is shutting down");
-        }
-
-        var schedulerTypes = Enum.GetValues<SchedulerGroup>();
-        foreach (var schedulerType in schedulerTypes)
-        {
-            await CreateScheduler(schedulerType);
-        }
-    }
-
+        using var cn = await CreateConnectionAsync();
+        var deleted = _tblJobs.Delete(cn, record.id);
+        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        return deleted;
+    } 
+   
     //
-
-    private async Task StartSchedulers()
-    {
-        if (_disposing)
-        {
-            throw new JobManagerException("JobManager is shutting down");
-        }
-
-        var schedulerNames = _schedulers.Keys;
-        foreach (var name in schedulerNames)
-        {
-            var scheduler = _schedulers[name];
-            await scheduler.Start();
-        }
-    }
-
-    //
-
-    private async Task ShutdownSchedulers()
-    {
-        var schedulerNames = _schedulers.Keys;
-        foreach (var name in schedulerNames)
-        {
-            logger.LogDebug("JobManager starting shutdown of scheduler {SchedulerName}", name);
-            var scheduler = _schedulers[name];
-            await scheduler.Shutdown(true);
-            _schedulers.Remove(name);
-            logger.LogDebug("JobManager finished shutdown of scheduler {SchedulerName}", name);
-        }
-    }
-
-    //
-
-    private IScheduler? GetScheduler(SchedulerGroup schedulerType)
-    {
-        var schedulerName = schedulerType.ToString();
-        if (_disposing)
-        {
-            throw new JobManagerException("JobManager is shutting down");
-        }
-
-        return _schedulers.GetValueOrDefault(schedulerName);
-    }
-
-    //
-
-    private async Task<IScheduler> CreateScheduler(SchedulerGroup schedulerType)
-    {
-        var scheduler = GetScheduler(schedulerType);
-        if (scheduler != null)
-        {
-            throw new JobManagerException($"Scheduler already exists: ${schedulerType}" );
-        }
-
-        var schedulerName = schedulerType.ToString();
-
-        Directory.CreateDirectory(config.DatabaseDirectory);
-
-        var databaseFile = $"{schedulerName}.db";
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(config.DatabaseDirectory, databaseFile),
-            Pooling = config.ConnectionPooling,
-        }.ToString();
-
-        QuartzSqlite.CreateSchema(connectionString);
-
-        // https://www.quartz-scheduler.net/documentation/quartz-3.x/configuration/reference.html
-        var properties = new NameValueCollection()
-        {
-            [$"quartz.scheduler.instanceName"] = schedulerName,
-            [$"quartz.serializer.type"] = "json",
-            [$"quartz.jobStore.useProperties"] = "true",
-            [$"quartz.jobStore.dataSource"] = schedulerName,
-            [$"quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-            [$"quartz.dataSource.{schedulerName}.connectionString"] = connectionString,
-            [$"quartz.dataSource.{schedulerName}.provider"] = "SQLite-Microsoft",
-            [$"quartz.threadPool.threadCount"] = $"{config.SchedulerThreadCount}",
-        };
-
-        var factory = new StdSchedulerFactory(properties);
-        scheduler = await factory.GetScheduler();
-        scheduler.JobFactory = jobFactory;
-        scheduler.ListenerManager.AddJobListener(jobListener, GroupMatcher<JobKey>.AnyGroup());
-
-        _schedulers[schedulerName] = scheduler;
-
-        return scheduler;
-    }
+    
 }
-
-public class JobManagerException(string message) : OdinSystemException(message);

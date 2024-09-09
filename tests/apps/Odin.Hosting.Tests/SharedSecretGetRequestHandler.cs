@@ -37,7 +37,7 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
 
             request.Headers.TryGetValues("X-HACK-COOKIE", out var cookieBase64);
             var cookieValue = cookieBase64?.FirstOrDefault();
-            
+
             if (!request.Headers.TryGetValues("X-HACK-SHARED-SECRET", out var keyBase64))
             {
                 throw new Exception("Missing shared secret hack");
@@ -57,14 +57,20 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
 
             var newQs = $"?ss={HttpUtility.UrlEncode(OdinSystemSerializer.Serialize(payload))}";
             var uri = request.RequestUri;
-            var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port,uri.AbsolutePath, newQs);
+            var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port, uri.AbsolutePath, newQs);
             var msg = new HttpRequestMessage(request.Method, builder.Uri.ToString());
 
+            //copy over existing headers
+            foreach (var header in request.Headers)
+            {
+                msg.Headers.Add(header.Key, header.Value);
+            }
+            
             if (!string.IsNullOrEmpty(cookieValue))
             {
-                msg.Headers.Add("Cookie", cookieValue);    
+                msg.Headers.Add("Cookie", cookieValue);
             }
-
+            
             return base.SendAsync(msg, cancellationToken);
         }
 

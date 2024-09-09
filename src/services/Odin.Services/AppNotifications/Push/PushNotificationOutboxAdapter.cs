@@ -15,7 +15,7 @@ public class PushNotificationOutboxAdapter(
     public Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
         logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-        outboxProcessorBackgroundService.WakeUp();
+        outboxProcessorBackgroundService.PulseBackgroundProcessor();
         return Task.CompletedTask;
     }
 }

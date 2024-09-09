@@ -1,8 +1,8 @@
 name: "Host: Build frontend"
 description: "Buid frontend code"
 inputs:
-  dotyoucore_lib_token:
-    description: "Github token for dotyoucore-js repo"
+  odin_lib_token:
+    description: "Github token for odin-js repo"
     required: true
   github_token:
     description: "Github token for package repo"
@@ -21,11 +21,11 @@ runs:
         node-version: "20.x"
         registry-url: "https://npm.pkg.github.com"
 
-    - name: Checkout dotyoucorejs monorepo
+    - name: Checkout odin-js monorepo
       uses: actions/checkout@v4
       with:
-        repository: YouFoundation/dotyoucore-js
-        token: ${{ inputs.dotyoucore_lib_token }}
+        repository: homebase-id/odin-js
+        token: ${{ inputs.odin_lib_token }}
         ref: ${{ inputs.git_ref }}
         path: client/apps
 
@@ -33,7 +33,7 @@ runs:
       shell: bash
       working-directory: ./client/apps
       run: |
-        echo "@youfoundation:registry=https://npm.pkg.github.com" > .npmrc
+        echo "@homebase-id:registry=https://npm.pkg.github.com" > .npmrc
         echo "//npm.pkg.github.com/:_authToken=${{ inputs.github_token }}" >> .npmrc
 
     - name: Build libs & setup .env
@@ -60,46 +60,46 @@ runs:
       working-directory: ./client/apps
       run: |
         npm run build:owner
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/owner-app
-        mv packages/owner-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/owner-app
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/owner-app
+        mv packages/owner-app/dist ../../odin-core/src/apps/Odin.Hosting/client/owner-app
 
     - name: Build public-app
       shell: bash
       working-directory: ./client/apps
       run: |
         npm run build:public
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/public-app
-        mv packages/public-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/public-app
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/public-app
+        mv packages/public-app/dist ../../odin-core/src/apps/Odin.Hosting/client/public-app
 
     - name: Build feed-app
       shell: bash
       working-directory: ./client/apps
       run: |
         npm run build:feed
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/feed
-        mv packages/feed-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/feed
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
+        mv packages/feed-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
 
     - name: Build chat-app
       shell: bash
       working-directory: ./client/apps
       run: |
         npm run build:chat
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/chat
-        mv packages/chat-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/chat
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
+        mv packages/chat-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
 
     - name: Build mail-app
       shell: bash
       working-directory: ./client/apps
       run: |
         npm run build:mail
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
-        mv packages/mail-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
+        mv packages/mail-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
 
     - name: Build provisioning-app
       shell: bash
       working-directory: ./client/apps
       run: |
         npm run build:provisioning
-        rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
-        mv packages/provisioning-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
+        mv packages/provisioning-app/dist ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
 

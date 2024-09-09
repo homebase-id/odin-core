@@ -19,7 +19,7 @@ public class OdinAuthorizeRouteAttribute(RootApiRoutes flags) : Attribute, IAsyn
         {
             // check owner claims
             
-            context.HttpContext.User.Claims.Any(c=>c.Type == "")
+            context.HttpContext.User.Claims.Any(c=>c.Type == "");
         }
 
         context.Result = new ForbidResult();

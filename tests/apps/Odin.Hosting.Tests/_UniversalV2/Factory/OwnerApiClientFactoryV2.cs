@@ -1,0 +1,39 @@
+using System;
+using System.Net.Http;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.APIv2;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+
+namespace Odin.Hosting.Tests._UniversalV2.Factory;
+
+public class OwnerApiClientFactoryV2(ClientAuthenticationToken token, byte[] secret) : IApiClientFactory
+{
+    public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = WebScaffold.CreateHttpClient<OwnerApiTestUtils>();
+
+        //
+        // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.
+        // DO NOT do this in production code!
+        //
+        {
+            var cookieValue = $"{OwnerAuthConstants.CookieName}={token}";
+            client.DefaultRequestHeaders.Add("Cookie", cookieValue);
+            client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
+            client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(secret));
+        }
+
+        client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
+        client.Timeout = TimeSpan.FromMinutes(15);
+
+        client.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}{ApiV2PathConstants.OwnerRoot}");
+        sharedSecret = secret.ToSensitiveByteArray();
+        return client;
+    }
+}

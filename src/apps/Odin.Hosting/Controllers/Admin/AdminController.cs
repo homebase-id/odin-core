@@ -64,8 +64,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        var jobKey = await _tenantAdmin.EnqueueDeleteTenant(domain);
-        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
+        var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobId });
     }
 
     //
@@ -78,8 +78,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        var jobKey = await _tenantAdmin.EnqueueExportTenant(domain);
-        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
+        var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobId });
     }
 
     //

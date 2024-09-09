@@ -23,6 +23,7 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
     }
 
     public TargetDrive TargetDrive { get; }
+    public DrivePermission DrivePermission { get; } = DrivePermission.Write;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -37,7 +38,7 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = TargetDrive,
-                        Permission = DrivePermission.Write
+                        Permission = DrivePermission
                     }
                 }
             },

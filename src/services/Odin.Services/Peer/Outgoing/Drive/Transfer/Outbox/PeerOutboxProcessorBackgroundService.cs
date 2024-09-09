@@ -14,13 +14,16 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Background.Services;
 using Odin.Services.Base;
+using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessorBackgroundService(
+        ICertificateCache certificateCache,
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
@@ -31,17 +34,27 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantSystemStorage tenantSystemStorage,
         TenantContext tenantContext,
-        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService
+        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var domain = tenantContext.HostOdinId.DomainName;
+
             var tasks = new List<Task>();
             while (!stoppingToken.IsCancellationRequested)
             {
-                logger.LogDebug("Processing outbox");
-                
-                TimeSpan? nextRun;
+                // Sanity: Make sure we have a certificate for the domain before processing the outbox.
+                // Missing certificate can happen in rare, temporary, situations if the certificate has expired
+                // or has not yet been created.
+                if (certificateCache.LookupCertificate(domain) == null)
+                {
+                    logger.LogWarning("No certificate found for domain {domain}. Skipping outbox processing", domain);
+                    await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
+                    continue;
+                }
+                logger.LogDebug("{service} is running", GetType().Name);
 
+                TimeSpan nextRun;
                 using (var cn = tenantSystemStorage.CreateConnection())
                 {
                     while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(cn) is { } item)
@@ -50,17 +63,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         tasks.Add(task);
                     }
 
-                    nextRun = await peerOutbox.NextRun(cn);
+                    nextRun = await peerOutbox.NextRun(cn) ?? MaxSleepDuration;
                 }
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
+                logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, nextRun);
                 await SleepAsync(nextRun, stoppingToken);
             }
 
             await Task.WhenAll(tasks);
         }
-        
+
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
@@ -163,7 +177,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
                 await peerOutbox.MarkComplete(fileItem.Marker, connection);
-                logger.LogInformation("Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
+                logger.LogInformation(
+                    "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
                     fileItem.File,
                     fileItem.AttemptCount);
@@ -171,7 +186,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             await peerOutbox.MarkFailure(fileItem.Marker, nextRun, connection);
-            WakeUp();
+            PulseBackgroundProcessor();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,
@@ -195,9 +210,33 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ReadReceipt:
                     return await SendReadReceipt(fileItem, odinContext, connection, cancellationToken);
 
+                case OutboxItemType.AddRemoteReaction:
+                    return await AddRemoteReaction(fileItem, odinContext, connection, cancellationToken);
+
+                case OutboxItemType.DeleteRemoteReaction:
+                    return await DeleteRemoteReaction(fileItem, odinContext, connection, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> AddRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<AddRemoteReactionOutboxWorker>();
+            var worker = new AddRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, connection, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> DeleteRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<DeleteRemoteReactionOutboxWorker>();
+            var worker = new DeleteRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, connection, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,

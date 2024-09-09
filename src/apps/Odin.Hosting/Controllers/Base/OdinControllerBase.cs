@@ -12,7 +12,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
-using Serilog;
 
 namespace Odin.Hosting.Controllers.Base;
 
@@ -111,8 +110,7 @@ public abstract class OdinControllerBase : ControllerBase
             _odinContext = HttpContext.RequestServices.GetRequiredService<IOdinContext>();
             if (string.IsNullOrEmpty(_odinContext.Tenant))
             {
-                Log.Error(""); // SEB:TODO fix this logger when Todd is done refactoring boxes and what not
-                _odinContext = null;
+                throw new OdinSystemException("Missing IOdinContext.Tenant");
             }
             
             return _odinContext;

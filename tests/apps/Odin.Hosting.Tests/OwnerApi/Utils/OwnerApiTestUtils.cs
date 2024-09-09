@@ -569,7 +569,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, odinId2, ConnectionStatus.None);
             }
 
             client = this.CreateOwnerApiHttpClient(odinId2, out ownerSharedSecret);
@@ -577,7 +577,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, odinId1, ConnectionStatus.None);
             }
         }
         

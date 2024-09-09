@@ -24,8 +24,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var boxId = SequentialGuid.CreateGuid();
 
                 var tslo = UnixTimeUtc.Now();
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 10, value = v2 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 10, value = v2 });
                 var tshi = UnixTimeUtc.Now();
 
                 var r = db.tblInbox.Get(myc, f1);
@@ -71,11 +71,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var boxId = SequentialGuid.CreateGuid();
 
                 var tslo = UnixTimeUtc.Now();
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 1, value = v2 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f3, priority = 2, value = v3 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f4, priority = 3, value = v4 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f5, priority = 4, value = v5 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId,  boxId = boxId, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 1, value = v2 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 2, value = v3 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 3, value = v4 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 4, value = v5 });
                 var tshi = UnixTimeUtc.Now();
 
                 var (tot, pop, poptime) = db.tblInbox.PopStatus(myc);
@@ -172,11 +172,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f5, priority = 20, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
                 var r1 = db.tblInbox.PopSpecificBox(myc, boxId, 2);
                 var r2 = db.tblInbox.PopSpecificBox(myc, boxId, 3);
 
@@ -218,11 +218,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f5, priority = 20, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
 
                 var r1 = db.tblInbox.PopSpecificBox(myc, boxId, 2);
                 db.tblInbox.PopCommitAll(myc, (Guid)r1[0].popStamp);
@@ -250,9 +250,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b1 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
 
                 // Pop all records from the Inbox,be sure we get 3
                 var r1 = db.tblInbox.PopSpecificBox(myc, b1, 5);
@@ -301,9 +301,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b1 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
 
                 // Pop all records from the Inbox,be sure we get 3
                 var r1 = db.tblInbox.PopSpecificBox(myc, b1, 5);
@@ -345,11 +345,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = boxId, fileId = f5, priority = 20, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
 
                 var r1 = db.tblInbox.PopSpecificBox(myc, boxId, 2);
 
@@ -388,11 +388,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b2 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b2, fileId = f3, priority = 10, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b2, fileId = f4, priority = 10, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = b2, fileId = f5, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f3, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f4, priority = 10, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f5, priority = 10, value = v1 });
 
                 var (tot, pop, poptime) = db.tblInbox.PopStatusSpecificBox(myc, b1);
                 Assert.AreEqual(2, tot);
@@ -462,11 +462,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // An inbox is simply a GUID. E.g. the boxId.
                 // A record has a fileId, priority and a custom value
                 // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = box1id, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = box1id, fileId = f2, priority = 10, value = v2 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = box1id, fileId = f3, priority = 10, value = v3 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = box2id, fileId = f4, priority = 10, value = v4 });
-                db.tblInbox.Insert(myc, new InboxRecord() { boxId = box2id, fileId = f5, priority = 10, value = v5 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f1, priority = 0, value = v1 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f2, priority = 10, value = v2 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f3, priority = 10, value = v3 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f4, priority = 10, value = v4 });
+                db.tblInbox.Insert(myc, new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f5, priority = 10, value = v5 });
 
                 // A thread1 pops one record from inbox1 (it'll get the oldest one)
                 // Popping the record "reserves it" for your thread but doesn't remove

@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class InboxRecord
     {
+        private Guid _identityId;
+        public Guid identityId
+        {
+           get {
+                   return _identityId;
+               }
+           set {
+                  _identityId = value;
+               }
+        }
         private Guid _fileId;
         public Guid fileId
         {
@@ -96,7 +106,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private bool _disposed = false;
 
-        public TableInboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
+        public TableInboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "inbox")
         {
         }
 
@@ -122,6 +132,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS inbox("
+                     +"identityId BLOB NOT NULL, "
                      +"fileId BLOB NOT NULL UNIQUE, "
                      +"boxId BLOB NOT NULL, "
                      +"priority INT NOT NULL, "
@@ -130,156 +141,168 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT  "
-                     +", PRIMARY KEY (fileId)"
+                     +", PRIMARY KEY (identityId,fileId)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(timeStamp);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(boxId);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(popStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
+                     +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
                      ;
                     conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, InboxRecord item)
+        protected virtual int Insert(DatabaseConnection conn, InboxRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
-                {
-                    _insertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$fileId";
-                    _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$boxId";
-                    _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$priority";
-                    _insertCommand.Parameters.Add(_insertParam3);
-                    var _insertParam4 = _insertCommand.CreateParameter();
-                    _insertParam4.ParameterName = "$timeStamp";
-                    _insertCommand.Parameters.Add(_insertParam4);
-                    var _insertParam5 = _insertCommand.CreateParameter();
-                    _insertParam5.ParameterName = "$value";
-                    _insertCommand.Parameters.Add(_insertParam5);
-                    var _insertParam6 = _insertCommand.CreateParameter();
-                    _insertParam6.ParameterName = "$popStamp";
-                    _insertCommand.Parameters.Add(_insertParam6);
-                    var _insertParam7 = _insertCommand.CreateParameter();
-                    _insertParam7.ParameterName = "$created";
-                    _insertCommand.Parameters.Add(_insertParam7);
-                    var _insertParam8 = _insertCommand.CreateParameter();
-                    _insertParam8.ParameterName = "$modified";
-                    _insertCommand.Parameters.Add(_insertParam8);
-                _insertParam1.Value = item.fileId.ToByteArray();
-                _insertParam2.Value = item.boxId.ToByteArray();
-                _insertParam3.Value = item.priority;
-                _insertParam4.Value = item.timeStamp.milliseconds;
-                _insertParam5.Value = item.value ?? (object)DBNull.Value;
-                _insertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@identityId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@fileId";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@boxId";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@priority";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@timeStamp";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@value";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@popStamp";
+                _insertCommand.Parameters.Add(_insertParam7);
+                var _insertParam8 = _insertCommand.CreateParameter();
+                _insertParam8.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam8);
+                var _insertParam9 = _insertCommand.CreateParameter();
+                _insertParam9.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam9);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.fileId.ToByteArray();
+                _insertParam3.Value = item.boxId.ToByteArray();
+                _insertParam4.Value = item.priority;
+                _insertParam5.Value = item.timeStamp.milliseconds;
+                _insertParam6.Value = item.value ?? (object)DBNull.Value;
+                _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam7.Value = now.uniqueTime;
+                _insertParam8.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam8.Value = DBNull.Value;
+                _insertParam9.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                      item.created = now;
-                 }
+                }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int TryInsert(DatabaseConnection conn, InboxRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                             "VALUES (@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
+                _insertCommand.CommandText = "INSERT OR IGNORE INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
                 var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@fileId";
+                _insertParam1.ParameterName = "@identityId";
                 _insertCommand.Parameters.Add(_insertParam1);
                 var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@boxId";
+                _insertParam2.ParameterName = "@fileId";
                 _insertCommand.Parameters.Add(_insertParam2);
                 var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@priority";
+                _insertParam3.ParameterName = "@boxId";
                 _insertCommand.Parameters.Add(_insertParam3);
                 var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@timeStamp";
+                _insertParam4.ParameterName = "@priority";
                 _insertCommand.Parameters.Add(_insertParam4);
                 var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@value";
+                _insertParam5.ParameterName = "@timeStamp";
                 _insertCommand.Parameters.Add(_insertParam5);
                 var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@popStamp";
+                _insertParam6.ParameterName = "@value";
                 _insertCommand.Parameters.Add(_insertParam6);
                 var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@created";
+                _insertParam7.ParameterName = "@popStamp";
                 _insertCommand.Parameters.Add(_insertParam7);
                 var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@modified";
+                _insertParam8.ParameterName = "@created";
                 _insertCommand.Parameters.Add(_insertParam8);
-                _insertParam1.Value = item.fileId.ToByteArray();
-                _insertParam2.Value = item.boxId.ToByteArray();
-                _insertParam3.Value = item.priority;
-                _insertParam4.Value = item.timeStamp.milliseconds;
-                _insertParam5.Value = item.value ?? (object)DBNull.Value;
-                _insertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                var _insertParam9 = _insertCommand.CreateParameter();
+                _insertParam9.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam9);
+                _insertParam1.Value = item.identityId.ToByteArray();
+                _insertParam2.Value = item.fileId.ToByteArray();
+                _insertParam3.Value = item.boxId.ToByteArray();
+                _insertParam4.Value = item.priority;
+                _insertParam5.Value = item.timeStamp.milliseconds;
+                _insertParam6.Value = item.value ?? (object)DBNull.Value;
+                _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam7.Value = now.uniqueTime;
+                _insertParam8.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam8.Value = DBNull.Value;
+                _insertParam9.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                     item.created = now;
-                 }
+                }
                 return count;
             } // Using
         }
 
-        public virtual int Upsert(DatabaseConnection conn, InboxRecord item)
+        protected virtual int Upsert(DatabaseConnection conn, InboxRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
-                {
-                    _upsertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created) " +
-                                                 "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created)"+
-                                                 "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
-                                                 "RETURNING created, modified;";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$fileId";
-                    _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$boxId";
-                    _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$priority";
-                    _upsertCommand.Parameters.Add(_upsertParam3);
-                    var _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertParam4.ParameterName = "$timeStamp";
-                    _upsertCommand.Parameters.Add(_upsertParam4);
-                    var _upsertParam5 = _upsertCommand.CreateParameter();
-                    _upsertParam5.ParameterName = "$value";
-                    _upsertCommand.Parameters.Add(_upsertParam5);
-                    var _upsertParam6 = _upsertCommand.CreateParameter();
-                    _upsertParam6.ParameterName = "$popStamp";
-                    _upsertCommand.Parameters.Add(_upsertParam6);
-                    var _upsertParam7 = _upsertCommand.CreateParameter();
-                    _upsertParam7.ParameterName = "$created";
-                    _upsertCommand.Parameters.Add(_upsertParam7);
-                    var _upsertParam8 = _upsertCommand.CreateParameter();
-                    _upsertParam8.ParameterName = "$modified";
-                    _upsertCommand.Parameters.Add(_upsertParam8);
+            using (var _upsertCommand = _database.CreateCommand())
+            {
+                _upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created)"+
+                                             "ON CONFLICT (identityId,fileId) DO UPDATE "+
+                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,modified = @modified "+
+                                             "RETURNING created, modified;";
+                var _upsertParam1 = _upsertCommand.CreateParameter();
+                _upsertParam1.ParameterName = "@identityId";
+                _upsertCommand.Parameters.Add(_upsertParam1);
+                var _upsertParam2 = _upsertCommand.CreateParameter();
+                _upsertParam2.ParameterName = "@fileId";
+                _upsertCommand.Parameters.Add(_upsertParam2);
+                var _upsertParam3 = _upsertCommand.CreateParameter();
+                _upsertParam3.ParameterName = "@boxId";
+                _upsertCommand.Parameters.Add(_upsertParam3);
+                var _upsertParam4 = _upsertCommand.CreateParameter();
+                _upsertParam4.ParameterName = "@priority";
+                _upsertCommand.Parameters.Add(_upsertParam4);
+                var _upsertParam5 = _upsertCommand.CreateParameter();
+                _upsertParam5.ParameterName = "@timeStamp";
+                _upsertCommand.Parameters.Add(_upsertParam5);
+                var _upsertParam6 = _upsertCommand.CreateParameter();
+                _upsertParam6.ParameterName = "@value";
+                _upsertCommand.Parameters.Add(_upsertParam6);
+                var _upsertParam7 = _upsertCommand.CreateParameter();
+                _upsertParam7.ParameterName = "@popStamp";
+                _upsertCommand.Parameters.Add(_upsertParam7);
+                var _upsertParam8 = _upsertCommand.CreateParameter();
+                _upsertParam8.ParameterName = "@created";
+                _upsertCommand.Parameters.Add(_upsertParam8);
+                var _upsertParam9 = _upsertCommand.CreateParameter();
+                _upsertParam9.ParameterName = "@modified";
+                _upsertCommand.Parameters.Add(_upsertParam9);
                 var now = UnixTimeUtcUnique.Now();
-                _upsertParam1.Value = item.fileId.ToByteArray();
-                _upsertParam2.Value = item.boxId.ToByteArray();
-                _upsertParam3.Value = item.priority;
-                _upsertParam4.Value = item.timeStamp.milliseconds;
-                _upsertParam5.Value = item.value ?? (object)DBNull.Value;
-                _upsertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam7.Value = now.uniqueTime;
+                _upsertParam1.Value = item.identityId.ToByteArray();
+                _upsertParam2.Value = item.fileId.ToByteArray();
+                _upsertParam3.Value = item.boxId.ToByteArray();
+                _upsertParam4.Value = item.priority;
+                _upsertParam5.Value = item.timeStamp.milliseconds;
+                _upsertParam6.Value = item.value ?? (object)DBNull.Value;
+                _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
+                _upsertParam9.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
@@ -298,67 +321,89 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseConnection conn, InboxRecord item)
+        protected virtual int Update(DatabaseConnection conn, InboxRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
-                {
-                    _updateCommand.CommandText = "UPDATE inbox " +
-                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
-                                                 "WHERE (fileId = $fileId)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$fileId";
-                    _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$boxId";
-                    _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$priority";
-                    _updateCommand.Parameters.Add(_updateParam3);
-                    var _updateParam4 = _updateCommand.CreateParameter();
-                    _updateParam4.ParameterName = "$timeStamp";
-                    _updateCommand.Parameters.Add(_updateParam4);
-                    var _updateParam5 = _updateCommand.CreateParameter();
-                    _updateParam5.ParameterName = "$value";
-                    _updateCommand.Parameters.Add(_updateParam5);
-                    var _updateParam6 = _updateCommand.CreateParameter();
-                    _updateParam6.ParameterName = "$popStamp";
-                    _updateCommand.Parameters.Add(_updateParam6);
-                    var _updateParam7 = _updateCommand.CreateParameter();
-                    _updateParam7.ParameterName = "$created";
-                    _updateCommand.Parameters.Add(_updateParam7);
-                    var _updateParam8 = _updateCommand.CreateParameter();
-                    _updateParam8.ParameterName = "$modified";
-                    _updateCommand.Parameters.Add(_updateParam8);
-                var now = UnixTimeUtcUnique.Now();
-                _updateParam1.Value = item.fileId.ToByteArray();
-                _updateParam2.Value = item.boxId.ToByteArray();
-                _updateParam3.Value = item.priority;
-                _updateParam4.Value = item.timeStamp.milliseconds;
-                _updateParam5.Value = item.value ?? (object)DBNull.Value;
-                _updateParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam7.Value = now.uniqueTime;
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText = "UPDATE inbox " +
+                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,modified = @modified "+
+                                             "WHERE (identityId = @identityId AND fileId = @fileId)";
+                var _updateParam1 = _updateCommand.CreateParameter();
+                _updateParam1.ParameterName = "@identityId";
+                _updateCommand.Parameters.Add(_updateParam1);
+                var _updateParam2 = _updateCommand.CreateParameter();
+                _updateParam2.ParameterName = "@fileId";
+                _updateCommand.Parameters.Add(_updateParam2);
+                var _updateParam3 = _updateCommand.CreateParameter();
+                _updateParam3.ParameterName = "@boxId";
+                _updateCommand.Parameters.Add(_updateParam3);
+                var _updateParam4 = _updateCommand.CreateParameter();
+                _updateParam4.ParameterName = "@priority";
+                _updateCommand.Parameters.Add(_updateParam4);
+                var _updateParam5 = _updateCommand.CreateParameter();
+                _updateParam5.ParameterName = "@timeStamp";
+                _updateCommand.Parameters.Add(_updateParam5);
+                var _updateParam6 = _updateCommand.CreateParameter();
+                _updateParam6.ParameterName = "@value";
+                _updateCommand.Parameters.Add(_updateParam6);
+                var _updateParam7 = _updateCommand.CreateParameter();
+                _updateParam7.ParameterName = "@popStamp";
+                _updateCommand.Parameters.Add(_updateParam7);
+                var _updateParam8 = _updateCommand.CreateParameter();
+                _updateParam8.ParameterName = "@created";
+                _updateCommand.Parameters.Add(_updateParam8);
+                var _updateParam9 = _updateCommand.CreateParameter();
+                _updateParam9.ParameterName = "@modified";
+                _updateCommand.Parameters.Add(_updateParam9);
+             var now = UnixTimeUtcUnique.Now();
+                _updateParam1.Value = item.identityId.ToByteArray();
+                _updateParam2.Value = item.fileId.ToByteArray();
+                _updateParam3.Value = item.boxId.ToByteArray();
+                _updateParam4.Value = item.priority;
+                _updateParam5.Value = item.timeStamp.milliseconds;
+                _updateParam6.Value = item.value ?? (object)DBNull.Value;
+                _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = now.uniqueTime;
+                _updateParam9.Value = now.uniqueTime;
                 var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
                 }
                 return count;
-                } // Using
+            } // Using
         }
 
-        public virtual int GetCountDirty(DatabaseConnection conn)
+        protected virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
         }
 
-        // SELECT fileId,boxId,priority,timeStamp,value,popStamp,created,modified
-        public InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public override List<string> GetColumnNames()
+        {
+            var sl = new List<string>();
+            sl.Add("identityId");
+            sl.Add("fileId");
+            sl.Add("boxId");
+            sl.Add("priority");
+            sl.Add("timeStamp");
+            sl.Add("value");
+            sl.Add("popStamp");
+            sl.Add("created");
+            sl.Add("modified");
+            return sl;
+        }
+
+        // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
+        protected InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -374,8 +419,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
                 if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                    throw new Exception("Not a GUID in identityId...");
+                item.identityId = new Guid(_guid);
             }
 
             if (rdr.IsDBNull(1))
@@ -384,29 +429,39 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
                 if (bytesRead != 16)
-                    throw new Exception("Not a GUID in boxId...");
-                item.boxId = new Guid(_guid);
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.priority = rdr.GetInt32(2);
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in boxId...");
+                item.boxId = new Guid(_guid);
             }
 
             if (rdr.IsDBNull(3))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(3));
+                item.priority = rdr.GetInt32(3);
             }
 
             if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(4));
+            }
+
+            if (rdr.IsDBNull(5))
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
@@ -415,49 +470,53 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(5))
+            if (rdr.IsDBNull(6))
                 item.popStamp = null;
             else
             {
-                bytesRead = rdr.GetBytes(5, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(6, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in popStamp...");
                 item.popStamp = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(6))
+            if (rdr.IsDBNull(7))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));
             }
 
-            if (rdr.IsDBNull(7))
+            if (rdr.IsDBNull(8))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
             }
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, Guid fileId)
+        protected int Delete(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
-                using (var _delete0Command = _database.CreateCommand())
-                {
-                    _delete0Command.CommandText = "DELETE FROM inbox " +
-                                                 "WHERE fileId = $fileId";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$fileId";
-                    _delete0Command.Parameters.Add(_delete0Param1);
+            using (var _delete0Command = _database.CreateCommand())
+            {
+                _delete0Command.CommandText = "DELETE FROM inbox " +
+                                             "WHERE identityId = @identityId AND fileId = @fileId";
+                var _delete0Param1 = _delete0Command.CreateParameter();
+                _delete0Param1.ParameterName = "@identityId";
+                _delete0Command.Parameters.Add(_delete0Param1);
+                var _delete0Param2 = _delete0Command.CreateParameter();
+                _delete0Param2.ParameterName = "@fileId";
+                _delete0Command.Parameters.Add(_delete0Param2);
 
-                _delete0Param1.Value = fileId.ToByteArray();
+                _delete0Param1.Value = identityId.ToByteArray();
+                _delete0Param2.Value = fileId.ToByteArray();
                 var count = conn.ExecuteNonQuery(_delete0Command);
                 return count;
-                } // Using
+            } // Using
         }
 
-        public InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId)
+        protected InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -466,6 +525,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 #pragma warning restore CS0168
             var _guid = new byte[16];
             var item = new InboxRecord();
+            item.identityId = identityId;
             item.fileId = fileId;
 
             if (rdr.IsDBNull(0))
@@ -531,29 +591,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public InboxRecord Get(DatabaseConnection conn, Guid fileId)
+        protected InboxRecord Get(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
-                using (var _get0Command = _database.CreateCommand())
-                {
-                    _get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
-                                                 "WHERE fileId = $fileId LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$fileId";
-                    _get0Command.Parameters.Add(_get0Param1);
+            using (var _get0Command = _database.CreateCommand())
+            {
+                _get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
+                                             "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
+                var _get0Param1 = _get0Command.CreateParameter();
+                _get0Param1.ParameterName = "@identityId";
+                _get0Command.Parameters.Add(_get0Param1);
+                var _get0Param2 = _get0Command.CreateParameter();
+                _get0Param2.ParameterName = "@fileId";
+                _get0Command.Parameters.Add(_get0Param2);
 
-                _get0Param1.Value = fileId.ToByteArray();
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = identityId.ToByteArray();
+                _get0Param2.Value = fileId.ToByteArray();
+                lock (conn._lock)
                 {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        return null;
-                    }
-                    var r = ReadRecordFromReader0(rdr, fileId);
-                    return r;
-                } // using
-            } // lock
+                        if (!rdr.Read())
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr, identityId,fileId);
+                        return r;
+                    } // using
+                } // lock
             } // using
         }
 

@@ -18,6 +18,7 @@ public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionK
     private GuestApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
+    public DrivePermission DrivePermission { get; } = DrivePermission.Read;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -34,7 +35,7 @@ public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionK
                         PermissionedDrive = new()
                         {
                             Drive = TargetDrive,
-                            Permission = DrivePermission.Read
+                            Permission = DrivePermission
                         }
                     }
                 },

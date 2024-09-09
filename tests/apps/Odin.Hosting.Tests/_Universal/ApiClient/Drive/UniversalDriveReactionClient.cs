@@ -2,83 +2,60 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Services.Drives;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
 
 public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> AddReaction(ExternalFileIdentifier file, string reactionContent)
+    public async Task<ApiResponse<AddReactionResult>> AddReaction(AddReactionRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var response = await svc.AddReaction(new AddReactionRequest()
-        {
-            File = file,
-            Reaction = reactionContent
-        });
+        var response = await svc.AddReaction(request);
 
         return response;
     }
 
-    public async Task<ApiResponse<GetReactionsResponse>> GetAllReactions(TestIdentity recipient, ExternalFileIdentifier file)
+    public async Task<ApiResponse<GetReactionsResponse>> GetReactions(GetReactionsRequestRedux request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var resp = await svc.GetReactions(file);
-        return resp;
+        var client = factory.CreateHttpClient(targetIdentity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, sharedSecret);
+        var response = await svc.GetReactions(request);
+        return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteReaction(string reaction, ExternalFileIdentifier file)
+    public async Task<ApiResponse<DeleteReactionResult>> DeleteReaction(DeleteReactionRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var response = await svc.DeleteReaction(new DeleteReactionRequest()
-        {
-            Reaction = reaction,
-            File = file
-        });
+        var response = await svc.DeleteReaction(request);
 
         return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile(ExternalFileIdentifier file)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var resp = await transitSvc.DeleteReactions(new DeleteReactionRequest()
-        {
-            Reaction = "",
-            File = file
-        });
-
-        return resp;
-    }
-
-    public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile(GetReactionsRequest request)
+    public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile(GetReactionsRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var resp = await svc.GetReactionCountsByFile(request);
-        return resp;
+        var response = await svc.GetReactionCountsByFile(request);
+        return response;
     }
 
-    public async Task<ApiResponse<List<string>>> GetReactionsByIdentity(TestIdentity recipient, OdinId identity1, ExternalFileIdentifier file)
+    public async Task<ApiResponse<List<string>>> GetReactionsByIdentity(GetReactionsByIdentityRequestRedux request)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 
         var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
-        var resp = await transitSvc.GetReactionsByIdentity(new GetReactionsByIdentityRequest()
-        {
-            Identity = identity1,
-            File = file
-        });
+        var response = await transitSvc.GetReactionsByIdentity(request);
 
-        return resp;
+        return response;
     }
 }

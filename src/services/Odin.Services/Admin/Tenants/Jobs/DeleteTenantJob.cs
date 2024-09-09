@@ -1,55 +1,53 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
-using Quartz;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-public class DeleteTenantSchedule(ILogger<DeleteTenantSchedule> logger, string domain) : AbstractJobSchedule
+public class DeleteTenantJobData
 {
-    public sealed override string SchedulingKey { get; } = $"delete-tenant:{domain.Replace('.', '_')}";
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
+    public string Domain { get; set; } = string.Empty;
+}
 
-    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
+public class DeleteTenantJob(ILogger<DeleteTenantJob> logger, IIdentityRegistry identityRegistry) : AbstractJob
+{
+    public DeleteTenantJobData Data { get; set; } = new ();
+
+    public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        logger.LogDebug("Scheduling {Job}", SchedulingKey);
-
-        jobBuilder
-            .WithRetry(2, TimeSpan.FromSeconds(5))
-            .WithRetention(TimeSpan.FromDays(2))
-            .UsingJobData("domain", domain);
-
-        var triggerBuilders = new List<TriggerBuilder>
+        if (string.IsNullOrEmpty(Data.Domain))
         {
-            TriggerBuilder.Create()
-                .StartNow()
-                .WithPriority(1)
-        };
+            throw new InvalidOperationException("Domain is required");
+        }
 
-        return Task.FromResult((jobBuilder, triggerBuilders));
-    }
-}
-
-public class DeleteTenantJob(
-    ICorrelationContext correlationContext,
-    ILogger<DeleteTenantJob> logger,
-    IIdentityRegistry identityRegistry) : AbstractJob(correlationContext)
-{
-    protected sealed override async Task Run(IJobExecutionContext context)
-    {
-        var domain = (string)context.JobDetail.JobDataMap["domain"];
-
-        logger.LogDebug("Starting delete tenant {domain}", domain);
+        logger.LogDebug("Starting delete tenant {domain}", Data.Domain);
         var sw = Stopwatch.StartNew();
-        await identityRegistry.ToggleDisabled(domain, true);
-        await identityRegistry.DeleteRegistration(domain);
-        logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
+        await identityRegistry.ToggleDisabled(Data.Domain, true);
+        await identityRegistry.DeleteRegistration(Data.Domain);
+        logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
+
+        return JobExecutionResult.Success();
+    }
+
+    //
+
+    public override string? SerializeJobData()
+    {
+        return OdinSystemSerializer.Serialize(Data);
+    }
+
+    //
+
+    public override void DeserializeJobData(string json)
+    {
+        Data = OdinSystemSerializer.DeserializeOrThrow<DeleteTenantJobData>(json);
     }
 }
+
 

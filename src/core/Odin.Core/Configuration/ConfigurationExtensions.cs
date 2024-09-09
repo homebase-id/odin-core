@@ -5,6 +5,8 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Configuration;
 
+public class OdinConfigException(string message) : OdinSystemException(message);
+
 public static class ConfigurationExtensions
 {
     public static T Required<T>(this IConfiguration config, string path)
@@ -13,7 +15,7 @@ public static class ConfigurationExtensions
 
         if (!section.Exists())
         {
-            throw new OdinSystemException($"Missing config '{path}'");
+            throw new OdinConfigException($"Missing config '{path}'");
         }
 
         return section.Get<T>()!;
@@ -61,6 +63,7 @@ public static class ConfigurationExtensions
             }
         }
 
+        result.Sort();
         return result;
     }
 

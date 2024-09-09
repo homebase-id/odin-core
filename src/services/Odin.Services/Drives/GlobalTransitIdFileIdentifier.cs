@@ -1,4 +1,5 @@
 using System;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives
 {
@@ -11,12 +12,12 @@ namespace Odin.Services.Drives
         /// The drive to access
         /// </summary>
         public TargetDrive TargetDrive { get; set; }
-        
+
         /// <summary>
         /// The global transit id to retrieve
         /// </summary>
         public Guid GlobalTransitId { get; set; }
-        
+
         public bool HasValue()
         {
             return GlobalTransitId != Guid.NewGuid() && TargetDrive.IsValid();
@@ -36,7 +37,7 @@ namespace Odin.Services.Drives
         {
             return !(d1 == d2);
         }
-        
+
         public bool Equals(GlobalTransitIdFileIdentifier other)
         {
             if (ReferenceEquals(null, other)) return false;
@@ -55,6 +56,15 @@ namespace Odin.Services.Drives
         public override int GetHashCode()
         {
             return HashCode.Combine(TargetDrive, GlobalTransitId);
+        }
+
+        public FileIdentifier ToFileIdentifier()
+        {
+            return new FileIdentifier()
+            {
+                GlobalTransitId = this.GlobalTransitId,
+                TargetDrive = this.TargetDrive
+            };
         }
     }
 }

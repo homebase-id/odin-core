@@ -25,7 +25,7 @@ public static class RegistrationEmails
         ";
     }
 
-    public static string ProvisioningCompletedHtml(string email, string domain, string link)
+    public static string ProvisioningCompletedHtml(string email, string domain, string link, string logoImageHref, string logoImageUrl)
     {
         return @$"
             <!DOCTYPE html>
@@ -174,13 +174,13 @@ public static class RegistrationEmails
                                                             valign='top'
                                                         >
                                                             <a
-                                                                href='https://homebase.id'
+                                                                href='{logoImageHref}'
                                                                 style='
                                                                     color: #ff69b4;
                                                                     text-decoration: underline;
                                                                 '
                                                                 ><img
-                                                                    src='https://homebase.id/logo-email.png'
+                                                                    src='{logoImageUrl}'
                                                                     alt='Homebase'
                                                                     style='
                                                                         border: none;

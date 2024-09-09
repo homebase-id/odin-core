@@ -165,6 +165,11 @@ namespace Odin.Core.Time
             DateTime dateTime = unixEpoch.AddMilliseconds(this.milliseconds);
             return dateTime;
         }
+        
+        public DateTimeOffset ToDateTimeOffset()
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
+        }
 
         public static UnixTimeUtc FromDateTime(DateTime dateTime)
         {

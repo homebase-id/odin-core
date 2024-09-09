@@ -77,9 +77,9 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
             return true;
         }
 
-        if (result.GetType() == typeof(T))
+        if (result is T actual)
         {
-            value = (T)result;
+            value = actual;
             return true;
         }
 

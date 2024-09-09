@@ -6,6 +6,7 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core.Dns;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Email;
@@ -25,7 +26,7 @@ public class IdentityRegistrationServiceTest
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {
-        var authorativeDnsLookup = new AuthorativeDnsLookup(new Mock<ILogger<AuthorativeDnsLookup>>().Object, new LookupClient());
+        var authorativeDnsLookup = new AuthoritativeDnsLookup(new Mock<ILogger<AuthoritativeDnsLookup>>().Object, new LookupClient());
         var dnsLookupService = new DnsLookupService(
             new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authorativeDnsLookup);
 
@@ -43,16 +44,16 @@ public class IdentityRegistrationServiceTest
 
     public enum Resolver
     {
-        Authorative,
+        Authoritative,
         External
     };
 
     //
 
     [Test, Explicit]
-    [TestCase("yagni.dk", Resolver.Authorative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.Success)]
+    [TestCase("yagni.dk", Resolver.Authoritative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.Success)]
     [TestCase("yagni.dk", Resolver.External, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.Success)]
-    public async Task ItShouldGetAuthorativeDnsStatus(
+    public async Task ItShouldGetAuthoritativeDnsStatus(
         string domain,
         Resolver resolver,
         string apexARecord,
@@ -91,7 +92,7 @@ public class IdentityRegistrationServiceTest
         {
             Registry = new OdinConfiguration.RegistrySection
             {
-                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord, "", ""),
+                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord),
                 ManagedDomainApexes = new List<OdinConfiguration.RegistrySection.ManagedDomainApex>
                 {
                     new()
@@ -109,9 +110,9 @@ public class IdentityRegistrationServiceTest
 
         var registration = CreateIdentityRegistrationService(configuration);
 
-        if (resolver == Resolver.Authorative)
+        if (resolver == Resolver.Authoritative)
         {
-            return await registration.GetAuthorativeDomainDnsStatus(domain);
+            return await registration.GetAuthoritativeDomainDnsStatus(domain);
         }
 
         return await registration.GetExternalDomainDnsStatus(domain);

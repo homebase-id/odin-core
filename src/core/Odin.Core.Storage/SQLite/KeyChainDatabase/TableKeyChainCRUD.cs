@@ -103,7 +103,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableKeyChainCRUD(KeyChainDatabase db, CacheHelper cache) : base(db)
+        public TableKeyChainCRUD(KeyChainDatabase db, CacheHelper cache) : base(db, "keyChain")
         {
             _cache = cache;
         }
@@ -146,31 +146,31 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual int Insert(DatabaseConnection conn, KeyChainRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
-                {
-                    _insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
-                                                 "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$recordHash)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$previousHash";
-                    _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$identity";
-                    _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$timestamp";
-                    _insertCommand.Parameters.Add(_insertParam3);
-                    var _insertParam4 = _insertCommand.CreateParameter();
-                    _insertParam4.ParameterName = "$signedPreviousHash";
-                    _insertCommand.Parameters.Add(_insertParam4);
-                    var _insertParam5 = _insertCommand.CreateParameter();
-                    _insertParam5.ParameterName = "$algorithm";
-                    _insertCommand.Parameters.Add(_insertParam5);
-                    var _insertParam6 = _insertCommand.CreateParameter();
-                    _insertParam6.ParameterName = "$publicKeyJwkBase64Url";
-                    _insertCommand.Parameters.Add(_insertParam6);
-                    var _insertParam7 = _insertCommand.CreateParameter();
-                    _insertParam7.ParameterName = "$recordHash";
-                    _insertCommand.Parameters.Add(_insertParam7);
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@previousHash";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@identity";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@timestamp";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@signedPreviousHash";
+                _insertCommand.Parameters.Add(_insertParam4);
+                var _insertParam5 = _insertCommand.CreateParameter();
+                _insertParam5.ParameterName = "@algorithm";
+                _insertCommand.Parameters.Add(_insertParam5);
+                var _insertParam6 = _insertCommand.CreateParameter();
+                _insertParam6.ParameterName = "@publicKeyJwkBase64Url";
+                _insertCommand.Parameters.Add(_insertParam6);
+                var _insertParam7 = _insertCommand.CreateParameter();
+                _insertParam7.ParameterName = "@recordHash";
+                _insertCommand.Parameters.Add(_insertParam7);
                 _insertParam1.Value = item.previousHash;
                 _insertParam2.Value = item.identity;
                 _insertParam3.Value = item.timestamp.uniqueTime;
@@ -180,11 +180,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _insertParam7.Value = item.recordHash;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
-                 }
+                }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int TryInsert(DatabaseConnection conn, KeyChainRecord item)
@@ -223,43 +223,43 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _insertParam7.Value = item.recordHash;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
-                 }
+                }
                 return count;
             } // Using
         }
 
         public virtual int Upsert(DatabaseConnection conn, KeyChainRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
-                {
-                    _upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
-                                                 "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$recordHash)"+
-                                                 "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
-                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,recordHash = $recordHash "+
-                                                 ";";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$previousHash";
-                    _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$identity";
-                    _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$timestamp";
-                    _upsertCommand.Parameters.Add(_upsertParam3);
-                    var _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertParam4.ParameterName = "$signedPreviousHash";
-                    _upsertCommand.Parameters.Add(_upsertParam4);
-                    var _upsertParam5 = _upsertCommand.CreateParameter();
-                    _upsertParam5.ParameterName = "$algorithm";
-                    _upsertCommand.Parameters.Add(_upsertParam5);
-                    var _upsertParam6 = _upsertCommand.CreateParameter();
-                    _upsertParam6.ParameterName = "$publicKeyJwkBase64Url";
-                    _upsertCommand.Parameters.Add(_upsertParam6);
-                    var _upsertParam7 = _upsertCommand.CreateParameter();
-                    _upsertParam7.ParameterName = "$recordHash";
-                    _upsertCommand.Parameters.Add(_upsertParam7);
+            using (var _upsertCommand = _database.CreateCommand())
+            {
+                _upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
+                                             "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
+                                             "SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
+                                             ";";
+                var _upsertParam1 = _upsertCommand.CreateParameter();
+                _upsertParam1.ParameterName = "@previousHash";
+                _upsertCommand.Parameters.Add(_upsertParam1);
+                var _upsertParam2 = _upsertCommand.CreateParameter();
+                _upsertParam2.ParameterName = "@identity";
+                _upsertCommand.Parameters.Add(_upsertParam2);
+                var _upsertParam3 = _upsertCommand.CreateParameter();
+                _upsertParam3.ParameterName = "@timestamp";
+                _upsertCommand.Parameters.Add(_upsertParam3);
+                var _upsertParam4 = _upsertCommand.CreateParameter();
+                _upsertParam4.ParameterName = "@signedPreviousHash";
+                _upsertCommand.Parameters.Add(_upsertParam4);
+                var _upsertParam5 = _upsertCommand.CreateParameter();
+                _upsertParam5.ParameterName = "@algorithm";
+                _upsertCommand.Parameters.Add(_upsertParam5);
+                var _upsertParam6 = _upsertCommand.CreateParameter();
+                _upsertParam6.ParameterName = "@publicKeyJwkBase64Url";
+                _upsertCommand.Parameters.Add(_upsertParam6);
+                var _upsertParam7 = _upsertCommand.CreateParameter();
+                _upsertParam7.ParameterName = "@recordHash";
+                _upsertCommand.Parameters.Add(_upsertParam7);
                 _upsertParam1.Value = item.previousHash;
                 _upsertParam2.Value = item.identity;
                 _upsertParam3.Value = item.timestamp.uniqueTime;
@@ -271,36 +271,36 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 return count;
-                } // Using
+            } // Using
         }
         public virtual int Update(DatabaseConnection conn, KeyChainRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
-                {
-                    _updateCommand.CommandText = "UPDATE keyChain " +
-                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,recordHash = $recordHash "+
-                                                 "WHERE (identity = $identity AND publicKeyJwkBase64Url = $publicKeyJwkBase64Url)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$previousHash";
-                    _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$identity";
-                    _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$timestamp";
-                    _updateCommand.Parameters.Add(_updateParam3);
-                    var _updateParam4 = _updateCommand.CreateParameter();
-                    _updateParam4.ParameterName = "$signedPreviousHash";
-                    _updateCommand.Parameters.Add(_updateParam4);
-                    var _updateParam5 = _updateCommand.CreateParameter();
-                    _updateParam5.ParameterName = "$algorithm";
-                    _updateCommand.Parameters.Add(_updateParam5);
-                    var _updateParam6 = _updateCommand.CreateParameter();
-                    _updateParam6.ParameterName = "$publicKeyJwkBase64Url";
-                    _updateCommand.Parameters.Add(_updateParam6);
-                    var _updateParam7 = _updateCommand.CreateParameter();
-                    _updateParam7.ParameterName = "$recordHash";
-                    _updateCommand.Parameters.Add(_updateParam7);
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText = "UPDATE keyChain " +
+                                             "SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
+                                             "WHERE (identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url)";
+                var _updateParam1 = _updateCommand.CreateParameter();
+                _updateParam1.ParameterName = "@previousHash";
+                _updateCommand.Parameters.Add(_updateParam1);
+                var _updateParam2 = _updateCommand.CreateParameter();
+                _updateParam2.ParameterName = "@identity";
+                _updateCommand.Parameters.Add(_updateParam2);
+                var _updateParam3 = _updateCommand.CreateParameter();
+                _updateParam3.ParameterName = "@timestamp";
+                _updateCommand.Parameters.Add(_updateParam3);
+                var _updateParam4 = _updateCommand.CreateParameter();
+                _updateParam4.ParameterName = "@signedPreviousHash";
+                _updateCommand.Parameters.Add(_updateParam4);
+                var _updateParam5 = _updateCommand.CreateParameter();
+                _updateParam5.ParameterName = "@algorithm";
+                _updateCommand.Parameters.Add(_updateParam5);
+                var _updateParam6 = _updateCommand.CreateParameter();
+                _updateParam6.ParameterName = "@publicKeyJwkBase64Url";
+                _updateCommand.Parameters.Add(_updateParam6);
+                var _updateParam7 = _updateCommand.CreateParameter();
+                _updateParam7.ParameterName = "@recordHash";
+                _updateCommand.Parameters.Add(_updateParam7);
                 _updateParam1.Value = item.previousHash;
                 _updateParam2.Value = item.identity;
                 _updateParam3.Value = item.timestamp.uniqueTime;
@@ -314,17 +314,33 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyChain; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyChain; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
+        public override List<string> GetColumnNames()
+        {
+            var sl = new List<string>();
+            sl.Add("previousHash");
+            sl.Add("identity");
+            sl.Add("timestamp");
+            sl.Add("signedPreviousHash");
+            sl.Add("algorithm");
+            sl.Add("publicKeyJwkBase64Url");
+            sl.Add("recordHash");
+            return sl;
         }
 
         // SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash
@@ -415,16 +431,16 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null");
             if (publicKeyJwkBase64Url?.Length < 16) throw new Exception("Too short");
             if (publicKeyJwkBase64Url?.Length > 600) throw new Exception("Too long");
-                using (var _delete0Command = _database.CreateCommand())
-                {
-                    _delete0Command.CommandText = "DELETE FROM keyChain " +
-                                                 "WHERE identity = $identity AND publicKeyJwkBase64Url = $publicKeyJwkBase64Url";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$identity";
-                    _delete0Command.Parameters.Add(_delete0Param1);
-                    var _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Param2.ParameterName = "$publicKeyJwkBase64Url";
-                    _delete0Command.Parameters.Add(_delete0Param2);
+            using (var _delete0Command = _database.CreateCommand())
+            {
+                _delete0Command.CommandText = "DELETE FROM keyChain " +
+                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url";
+                var _delete0Param1 = _delete0Command.CreateParameter();
+                _delete0Param1.ParameterName = "@identity";
+                _delete0Command.Parameters.Add(_delete0Param1);
+                var _delete0Param2 = _delete0Command.CreateParameter();
+                _delete0Param2.ParameterName = "@publicKeyJwkBase64Url";
+                _delete0Command.Parameters.Add(_delete0Param2);
 
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = publicKeyJwkBase64Url;
@@ -432,7 +448,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
-                } // Using
+            } // Using
         }
 
         public KeyChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,string publicKeyJwkBase64Url)
@@ -519,33 +535,33 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
             if (hit)
                 return (KeyChainRecord)cacheObject;
-                using (var _get0Command = _database.CreateCommand())
-                {
-                    _get0Command.CommandText = "SELECT previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
-                                                 "WHERE identity = $identity AND publicKeyJwkBase64Url = $publicKeyJwkBase64Url LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$identity";
-                    _get0Command.Parameters.Add(_get0Param1);
-                    var _get0Param2 = _get0Command.CreateParameter();
-                    _get0Param2.ParameterName = "$publicKeyJwkBase64Url";
-                    _get0Command.Parameters.Add(_get0Param2);
+            using (var _get0Command = _database.CreateCommand())
+            {
+                _get0Command.CommandText = "SELECT previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
+                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;";
+                var _get0Param1 = _get0Command.CreateParameter();
+                _get0Param1.ParameterName = "@identity";
+                _get0Command.Parameters.Add(_get0Param1);
+                var _get0Param2 = _get0Command.CreateParameter();
+                _get0Param2.ParameterName = "@publicKeyJwkBase64Url";
+                _get0Command.Parameters.Add(_get0Param2);
 
                 _get0Param1.Value = identity;
                 _get0Param2.Value = publicKeyJwkBase64Url;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                lock (conn._lock)
                 {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, null);
-                        return null;
-                    }
-                    var r = ReadRecordFromReader0(rdr, identity,publicKeyJwkBase64Url);
-                    _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, r);
-                    return r;
-                } // using
-            } // lock
+                        if (!rdr.Read())
+                        {
+                            _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr, identity,publicKeyJwkBase64Url);
+                        _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, r);
+                        return r;
+                    } // using
+                } // lock
             } // using
         }
 

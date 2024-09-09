@@ -136,8 +136,10 @@ namespace Odin.Services.EncryptionKeyService
 
                     if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
                     {
-                        // this._logger.LogWarning("Transit public key is invalid");
-                        return null;
+                        // SEB:NOTE this can happen in dev environments where a production peer does 
+                        // not accept certificates from letsencrypt staging CA. 
+                        var errorMessage = tpkResponse.Error?.Message ?? "unknown error";
+                        throw new OdinSystemException($"ResolveRecipientRsaKey failed for {recipient}: {errorMessage}");
                     }
 
                     cacheItem = new RsaPublicKeyData()

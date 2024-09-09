@@ -13,6 +13,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
+        public new DriveTagIndexRecord Get(DatabaseConnection conn, Guid driveId, Guid fileId, Guid tagId)
+        {
+            return base.Get(conn, ((IdentityDatabase) conn.db)._identityId, driveId, fileId, tagId);
+        }
+
+        public List<Guid> Get(DatabaseConnection conn, Guid driveId, Guid fileId)
+        {
+            return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+        }
+
+        public new int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
+        {
+            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+            return base.Insert(conn, item);
+        }
+
+        public int DeleteAllRows(DatabaseConnection conn, Guid driveId, Guid fileId)
+        {
+            return base.DeleteAllRows(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+        }
+
         public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)
@@ -20,12 +41,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             conn.CreateCommitUnitOfWork(() =>
             {
-                var item = new DriveTagIndexRecord() { driveId = driveId, fileId = fileId };
+                var item = new DriveTagIndexRecord() { identityId = ((IdentityDatabase)conn.db)._identityId,  driveId = driveId, fileId = fileId };
 
                 for (int i = 0; i < tagIdList.Count; i++)
                 {
                     item.tagId = tagIdList[i];
-                    Insert(conn, item);
+                    base.Insert(conn, item);
                 }
             });
         }
@@ -42,7 +63,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 for (int i = 0; i < tagIdList.Count; i++)
                 {
-                    Delete(conn, driveId, fileId, tagIdList[i]);
+                    base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId, tagIdList[i]);
                 }
             });
         }

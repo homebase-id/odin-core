@@ -36,6 +36,8 @@
 
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
         
+        public const string DriveGroupReactionsV1 = DriveV1 + "/files/group/reactions";
+        
         public const string OptimizationV1 = BasePathV1 + "/optimization";
 
         public const string PushNotificationsV1 = BasePathV1 + "/notify/push";

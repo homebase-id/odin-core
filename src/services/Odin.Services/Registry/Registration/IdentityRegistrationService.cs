@@ -97,6 +97,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
     {
+        // Only return list of managed apexes if we have DNS server config
+        var noDnsServerConfig =
+            string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey) &&
+            string.IsNullOrEmpty(_configuration.Registry.PowerDnsHostAddress);
+
+        if (noDnsServerConfig)
+        {
+            return Task.FromResult(new List<OdinConfiguration.RegistrySection.ManagedDomainApex>());
+        }
+
         return Task.FromResult(_configuration.Registry.ManagedDomainApexes);
     }
 
@@ -228,9 +238,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
     {
-        return _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+        return _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
     }
 
     //
@@ -270,14 +280,27 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             var firstRunToken = await _registry.AddRegistration(request);
 
+            // Queue background job to send email
             if (_configuration.Mailgun.Enabled)
             {
-                var scheduler = new SendProvisioningCompleteEmailSchedule(
-                    domain,
-                    email,
-                    firstRunToken.ToString(),
-                    TimeSpan.FromSeconds(1));
-                await _jobManager.Schedule<SendProvisioningCompleteEmailJob>(scheduler);
+                var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
+                job.Data = new SendProvisioningCompleteEmailJobData
+                {
+                    Domain = domain,
+                    Email = email,
+                    FirstRunToken = firstRunToken.ToString(),
+                    ProvisioningEmailLogoImage = _configuration.Registry.ProvisioningEmailLogoImage,
+                    ProvisioningEmailLogoHref = _configuration.Registry.ProvisioningEmailLogoHref            
+                };
+
+                await _jobManager.ScheduleJobAsync(job, new JobSchedule
+                {
+                    RunAt = DateTimeOffset.Now.AddSeconds(1),
+                    MaxAttempts = 20,
+                    RetryDelay = TimeSpan.FromMinutes(1),
+                    OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                    OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+                });
             }
 
             return firstRunToken;
@@ -293,7 +316,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (!_configuration.Registry.InvitationCodes.Any())
+        if (_configuration.Registry.InvitationCodes.Count == 0)
         {
             return Task.FromResult(true);
         }

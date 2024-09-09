@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Odin.Services.Background.Services.System;
 
 public sealed class DummySystemBackgroundService(ILogger<DummySystemBackgroundService> logger)
-    : AbstractBackgroundService
+    : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

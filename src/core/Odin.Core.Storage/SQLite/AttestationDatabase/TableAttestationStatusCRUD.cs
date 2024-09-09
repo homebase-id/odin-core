@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableAttestationStatusCRUD(AttestationDatabase db, CacheHelper cache) : base(db)
+        public TableAttestationStatusCRUD(AttestationDatabase db, CacheHelper cache) : base(db, "attestationStatus")
         {
             _cache = cache;
         }
@@ -98,22 +98,22 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual int Insert(DatabaseConnection conn, AttestationStatusRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
-                {
-                    _insertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
-                                                 "VALUES ($attestationId,$status,$created,$modified)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$attestationId";
-                    _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$status";
-                    _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$created";
-                    _insertCommand.Parameters.Add(_insertParam3);
-                    var _insertParam4 = _insertCommand.CreateParameter();
-                    _insertParam4.ParameterName = "$modified";
-                    _insertCommand.Parameters.Add(_insertParam4);
+            using (var _insertCommand = _database.CreateCommand())
+            {
+                _insertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
+                                             "VALUES (@attestationId,@status,@created,@modified)";
+                var _insertParam1 = _insertCommand.CreateParameter();
+                _insertParam1.ParameterName = "@attestationId";
+                _insertCommand.Parameters.Add(_insertParam1);
+                var _insertParam2 = _insertCommand.CreateParameter();
+                _insertParam2.ParameterName = "@status";
+                _insertCommand.Parameters.Add(_insertParam2);
+                var _insertParam3 = _insertCommand.CreateParameter();
+                _insertParam3.ParameterName = "@created";
+                _insertCommand.Parameters.Add(_insertParam3);
+                var _insertParam4 = _insertCommand.CreateParameter();
+                _insertParam4.ParameterName = "@modified";
+                _insertCommand.Parameters.Add(_insertParam4);
                 _insertParam1.Value = item.attestationId;
                 _insertParam2.Value = item.status;
                 var now = UnixTimeUtcUnique.Now();
@@ -122,12 +122,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _insertParam4.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                      item.created = now;
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
-                 }
+                }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int TryInsert(DatabaseConnection conn, AttestationStatusRecord item)
@@ -156,35 +156,35 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _insertParam4.Value = DBNull.Value;
                 var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                 {
+                {
                     item.created = now;
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
-                 }
+                }
                 return count;
             } // Using
         }
 
         public virtual int Upsert(DatabaseConnection conn, AttestationStatusRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
-                {
-                    _upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created) " +
-                                                 "VALUES ($attestationId,$status,$created)"+
-                                                 "ON CONFLICT (attestationId) DO UPDATE "+
-                                                 "SET status = $status,modified = $modified "+
-                                                 "RETURNING created, modified;";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$attestationId";
-                    _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$status";
-                    _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$created";
-                    _upsertCommand.Parameters.Add(_upsertParam3);
-                    var _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertParam4.ParameterName = "$modified";
-                    _upsertCommand.Parameters.Add(_upsertParam4);
+            using (var _upsertCommand = _database.CreateCommand())
+            {
+                _upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created) " +
+                                             "VALUES (@attestationId,@status,@created)"+
+                                             "ON CONFLICT (attestationId) DO UPDATE "+
+                                             "SET status = @status,modified = @modified "+
+                                             "RETURNING created, modified;";
+                var _upsertParam1 = _upsertCommand.CreateParameter();
+                _upsertParam1.ParameterName = "@attestationId";
+                _upsertCommand.Parameters.Add(_upsertParam1);
+                var _upsertParam2 = _upsertCommand.CreateParameter();
+                _upsertParam2.ParameterName = "@status";
+                _upsertCommand.Parameters.Add(_upsertParam2);
+                var _upsertParam3 = _upsertCommand.CreateParameter();
+                _upsertParam3.ParameterName = "@created";
+                _upsertCommand.Parameters.Add(_upsertParam3);
+                var _upsertParam4 = _upsertCommand.CreateParameter();
+                _upsertParam4.ParameterName = "@modified";
+                _upsertCommand.Parameters.Add(_upsertParam4);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.attestationId;
                 _upsertParam2.Value = item.status;
@@ -211,24 +211,24 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual int Update(DatabaseConnection conn, AttestationStatusRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
-                {
-                    _updateCommand.CommandText = "UPDATE attestationStatus " +
-                                                 "SET status = $status,modified = $modified "+
-                                                 "WHERE (attestationId = $attestationId)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$attestationId";
-                    _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$status";
-                    _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$created";
-                    _updateCommand.Parameters.Add(_updateParam3);
-                    var _updateParam4 = _updateCommand.CreateParameter();
-                    _updateParam4.ParameterName = "$modified";
-                    _updateCommand.Parameters.Add(_updateParam4);
-                var now = UnixTimeUtcUnique.Now();
+            using (var _updateCommand = _database.CreateCommand())
+            {
+                _updateCommand.CommandText = "UPDATE attestationStatus " +
+                                             "SET status = @status,modified = @modified "+
+                                             "WHERE (attestationId = @attestationId)";
+                var _updateParam1 = _updateCommand.CreateParameter();
+                _updateParam1.ParameterName = "@attestationId";
+                _updateCommand.Parameters.Add(_updateParam1);
+                var _updateParam2 = _updateCommand.CreateParameter();
+                _updateParam2.ParameterName = "@status";
+                _updateCommand.Parameters.Add(_updateParam2);
+                var _updateParam3 = _updateCommand.CreateParameter();
+                _updateParam3.ParameterName = "@created";
+                _updateCommand.Parameters.Add(_updateParam3);
+                var _updateParam4 = _updateCommand.CreateParameter();
+                _updateParam4.ParameterName = "@modified";
+                _updateCommand.Parameters.Add(_updateParam4);
+             var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.attestationId;
                 _updateParam2.Value = item.status;
                 _updateParam3.Value = now.uniqueTime;
@@ -240,17 +240,30 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
-                } // Using
+            } // Using
         }
 
         public virtual int GetCountDirty(DatabaseConnection conn)
         {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM attestationStatus; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
+            using (var _getCountCommand = _database.CreateCommand())
+            {
+                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM attestationStatus; PRAGMA read_uncommitted = 0;";
+                var count = conn.ExecuteScalar(_getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
+        public override List<string> GetColumnNames()
+        {
+            var sl = new List<string>();
+            sl.Add("attestationId");
+            sl.Add("status");
+            sl.Add("created");
+            sl.Add("modified");
+            return sl;
         }
 
         // SELECT attestationId,status,created,modified
@@ -305,20 +318,20 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
             if (attestationId?.Length > 64) throw new Exception("Too long");
-                using (var _delete0Command = _database.CreateCommand())
-                {
-                    _delete0Command.CommandText = "DELETE FROM attestationStatus " +
-                                                 "WHERE attestationId = $attestationId";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$attestationId";
-                    _delete0Command.Parameters.Add(_delete0Param1);
+            using (var _delete0Command = _database.CreateCommand())
+            {
+                _delete0Command.CommandText = "DELETE FROM attestationStatus " +
+                                             "WHERE attestationId = @attestationId";
+                var _delete0Param1 = _delete0Command.CreateParameter();
+                _delete0Param1.ParameterName = "@attestationId";
+                _delete0Command.Parameters.Add(_delete0Param1);
 
                 _delete0Param1.Value = attestationId;
                 var count = conn.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
-                } // Using
+            } // Using
         }
 
         public AttestationStatusRecord ReadRecordFromReader0(SqliteDataReader rdr, byte[] attestationId)
@@ -366,29 +379,29 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var (hit, cacheObject) = _cache.Get("TableAttestationStatusCRUD", attestationId.ToBase64());
             if (hit)
                 return (AttestationStatusRecord)cacheObject;
-                using (var _get0Command = _database.CreateCommand())
-                {
-                    _get0Command.CommandText = "SELECT status,created,modified FROM attestationStatus " +
-                                                 "WHERE attestationId = $attestationId LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$attestationId";
-                    _get0Command.Parameters.Add(_get0Param1);
+            using (var _get0Command = _database.CreateCommand())
+            {
+                _get0Command.CommandText = "SELECT status,created,modified FROM attestationStatus " +
+                                             "WHERE attestationId = @attestationId LIMIT 1;";
+                var _get0Param1 = _get0Command.CreateParameter();
+                _get0Param1.ParameterName = "@attestationId";
+                _get0Command.Parameters.Add(_get0Param1);
 
                 _get0Param1.Value = attestationId;
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                lock (conn._lock)
                 {
-                    if (!rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), null);
-                        return null;
-                    }
-                    var r = ReadRecordFromReader0(rdr, attestationId);
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), r);
-                    return r;
-                } // using
-            } // lock
+                        if (!rdr.Read())
+                        {
+                            _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr, attestationId);
+                        _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), r);
+                        return r;
+                    } // using
+                } // lock
             } // using
         }
 

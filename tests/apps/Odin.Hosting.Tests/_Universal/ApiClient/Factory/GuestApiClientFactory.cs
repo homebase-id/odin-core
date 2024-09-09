@@ -7,7 +7,6 @@ using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Core.Storage;
-using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 

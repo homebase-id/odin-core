@@ -2,6 +2,13 @@ name: "Host: Deploy latest release tag to production"
 
 on:
   workflow_dispatch:
+    inputs:
+      start_choice:
+        type: choice
+        description: "Start container"
+        options:
+        - 'true'
+        - 'false'
 
 env:
   REGISTRY: ghcr.io
@@ -43,6 +50,7 @@ jobs:
           image_name: ghcr.io/${{ github.repository }}:${{ env.LATEST_VERSION_TAG }}
           env_name: 'production'
           force_update: 'true'
+          start_container: ${{ github.event.inputs.start_choice }}
           ansible_host: ${{ secrets.ANSIBLE_HOST }}
           ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
           ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}

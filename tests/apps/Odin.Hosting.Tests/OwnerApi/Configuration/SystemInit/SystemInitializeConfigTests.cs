@@ -182,7 +182,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             //note: the permission for chat drive is write
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
             Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
@@ -304,7 +305,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //note: the permission for chat drive is write
             var chatDriveGrant =
                 systemCircle.DriveGrants.SingleOrDefault(dg =>
-                    dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
+                    dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
             Assert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
 
 

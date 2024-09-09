@@ -17,7 +17,7 @@ namespace Odin.Services.Drives.Statistics;
 /// </summary>
 public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, OdinConfiguration config)
     : INotificationHandler<IDriveNotification>,
-        INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
+        INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionContentDeletedNotification>,
         INotificationHandler<AllReactionsByFileDeleted>
 {
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -179,7 +179,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
         await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext, notification.DatabaseConnection);
     }
 
-    public async Task Handle(ReactionDeletedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(ReactionContentDeletedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;

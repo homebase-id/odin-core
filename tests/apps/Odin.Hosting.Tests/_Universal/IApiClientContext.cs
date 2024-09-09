@@ -15,6 +15,8 @@ public interface IApiClientContext
     Task Initialize(OwnerApiClientRedux ownerApiClient);
     
     TargetDrive TargetDrive { get; }
+    
+    DrivePermission DrivePermission { get; }
 
     IApiClientFactory GetFactory();
 }

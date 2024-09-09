@@ -18,10 +18,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch all history so we can see all tags
-          path: dotyoucore
+          path: odin-core
 
       - name: Execute versioning script
-        working-directory: dotyoucore
+        working-directory: odin-core
         run: |
           output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
           echo "Tagging output: $output"
@@ -32,9 +32,9 @@ jobs:
       #
 
       - name: Build frontend
-        uses: ./dotyoucore/.github/actions/host/build-frontend
+        uses: ./odin-core/.github/actions/host/build-frontend
         with:
-          dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       #
@@ -65,8 +65,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
         with:
-          context: ./dotyoucore
-          file: ./dotyoucore/docker/Dockerfile-identity-host
+          context: ./odin-core
+          file: ./odin-core/docker/Dockerfile-identity-host
           push: true
           tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}

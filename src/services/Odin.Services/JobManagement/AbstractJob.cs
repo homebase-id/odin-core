@@ -1,52 +1,108 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
-using Odin.Core.Logging.CorrelationId;
-using Quartz;
+using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Exceptions;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 
 namespace Odin.Services.JobManagement;
+
 #nullable enable
 
-public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
+public abstract class AbstractJob
 {
+    // Implement this method to run the job
+    public abstract Task<JobExecutionResult> Run(CancellationToken cancellationToken);
+    
+    // Implement this method to serialize job data to the database
+    public abstract string? SerializeJobData();
+    
+    // Implement this method to deserialize job data from the database
+    public abstract void DeserializeJobData(string json);
+    
+    // Override this property to set the name of the job.
+    public virtual string Name => GetType().Name;
+    
+    // Job Id
+    public Guid? Id => Record == null || Record.id == Guid.Empty ? null : Record.id; 
 
-    // Consumer must implement this method
-    protected abstract Task Run(IJobExecutionContext context);
+    // Job state
+    public JobState State => (JobState?)Record?.state ?? JobState.Unknown;
+    
+    // Last error
+    public string? LastError => Record?.lastError;
 
-    //
+    // JobType
+    public virtual string JobType => GetType().AssemblyQualifiedName ?? throw new OdinSystemException("JobType is null");
 
-    // How long to keep job if completed
-    protected TimeSpan? CompletedRetention { get; private set; }
-
-    // How long to keep job if failed
-    protected TimeSpan? FailedRetention { get; private set; }
-
-    //
-
-    protected static Task SetJobResponseData(IJobExecutionContext context, object serializableObject)
+    // Override this to create a job hash value. This is used to determine if a job is unique. Two jobs
+    // with the same hash cannot exist in the database at the same time. If this method returns null, it means
+    // that the job is not unique.
+    public virtual string? CreateJobHash()
     {
-        return context.Scheduler.SetJobResponseData(context.JobDetail, serializableObject);
+        return null;
     }
-
-    //
-
-    // Called by Quartz
-    public async Task Execute(IJobExecutionContext context)
+    
+    // Override this to tweak the response object used by the API 
+    public virtual JobApiResponse CreateApiResponseObject()
     {
-        var jobData = context.JobDetail.JobDataMap;
-
-        context.ApplyCorrelationId(correlationContext);
-
-        if (jobData.TryGetString(JobConstants.CompletedRetentionSecondsKey, out var cr) && cr != null)
+        return new JobApiResponse
         {
-            CompletedRetention = TimeSpan.FromSeconds(long.Parse(cr));
+            JobId = Id,
+            State = State,
+            Error = LastError,
+            Data = SerializeJobData()
+        };
+    }
+    
+    // Low level database job record (read-only)
+    public JobsRecord? Record { get; private set; }
+    
+    public static AbstractJob CreateInstance(IServiceProvider serviceProvider, JobsRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(record);
+
+        if (string.IsNullOrEmpty(record.jobType))
+        {
+            throw new ArgumentException("Job type cannot be null or empty.", nameof(record.jobType));
         }
 
-        if (jobData.TryGetString(JobConstants.FailedRetentionSecondsKey, out var fr) && fr != null)
+        var type = Type.GetType(record.jobType);
+        if (type == null)
         {
-            FailedRetention = TimeSpan.FromSeconds(long.Parse(fr));
+            throw new OdinSystemException($"Unable to find job type {record.jobType}");
         }
+        
+        if (ActivatorUtilities.CreateInstance(serviceProvider, type) is not AbstractJob job)
+        {
+            throw new OdinSystemException($"Unable to create instance of job type {type}");
+        }
+        
+        job.Record = record;
 
-        await Run(context);
+        if (!string.IsNullOrEmpty(record.jobData))
+        {
+            job.DeserializeJobData(record.jobData);            
+        }
+        
+        return job;
     }
-
+    
+    //
+    
+    public static T CreateInstance<T>(IServiceProvider serviceProvider, JobsRecord record) where T : AbstractJob
+    {
+        if (CreateInstance(serviceProvider, record) is not T job)
+        {
+            throw new OdinSystemException($"Unable to create instance of job type {typeof(T)}");
+        }
+        return job;
+    }
+    
+    //
+    
 }
+
+//
+
