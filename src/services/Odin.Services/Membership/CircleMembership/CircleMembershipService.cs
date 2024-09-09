@@ -70,7 +70,7 @@ public class CircleMembershipService(
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
 
-            if (circleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId)
+            if (SystemCircleConstants.IsSystemCircle(circleId))
             {
                 odinContext.Caller.AssertHasMasterKey();
             }
@@ -301,5 +301,4 @@ public class CircleMembershipService(
         exists = circle != null;
         return !circle?.Disabled ?? false;
     }
-    
 }

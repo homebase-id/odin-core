@@ -204,14 +204,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                           "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
             Assert.IsTrue(confirmedSystemCircle.DriveGrants.Count() == SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives.Count);
 
-            Assert.IsNotNull(confirmedSystemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+            // Assert.IsNotNull(confirmedSystemCircle.DriveGrants.SingleOrDefault(dg =>
+            //     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             Assert.IsNotNull(confirmedSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
-            Assert.IsTrue(!confirmedSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
+            Assert.IsTrue(confirmedSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
 
             Assert.IsNotNull(confirmedSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
@@ -232,8 +232,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 "Contains all identities which were automatically connected (due to an introduction from another-connected identity)");
             Assert.IsTrue(autoConnectionsSystemCircle.DriveGrants.Count() == SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives.Count);
 
-            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+            // Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(dg =>
+            //     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&

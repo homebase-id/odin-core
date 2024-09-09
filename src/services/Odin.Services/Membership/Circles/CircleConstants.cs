@@ -12,6 +12,11 @@ public static class SystemCircleConstants
     public static readonly GuidId ConfirmedConnectionsCircleId = new Guid("ba4f80d2-eac4-4b31-afc1-a3dfe7043411");
     public static readonly GuidId AutoConnectionsCircleId = new Guid("9e22b429-52f7-4d25-80e1-1250b651d343");
 
+    public static bool IsSystemCircle(Guid circleId)
+    {
+        return AllSystemCircles.Exists(c => c == circleId);
+    }
+
     public static readonly List<GuidId> AllSystemCircles =
     [
         ConnectedIdentitiesSystemCircleId,

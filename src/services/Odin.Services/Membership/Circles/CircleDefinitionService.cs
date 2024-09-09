@@ -121,14 +121,7 @@ namespace Odin.Services.Membership.Circles
             var circles = _circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType);
             if (!includeSystemCircle)
             {
-                Guid[] excludes =
-                [
-                    SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value,
-                    SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
-                    SystemCircleConstants.AutoConnectionsCircleId.Value
-                ];
-
-                return Task.FromResult(circles.ExceptBy(excludes, cd => cd.Id));
+                return Task.FromResult(circles.ExceptBy(SystemCircleConstants.AllSystemCircles, cd => cd.Id));
             }
 
             return Task.FromResult(circles);
