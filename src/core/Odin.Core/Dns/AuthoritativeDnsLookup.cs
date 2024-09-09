@@ -43,10 +43,11 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
     {
         var authoritatives = new AuthoritativeDnsLookupResult();
 
+        domain = domain.Trim().Trim('.');
         logger.LogDebug("Beginning look up of authoritative records for {domain}", domain);
 
         var roots = await LookupRootAuthority();
-        if (domain.Trim('.') == "") // looking up root?
+        if (domain == "") // looking up root?
         {
             return roots;
         }
