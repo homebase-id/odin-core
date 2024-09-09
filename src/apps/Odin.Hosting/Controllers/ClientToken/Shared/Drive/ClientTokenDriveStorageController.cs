@@ -76,11 +76,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
-
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             using var cn = tenantSystemStorage.CreateConnection();
-            return await base.GetPayloadStream(
+            var payload = await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
                     File = new ExternalFileIdentifier()
@@ -96,6 +94,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     Chunk = chunk
                 },
                 cn);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
         }
 
         /// <summary>
