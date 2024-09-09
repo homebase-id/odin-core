@@ -10,6 +10,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Collections.Generic;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 {
@@ -75,6 +76,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
+            HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.GetPayloadStream(
