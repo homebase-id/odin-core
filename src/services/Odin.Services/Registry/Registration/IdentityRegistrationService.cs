@@ -238,9 +238,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
     {
-        return _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+        return _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
     }
 
     //

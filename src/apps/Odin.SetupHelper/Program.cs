@@ -1,5 +1,7 @@
 using System.Net.Sockets;
+using DnsClient;
 using Odin.Core.Cache;
+using Odin.Core.Dns;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Util;
@@ -32,6 +34,7 @@ builder.Services.AddSwaggerGen();
 //
 // HttpClientFactory
 //
+
 builder.Services.AddHttpClient("NoRedirectClient", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(2);
@@ -44,9 +47,15 @@ builder.Services.AddHttpClient("NoRedirectClient", client =>
 //
 // Misc
 //
+
+builder.Services.AddSingleton<ILookupClient, LookupClient>();
+builder.Services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
 builder.Services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
 builder.Services.AddSingleton<ICorrelationContext, CorrelationContext>();
 builder.Services.AddSingleton<IGenericMemoryCache, GenericMemoryCache>();
+builder.Services.AddSingleton<TcpProbe>();
+builder.Services.AddSingleton<HttpProbe>();
+builder.Services.AddSingleton<DnsProbe>();
 
 var app = builder.Build();
 
@@ -60,151 +69,44 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapGet("/ping", () => "pong");
 
-app.MapGet("/api/v1/probe-tcp/{domainName}/{hostPort}",
-    async (string domainName, string hostPort, IGenericMemoryCache cache) =>
-        await TcpProbe(domainName, hostPort, cache));
+app.MapGet("/api/v1/probe-tcp/{domainName}/{hostPort}", 
+    async (string domainName, string hostPort, TcpProbe tcpProbe) =>
+    {
+        var (success, message) = await tcpProbe.ProbeAsync(domainName, hostPort);
+        return success
+            ? Results.Ok(message)
+            : Results.BadRequest(message);
+    });
 
 app.MapGet("/api/v1/probe-http/{domainName}/{hostPort}",
-    async (string domainName, string hostPort, IHttpClientFactory httpClientFactory, IGenericMemoryCache cache) =>
-        await HttpProbe("http", domainName, hostPort, httpClientFactory, cache));
+    async (string domainName, string hostPort, HttpProbe httpProbe) =>
+    {
+        var (success, message) = await httpProbe.ProbeAsync("http", domainName, hostPort);
+        return success
+            ? Results.Ok(message)
+            : Results.BadRequest(message);
+
+    });
 
 app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
-    async (string domainName, string hostPort, IHttpClientFactory httpClientFactory, IGenericMemoryCache cache) =>
-        await HttpProbe("https", domainName, hostPort, httpClientFactory, cache));
+    async (string domainName, string hostPort, HttpProbe httpProbe) =>
+    {
+        var (success, message) = await httpProbe.ProbeAsync("https", domainName, hostPort);
+        return success
+            ? Results.Ok(message)
+            : Results.BadRequest(message);
+    });
+
+app.MapGet("/api/v1/resolve-ip/{domainName}",
+    async (string domainName, DnsProbe dnsProbe) =>
+    {
+        var (ip, message) = await dnsProbe.ResolveIpAsync(domainName);
+        return ip != ""
+            ? Results.Ok(ip)
+            : Results.BadRequest(message);
+    });
 
 app.Run();
-return;
 
-//
 
-async Task<IResult> TcpProbe(
-    string domainName,
-    string hostPort,
-    IGenericMemoryCache cache)
-{
-    domainName = domainName.ToLower();
-    if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
-    {
-        return Results.BadRequest("Invalid domain name");
-    }
 
-    if (!int.TryParse(hostPort, out var port))
-    {
-        return Results.BadRequest("Invalid port number");
-    }
-
-    if (port is < 1 or > 65535)
-    {
-        return Results.BadRequest("Port number out of range");
-    }
-
-    var cacheKey = $"tcp:{domainName}:{port}";
-    if (cache.TryGet<RequestResult>(cacheKey, out var requestResult) && requestResult != null)
-    {
-        return requestResult.Success
-            ? Results.Ok($"{requestResult.Message} [cache hit]")
-            : Results.BadRequest($"{requestResult.Message} [cache hit]");
-    }
-
-    try
-    {
-        using var tcpClient = new TcpClient();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        await tcpClient.ConnectAsync(domainName, port, cts.Token);
-        var result = new RequestResult(true, $"Successfully connected to TCP: {domainName}:{port}");
-        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-        return Results.Ok(result.Message);
-    }
-    catch (Exception)
-    {
-        var result = new RequestResult(false, $"Failed to connect to TCP: {domainName}:{port}");
-        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-        return Results.BadRequest(result.Message);
-    }
-}
-
-//
-
-async Task<IResult> HttpProbe(
-    string scheme,
-    string domainName,
-    string hostPort,
-    IHttpClientFactory httpClientFactory,
-    IGenericMemoryCache cache)
-{
-    domainName = domainName.ToLower();
-    if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
-    {
-        return Results.BadRequest("Invalid domain name");
-    }
-
-    if (!int.TryParse(hostPort, out var port))
-    {
-        return Results.BadRequest("Invalid port number");
-    }
-
-    if (port is < 1 or > 65535)
-    {
-        return Results.BadRequest("Port number out of range");
-    }
-
-    var uri = new Uri($"{scheme}://{domainName}:{port}/.well-known/acme-challenge/ping");
-    var cacheKey = uri.ToString();
-
-    if (cache.TryGet<RequestResult>(cacheKey, out var requestResult) && requestResult != null)
-    {
-        return requestResult.Success
-            ? Results.Ok($"{requestResult.Message} [cache hit]")
-            : Results.BadRequest($"{requestResult.Message} [cache hit]");
-    }
-
-    RequestResult result;
-    var client = httpClientFactory.CreateClient("NoRedirectClient");
-    try
-    {
-        var response = await client.GetAsync(uri);
-        var body = await response.Content.ReadAsStringAsync();
-
-        if (response.IsSuccessStatusCode)
-        {
-            if (body == "pong")
-            {
-                result = new RequestResult(true, $"Successfully probed {scheme}://{domainName}:{port}");
-                cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-                return Results.Ok(result.Message);
-            }
-            result = new RequestResult(false, $"Successfully probed {scheme}://{domainName}:{port}, but received unexpected response");
-            cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-            return Results.BadRequest(result.Message);
-        }
-        result = new RequestResult(false, $"Failed to probe {scheme}://{domainName}:{port}: {response.ReasonPhrase}");
-        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-        return Results.BadRequest(result.Message);
-    }
-    catch (HttpRequestException e)
-    {
-        result = new RequestResult(false, $"Failed to probe {scheme}://{domainName}:{port}: {e.Message}");
-        cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
-        return Results.BadRequest(result.Message);
-    }
-    catch (TaskCanceledException)
-    {
-        result = new RequestResult(false, $"Failed to probe {scheme}://{domainName}:{port}: time out");
-        cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
-        return Results.BadRequest(result.Message);
-    }
-    catch (Exception)
-    {
-        result = new RequestResult(false, $"Failed to probe {scheme}://{domainName}:{port}: unknown server error");
-        cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
-        return Results.BadRequest(result.Message);
-    }
-}
-
-//
-
-public class RequestResult(bool success, string message)
-{
-    public bool Success { get; } = success;
-    public string Message { get; } = message;
-}

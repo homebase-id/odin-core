@@ -216,7 +216,7 @@ public class RegistrationController : ControllerBase
     {
         domain = domain.Trim();
         ValidateDomain(domain);
-        var (success, dnsConfig) = await _regService.GetAuthorativeDomainDnsStatus(domain);
+        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
         if (!includeAlias)
         {
             dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -267,14 +267,14 @@ public class RegistrationController : ControllerBase
         }
 
         //
-        // Check that our new domain can be looked up using authorative nameservers
+        // Check that our new domain can be looked up using authoritative nameservers
         //
-        var (resolved, _) = await _regService.GetAuthorativeDomainDnsStatus(domain);
+        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
         if (!resolved)
         {
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
-                title: "DNS records were not found by all authorative name servers. Try later."
+                title: "DNS records were not found by all authoritative name servers. Try later."
             );
         }
 

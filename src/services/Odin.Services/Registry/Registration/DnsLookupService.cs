@@ -17,18 +17,18 @@ public class DnsLookupService : IDnsLookupService
     private readonly ILogger<DnsLookupService> _logger;
     private readonly OdinConfiguration _configuration;
     private readonly ILookupClient _dnsClient;
-    private readonly IAuthorativeDnsLookup _authorativeDnsLookup;
+    private readonly IAuthoritativeDnsLookup _authoritativeDnsLookup;
 
     public DnsLookupService(
         ILogger<DnsLookupService> logger,
         OdinConfiguration configuration,
         ILookupClient dnsClient,
-        IAuthorativeDnsLookup authorativeDnsLookup)
+        IAuthoritativeDnsLookup authoritativeDnsLookup)
     {
         _logger = logger;
         _configuration = configuration;
         _dnsClient = dnsClient;
-        _authorativeDnsLookup = authorativeDnsLookup;
+        _authoritativeDnsLookup = authoritativeDnsLookup;
     }
 
     //
@@ -41,7 +41,7 @@ public class DnsLookupService : IDnsLookupService
             return "";
         }
 
-        var result = await _authorativeDnsLookup.LookupZoneApex(domain);
+        var result = await _authoritativeDnsLookup.LookupZoneApex(domain);
 
         return result;
     }
@@ -118,17 +118,17 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
+    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         var dnsConfigs = GetDnsConfiguration(domain);
-        var authority = await _authorativeDnsLookup.LookupDomainAuthority(domain);
-        if (string.IsNullOrEmpty(authority.AuthorativeNameServer))
+        var authority = await _authoritativeDnsLookup.LookupDomainAuthority(domain);
+        if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
             foreach (var record in dnsConfigs)
             {
-                record.Status = DnsLookupRecordStatus.NoAuthorativeNameServer;
+                record.Status = DnsLookupRecordStatus.NoAuthoritativeNameServer;
             }
             return (false, dnsConfigs);
         }
@@ -149,8 +149,8 @@ public class DnsLookupService : IDnsLookupService
                 record.Value,
                 record.AltValue);
 
-            record.QueryResults[authority.AuthorativeNameServer] = recordStatus;
-            record.Records[authority.AuthorativeNameServer] = records.ToArray();
+            record.QueryResults[authority.AuthoritativeNameServer] = recordStatus;
+            record.Records[authority.AuthoritativeNameServer] = records.ToArray();
             record.Status = recordStatus;
         }
 
