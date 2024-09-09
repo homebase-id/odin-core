@@ -180,18 +180,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
 
-            //note: the permission for chat drive is write
             Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
             Assert.IsTrue(!connectedIdentitiesSystemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
             Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
             Assert.IsTrue(!connectedIdentitiesSystemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
             Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive && 
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
             Assert.IsTrue(!connectedIdentitiesSystemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
             //
@@ -225,7 +226,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             var autoConnectionsSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.AutoConnectionsCircleId);
             Assert.IsTrue(autoConnectionsSystemCircle.Name == "Auto-connected Identities");
-            
+
             Assert.IsTrue(
                 autoConnectionsSystemCircle.Description ==
                 "Contains all identities which were automatically connected (due to an introduction from another-connected identity)");
