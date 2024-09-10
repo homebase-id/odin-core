@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -474,23 +475,36 @@ namespace Odin.Hosting
             }
 
             //
-            // Command line: create identity column in databases
+            // Command line: start connection test
             //
             // examples:
             //
-            //   dotnet run --no-build -- --create-identity-column
+            //   dotnet run -- --tcp-connection-test 80 5000
             //
-            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --create-identity-column
+            //   80: TCP port to listen on
+            //   5000: timeout in milliseconds before giving up
+            //
+            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --tcp-connection-test 80 5000
             //
             //
-            if (args.Contains("--create-identity-column"))
+            if (args[0] == "--tcp-connection-test" && args.Length == 3)
             {
-                var (odinConfiguration, _) = LoadConfig(true);
-                CreateIdentityColumn.Execute(odinConfiguration.Host.TenantDataRootPath);
-                return (true, 0);
+                var port = int.Parse(args[1]);
+                var timeout = int.Parse(args[2]);
+                var listener = new TcpListener(IPAddress.Any, port);
+                listener.Start();
+                Console.WriteLine($"Listening on port {port} for {timeout} ms");
+                var task = listener.AcceptTcpClientAsync();
+                var result = task.Wait(timeout);
+                if (result)
+                {
+                    Console.WriteLine("Connection established");
+                    return (true, 0);
+                }
+
+                Console.WriteLine("Connection timed out");
+                return (true, 1);
             }
-
-
 
             return (false, 0);
         }

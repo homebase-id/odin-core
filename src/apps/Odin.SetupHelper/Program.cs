@@ -69,10 +69,10 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapGet("/ping", () => "pong");
 
-app.MapGet("/api/v1/probe-tcp/{domainName}/{hostPort}", 
-    async (string domainName, string hostPort, TcpProbe tcpProbe) =>
+app.MapGet("/api/v1/probe-tcp/{ipOrDomain}/{hostPort}",
+    async (string ipOrDomain, string hostPort, TcpProbe tcpProbe) =>
     {
-        var (success, message) = await tcpProbe.ProbeAsync(domainName, hostPort);
+        var (success, message) = await tcpProbe.ProbeAsync(ipOrDomain, hostPort);
         return success
             ? Results.Ok(message)
             : Results.BadRequest(message);
@@ -85,7 +85,6 @@ app.MapGet("/api/v1/probe-http/{domainName}/{hostPort}",
         return success
             ? Results.Ok(message)
             : Results.BadRequest(message);
-
     });
 
 app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
