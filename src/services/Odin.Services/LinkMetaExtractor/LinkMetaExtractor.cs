@@ -18,9 +18,27 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory,ILogger<LinkMeta
     /// List of sites that needs bot headers to be fetched CSR website
     /// </summary>
     private static readonly List<string> SiteThatNeedsBotHeaders = ["twitter.com","x.com"];
+    
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        Uri uriResult;
+        var result = Uri.TryCreate(url, UriKind.Absolute, out uriResult) 
+                      && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+        
+        return result;
+    }
 
     public async Task<LinkMeta> ExtractAsync(string url)
     {
+        if (!IsValidUrl(url))
+        {
+            logger.LogError("Invalid Url {Url}", url);
+            throw new OdinClientException("Invalid Url");
+        }
+        
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
         // These Headers are needed for request to be received as text/html
         // Some sites like Instagram does not return the meta data if no user agent specified
