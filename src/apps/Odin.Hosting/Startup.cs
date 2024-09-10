@@ -160,7 +160,7 @@ namespace Odin.Hosting
             services.AddCorsPolicies();
 
             services.AddAuthentication(o => o.DefaultScheme = UnifiedAuthConstants.SchemeName)
-                .AddUnifiedAuthentication()
+                // .AddUnifiedAuthentication()
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)

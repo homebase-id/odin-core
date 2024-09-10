@@ -5,7 +5,7 @@ namespace Odin.Hosting.Tests
 {
     public class OwnerAuthTokenContext
     {
-        public ClientAuthenticationToken AuthenticationResult { get; set; }
+        public ClientAuthenticationToken AuthenticationToken { get; set; }
         public SensitiveByteArray SharedSecret { get; set; }
     }
 }

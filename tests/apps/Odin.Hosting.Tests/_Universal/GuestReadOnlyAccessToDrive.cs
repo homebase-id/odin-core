@@ -9,13 +9,14 @@ using Odin.Services.Drives;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 
 namespace Odin.Hosting.Tests._Universal;
 
 public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
 {
     private readonly TestPermissionKeyList _keys = keys;
-    private GuestApiClientFactory _factory;
+    private IApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = DrivePermission.Read;
@@ -61,6 +62,12 @@ public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionK
         _factory = new GuestApiClientFactory(cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        _factory = new GuestApiClientFactoryV2(tokenContext.AuthenticationToken, tokenContext.SharedSecret.GetKey());
+        return Task.CompletedTask;
+    }
+    
     public IApiClientFactory GetFactory()
     {
         return _factory;

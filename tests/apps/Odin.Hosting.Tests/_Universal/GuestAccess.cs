@@ -10,13 +10,14 @@ using Odin.Services.Drives;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 
 namespace Odin.Hosting.Tests._Universal;
 
 public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, List<GuidId> circles, TestPermissionKeyList keys = null)
     : IApiClientContext
 {
-    private GuestApiClientFactory _factory;
+    private IApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = default;
 
@@ -45,6 +46,12 @@ public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, Lis
         _factory = new GuestApiClientFactory(cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        _factory = new GuestApiClientFactoryV2(tokenContext.AuthenticationToken, tokenContext.SharedSecret.GetKey());
+        return Task.CompletedTask;
+    }
+    
     public IApiClientFactory GetFactory()
     {
         return _factory;

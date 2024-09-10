@@ -18,7 +18,10 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.ApiClient;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
@@ -264,6 +267,31 @@ namespace Odin.Hosting.Tests
             return client;
         }
 
+        public ApiV2Client CreateApiV2ClientContext(OdinId identity, ApiClientType clientType)
+        {
+            var t = _oldOwnerApi.GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+
+            IApiClientFactory factory;
+            switch (clientType)
+            {
+                case ApiClientType.OwnerApi:
+                    factory = new OwnerApiClientFactoryV2(t.AuthenticationToken, t.SharedSecret.GetKey());
+                    break;
+
+                case ApiClientType.AppApi:
+                    factory = new AppApiClientFactoryV2(t.AuthenticationToken, t.SharedSecret.GetKey());
+                    break;
+
+                case ApiClientType.GuestApi:
+                    factory = new GuestApiClientFactoryV2(t.AuthenticationToken, t.SharedSecret.GetKey());
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(clientType), clientType, null);
+            }
+
+            return new ApiV2Client(factory, identity);
+        }
 
         public T RestServiceFor<T>(HttpClient client, byte[] sharedSecret)
         {

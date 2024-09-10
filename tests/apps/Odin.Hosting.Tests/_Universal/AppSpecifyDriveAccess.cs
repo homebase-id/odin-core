@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 
 namespace Odin.Hosting.Tests._Universal;
 
 public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission permission, TestPermissionKeyList keys = null)
     : IApiClientContext
 {
-    private AppApiClientFactory _factory;
+    private IApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = permission;
@@ -45,6 +45,12 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
 
         var (appToken, appSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
         _factory = new AppApiClientFactory(appToken, appSharedSecret);
+    }
+
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        _factory = new AppApiClientFactoryV2(tokenContext.AuthenticationToken, tokenContext.SharedSecret.GetKey());
+        return Task.CompletedTask;
     }
 
     public IApiClientFactory GetFactory()

@@ -4,6 +4,5 @@ public enum ApiClientType
 {
     OwnerApi,
     AppApi,
-    GuestApi,
-    PeerDirectApi
+    GuestApi
 }

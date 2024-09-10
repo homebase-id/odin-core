@@ -293,7 +293,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var context = new OwnerAuthTokenContext()
             {
-                AuthenticationResult = result,
+                AuthenticationToken = result,
                 SharedSecret = sharedSecret
             };
 
@@ -320,7 +320,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationToken, token.SharedSecret, fileSystemType);
             sharedSecret = token.SharedSecret;
             return client;
         }

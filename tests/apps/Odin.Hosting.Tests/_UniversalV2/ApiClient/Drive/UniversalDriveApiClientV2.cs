@@ -8,28 +8,26 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.Status;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Apps;
-using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Core.Storage;
-using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Controllers.Base.Drive.Status;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests._UniversalV2.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
+namespace Odin.Hosting.Tests._UniversalV2.ApiClient.Drive;
 
-public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
+public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factory)
 {
     /// <summary>
     /// Uploads a new file, unencrypted with metadata only; without any attachments (payload, thumbnails, etc.)
@@ -39,7 +37,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transitOptions = new TransitOptions();
-
         return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
     }
 
@@ -397,11 +394,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-            List<StreamPart> parts = new()
-            {
+            List<StreamPart> parts =
+            [
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-            };
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            ];
 
             foreach (var payloadDefinition in payloads)
             {
@@ -442,9 +439,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         var instructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
 
-        List<StreamPart> parts = new();
-        parts.Add(new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json",
-            Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
+        List<StreamPart> parts =
+        [
+            new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json",
+                Enum.GetName(MultipartUploadParts.PayloadUploadInstructions))
+        ];
 
         foreach (var payloadDefinition in payloads)
         {
@@ -541,10 +540,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveV2HttpClientApi>(client, sharedSecret);
-        // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
-        var apiResponse = await svc.GetFileHeaderAsPost(file);
+        var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
         return apiResponse;
     }
 
@@ -552,14 +549,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveV2HttpClientApi>(client, sharedSecret);
-        return await svc.GetPayloadPost(new GetPayloadRequest()
-        {
-            File = file,
-            Chunk = chunk,
-            Key = key
-        });
+        return await svc.GetPayload(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
@@ -568,14 +559,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveV2HttpClientApi>(client, sharedSecret);
 
-        var thumbnailResponse = await svc.GetThumbnailPost(new GetThumbnailRequest()
-        {
-            File = file,
-            Height = height,
-            Width = width,
-            PayloadKey = payloadKey
-        });
-
+        var thumbnailResponse = await svc.GetThumbnail(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type, width, height);
         return thumbnailResponse;
     }
 
@@ -583,7 +567,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveV2HttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.SoftDeleteFile(new DeleteFileRequest()
         {

@@ -7,12 +7,13 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 
 namespace Odin.Hosting.Tests._Universal;
 
 public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
 {
-    private AppApiClientFactory _factory;
+    private IApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = DrivePermission.ReadWrite;
@@ -43,6 +44,12 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
 
         var (appToken, appSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
         _factory = new AppApiClientFactory(appToken, appSharedSecret);
+    }
+    
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        _factory = new AppApiClientFactoryV2(tokenContext.AuthenticationToken, tokenContext.SharedSecret.GetKey());
+        return Task.CompletedTask;
     }
 
     public IApiClientFactory GetFactory()

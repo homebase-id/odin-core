@@ -30,21 +30,5 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         }
 
 
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpDelete(ApiV2PathConstants.DeleteFile)]
-        public Task<IActionResult> DeleteFile([FromBody] DeleteFileRequestV2 request)
-        {
-            return Task.FromResult(Ok() as IActionResult);
-        }
-
-
-        [SwaggerOperation(Tags = [ApiV2SwaggerLabels.FileManagement])]
-        [HttpPost(ApiV2PathConstants.SendReadReceipts)]
-        public Task<UploadResult> SendReadReceipt(SendReadReceiptRequest request)
-        {
-            return Task.FromResult(new UploadResult()
-            {
-            });
-        }
     }
 }

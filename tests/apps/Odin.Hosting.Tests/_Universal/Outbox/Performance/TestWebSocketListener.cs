@@ -41,7 +41,7 @@ public sealed class TestWebSocketListener
 
         _clientWebSocket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(OwnerAuthConstants.CookieName, _authTokenContext.AuthenticationResult.ToString())
+        var cookie = new Cookie(OwnerAuthConstants.CookieName, _authTokenContext.AuthenticationToken.ToString())
         {
             Domain = identity
         };

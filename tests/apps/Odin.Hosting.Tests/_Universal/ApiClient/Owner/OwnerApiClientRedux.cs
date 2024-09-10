@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             _identity = identity;
 
             var t = ownerApi.GetOwnerAuthContext(identity.OdinId).GetAwaiter().GetResult();
-            var factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
+            var factory = new OwnerApiClientFactory(t.AuthenticationToken, t.SharedSecret.GetKey());
 
             AppManager = new AppManagementApiClient(ownerApi, identity);
             DriveManager = new DriveManagementApiClient(ownerApi, identity);

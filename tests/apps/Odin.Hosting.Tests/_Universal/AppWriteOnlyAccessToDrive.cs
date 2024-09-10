@@ -8,13 +8,14 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._UniversalV2.Factory;
 
 namespace Odin.Hosting.Tests._Universal;
 
 public class AppWriteOnlyAccessToDrive : IApiClientContext
 {
     private readonly TestPermissionKeyList _keys;
-    private AppApiClientFactory _factory;
+    private IApiClientFactory _factory;
 
     public AppWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null)
     {
@@ -53,6 +54,12 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
         _factory = new AppApiClientFactory(appToken, appSharedSecret);
     }
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        _factory = new AppApiClientFactoryV2(tokenContext.AuthenticationToken, tokenContext.SharedSecret.GetKey());
+        return Task.CompletedTask;
+    }
+    
     public IApiClientFactory GetFactory()
     {
         return _factory;
