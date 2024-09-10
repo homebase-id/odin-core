@@ -4,6 +4,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -18,6 +19,11 @@ public class UploadManifest
     }
 
     public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
+
+    public UploadManifestPayloadDescriptor GetPayloadDescriptor(string key)
+    {
+        return PayloadDescriptors?.SingleOrDefault(p => string.Equals(p.PayloadKey, key, StringComparison.InvariantCultureIgnoreCase));
+    }
 
     public void AssertIsValid()
     {
@@ -65,9 +71,9 @@ public class UploadManifestPayloadDescriptor
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
-    
+
     public string ContentType { get; set; }
-    
+
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -76,15 +82,23 @@ public class UploadManifestPayloadDescriptor
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
+
+    public void AssertIsValid()
+    {
+        OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
+        OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
+        OdinValidationUtils.AssertNotNullOrEmpty(PayloadKey, nameof(PayloadKey));
+        OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
+    }
 }
 
 public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
-    
+
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }
-    
+
     public string ContentType { get; set; }
 }

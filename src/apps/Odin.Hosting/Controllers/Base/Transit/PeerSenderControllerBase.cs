@@ -102,6 +102,81 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
         }
 
+        /// <summary>
+        /// Uploads a file using multi-part form data
+        /// </summary>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPatch("files/update")]
+        public async Task<TransitResult> UpdateFile()
+        {
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var fileSystemWriter = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
+
+            // Note: comparing this to a drive upload - 
+            // We receive TransitInstructionSet from the client then
+            // map it to a UploadInstructionSet using a hard-coded internal
+            // drive to allow apps to send files directly
+
+            // Post alpha we can consider a more direct operation w/ot he temp-transient-drive
+
+            var section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Instructions);
+
+            //
+            // re-map to transit instruction set.  this is the critical point of this feature
+            //
+            var uploadInstructionSet = await RemapTransitInstructionSet(section!.Body);
+
+            OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
+
+            using var cn = tenantSystemStorage.CreateConnection();
+            await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext, cn);
+
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Metadata);
+            await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext, cn);
+
+            //
+            section = await reader.ReadNextSectionAsync();
+            while (null != section)
+            {
+                if (IsPayloadPart(section))
+                {
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                }
+
+                if (IsThumbnail(section))
+                {
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                }
+
+                section = await reader.ReadNextSectionAsync();
+            }
+
+            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext, cn);
+
+            //TODO: this should come from the transit system
+            // We need to return the remote information instead of the local drive information
+            return new TransitResult()
+            {
+                RemoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = uploadInstructionSet.TransitOptions.RemoteTargetDrive
+                },
+                RecipientStatus = uploadResult.RecipientStatus
+            };
+        }
 
         /// <summary>
         /// Sends a Delete Linked File Request to recipients

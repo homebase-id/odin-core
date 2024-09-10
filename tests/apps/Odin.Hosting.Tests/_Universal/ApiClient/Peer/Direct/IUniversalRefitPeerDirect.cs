@@ -15,7 +15,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]
-        Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] streamdata);
+        Task<ApiResponse<TransitResult>> UploadFile(StreamPart[] streamdata);
+        
+        [Multipart]
+        [Patch(RootEndpoint + "/files/update")]
+        Task<ApiResponse<TransitResult>> UpdateFile(StreamPart[] streamdata);
         
         [Post(RootEndpoint + "/files/senddeleterequest")]
         Task<ApiResponse<DeleteFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);

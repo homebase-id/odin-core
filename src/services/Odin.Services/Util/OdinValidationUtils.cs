@@ -66,6 +66,14 @@ public static class OdinValidationUtils
         }
     }
 
+    public static void AssertNotEmptyByteArray(byte[] array, string name)
+    {
+        if (array.All(b => b == 0))
+        {
+            throw new OdinClientException($"{name} is empty", OdinClientErrorCode.ArgumentError);
+        }
+    }
+
     public static void AssertNotEmptyGuid(Guid g, string name)
     {
         if (g == Guid.Empty)

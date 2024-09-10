@@ -62,12 +62,16 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
+                $"{OwnerApiPathConstants.PeerSenderV1}/files/update",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{GuestApiPathConstants.PeerSenderV1}/files/send",
+                $"{GuestApiPathConstants.PeerSenderV1}/files/update",
 
                 $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
+                $"{AppApiPathConstants.PeerSenderV1}/files/update",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
