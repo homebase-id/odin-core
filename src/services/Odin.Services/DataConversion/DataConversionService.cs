@@ -42,16 +42,34 @@ namespace Odin.Services.DataConversion
             });
         }
 
-        public async Task EnsureVerificationHash(IOdinContext odinContext)
+        /// <summary>
+        /// Handles the changes to production data required for the introductions feature
+        /// </summary>
+        public async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             using var cn = tenantSystemStorage.CreateConnection();
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
 
+            //
+            // Create new circles
+            //
+            await circleDefinitionService.CreateSystemCircles(cn);
+            
+            
+            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 foreach (var identity in allIdentities.Results)
                 {
+
+                    //
+                    // add existing identities to the confirmed circles
+                    //
+                    await circleNetworkService.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, identity.OdinId, odinContext, cn);
+                    
+                    //
+                    // Sync verification hash
+                    //
                     if (identity.VerificationHash?.Length == 0)
                     {
                         var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext, cn);
@@ -61,6 +79,7 @@ namespace Odin.Services.DataConversion
             });
         }
 
+        
         private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)

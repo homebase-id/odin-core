@@ -21,8 +21,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         [HttpPost("ensure-verification-hash")]
         public async Task<IActionResult> EnsureVerificationHash()
         {
-            await fixer.EnsureVerificationHash(WebOdinContext);
+            await fixer.PrepareIntroductionsRelease(WebOdinContext);
             return Ok();
         }
+        
     }
 }
