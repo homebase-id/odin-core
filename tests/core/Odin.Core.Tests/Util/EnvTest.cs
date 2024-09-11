@@ -24,4 +24,34 @@ public class EnvTest
 
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", original);
     }
+
+    [Test]
+    public void ItShouldCreateHomeEnvVariableOnWindowsIfItDoesntExist()
+    {
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            var home = Environment.GetEnvironmentVariable("HOME");
+            Assert.IsNotNull(home);
+            Assert.IsNotEmpty(home);
+        }
+    }
+    
+    [Test]
+    public void ItShouldExpandEnvVariablesCrossPlatform()
+    {
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            var expanded = Env.ExpandEnvironmentVariablesCrossPlatform("%HOME%/foo/bar");
+            Assert.That(expanded, Is.EqualTo(Environment.GetEnvironmentVariable("HOME") + "/foo/bar"));
+        }
+        else
+        {
+            var expanded = Env.ExpandEnvironmentVariablesCrossPlatform("$HOME/foo/bar");
+            Assert.That(expanded, Is.EqualTo(Environment.GetEnvironmentVariable("HOME") + "/foo/bar"));
+        }
+        
+        var key = $"ENV_{Guid.NewGuid():N}";
+        Environment.SetEnvironmentVariable(key, key);
+        Assert.That(Env.ExpandEnvironmentVariablesCrossPlatform(key), Is.EqualTo(key));
+    }
 }
