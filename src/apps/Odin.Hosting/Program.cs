@@ -457,7 +457,7 @@ namespace Odin.Hosting
             //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --tcp-connection-test 80 5000
             //
             //
-            if (args[0] == "--tcp-connection-test" && args.Length == 3)
+            if (args.Length == 3 && args[0] == "--tcp-connection-test")
             {
                 var port = int.Parse(args[1]);
                 var timeout = int.Parse(args[2]);
