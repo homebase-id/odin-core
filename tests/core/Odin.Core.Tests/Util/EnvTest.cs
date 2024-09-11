@@ -28,12 +28,9 @@ public class EnvTest
     [Test]
     public void ItShouldCreateHomeEnvVariableOnWindowsIfItDoesntExist()
     {
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-        {
-            var home = Environment.GetEnvironmentVariable("HOME");
-            Assert.IsNotNull(home);
-            Assert.IsNotEmpty(home);
-        }
+        var home = Environment.GetEnvironmentVariable("HOME");
+        Assert.IsNotNull(home);
+        Assert.IsNotEmpty(home);
     }
     
     [Test]
