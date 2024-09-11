@@ -10,6 +10,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Collections.Generic;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 {
@@ -77,7 +78,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             using var cn = tenantSystemStorage.CreateConnection();
-            return await base.GetPayloadStream(
+            var payload = await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
                     File = new ExternalFileIdentifier()
@@ -93,6 +94,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     Chunk = chunk
                 },
                 cn);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
         }
 
         /// <summary>
