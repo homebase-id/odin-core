@@ -22,7 +22,7 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
-using Odin.Core.Storage.SQLite.Migrations;
+using Odin.Hosting.Setup;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -47,7 +47,7 @@ namespace Odin.Hosting
             // Web host
             //
             {
-                var (odinConfig, appSettingsConfig) = LoadConfig(true);
+                var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
                 Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
                 try
                 {
@@ -67,48 +67,6 @@ namespace Odin.Hosting
                 }
 
                 return 0;
-            }
-        }
-
-        //
-
-        private static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars)
-        {
-            var configFolder = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-            var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
-            var configSources = new List<string>();
-            var configBuilder = new ConfigurationBuilder();
-
-            void AddConfigFile(string fileName)
-            {
-                var appSettingsFile = Path.Combine(configFolder, fileName);
-                if (File.Exists(appSettingsFile))
-                {
-                    configSources.Insert(0, appSettingsFile);
-                    configBuilder.AddJsonFile(appSettingsFile, optional: true, reloadOnChange: false);
-                }
-            }
-
-            AddConfigFile("appsettings.json"); // Common env configuration
-            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json"); // Specific env configuration
-            AddConfigFile("appsettings.local.json"); // Local development overrides
-
-            // Environment variables configuration
-            if (includeEnvVars)
-            {
-                configBuilder.AddEnvironmentVariables();
-                configSources.Insert(0, "environment variables");
-            }
-
-            try
-            {
-                var config = configBuilder.Build();
-                return (new OdinConfiguration(config), config);
-            }
-            catch (Exception e)
-            {
-                var text = $"{e.Message} - check config sources in this order: {string.Join(", ", configSources)}";
-                throw new Exception(text, e);
             }
         }
 
@@ -159,7 +117,7 @@ namespace Odin.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (odinConfig, appSettingsConfig) = LoadConfig(true);
+            var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
 
             if (odinConfig.Logging.LogFilePath != "")
             {
@@ -392,6 +350,18 @@ namespace Odin.Hosting
         private static (bool didHandle, int exitCode) HandleCommandLineArgs(string[] args)
         {
             //
+            // Command line: run docker setup helper
+            //
+            // Example:
+            //   dotnet run -- --docker-setup foo=bar
+            //
+            if (args[0] == "--docker-setup")
+            {
+                var result = DockerSetup.Execute(args);
+                return (true, result);
+            }
+            
+            //
             // Command line: export docker env config
             //
             //
@@ -400,7 +370,7 @@ namespace Odin.Hosting
             //
             if (args.Contains("--export-docker-env"))
             {
-                var (_, appSettingsConfig) = LoadConfig(false);
+                var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
                 foreach (var envVar in envVars)
                 {
@@ -418,7 +388,7 @@ namespace Odin.Hosting
             //
             if (args.Contains("--export-shell-env"))
             {
-                var (_, appSettingsConfig) = LoadConfig(false);
+                var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
                 foreach (var envVar in envVars)
                 {
@@ -436,7 +406,7 @@ namespace Odin.Hosting
             //
             if (args.Contains("--export-bash-array-env"))
             {
-                var (_, appSettingsConfig) = LoadConfig(false);
+                var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
                 Console.WriteLine("env_vars=(");
                 foreach (var envVar in envVars)
@@ -465,7 +435,7 @@ namespace Odin.Hosting
             //
             if (args.Contains("--dump-env"))
             {
-                var (_, appSettingsConfig) = LoadConfig(true);
+                var (_, appSettingsConfig) = AppSettings.LoadConfig(true);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
                 foreach (var envVar in envVars)
                 {
