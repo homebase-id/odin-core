@@ -28,9 +28,17 @@ public class EnvTest
     [Test]
     public void ItShouldCreateHomeEnvVariableOnWindowsIfItDoesntExist()
     {
+        // This seemingly redundant call is necessary to initialize the static constructor on Env
+        Env.IsDevelopment(); 
+        
         var home = Environment.GetEnvironmentVariable("HOME");
         Assert.IsNotNull(home);
         Assert.IsNotEmpty(home);
+
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            Console.WriteLine("Windows %HOME%: " + home);    
+        }
     }
     
     [Test]
