@@ -71,17 +71,28 @@ public class PeerUpdateFileTests
     [TestCaseSource(nameof(GuestAllowed))]
     public async Task CanUpdateFileUpdateHeaderDeletePayloadAndAddNewPayload(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var identity = TestIdentities.Pippin;
-        var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(identity);
-        var recipient = TestIdentities.Frodo.OdinId;
+        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
+        var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        var sender = senderOwnerClient.Identity.OdinId;
+        var recipient = recipientOwnerClient.Identity.OdinId;
 
         var targetDrive = callerContext.TargetDrive;
-        await pippinOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await recipientOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var cid = Guid.NewGuid();
+        var permissions = TestUtils.CreatePermissionGrantRequest(callerContext.TargetDrive, DrivePermission.Write);
+        await recipientOwnerClient.Network.CreateCircle(cid, "circle with some access", permissions);
+
+        await senderOwnerClient.Connections.SendConnectionRequest(recipient);
+        await recipientOwnerClient.Connections.AcceptConnectionRequest(sender, [cid]);
+
 
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AllowDistribution = true;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
 
         var testPayloads = new List<TestPayloadDefinition>()
         {
@@ -95,14 +106,14 @@ public class PeerUpdateFileTests
         };
 
         //Pippin sends a file to the recipient
-        var response = await pippinOwnerClient.PeerDirect.TransferNewFile(targetDrive, uploadedFileMetadata, [recipient], null, uploadManifest, testPayloads);
+        var response = await senderOwnerClient.PeerDirect.TransferNewFile(targetDrive, uploadedFileMetadata, [recipient], null, uploadManifest, testPayloads);
         Assert.IsTrue(response.IsSuccessStatusCode);
 
         //
         // Update the file via pippin's identity
         //
-        await callerContext.Initialize(pippinOwnerClient);
-        var callerDriveClient = new UniversalPeerDirectApiClient(identity.OdinId, callerContext.GetFactory());
+        await callerContext.Initialize(senderOwnerClient);
+        var callerDriveClient = new UniversalPeerDirectApiClient(sender, callerContext.GetFactory());
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
@@ -156,13 +167,11 @@ public class PeerUpdateFileTests
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
             var uploadResult = updateFileResponse.Content;
             Assert.IsNotNull(uploadResult);
 
             var gtid = uploadResult.RemoteGlobalTransitIdFileIdentifier;
-            
+
             //
             // Recipient should have the updated file
             //
@@ -207,7 +216,7 @@ public class PeerUpdateFileTests
                 var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
                 CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
             }
-            
+
             //
             // Ensure we get payload2 for the payload1
             //

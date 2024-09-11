@@ -110,6 +110,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPatch("files/update")]
         public async Task<TransitResult> UpdateFile()
         {
+            throw new NotImplementedException("TODO");
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
                 throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
