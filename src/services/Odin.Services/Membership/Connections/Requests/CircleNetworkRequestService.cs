@@ -17,7 +17,6 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -165,8 +164,6 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns></returns>
         public async Task SendConnectionRequest(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.AssertCanManageConnections();
-
             var recipient = (OdinId)header.Recipient;
             if (recipient == odinContext.Caller.OdinId)
             {
@@ -186,7 +183,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if ((await _verificationService.VerifyConnection(recipient, odinContext, cn)).IsValid)
                 {
-                    //connection is good
+                    // connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
                         OdinClientErrorCode.CannotSendConnectionRequestToValidConnection);
                 }
@@ -222,7 +219,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 // throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
                 throw new OdinSecurityException("Identity is blocked");
             }
-            
+
             //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
             if (existingConnection.IsConnected())
             {
@@ -326,7 +323,6 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public async Task AcceptConnectionRequest(AcceptRequestHeader header, bool tryOverrideAcl, IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.Caller.AssertHasMasterKey();
             header.Validate();
 
             var pendingRequest = await GetPendingRequest((OdinId)header.Sender, odinContext, cn);
@@ -361,16 +357,22 @@ namespace Odin.Services.Membership.Connections.Requests
                 ClientTokenType.IdentityConnectionRegistration,
                 sharedSecret: remoteClientAccessToken.SharedSecret);
 
-            var masterKey = odinContext.Caller.GetMasterKey();
+            SensitiveByteArray masterKey = odinContext.Caller.HasMasterKey ? odinContext.Caller.GetMasterKey() : null;
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             accessGrant ??= new AccessExchangeGrant()
             {
-                //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
+                //Note: we allow a null value here in case the connection request process doesn't have 
+                MasterKeyEncryptedKeyStoreKey = odinContext.Caller.HasMasterKey ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey) : null,
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(circles, pendingRequest.ConnectionRequestOrigin,
-                    keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, pendingRequest.ConnectionRequestOrigin, keyStoreKey, odinContext, cn),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
+                    keyStoreKey,
+                    circles,
+                    pendingRequest.ConnectionRequestOrigin,
+                    masterKey,
+                    odinContext,
+                    cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, pendingRequest.ConnectionRequestOrigin, masterKey,
+                    odinContext, cn),
                 AccessRegistration = accessRegistration
             };
 
@@ -397,10 +399,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 TempKey = pendingRequest.TempRawKey,
                 VerificationHash = verificationHash
             };
-
-            //
-            // TODO: !!!! why is this going across the wire unencrypted >:[
-            //
 
             var authenticationToken64 = remoteClientAccessToken.ToAuthenticationToken().ToPortableBytes64();
 
@@ -496,7 +494,12 @@ namespace Odin.Services.Membership.Connections.Requests
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
 
             var tempKey = reply.TempKey.ToSensitiveByteArray();
-            var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
+            var rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
+            if (null == rawIcrKey)
+            {
+                throw new NotImplementedException("need to handle when we dont have an ICR Key");
+            }
+            
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
 
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat,
@@ -524,7 +527,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 _logger.LogError(e, "Failed to sync channel files");
             }
 
-            rawIcrKey.Wipe();
+            rawIcrKey?.Wipe();
             tempKey.Wipe();
 
             await this.DeleteSentRequestInternal(recipient, cn);
@@ -633,6 +636,9 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task HandleConnectionRequestInternalForIdentityOwner(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
         {
+            odinContext.AssertCanManageConnections();
+            var masterKey = odinContext.Caller.GetMasterKey();
+
             var recipient = (OdinId)header.Recipient;
 
             var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
@@ -653,14 +659,14 @@ namespace Odin.Services.Membership.Connections.Requests
             var existingOutgoingRequest = await this.GetSentRequestInternal(recipient, cn);
             if (null == existingOutgoingRequest)
             {
-                await CreateAndSendRequestInternal(header, odinContext, cn);
+                await CreateAndSendRequestInternal(header, masterKey, odinContext, cn);
             }
             else
             {
                 if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 {
                     //overwrite this with new request and send it
-                    await CreateAndSendRequestInternal(header, odinContext, cn);
+                    await CreateAndSendRequestInternal(header, masterKey, odinContext, cn);
                 }
                 else if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                 {
@@ -669,7 +675,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     var exitingCircles = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys.Select(c => new GuidId(c)).ToList();
                     newCircles.AddRange(exitingCircles.Where(c => !newCircles.Exists(nc => nc == c)).ToList());
                     header.CircleIds = newCircles;
-                    await CreateAndSendRequestInternal(header, odinContext, cn);
+                    await CreateAndSendRequestInternal(header, masterKey, odinContext, cn);
                 }
             }
         }
@@ -685,7 +691,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
                 if (incomingRequest == null)
                 {
-                    await CreateAndSendRequestInternal(header, odinContext, cn);
+                    await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                 }
                 else
                 {
@@ -705,7 +711,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var existingOutgoingRequest = await this.GetSentRequestInternal(recipient, cn);
                 if (null == existingOutgoingRequest)
                 {
-                    await CreateAndSendRequestInternal(header, odinContext, cn);
+                    await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                 }
                 else
                 {
@@ -714,19 +720,20 @@ namespace Odin.Services.Membership.Connections.Requests
                     {
                         // overwrite this with newly incoming request and send it
                         // reason: the new request is created by the owner so it will more explicit info (like circles)
-                        await CreateAndSendRequestInternal(header, odinContext, cn);
+                        await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                     }
                     else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                     {
                         // Resend the request - using the circles from the existing request
                         header.CircleIds = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys.Select(c => new GuidId(c)).ToList();
-                        await CreateAndSendRequestInternal(header, odinContext, cn);
+                        await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                     }
                 }
             }
         }
 
-        private async Task CreateAndSendRequestInternal(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task CreateAndSendRequestInternal(ConnectionRequestHeader header, SensitiveByteArray masterKey, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -736,7 +743,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 circles.EnsureItem(SystemCircleConstants.AutoConnectionsCircleId);
             }
 
-            var (clientAccessToken, grant) = await CreateTokenAndGrant(keyStoreKey, circles, header.ConnectionRequestOrigin, odinContext, cn);
+            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrant(keyStoreKey, circles, header.ConnectionRequestOrigin,
+                masterKey, odinContext, cn);
 
             var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var outgoingRequest = new ConnectionRequest
@@ -768,7 +776,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
             var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
 
-            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, odinContext, cn);
+            outgoingRequest.TempEncryptedIcrKey = masterKey == null ? null : _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
 
             keyStoreKey.Wipe();
@@ -778,25 +786,31 @@ namespace Odin.Services.Membership.Connections.Requests
             UpsertSentConnectionRequest(outgoingRequest, cn);
         }
 
-        private async Task<(ClientAccessToken clientAccessToken, AccessExchangeGrant)> CreateTokenAndGrant(SensitiveByteArray keyStoreKey, List<GuidId> circles,
-            ConnectionRequestOrigin origin, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<(ClientAccessToken clientAccessToken, AccessExchangeGrant)> CreateTokenAndExchangeGrant(
+            SensitiveByteArray keyStoreKey,
+            List<GuidId> circles,
+            ConnectionRequestOrigin origin,
+            SensitiveByteArray masterKey,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
         {
-            var masterKey = odinContext.Caller.GetMasterKey();
-
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(
                 keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration);
 
             var grant = new AccessExchangeGrant()
             {
-                //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
+                // We allow this to be null in the case of connection requests coming due to an introduction
+                MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
+                    keyStoreKey,
                     circles,
                     origin,
-                    keyStoreKey, odinContext, cn),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(circles, origin, keyStoreKey, odinContext, cn),
+                    masterKey,
+                    odinContext,
+                    cn),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, origin, masterKey, odinContext, cn),
                 AccessRegistration = accessRegistration
             };
 

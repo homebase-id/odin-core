@@ -60,7 +60,8 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Registers the domain as having access 
         /// </summary>
-        public async Task<RedactedYouAuthDomainRegistration> RegisterDomain(YouAuthDomainRegistrationRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<RedactedYouAuthDomainRegistration> RegisterDomain(YouAuthDomainRegistrationRequest request, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -80,7 +81,7 @@ namespace Odin.Services.Membership.YouAuth
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey, odinContext, cn);
+            var grants = await _circleMembershipService.CreateCircleGrantList(keyStoreKey, request.CircleIds ?? new List<GuidId>(), masterKey, odinContext, cn);
 
             request.ConsentRequirements?.Validate();
 
@@ -157,7 +158,8 @@ namespace Odin.Services.Membership.YouAuth
             return reg?.ConsentRequirements?.IsRequired() ?? true;
         }
 
-        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -263,7 +265,7 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _clientStorage.Delete(cn,accessRegistrationId);
+            _clientStorage.Delete(cn, accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -326,7 +328,7 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = _circleMembershipService.GetCircle(circleId, odinContext, cn);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext, cn);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(keyStoreKey, circleDefinition, masterKey, odinContext, cn);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
