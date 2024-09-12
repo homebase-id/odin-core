@@ -355,7 +355,7 @@ namespace Odin.Hosting
             // Example:
             //   dotnet run -- --docker-setup foo=bar
             //
-            if (args[0] == "--docker-setup")
+            if (args.Length > 0 && args[0] == "--docker-setup")
             {
                 var result = DockerSetup.Execute(args);
                 return (true, result);
@@ -368,7 +368,7 @@ namespace Odin.Hosting
             // Example:
             //   dotnet run --no-build -- --export-docker-env
             //
-            if (args.Contains("--export-docker-env"))
+            if (args.Length > 0 && args[0] == "--export-docker-env")
             {
                 var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -386,7 +386,7 @@ namespace Odin.Hosting
             // Example:
             //   dotnet run --no-build -- --export-shell-env
             //
-            if (args.Contains("--export-shell-env"))
+            if (args.Length > 0 && args[0] == "--export-shell-env")
             {
                 var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -404,7 +404,7 @@ namespace Odin.Hosting
             // Example:
             //   dotnet run --no-build -- --export-shell-env
             //
-            if (args.Contains("--export-bash-array-env"))
+            if (args.Length > 0 && args[0] == "--export-bash-array-env")
             {
                 var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -433,7 +433,7 @@ namespace Odin.Hosting
             //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --dump-env
             //
             //
-            if (args.Contains("--dump-env"))
+            if (args.Length > 0 && args[0] == "--dump-env")
             {
                 var (_, appSettingsConfig) = AppSettings.LoadConfig(true);
                 var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
