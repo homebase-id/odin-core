@@ -117,8 +117,6 @@ namespace Odin.Services.Configuration
             public string PowerDnsApiKey { get; init; }
 
             public string ProvisioningDomain { get; init; }
-            public string ProvisioningEmailLogoImage { get; init; }
-            public string ProvisioningEmailLogoHref { get; init; }
             public bool ProvisioningEnabled { get; init; }
             
             public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
@@ -137,8 +135,6 @@ namespace Odin.Services.Configuration
                 PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
                 PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
-                ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
-                ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
