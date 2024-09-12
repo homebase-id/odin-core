@@ -54,6 +54,8 @@ namespace Odin.Services.Membership.Connections
         /// The encrypted <see cref="ClientAccessToken"/> token used when accessing another connected identity
         /// </summary>
         public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
+
+        public ClientAccessToken WeakClientAccessToken { get; set; }
         
         public long LastUpdated { get; set; }
         public long Created { get; set; }
@@ -85,6 +87,11 @@ namespace Odin.Services.Membership.Connections
 
         public ClientAccessToken CreateClientAccessToken(SensitiveByteArray icrDecryptionKey)
         {
+            if (null == icrDecryptionKey)
+            {
+                return WeakClientAccessToken;
+            }
+
             var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
             return cat;
         }

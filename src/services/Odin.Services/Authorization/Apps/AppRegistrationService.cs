@@ -184,7 +184,7 @@ namespace Odin.Services.Authorization.Apps
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
 
-            data.WriteZeros();
+            data.Wipe();
 
             var response = new AppClientRegistrationResponse()
             {

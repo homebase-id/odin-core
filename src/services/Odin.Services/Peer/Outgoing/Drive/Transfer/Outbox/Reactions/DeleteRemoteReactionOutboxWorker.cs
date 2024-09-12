@@ -82,7 +82,7 @@ public class DeleteRemoteReactionOutboxWorker(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerResponseCode>> TrySendRequest()
         {

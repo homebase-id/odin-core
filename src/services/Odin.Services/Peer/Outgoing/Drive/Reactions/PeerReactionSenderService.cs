@@ -165,42 +165,7 @@ public class PeerReactionSenderService(
             throw;
         }
     }
-
-    /// <summary>
-    /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
-    /// </summary>
-    /// <param name="sharedSecretEncryptedFileHeader"></param>
-    /// <param name="icr"></param>
-    private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
-        IdentityConnectionRegistration icr, IOdinContext odinContext)
-    {
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
-        {
-            var currentKey = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-            var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader, odinContext);
-        }
-        else
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-
-        sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = ownerSharedSecretEncryptedKeyHeader;
-
-        return sharedSecretEncryptedFileHeader;
-    }
-
-    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
-    {
-        var newKey = odinContext.PermissionsContext.SharedSecretKey;
-        var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
-        var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
-        keyHeader.AesKey.Wipe();
-
-        return newEncryptedKeyHeader;
-    }
-
+    
     private void AssertValidResponse<T>(ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)

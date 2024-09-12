@@ -26,7 +26,6 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
-using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Util;
@@ -382,12 +381,12 @@ namespace Odin.Services.Membership.Connections.Requests
             var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, cn);
             await _cns.Connect(senderOdinId,
                 accessGrant,
-                encryptedCat,
-                pendingRequest.ContactData,
-                pendingRequest.ConnectionRequestOrigin,
-                pendingRequest.IntroducerOdinId,
-                verificationHash,
-                odinContext, cn);
+                token: (encryptedCat,  ??),
+            pendingRequest.ContactData,
+            pendingRequest.ConnectionRequestOrigin,
+            pendingRequest.IntroducerOdinId,
+            verificationHash,
+            odinContext, cn);
 
             // Now tell the remote to establish the connection
 
@@ -493,16 +492,39 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
 
-            var tempKey = reply.TempKey.ToSensitiveByteArray();
-            var rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
-            if (null == rawIcrKey)
-            {
-                throw new NotImplementedException("need to handle when we dont have an ICR Key");
-            }
-            
-            var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
+            EncryptedClientAccessToken encryptedCat = null;
+            ClientAccessToken weakToken = null;
 
-            await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat,
+            var tempKey = reply.TempKey.ToSensitiveByteArray();
+            SensitiveByteArray rawIcrKey;
+
+            //if this is being approved by the owner, then we have the master key
+            if (originalRequest.TempEncryptedIcrKey == null)
+            {
+                rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
+                encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
+            }
+            else
+            {
+                // we're here because the original request was
+                // automatically sent (w/o the owner)
+
+                // ensure the drives do not have read access; only write 
+                var anyDrivesHaveRead = originalRequest.PendingAccessExchangeGrant.CircleGrants.Any(cg =>
+                    cg.Value.KeyStoreKeyEncryptedDriveGrants.Any(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
+
+                if (anyDrivesHaveRead)
+                {
+                    throw new OdinSecurityException("Cannot read drives with auto-connection");
+                }
+
+                weakToken = remoteClientAccessToken;
+            }
+
+
+            await _cns.Connect(reply.SenderOdinId,
+                originalRequest.PendingAccessExchangeGrant,
+                token: (encryptedCat, weakToken),
                 reply.ContactData,
                 originalRequest.ConnectionRequestOrigin,
                 originalRequest.IntroducerOdinId,
@@ -719,7 +741,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     if (existingRequestOrigin == ConnectionRequestOrigin.Introduction)
                     {
                         // overwrite this with newly incoming request and send it
-                        // reason: the new request is created by the owner so it will more explicit info (like circles)
+                        // reason: the new request is created by the owner, so it will more explicit info (like circles)
                         await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                     }
                     else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
@@ -738,10 +760,6 @@ namespace Odin.Services.Membership.Connections.Requests
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
-            {
-                circles.EnsureItem(SystemCircleConstants.AutoConnectionsCircleId);
-            }
 
             var (clientAccessToken, grant) = await CreateTokenAndExchangeGrant(keyStoreKey, circles, header.ConnectionRequestOrigin,
                 masterKey, odinContext, cn);
@@ -754,12 +772,10 @@ namespace Odin.Services.Membership.Connections.Requests
                 Recipient = header.Recipient,
                 Message = header.Message,
                 ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
-                TempRawKey = tempRawKey.GetKey(),
+                TempRawKey = tempRawKey.GetKey(), //give the key to the recipient, so they can give it back when they accept the request
                 VerificationRandomCode = ByteArrayUtil.GetRandomCryptoGuid(),
                 ConnectionRequestOrigin = header.ConnectionRequestOrigin,
-                IntroducerOdinId = header.IntroducerOdinId,
-                TempEncryptedIcrKey = default,
-                TempEncryptedFeedDriveStorageKey = default
+                IntroducerOdinId = header.IntroducerOdinId
             };
 
             await TrySendRequestInternal((OdinId)header.Recipient, outgoingRequest, odinContext, cn);
@@ -769,19 +785,25 @@ namespace Odin.Services.Membership.Connections.Requests
             clientAccessToken.SharedSecret.Wipe();
             clientAccessToken.AccessTokenHalfKey.Wipe();
 
-            //Note: These items are set after we send the request so we can store them locally only
+            //
+            // Note: These items are set after we send the request, so we can store them locally only
+            //
             outgoingRequest.ClientAccessToken64 = "";
             outgoingRequest.PendingAccessExchangeGrant = grant;
 
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
             var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
-
-            outgoingRequest.TempEncryptedIcrKey = masterKey == null ? null : _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
+
+            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                //expect a master key
+                outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
+            }
 
             keyStoreKey.Wipe();
             tempRawKey.Wipe();
-            ByteArrayUtil.WipeByteArray(outgoingRequest.TempRawKey);
+            outgoingRequest.TempRawKey.Wipe();
 
             UpsertSentConnectionRequest(outgoingRequest, cn);
         }

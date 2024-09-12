@@ -24,7 +24,7 @@ namespace Odin.Core
             return new SensitiveByteArray(array);
         }
 
-        public static void WriteZeros(this Byte[] array)
+        public static void Wipe(this Byte[] array)
         {
             ByteArrayUtil.WipeByteArray(array);
         }

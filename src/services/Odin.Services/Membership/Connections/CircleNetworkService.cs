@@ -305,7 +305,7 @@ namespace Odin.Services.Membership.Connections
         /// Adds the specified odinId to your network
         /// </summary>
         /// <returns></returns>
-        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData,
+        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, (EncryptedClientAccessToken EncryptedCat, ClientAccessToken WeakToken) token, ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
             byte[] verificationHash,
@@ -313,12 +313,7 @@ namespace Odin.Services.Membership.Connections
             DatabaseConnection cn)
         {
             //TODO: need to add security that this method can be called
-
-            if (encryptedCat == null || encryptedCat.EncryptedData.KeyEncrypted.Length == 0)
-            {
-                throw new OdinSecurityException("Invalid EncryptedClientAccessToken");
-            }
-
+          
             var odinId = (OdinId)odinIdentity;
 
             //TODO: need to scan the YouAuthServiceClassic to see if this user has a HomeAppIdentityRegistration
@@ -332,7 +327,8 @@ namespace Odin.Services.Membership.Connections
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-                EncryptedClientAccessToken = encryptedCat,
+                EncryptedClientAccessToken = token.EncryptedCat,
+                WeakClientAccessToken = token.WeakToken,
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
                 VerificationHash = verificationHash
@@ -768,6 +764,15 @@ namespace Odin.Services.Membership.Connections
 
             if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
             {
+                // this should not occur since this process is running at the same time
+                // we introduce the ability to have a null EncryptedClientAccessToken
+                // for a connected identity; but #paranoid
+                if (icr.EncryptedClientAccessToken == null)
+                {
+                    logger.LogWarning("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
+                    return false;
+                }
+                
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 

@@ -128,7 +128,7 @@ public class SendFileOutboxWorkerAsync(
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         if (options.UseAppNotification)
         {
