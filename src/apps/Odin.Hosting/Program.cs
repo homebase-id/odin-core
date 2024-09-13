@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -354,6 +353,8 @@ namespace Odin.Hosting
             //
             // Example:
             //   dotnet run -- --docker-setup foo=bar
+            //
+            // "commandLineArgs": "--docker-setup config-file-override=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
             //
             if (args.Length > 0 && args[0] == "--docker-setup")
             {

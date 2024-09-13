@@ -9,26 +9,31 @@ namespace Odin.Hosting;
 
 public static class AppSettings
 {
-    public static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars)
+    public static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars, string configFileOverride = null)
     {
         var configFolder = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
         var configSources = new List<string>();
         var configBuilder = new ConfigurationBuilder();
 
-        void AddConfigFile(string fileName)
+        void AddConfigFile(string fileName, bool optional)
         {
             var appSettingsFile = Path.Combine(configFolder, fileName);
-            if (File.Exists(appSettingsFile))
-            {
-                configSources.Insert(0, appSettingsFile);
-                configBuilder.AddJsonFile(appSettingsFile, optional: true, reloadOnChange: false);
-            }
+            configSources.Insert(0, appSettingsFile);
+            configBuilder.AddJsonFile(appSettingsFile, optional: optional, reloadOnChange: false);
         }
 
-        AddConfigFile("appsettings.json"); // Common env configuration
-        AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json"); // Specific env configuration
-        AddConfigFile("appsettings.local.json"); // Local development overrides
+        AddConfigFile("appsettings.json", false); // Common env configuration
+        
+        if (configFileOverride != null)
+        {
+            AddConfigFile(configFileOverride, false);
+        }
+        else
+        {
+            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json", false); // Specific env configuration
+            AddConfigFile("appsettings.local.json", true); // Local development overrides
+        }
 
         // Environment variables configuration
         if (includeEnvVars)
