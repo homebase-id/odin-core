@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": ""
+      "commandLineArgs": "--docker-setup provisioning-domain=identity-host.sebbarg.net config-file-override=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
     }
   }
 }

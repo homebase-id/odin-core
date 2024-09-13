@@ -10,4 +10,15 @@ public static class DictionaryExtensions
     {
         return dictionary.TryGetValue(key, out var value) ? value : defaultValue;
     }
+
+    //
+
+    public static TValue UpdateExisting<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, TValue value)
+    {
+        var oldValue = dictionary[key];
+        dictionary[key] = value;
+        return oldValue;
+    }
+
+    //
 }

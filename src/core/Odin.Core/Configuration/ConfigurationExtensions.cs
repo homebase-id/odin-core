@@ -77,7 +77,7 @@ public static class ConfigurationExtensions
             {
                 var key = section.Key.Replace(":", "__");
                 var value = Env.EnvironmentVariableEscape(section.Value);
-                result[key] = value;
+                result[key] = $"\"{value}\"";
             }
         }
 
