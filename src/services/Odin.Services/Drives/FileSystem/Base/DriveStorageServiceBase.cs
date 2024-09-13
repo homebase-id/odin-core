@@ -314,13 +314,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid versionTag, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid targetVersionTag, IOdinContext odinContext, DatabaseConnection cn)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext, cn);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext, cn);
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, versionTag);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
 
             var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? -1;
 

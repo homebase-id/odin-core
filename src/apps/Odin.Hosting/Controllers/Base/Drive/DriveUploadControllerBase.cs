@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             AssertIsPart(section, MultipartUploadParts.Instructions);
             try
             {
-                await driveUploadService.StartClassicUpload(section!.Body, WebOdinContext, cn);
+                await driveUploadService.StartUpload(section!.Body, WebOdinContext, cn);
             }
             catch (JsonException e)
             {

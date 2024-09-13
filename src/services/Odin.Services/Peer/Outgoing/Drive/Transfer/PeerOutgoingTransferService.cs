@@ -72,6 +72,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return outboxStatus;
         }
 
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(FileIdentifier file, List<OdinId> recipients, FileSystemType fileSystemType,
+            IOdinContext odinContext, DatabaseConnection cn)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            
+            var (outboxStatus, outboxItems) = await CreateUpdateOutboxItems(internalFile, options, sfo, odinContext, priority, cn);
+
+            //TODO: change this to a batch update of the transfer history
+            foreach (var item in outboxItems)
+            {
+                var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
+                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                await peerOutbox.AddItem(item, cn);
+            }
+
+            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+
+            return outboxStatus;
+        }
+
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(
             GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
             FileTransferOptions fileTransferOptions,
@@ -323,6 +343,71 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
+            var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext, cn);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
+
+            var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
+            storageKey.Wipe();
+
+            foreach (var r in options.Recipients!)
+            {
+                var recipient = (OdinId)r;
+                try
+                {
+                    //TODO: i need to resolve the token outside of transit, pass it in as options instead
+                    //TODO: apply encryption before storing in the outbox
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+
+                    outboxItems.Add(new OutboxFileItem()
+                    {
+                        Priority = priority,
+                        Type = OutboxItemType.File,
+                        File = internalFile,
+                        Recipient = recipient,
+                        DependencyFileId = options.OutboxDependencyFileId,
+                        State = new OutboxItemState()
+                        {
+                            IsTransientFile = options.IsTransient,
+                            Attempts = { },
+                            OriginalTransitOptions = options,
+                            EncryptedClientAuthToken = encryptedClientAccessToken,
+                            TransferInstructionSet = CreateTransferInstructionSet(
+                                keyHeader,
+                                clientAuthToken,
+                                targetDrive,
+                                fileTransferOptions.TransferFileType,
+                                fileTransferOptions.FileSystemType,
+                                options),
+                            Data = []
+                        }
+                    });
+
+                    status.Add(recipient, TransferStatus.Enqueued);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
+                    status.Add(recipient, TransferStatus.EnqueuedFailed);
+                }
+            }
+
+            return (status, outboxItems);
+        }
+        
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateUpdateOutboxItems(FileIdentifier file,
+            List<OdinId> recipients,
+            FileTransferOptions fileTransferOptions,
+            IOdinContext odinContext,
+            int priority,
+            DatabaseConnection cn)
+        {
+            var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDrive(internalFile.DriveId, cn, failIfInvalid: true)).TargetDriveInfo;
+
+            var status = new Dictionary<string, TransferStatus>();
+            var outboxItems = new List<OutboxFileItem>();
+            
             var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext, cn);
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 

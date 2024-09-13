@@ -19,7 +19,7 @@ namespace Odin.Services.Drives.FileSystem.Standard.Update;
 public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
 {
     /// <summary />
-    public StandardFileUpdateWriter(StandardFileSystem fileSystem, 
+    public StandardFileUpdateWriter(StandardFileSystem fileSystem,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, driveManager, peerOutgoingTransferService)
@@ -43,45 +43,54 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn)
-    {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
-    }
-
     protected override async Task ProcessExistingFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
     {
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
-        {
-            await FileSystem.Storage.OverwriteMetadata(
-                keyHeader.Iv,
-                targetFile: package.InternalFile,
-                newMetadata: metadata,
-                newServerMetadata: serverMetadata,
-                odinContext: odinContext, cn);
+        //
+        // Note: need to have just one version tag when all done
+        //
+        
+        // Here we will examine the manifest; by adding / deleting payloads according
+        // then overwrite the metadata
 
-            return;
+        var file = package.InternalFile;
+        foreach (var descriptor in package.InstructionSet.Manifest.PayloadDescriptors ?? [])
+        {
+            var key = descriptor.PayloadKey;
+            if (descriptor.FileUpdateOperationType == FileUpdateOperationType.AddPayload)
+            {
+                // FileSystem.Storage.DeletePayload(file, key, )
+            }
+
+            if (descriptor.FileUpdateOperationType == FileUpdateOperationType.DeletePayload)
+            {
+                var newVersionTag = await FileSystem.Storage.DeletePayload(file, descriptor.PayloadKey, metadata.VersionTag.GetValueOrDefault(),
+                    odinContext, cn);
+            }
         }
 
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
-        {
-            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-                targetFile: package.InternalFile,
-                keyHeader: keyHeader,
-                newMetadata: metadata,
-                serverMetadata: serverMetadata,
-                ignorePayload: false,
-                odinContext: odinContext,
-                cn);
-
-            return;
-        }
-
-        throw new OdinSystemException("Unhandled Storage Intent");
+        // then save the metadata
+        //
+        // await FileSystem.Storage.OverwriteMetadata(
+        //     keyHeader.Iv,
+        //     targetFile: package.InternalFile,
+        //     newMetadata: metadata,
+        //     newServerMetadata: serverMetadata,
+        //     odinContext: odinContext, cn);
+        //
+        //
+        // await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
+        //     targetFile: package.InternalFile,
+        //     keyHeader: keyHeader,
+        //     newMetadata: metadata,
+        //     serverMetadata: serverMetadata,
+        //     ignorePayload: false,
+        //     odinContext: odinContext,
+        //     cn);
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package, IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
     }

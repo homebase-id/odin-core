@@ -119,6 +119,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
+            var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
             var fileSystemWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
 
             var section = await reader.ReadNextSectionAsync();

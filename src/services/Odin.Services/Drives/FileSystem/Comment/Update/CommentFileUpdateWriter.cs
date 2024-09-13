@@ -50,17 +50,6 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
         return Task.CompletedTask;
     }
     
-    protected override async Task ProcessNewFileUpload(FileUpdatePackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-    {
-        //
-        // Note: this new file is a new comment but not a new ReferenceToFile; at
-        // this point, we have validated the ReferenceToFile already exists
-        //
-
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
-    }
-
     protected override async Task ProcessExistingFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
     {

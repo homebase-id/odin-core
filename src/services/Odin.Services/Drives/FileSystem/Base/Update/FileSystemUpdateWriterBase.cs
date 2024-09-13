@@ -17,6 +17,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
@@ -47,7 +48,6 @@ public abstract class FileSystemUpdateWriterBase
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
-        OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, true, odinContext.Tenant);
 
         instructionSet.Manifest.ResetPayloadUiDs();
 
@@ -75,7 +75,9 @@ public abstract class FileSystemUpdateWriterBase
         {
             //Note: there is no local file.  everything is enqueued to the transient temp drive
 
+            OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, odinContext.Tenant);
             instructionSet.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+
             InternalDriveFileId file = new InternalDriveFileId()
             {
                 DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, cn, true)).GetValueOrDefault(),
@@ -84,7 +86,6 @@ public abstract class FileSystemUpdateWriterBase
 
             this.Package = new FileUpdatePackage(file, instructionSet);
 
-            // The outbox is used but there is no place to write the result
             await Task.CompletedTask;
             return;
         }
@@ -185,12 +186,12 @@ public abstract class FileSystemUpdateWriterBase
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
 
         await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, cn);
-        
+
         //
         // TODO: Need to send a version tag along to remote identities so they will use it.
         //
 
-        if (Package.InstructionSet.Locale ==)
+        if (Package.InstructionSet.Locale == UpdateLocale.Local)
         {
             if (metadata.VersionTag == null)
             {
@@ -198,22 +199,53 @@ public abstract class FileSystemUpdateWriterBase
             }
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
-        }
-        else
-        {
-            await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
-        }
 
-        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
+            Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
 
-        var uploadResult = new FileUpdateResult()
-        {
-            NewVersionTag = Package.TargetVersionTag ?? //metadata.VersionTag.GetValueOrDefault(),
+            return new FileUpdateResult()
+            {
+                NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
                 RecipientStatus = recipientStatus
-        };
+            };
+        }
 
+        if (Package.InstructionSet.Locale == UpdateLocale.Peer)
+        {
+            // Note: all changes on remote servers need to use the newVersionTag
+            // There is no local file - everything would be on the temp-transient-drive
 
-        return uploadResult;
+            var newVersionTag = Guid.NewGuid();
+            // await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
+            // Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
+
+            var transitOptions = new TransitOptions
+            {
+                IsTransient = true,
+                Recipients = Package.InstructionSet.Recipients.ToDomainNames(),
+                SendContents = (SendContents)0,
+                RemoteTargetDrive = Package.InstructionSet.File.TargetDrive,
+                OverrideRemoteGlobalTransitId = Package.InstructionSet.File.GlobalTransitId,
+                Priority = OutboxPriority.High
+            };
+
+            var fileSystemType = FileSystemType.Standard; //TODO
+
+            Dictionary<string, TransferStatus> recipientStatus = await _peerOutgoingTransferService.SendFile(
+                Package.InternalFile,
+                transitOptions,
+                TransferFileType.Normal,
+                fileSystemType,
+                odinContext,
+                cn);
+
+            return new FileUpdateResult()
+            {
+                NewVersionTag = newVersionTag,
+                RecipientStatus = recipientStatus
+            };
+        }
+
+        throw new NotImplementedException($"Unhandled UpdateLocale: {Package.InstructionSet.Locale}");
     }
 
     /// <summary>
@@ -222,12 +254,6 @@ public abstract class FileSystemUpdateWriterBase
     /// <param name="uploadDescriptor"></param>
     /// <returns></returns>
     protected abstract Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor);
-    
-    /// <summary>
-    /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
-    /// </summary>
-    protected abstract Task ProcessNewFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
@@ -272,7 +298,8 @@ public abstract class FileSystemUpdateWriterBase
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
-                fileSystemType, odinContext,
+                fileSystemType,
+                odinContext,
                 cn);
         }
 
