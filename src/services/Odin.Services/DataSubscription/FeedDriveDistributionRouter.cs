@@ -32,8 +32,6 @@ namespace Odin.Services.DataSubscription
     /// </summary>
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
-        public const string IsCollaborativeChannel = "IsCollaborativeChannel";
-
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
@@ -78,9 +76,11 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) &&
-                                  bool.TryParse(value, out bool collabChannelFlagValue) &&
-                                  collabChannelFlagValue;
+            // var isCollabChannel = drive.Attributes.TryGetValue(BuiltInDriveAttributes.IsCollaborativeChannel, out string value) &&
+            //                       bool.TryParse(value, out bool collabChannelFlagValue) &&
+            //                       collabChannelFlagValue;
+
+            var isCollabChannel = drive.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
 
             if (await ShouldDistribute(notification, isCollabChannel))
             {

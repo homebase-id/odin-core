@@ -75,7 +75,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value)
+            var isCollabChannel = drive.Attributes.TryGetValue(BuiltInDriveAttributes.IsCollaborativeChannel, out string value)
                                   && bool.TryParse(value, out bool collabChannelFlagValue)
                                   && collabChannelFlagValue;
 

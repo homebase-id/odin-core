@@ -145,6 +145,18 @@ namespace Odin.Services.Drives
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
         }
+
+        public bool AttributeHasTrueValue(string attribute)
+        {
+            if (null == Attributes)
+            {
+                return false;
+            }
+
+            return this.Attributes.TryGetValue(attribute, out string value) &&
+                   bool.TryParse(value, out bool flagValue) &&
+                   flagValue;
+        }
     }
 
 

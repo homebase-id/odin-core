@@ -496,7 +496,7 @@ namespace Odin.Services.Membership.Connections.Requests
             ClientAccessToken weakToken = null;
 
             var tempKey = reply.TempKey.ToSensitiveByteArray();
-            SensitiveByteArray rawIcrKey;
+            SensitiveByteArray rawIcrKey = null;
 
             //if this is being approved by the owner, then we have the master key
             if (originalRequest.TempEncryptedIcrKey == null)
@@ -508,15 +508,8 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 // we're here because the original request was
                 // automatically sent (w/o the owner)
-
-                // ensure the drives do not have read access; only write 
-                var anyDrivesHaveRead = originalRequest.PendingAccessExchangeGrant.CircleGrants.Any(cg =>
-                    cg.Value.KeyStoreKeyEncryptedDriveGrants.Any(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
-
-                if (anyDrivesHaveRead)
-                {
-                    throw new OdinSecurityException("Cannot read drives with auto-connection");
-                }
+                
+                //TODO: should we validate all drives are write-only ?
 
                 weakToken = remoteClientAccessToken;
             }
@@ -706,6 +699,14 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             OdinValidationUtils.AssertNotNullOrEmpty(header.IntroducerOdinId, nameof(header.IntroducerOdinId));
 
+            //
+            // validate you can only have write access to drives with allowAnonymous = false
+            //
+
+            TODO - ?? not yet sure how I want to handle this
+            await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
+
+
             var recipient = (OdinId)header.Recipient;
 
             if (_tenantContext.Settings.AutoAcceptIntroductions)
@@ -749,6 +750,25 @@ namespace Odin.Services.Membership.Connections.Requests
                         // Resend the request - using the circles from the existing request
                         header.CircleIds = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys.Select(c => new GuidId(c)).ToList();
                         await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
+                    }
+                }
+            }
+        }
+
+        private async Task ValidateWriteOnlyDriveGrants(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            //so here i could remove circles that any drives granting read or i could just indicate you 
+            foreach (var cid in header.CircleIds)
+            {
+                var def = _circleMembershipService.GetCircle(cid, odinContext, cn);
+                var grantsWithReadPermission = def.DriveGrants.Where(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read));
+                foreach (var grant in grantsWithReadPermission)
+                {
+                    var drive = await _driveManager.GetDrive(grant.PermissionedDrive.Drive, cn);
+                    var allowAutoConnectionReadAccess = drive?.AttributeHasTrueValue(BuiltInDriveAttributes.AllowAutoConnectionsReadAccess) ?? false;
+                    if (!allowAutoConnectionReadAccess)
+                    {
+                        //TODO: throw exception or? 
                     }
                 }
             }
