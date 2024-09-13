@@ -12,6 +12,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -129,7 +130,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
     }
 
     public async Task<ApiResponse<TransitResult>> UpdateFile(
-        PeerUpdateInstructionSet uploadInstructionSet,
+        FileUpdateInstructionSet uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads,
         FileSystemType fileSystemType = FileSystemType.Standard)

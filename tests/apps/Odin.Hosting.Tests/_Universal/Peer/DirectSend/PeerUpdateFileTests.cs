@@ -12,6 +12,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -107,6 +108,7 @@ public class PeerUpdateFileTests
 
         //Pippin sends a file to the recipient
         var response = await senderOwnerClient.PeerDirect.TransferNewFile(targetDrive, uploadedFileMetadata, [recipient], null, uploadManifest, testPayloads);
+        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
         Assert.IsTrue(response.IsSuccessStatusCode);
 
         //
@@ -120,37 +122,18 @@ public class PeerUpdateFileTests
         updatedFileMetadata.AppData.DataType = 2900;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
-        var updateInstructionSet = new PeerUpdateInstructionSet
+        var updateInstructionSet = new FileUpdateInstructionSet
         {
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = response.Content.RemoteGlobalTransitIdFileIdentifier,
-            Recipient = recipient,
-
-            UpdateOperations =
-            [
-                new FileUpdateOperation
-                {
-                    FileUpdateOperationType = FileUpdateOperationType.UpdateManifest
-                },
-                new FileUpdateOperation
-                {
-                    FileUpdateOperationType = FileUpdateOperationType.DeletePayload,
-                    PayloadKey = payload1.Key
-                },
-                new FileUpdateOperation
-                {
-                    FileUpdateOperationType = FileUpdateOperationType.AddPayload,
-                    PayloadKey = payloadToAdd.Key
-                }
-            ],
-
+            File = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier(),
+            Recipients = [recipient],
             Manifest = new UploadManifest
             {
                 PayloadDescriptors =
                 [
                     new UploadManifestPayloadDescriptor
                     {
-                        Iv = ByteArrayUtil.GetRndByteArray(16),
+                        Iv = Guid.Empty.ToByteArray(),
                         PayloadKey = payloadToAdd.Key,
                         DescriptorContent = null,
                         ContentType = payloadToAdd.ContentType,
@@ -161,7 +144,8 @@ public class PeerUpdateFileTests
             }
         };
 
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, testPayloads);
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more

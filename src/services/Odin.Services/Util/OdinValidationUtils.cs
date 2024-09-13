@@ -2,11 +2,45 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Util;
+
+public static class OdinExtensions
+{
+    public static List<OdinId> ToOdinIdList(this IEnumerable<string> items)
+    {
+        return items.Select(r => (OdinId)r).ToList();
+    }
+    
+    public static List<OdinId> ToOdinIdList(this List<string> items)
+    {
+        return items.Select(r => (OdinId)r).ToList();
+    }
+
+    public static List<OdinId> Without(this List<OdinId> list, OdinId identity)
+    {
+        return list.Where(r => r != identity).ToList();
+    }
+
+    public static List<string> ToDomainNames(this List<OdinId> items)
+    {
+        return items.Select(r => r.DomainName).ToList();
+    }
+
+    public static List<GuidId> EnsureItem(this List<GuidId> list, GuidId item)
+    {
+        if (!list.Contains(item))
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
+}
 
 public static class OdinValidationUtils
 {
@@ -33,6 +67,11 @@ public static class OdinValidationUtils
 
     public static void AssertValidRecipientList(IEnumerable<string> recipients, bool allowEmpty = true, OdinId? tenant = null)
     {
+        AssertValidRecipientList(recipients?.ToOdinIdList(), allowEmpty, tenant);
+    }
+
+    public static void AssertValidRecipientList(IEnumerable<OdinId> recipients, bool allowEmpty = true, OdinId? tenant = null)
+    {
         var list = recipients?.ToList() ?? [];
         if (list.Count == 0 && !allowEmpty)
         {
@@ -49,7 +88,7 @@ public static class OdinValidationUtils
             AssertIsValidOdinId(r, out var _);
         }
     }
-
+    
     public static void AssertNotNull(object o, string name)
     {
         if (o == null)

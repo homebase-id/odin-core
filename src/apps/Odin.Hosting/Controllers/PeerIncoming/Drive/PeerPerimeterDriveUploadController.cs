@@ -140,6 +140,68 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 cn);
         }
 
+        [HttpPost("update")]
+        public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
+        {
+            throw new NotImplementedException("TODO");
+            await AssertIsValidCaller();
+
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new OdinClientException("Data is not multi-part content");
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
+
+            OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
+            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+
+            //Optimizations - the caller can't write to the drive, no need to accept any more of the file
+
+            //S0100
+            _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
+
+            //S1000, S2000 - can the sender write the content to the target drive?
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
+            //End Optimizations
+
+            _incomingTransferService = GetPerimeterService(_fileSystem);
+            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
+
+            //
+
+            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync(), cn);
+
+            //
+
+            var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+            if (shouldExpectPayload)
+            {
+                var section = await reader.ReadNextSectionAsync();
+                while (null != section)
+                {
+                    if (IsPayloadPart(section))
+                    {
+                        await ProcessPayloadSection(section, metadata, cn);
+                    }
+
+                    if (IsThumbnail(section))
+                    {
+                        await ProcessThumbnailSection(section, metadata, cn);
+                    }
+
+                    section = await reader.ReadNextSectionAsync();
+                }
+            }
+
+
+            return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext, cn);
+        }
 
         [HttpPost("mark-file-read")]
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)

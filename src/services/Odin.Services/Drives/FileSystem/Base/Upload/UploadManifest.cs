@@ -13,12 +13,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 /// </summary>
 public class UploadManifest
 {
-    public UploadManifest()
-    {
-        PayloadDescriptors = new List<UploadManifestPayloadDescriptor>();
-    }
-
-    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
+    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; } = new();
 
     public UploadManifestPayloadDescriptor GetPayloadDescriptor(string key)
     {
@@ -61,6 +56,22 @@ public class UploadManifest
             }
         }
     }
+
+    /// <summary>
+    /// Sets the UIDs for payloads 
+    /// </summary>
+    public void ResetPayloadUiDs()
+    {
+        if (this.PayloadDescriptors != null)
+        {
+            foreach (var pd in this.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -68,6 +79,11 @@ public class UploadManifest
 /// </summary>
 public class UploadManifestPayloadDescriptor
 {
+    /// <summary>
+    /// Indicates how to treat this payload during an update.
+    /// </summary>
+    public FileUpdateOperationType FileUpdateOperationType { get; init; }
+
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
@@ -85,10 +101,23 @@ public class UploadManifestPayloadDescriptor
 
     public void AssertIsValid()
     {
-        OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
-        OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
-        OdinValidationUtils.AssertNotNullOrEmpty(PayloadKey, nameof(PayloadKey));
-        OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
+        if (this.FileUpdateOperationType == FileUpdateOperationType.AddPayload)
+        {
+            OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
+            OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
+            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+            OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
+
+            foreach (var thumb in this.Thumbnails ?? [])
+            {
+                OdinValidationUtils.AssertNotNullOrEmpty(thumb.ThumbnailKey, nameof(thumb.ThumbnailKey));
+            }
+        }
+
+        if (this.FileUpdateOperationType == FileUpdateOperationType.DeletePayload)
+        {
+            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+        }
     }
 }
 
@@ -101,4 +130,10 @@ public class UploadedManifestThumbnailDescriptor
     public int PixelHeight { get; set; }
 
     public string ContentType { get; set; }
+}
+
+public enum FileUpdateOperationType
+{
+    AddPayload = 2,
+    DeletePayload = 3
 }
