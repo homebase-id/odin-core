@@ -18,9 +18,19 @@ set -eou pipefail
 
 ###############################################################################
 #
+# Globals
+#
+###############################################################################
+
+os_name=$(uname)
+echo "OS: $os_name"
+
+###############################################################################
+#
 # main
 #
 ###############################################################################
+
 
 main() {
   echo 
@@ -51,17 +61,22 @@ main() {
       read -r -p "Docker container name [${ODIN_CONTAINER_NAME}]: " input
       ODIN_CONTAINER_NAME="${input:-$ODIN_CONTAINER_NAME}"
   fi
-
+  
   # Input root directory
+  if is_macos; then
+      default_root_path="${HOME}/homebase/${ODIN_CONTAINER_NAME}"
+  else
+      default_root_path="/opt/homebase/${ODIN_CONTAINER_NAME}"
+  fi
   if [[ -z "${ODIN_ROOT_PATH:-}" ]]; then
-      ODIN_ROOT_PATH="/srv/homebase/${ODIN_CONTAINER_NAME}"
+      ODIN_ROOT_PATH=${default_root_path}
       read -r -p "Docker volume mount root directory [${ODIN_ROOT_PATH}]: " input
       ODIN_ROOT_PATH="${input:-$ODIN_ROOT_PATH}"
   fi
 
   # Run container detached
   if [[ -z "${ODIN_RUN_DETACHED:-}" ]]; then
-      ODIN_RUN_DETACHED=$(prompt_choice "Run container detached? (y/n):" "y" "n")
+      ODIN_RUN_DETACHED=$(prompt_choice "Run container detached? [y/N]:" "n" "y" "n")
   fi
   if [[ "$ODIN_RUN_DETACHED" == "y" ]]; then
       attached_or_detached_opts=(--detach --restart always)
@@ -80,7 +95,7 @@ main() {
   echo --------------------------------------------------------------------------------
   echo
 
-  continue_install=$(prompt_choice "Start Docker container now? (y/n):" "y" "n")
+  continue_install=$(prompt_choice "Start Docker container now? [Y/n]:" "y" "y" "n")
   if [[ "$continue_install" != "y" ]]; then
       exit 1
   fi
@@ -152,6 +167,24 @@ main() {
 
 ###############################################################################
 #
+# is_macos
+#
+###############################################################################
+is_macos() {
+  [[ "$os_name" == "Darwin" ]]
+}
+
+###############################################################################
+#
+# is_linux
+#
+###############################################################################
+is_linux() {
+  [[ "$os_name" == "Linux" ]]
+}
+
+###############################################################################
+#
 # check_prerequisites
 #
 ###############################################################################
@@ -160,6 +193,7 @@ check_prerequisites() {
   #
   # Check that Docker is installed
   #
+  echo "Checking docker is installed..."
   if ! command -v docker &> /dev/null; then
       echo "Error: Docker is not installed. Please install Docker and try again."
       exit 1
@@ -168,10 +202,13 @@ check_prerequisites() {
   #
   # Check we have sufficent privileges to run Docker commands
   #
+  echo "Checking Docker permissions..."
   if ! docker info > /dev/null 2>&1; then
       echo "Error: You do not have sufficient access to interact with Docker."
       exit 1
   fi
+
+  echo
 }
 
 ###############################################################################
@@ -182,12 +219,18 @@ check_prerequisites() {
 
 prompt_choice() {
   local prompt_message="$1"
-  shift
+  local default_value="$2"
+  shift 2
   local valid_responses=("$@")
 
   while true; do
-    # Prompt the user
+    # Prompt the user, showing the default value
     read -r -p "$prompt_message " choice
+
+    # If the user presses Enter without typing, use the default value
+    if [[ -z "$choice" ]]; then
+      choice="$default_value"
+    fi
 
     # Convert the choice to lowercase using tr
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')

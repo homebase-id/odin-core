@@ -11,10 +11,10 @@ main() {
 
   check_prerequisites
 
-  response=$(curl -s -o /tmp/homebase-provision-ip.txt -w "%{http_code}" https://api.ipify.org)
-  ip=$(cat /tmp/homebase-provision-ip.txt)
+  response=$(curl -s -o /tmp/homebase-public-ip.txt -w "%{http_code}" https://api.ipify.org)
+  ip=$(cat /tmp/homebase-public-ip.txt)
 
-  if [ $? -eq 0 ] && [ "$response" -eq 200 ]; then
+  if [ "$response" -eq 200 ]; then
       echo "Your public IP is: $ip"
   else
       echo "Failed to retrieve your public IP. HTTP Status: $response"
@@ -22,7 +22,7 @@ main() {
   fi  
 
   echo
-  read -p "Provisioning domain (e.g. provisioning.example.com): " provisioning_domain
+  read -r -p "Provisioning domain (e.g. provisioning.example.com): " provisioning_domain
 
   dig $provisioning_domain
 
@@ -60,12 +60,18 @@ check_prerequisites() {
 
 prompt_choice() {
   local prompt_message="$1"
-  shift
+  local default_value="$2"
+  shift 2
   local valid_responses=("$@")
 
   while true; do
-    # Prompt the user
+    # Prompt the user, showing the default value
     read -r -p "$prompt_message " choice
+
+    # If the user presses Enter without typing, use the default value
+    if [[ -z "$choice" ]]; then
+      choice="$default_value"
+    fi
 
     # Convert the choice to lowercase using tr
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
