@@ -20,7 +20,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
 {
     /// <summary />
     public StandardFileUpdateWriter(StandardFileSystem fileSystem,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, driveManager, peerOutgoingTransferService)
     {

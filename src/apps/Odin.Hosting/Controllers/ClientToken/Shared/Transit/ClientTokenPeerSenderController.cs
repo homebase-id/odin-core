@@ -12,6 +12,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Transit
     [Route(AppApiPathConstants.PeerSenderV1)]
     [Route(GuestApiPathConstants.PeerSenderV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage) :
+    public class ClientTokenPeerSenderController(PeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage) :
         PeerSenderControllerBase(peerOutgoingTransferService, tenantSystemStorage);
 }

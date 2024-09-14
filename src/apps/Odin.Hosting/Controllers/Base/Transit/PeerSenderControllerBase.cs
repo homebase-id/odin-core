@@ -24,7 +24,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public abstract class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+    public abstract class PeerSenderControllerBase(PeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
         : DriveUploadControllerBase
     {
         /// <summary>
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, WebOdinContext.Tenant);
 
             using var cn = tenantSystemStorage.CreateConnection();
-            await fileSystemWriter.StartFileUpdate(instructionSet, WebOdinContext, cn);
+            await fileSystemWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
 
             //
             // Firstly, collect everything and store in the temp drive
@@ -146,7 +146,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     AssertIsPart(section, MultipartUploadParts.Metadata);
                     await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext, cn);
                 }
-                
+
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);

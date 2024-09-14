@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -10,8 +11,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 {
     public class FileUpdatePackage
     {
+        public FileSystemType FileSystemType { get; }
+
         /// <summary />
-        public FileUpdatePackage(InternalDriveFileId internalFile, FileUpdateInstructionSet instructionSet)
+        public FileUpdatePackage(InternalDriveFileId internalFile, FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType)
         {
             this.TempMetadataFile = new InternalDriveFileId()
             {
@@ -19,11 +22,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                 DriveId = internalFile.DriveId
             };
             
-            this.InternalFile = internalFile;
-            this.InstructionSet = instructionSet;
             this.Thumbnails = new List<PackageThumbnailDescriptor>();
             this.Payloads = new List<PackagePayloadDescriptor>();
-            this.TargetVersionTag = Guid.NewGuid();
+            FileSystemType = fileSystemType;
+            this.TargetVersionTag = SequentialGuid.CreateGuid();
         }
 
         /// <summary>

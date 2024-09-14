@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Odin.Core;
+using Odin.Core.Serialization;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 
@@ -28,4 +30,9 @@ public class OutboxItemState
     public byte[] EncryptedClientAuthToken { get; set; }
     
     public byte[] Data { get; set; }
+
+    public T DeserializeData<T>()
+    {
+        return OdinSystemSerializer.Deserialize<T>(Data.ToStringFromUtf8Bytes());
+    }
 }

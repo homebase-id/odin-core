@@ -31,11 +31,11 @@ public abstract class FileSystemStreamWriterBase
 
 
     private readonly DriveManager _driveManager;
-    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext,
-        DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
+        DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
 

@@ -17,7 +17,6 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
@@ -30,10 +29,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 public abstract class FileSystemUpdateWriterBase
 {
     private readonly DriveManager _driveManager;
-    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
+    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
         _driveManager = driveManager;
@@ -44,7 +43,8 @@ public abstract class FileSystemUpdateWriterBase
 
     public FileUpdatePackage Package { get; private set; }
 
-    public virtual async Task StartFileUpdate(FileUpdateInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task StartFileUpdate(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
@@ -66,7 +66,7 @@ public abstract class FileSystemUpdateWriterBase
                 FileId = instructionSet.File.FileId.GetValueOrDefault()
             };
 
-            this.Package = new FileUpdatePackage(file, instructionSet);
+            this.Package = new FileUpdatePackage(file, instructionSet, fileSystemType);
             await Task.CompletedTask;
             return;
         }
@@ -84,7 +84,7 @@ public abstract class FileSystemUpdateWriterBase
                 FileId = instructionSet.File.FileId.GetValueOrDefault()
             };
 
-            this.Package = new FileUpdatePackage(file, instructionSet);
+            this.Package = new FileUpdatePackage(file, instructionSet, fileSystemType);
 
             await Task.CompletedTask;
             return;
@@ -215,26 +215,14 @@ public abstract class FileSystemUpdateWriterBase
             // There is no local file - everything would be on the temp-transient-drive
 
             var newVersionTag = Guid.NewGuid();
-            // await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
-            // Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
 
-            var transitOptions = new TransitOptions
-            {
-                IsTransient = true,
-                Recipients = Package.InstructionSet.Recipients.ToDomainNames(),
-                SendContents = (SendContents)0,
-                RemoteTargetDrive = Package.InstructionSet.File.TargetDrive,
-                OverrideRemoteGlobalTransitId = Package.InstructionSet.File.GlobalTransitId,
-                Priority = OutboxPriority.High
-            };
-
-            var fileSystemType = FileSystemType.Standard; //TODO
-
-            Dictionary<string, TransferStatus> recipientStatus = await _peerOutgoingTransferService.SendFile(
-                Package.InternalFile,
-                transitOptions,
-                TransferFileType.Normal,
-                fileSystemType,
+            Dictionary<string, TransferStatus> recipientStatus = await _peerOutgoingTransferService.UpdateFile(
+                Package.TempMetadataFile,
+                Package.InstructionSet.File,
+                Package.InstructionSet.Manifest,
+                Package.InstructionSet.Recipients,
+                newVersionTag,
+                Package.FileSystemType,
                 odinContext,
                 cn);
 

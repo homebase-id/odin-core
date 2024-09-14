@@ -12,7 +12,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
     public abstract class DriveQueryByUniqueIdControllerBase(
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {

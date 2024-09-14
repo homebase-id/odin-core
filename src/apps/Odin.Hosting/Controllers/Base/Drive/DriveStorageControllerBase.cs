@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveStorageControllerBase(
         // ILogger logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
+        PeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
         // private readonly ILogger _logger = logger;
 
