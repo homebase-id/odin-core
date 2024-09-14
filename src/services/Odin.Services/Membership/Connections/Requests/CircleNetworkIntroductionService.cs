@@ -143,6 +143,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             DatabaseConnection = cn
         };
 
+        var newContext = OdinContextUpgrades.UsePushNotifications(odinContext);
         await _pushNotificationService.EnqueueNotification(introducerOdinId, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.OwnerAppId,
@@ -150,7 +151,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
                 TagId = introducerOdinId.ToHashId(),
                 Silent = false,
             },
-            odinContext,
+            newContext,
             cn);
 
         await _mediator.Publish(notification);

@@ -370,13 +370,8 @@ namespace Odin.Services.Authentication.Owner
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            //TODO: need to throttle this
-            if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
-            {
-                // there's an ICR key, so we can handle introductions, if any
-                _icrKeyAvailableContext.SetContext((OdinContext)ctx);
-                _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
-            }
+            _icrKeyAvailableContext.SetContext((OdinContext)ctx);
+            _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
 
             return true;
         }

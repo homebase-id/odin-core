@@ -832,12 +832,8 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
-                // get this from the app
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
-
-                //expect a master key
-                // outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
             }
 
             keyStoreKey.Wipe();

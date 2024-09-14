@@ -140,4 +140,18 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
+
+    public static IOdinContext UsePushNotifications(IOdinContext odinContext)
+    {
+        
+        var patchedContext = odinContext.Clone();
+
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd(nameof(PermissionKeys.SendPushNotifications),
+            new PermissionGroup(
+                new PermissionSet([PermissionKeys.SendPushNotifications]),
+                new List<DriveGrant>(), null, null));
+
+        return patchedContext;
+        
+    }
 }
