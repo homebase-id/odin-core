@@ -58,7 +58,7 @@ public static class Scenario
         const int fileType = 1090;
         var file1 = SampleMetadataData.CreateWithContent(fileType: fileType,
             content:"a bit of content",
-            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [mordorCrewCircle] });
+            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.ConfirmConnected, CircleIdList = [mordorCrewCircle] });
         var file1UploadResult = await UploadUnencryptedFileAndValidate(scaffold, file1, targetDrive);
 
         var file1EncryptedUploadResult = await UploadEncryptedFileAndValidate(scaffold, file1, targetDrive);

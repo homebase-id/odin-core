@@ -9,7 +9,6 @@ public enum TransferInstructionType
     DeleteLinkedFile,
     SaveFile,
     ReadReceipt,
-    HandleIntroductions,
     AddReaction,
     DeleteReaction
 }

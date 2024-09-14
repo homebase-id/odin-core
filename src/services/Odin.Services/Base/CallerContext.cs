@@ -73,7 +73,7 @@ namespace Odin.Services.Base
 
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
         
-        public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
+        public bool IsConnected => this.SecurityLevel == SecurityGroupType.ConfirmConnected;
         public bool IsAuthenticated => this.SecurityLevel == SecurityGroupType.Authenticated;
 
         public void AssertHasMasterKey()

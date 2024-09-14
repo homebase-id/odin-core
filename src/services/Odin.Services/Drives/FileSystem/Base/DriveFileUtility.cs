@@ -58,7 +58,7 @@ public static class DriveFileUtility
             case SecurityGroupType.Authenticated:
                 priority = 400;
                 break;
-            case SecurityGroupType.Connected:
+            case SecurityGroupType.ConfirmConnected:
                 priority = 300;
                 break;
             case SecurityGroupType.Owner:

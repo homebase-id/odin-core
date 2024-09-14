@@ -25,6 +25,7 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
+    CannotGrantAutoConnectedMoreCircles = 3010,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

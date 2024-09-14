@@ -3,16 +3,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Authentication.Owner;
+using Odin.Services.Authentication;
 using Odin.Services.Base;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Background.Services.Tenant;
 
-public sealed class MasterKeyAvailableBackgroundService(
-    ILogger<MasterKeyAvailableBackgroundService> logger,
+/// <summary>
+/// Used to process items when the ICR key is available from an app or owner console
+/// </summary>
+public sealed class IcrKeyAvailableBackgroundService(
+    ILogger<IcrKeyAvailableBackgroundService> logger,
     IMultiTenantContainerAccessor tenantContainerAccessor,
+    CircleNetworkService circleNetworkService,
     Odin.Services.Tenant.Tenant tenant)
     : AbstractBackgroundService(logger)
 {
@@ -22,20 +27,26 @@ public sealed class MasterKeyAvailableBackgroundService(
     {
         var scope = tenantContainerAccessor.Container().GetTenantScope(_tenant.Name);
 
-        var accessor = scope.Resolve<MasterKeyContextAccessor>();
+        var accessor = scope.Resolve<IcrKeyAvailableContext>();
         var circleNetworkIntroductionService = scope.Resolve<CircleNetworkIntroductionService>();
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         var tenantContext = scope.Resolve<TenantContext>();
         while (!stoppingToken.IsCancellationRequested)
         {
-            var mkContext = (IOdinContext)accessor.GetContext();
-            if (mkContext != null)
+            var odinContext = (IOdinContext)accessor.GetContext();
+            if (odinContext != null)
             {
-                if(tenantContext.Settings.AutoAcceptIntroductions)
+                if (tenantContext.Settings.AutoAcceptIntroductions)
                 {
                     using var cn = tenantSystemStorage.CreateConnection();
-                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(mkContext, cn);
+                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cn);
                 }
+                
+                using var sendRequestCn = tenantSystemStorage.CreateConnection();
+                await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, sendRequestCn);
+
+                using var fixIcrCn = tenantSystemStorage.CreateConnection();
+                await circleNetworkService.UpgradeClientAccessTokens(odinContext, fixIcrCn);
             }
 
             await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken);

@@ -363,7 +363,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
-                    securityLevel: SecurityGroupType.Connected,
+                    securityLevel: SecurityGroupType.ConfirmConnected,
                     circleIds: enabledCircles,
                     odinClientContext: new OdinClientContext()
                     {

@@ -109,7 +109,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 {
                     circle.Id
                 },
-                RequiredSecurityGroup = SecurityGroupType.Connected
+                RequiredSecurityGroup = SecurityGroupType.ConfirmConnected
             };
 
             var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);

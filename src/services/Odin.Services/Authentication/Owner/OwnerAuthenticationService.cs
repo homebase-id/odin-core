@@ -20,12 +20,12 @@ using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
-using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Util;
@@ -47,7 +47,6 @@ namespace Odin.Services.Authentication.Owner
         private readonly OwnerSecretService _secretService;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinConfiguration _configuration;
-        private readonly MasterKeyContextAccessor _masterKeyContextAccessor;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -58,6 +57,8 @@ namespace Odin.Services.Authentication.Owner
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
+        private readonly IcrKeyAvailableContext _icrKeyAvailableContext;
+        private readonly IcrKeyAvailableBackgroundService _icrKeyAvailableBackgroundService;
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
@@ -67,8 +68,7 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinConfiguration configuration,
-            MasterKeyContextAccessor masterKeyContextAccessor)
+            OdinConfiguration configuration, IcrKeyAvailableContext icrKeyAvailableContext, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService)
         {
             _logger = logger;
             _secretService = secretService;
@@ -81,7 +81,8 @@ namespace Odin.Services.Authentication.Owner
             _identityRegistry = identityRegistry;
 
             _configuration = configuration;
-            _masterKeyContextAccessor = masterKeyContextAccessor;
+            _icrKeyAvailableContext = icrKeyAvailableContext;
+            _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -361,7 +362,7 @@ namespace Odin.Services.Authentication.Owner
             {
                 return false;
             }
-            
+
             //🐈⏰
             var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
             odinContext.AuthTokenCreated = catTime;
@@ -369,7 +370,13 @@ namespace Odin.Services.Authentication.Owner
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            _masterKeyContextAccessor.SetContext((OdinContext)ctx);
+            //TODO: need to throttle this
+            if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
+            {
+                // there's an ICR key, so we can handle introductions, if any
+                _icrKeyAvailableContext.SetContext((OdinContext)ctx);
+                _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
+            }
 
             return true;
         }

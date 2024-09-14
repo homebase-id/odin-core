@@ -55,7 +55,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
-            securityLevel: SecurityGroupType.Connected,
+            securityLevel: SecurityGroupType.ConfirmConnected,
             circleIds: circleIds);
 
         return (cc, permissionContext);

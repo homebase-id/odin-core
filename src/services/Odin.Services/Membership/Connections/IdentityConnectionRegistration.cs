@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Membership.Connections.Requests;
@@ -55,7 +56,10 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
 
-        public ClientAccessToken WeakClientAccessToken { get; set; }
+        /// <summary>
+        /// Temporary storage for the CAT 
+        /// </summary>
+        public string TemporaryWeakClientAccessToken64 { get; set; }
         
         public long LastUpdated { get; set; }
         public long Created { get; set; }
@@ -89,7 +93,7 @@ namespace Odin.Services.Membership.Connections
         {
             if (null == icrDecryptionKey)
             {
-                return WeakClientAccessToken;
+                throw new OdinSecurityException("missing icr key");
             }
 
             var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);

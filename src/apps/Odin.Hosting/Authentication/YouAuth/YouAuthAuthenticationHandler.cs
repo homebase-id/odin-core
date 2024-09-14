@@ -27,6 +27,8 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Authentication;
+using Odin.Services.Background.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -99,6 +101,16 @@ namespace Odin.Hosting.Authentication.YouAuth
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
+            if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
+            {
+                // there's an ICR key, so we can handle introductions, if any
+                var icrContext = Context.RequestServices.GetRequiredService<IcrKeyAvailableContext>();
+                icrContext.SetContext((OdinContext)ctx);
+
+                var icrKeyBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
+                icrKeyBackgroundService.PulseBackgroundProcessor();
+            }
+
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
@@ -138,7 +150,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {

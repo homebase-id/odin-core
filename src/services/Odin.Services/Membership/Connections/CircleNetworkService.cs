@@ -115,7 +115,7 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: SecurityGroupType.Connected,
+                        securityLevel: SecurityGroupType.ConfirmConnected,
                         circleIds: enabledCircles)
                 };
 
@@ -305,7 +305,8 @@ namespace Odin.Services.Membership.Connections
         /// Adds the specified odinId to your network
         /// </summary>
         /// <returns></returns>
-        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, (EncryptedClientAccessToken EncryptedCat, ClientAccessToken WeakToken) token, ContactRequestData contactData,
+        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, (EncryptedClientAccessToken EncryptedCat, ClientAccessToken WeakToken) token,
+            ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
             byte[] verificationHash,
@@ -313,7 +314,7 @@ namespace Odin.Services.Membership.Connections
             DatabaseConnection cn)
         {
             //TODO: need to add security that this method can be called
-          
+
             var odinId = (OdinId)odinIdentity;
 
             //TODO: need to scan the YouAuthServiceClassic to see if this user has a HomeAppIdentityRegistration
@@ -328,7 +329,7 @@ namespace Odin.Services.Membership.Connections
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
                 EncryptedClientAccessToken = token.EncryptedCat,
-                WeakClientAccessToken = token.WeakToken,
+                TemporaryWeakClientAccessToken64 = token.WeakToken?.ToPortableBytes64(),
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
                 VerificationHash = verificationHash
@@ -350,6 +351,12 @@ namespace Odin.Services.Membership.Connections
             if (icr == null || !icr.IsConnected())
             {
                 throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
+            }
+
+            if (icr.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
+            {
+                throw new OdinClientException($"Cannot grant additional circles to auto-connected identity.  You must first confirm the connection.",
+                    OdinClientErrorCode.CannotGrantAutoConnectedMoreCircles);
             }
 
             if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out _))
@@ -772,7 +779,7 @@ namespace Odin.Services.Membership.Connections
                     logger.LogWarning("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
                     return false;
                 }
-                
+
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
@@ -1030,6 +1037,27 @@ namespace Odin.Services.Membership.Connections
             var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), sharedSecret.GetKey());
             var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
             return expectedHash;
+        }
+
+        public async Task UpgradeClientAccessTokens(IOdinContext odinContext, DatabaseConnection cn)
+        {
+            //find all ICRs with an unencrypted ICR token and fix it
+
+            var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
+            foreach (var identity in allIdentities.Results)
+            {
+                if (!string.IsNullOrEmpty(identity.TemporaryWeakClientAccessToken64?.Trim()))
+                {
+                    logger.LogDebug("Upgrading ICR for {odinId}", identity);
+                    var unencryptedCat = ClientAccessToken.FromPortableBytes64(identity.TemporaryWeakClientAccessToken64);
+                    var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
+                    var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
+
+                    identity.TemporaryWeakClientAccessToken64 = "";
+                    identity.EncryptedClientAccessToken = encryptedCat;
+                    this.SaveIcr(identity, odinContext, cn);
+                }
+            }
         }
     }
 }

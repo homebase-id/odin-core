@@ -324,14 +324,14 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             header.Validate();
 
-            var pendingRequest = await GetPendingRequest((OdinId)header.Sender, odinContext, cn);
-            if (null == pendingRequest)
+            var incomingRequest = await GetPendingRequest((OdinId)header.Sender, odinContext, cn);
+            if (null == incomingRequest)
             {
                 throw new OdinClientException($"No pending request was found from sender [{header.Sender}]");
             }
 
-            pendingRequest.Validate();
-            var senderOdinId = (OdinId)pendingRequest.SenderOdinId;
+            incomingRequest.Validate();
+            var senderOdinId = (OdinId)incomingRequest.SenderOdinId;
             AccessExchangeGrant accessGrant = null;
 
             //Note: this option is used for auto-accepting connection requests for the Invitation feature
@@ -345,8 +345,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
             }
 
-            _logger.LogInformation($"Accept Connection request called for sender {senderOdinId} to {pendingRequest.Recipient}");
-            var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(pendingRequest.ClientAccessToken64);
+            _logger.LogInformation($"Accept Connection request called for sender {senderOdinId} to {incomingRequest.Recipient}");
+            var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(incomingRequest.ClientAccessToken64);
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -366,27 +366,44 @@ namespace Odin.Services.Membership.Connections.Requests
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
                     keyStoreKey,
                     circles,
-                    pendingRequest.ConnectionRequestOrigin,
+                    incomingRequest.ConnectionRequestOrigin,
                     masterKey,
                     odinContext,
                     cn),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, pendingRequest.ConnectionRequestOrigin, masterKey,
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, incomingRequest.ConnectionRequestOrigin, masterKey,
                     odinContext, cn),
                 AccessRegistration = accessRegistration
             };
 
             keyStoreKey.Wipe();
 
-            var verificationHash = _cns.CreateVerificationHash(pendingRequest.VerificationRandomCode, remoteClientAccessToken.SharedSecret);
-            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, cn);
+            var verificationHash = _cns.CreateVerificationHash(incomingRequest.VerificationRandomCode, remoteClientAccessToken.SharedSecret);
+
+            EncryptedClientAccessToken encryptedCat = null;
+            ClientAccessToken weakCat = null;
+
+            if (odinContext.Caller.HasMasterKey)
+            {
+                //TODO: read ICR key from app?
+                encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, cn);
+            }
+            else
+            {
+                //TODO: should we validate all drives are write-only ?
+
+                // this needs to be a temporary CAT that is encrypted with ECC
+                //find a way to ECC encrypt this until an app comes online
+                weakCat = remoteClientAccessToken;
+            }
+            
             await _cns.Connect(senderOdinId,
                 accessGrant,
-                token: (encryptedCat,  ??),
-            pendingRequest.ContactData,
-            pendingRequest.ConnectionRequestOrigin,
-            pendingRequest.IntroducerOdinId,
-            verificationHash,
-            odinContext, cn);
+                token: (encryptedCat, weakCat),
+                incomingRequest.ContactData,
+                incomingRequest.ConnectionRequestOrigin,
+                incomingRequest.IntroducerOdinId,
+                verificationHash,
+                odinContext, cn);
 
             // Now tell the remote to establish the connection
 
@@ -395,7 +412,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 SenderOdinId = _tenantContext.HostOdinId,
                 ContactData = header.ContactData,
                 ClientAccessTokenReply64 = clientAccessTokenReply.ToPortableBytes64(),
-                TempKey = pendingRequest.TempRawKey,
+                TempKey = incomingRequest.TempRawKey,
                 VerificationHash = verificationHash
             };
 
@@ -498,20 +515,18 @@ namespace Odin.Services.Membership.Connections.Requests
             var tempKey = reply.TempKey.ToSensitiveByteArray();
             SensitiveByteArray rawIcrKey = null;
 
-            //if this is being approved by the owner, then we have the master key
+            // if we never had a key...
             if (originalRequest.TempEncryptedIcrKey == null)
-            {
-                rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
-                encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
-            }
-            else
             {
                 // we're here because the original request was
                 // automatically sent (w/o the owner)
-                
                 //TODO: should we validate all drives are write-only ?
-
                 weakToken = remoteClientAccessToken;
+            }
+            else
+            {
+                rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
+                encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
             }
 
 
@@ -703,8 +718,8 @@ namespace Odin.Services.Membership.Connections.Requests
             // validate you can only have write access to drives with allowAnonymous = false
             //
 
-            TODO - ?? not yet sure how I want to handle this
-            await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
+            // TODO - ?? not yet sure how I want to handle this
+            // await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
 
 
             var recipient = (OdinId)header.Recipient;
@@ -817,8 +832,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
+                // get this from the app
+                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
+                outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
+
                 //expect a master key
-                outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
+                // outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, masterKey, cn);
             }
 
             keyStoreKey.Wipe();

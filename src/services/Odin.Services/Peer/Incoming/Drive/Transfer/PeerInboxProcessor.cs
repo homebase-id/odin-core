@@ -20,7 +20,6 @@ using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -32,7 +31,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         CircleNetworkService circleNetworkService,
-        CircleNetworkIntroductionService introductionService,
         ILogger<PeerInboxProcessor> logger,
         PublicPrivateKeyService keyService,
         DriveManager driveManager,
@@ -97,23 +95,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var fst = inboxItem.FileSystemType == 0 ? FileSystemType.Standard : inboxItem.FileSystemType;
                 var fs = fileSystemResolver.ResolveFileSystem(fst);
-
-                if (inboxItem.InstructionType == TransferInstructionType.HandleIntroductions)
-                {
-                    var canCreateConnectionRequest = odinContext.Caller.HasMasterKey;
-                    if (canCreateConnectionRequest)
-                    {
-                        var request = OdinSystemSerializer.Deserialize<IdentityIntroduction>(inboxItem.Data.ToStringFromUtf8Bytes());
-                        await introductionService.SendConnectionRequests(inboxItem.Sender, request, odinContext, cn);
-                        await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
-                    }
-                    else
-                    {
-                        //ensure another call to the inbox can create it when the master key is available
-                        await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, cn);
-                    }
-                }
-                else if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
+                if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                 {
                     if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
                     {

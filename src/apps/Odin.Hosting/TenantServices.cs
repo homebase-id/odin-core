@@ -42,6 +42,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Authentication;
 using Odin.Services.Background;
 using Odin.Services.DataConversion;
 using Odin.Services.Drives.Reactions.Redux.Group;
@@ -128,7 +129,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
-            cb.RegisterType<MasterKeyContextAccessor>().AsSelf().SingleInstance();
+            cb.RegisterType<IcrKeyAvailableContext>().AsSelf().SingleInstance();
             
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();

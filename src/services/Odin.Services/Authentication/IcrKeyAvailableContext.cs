@@ -2,13 +2,16 @@ using System;
 using Odin.Core.Cache;
 using Odin.Services.Base;
 
-namespace Odin.Services.Authentication.Owner;
+namespace Odin.Services.Authentication;
 
-public class MasterKeyContextAccessor
+/// <summary>
+/// Information when the ICR key is available for background processing
+/// </summary>
+public class IcrKeyAvailableContext
 {
-    private const string CacheKey = "mk-context";
+    private const string CacheKey = "icr-context";
     private readonly TimeSpan _holdTime = TimeSpan.FromSeconds(100);
-    private readonly GenericMemoryCache _cache = new("mk-context");
+    private readonly GenericMemoryCache _cache = new("icr-context-cache");
 
     public void SetContext(OdinContext context)
     {

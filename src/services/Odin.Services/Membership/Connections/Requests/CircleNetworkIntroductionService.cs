@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -16,12 +17,12 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.AppNotifications.Push;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
-using Odin.Services.Mediator;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -42,9 +43,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     private readonly CircleNetworkRequestService _circleNetworkRequestService;
     private readonly ILogger<CircleNetworkIntroductionService> _logger;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-    private readonly TransitInboxBoxStorage _inboxBoxStorage;
     private readonly IMediator _mediator;
-    private readonly DriveManager _driveManager;
+    private readonly PushNotificationService _pushNotificationService;
 
     private readonly ThreeKeyValueStorage _receivedIntroductionValueStorage;
 
@@ -56,18 +56,15 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantSystemStorage tenantSystemStorage,
         FileSystemResolver fileSystemResolver,
-        TransitInboxBoxStorage inboxBoxStorage,
         IMediator mediator,
-        DriveManager driveManager) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        PushNotificationService pushNotificationService) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         _odinConfiguration = odinConfiguration;
         _circleNetworkRequestService = circleNetworkRequestService;
         _logger = logger;
         _odinHttpClientFactory = odinHttpClientFactory;
-        _inboxBoxStorage = inboxBoxStorage;
         _mediator = mediator;
-        _driveManager = driveManager;
-
+        _pushNotificationService = pushNotificationService;
 
         const string receivedIntroductionContextKey = "d2f5c94c-c299-4122-8aa2-744d91f3b12d";
         _receivedIntroductionValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(receivedIntroductionContextKey));
@@ -85,7 +82,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         var recipients = group.Recipients.ToOdinIdList().Without(odinContext.Tenant);
         var bytes = ByteArrayUtil.Combine(recipients.Select(i => i.ToByteArray()).ToArray());
         group.Signature = Sign(bytes, odinContext);
-        
+
         var result = new IntroductionResult();
         foreach (var recipient in recipients)
         {
@@ -136,17 +133,27 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
             var key = MakeReceivedIntroductionKey(identity);
             _receivedIntroductionValueStorage.Upsert(cn, key, GuidId.Empty, _receivedIntroductionDataType, iid);
-
-            await EnqueueInboxItemToSendConnectionRequest(iid, odinContext, cn);
         }
 
-        await _mediator.Publish(new IntroductionsReceivedNotification()
+        var notification = new IntroductionsReceivedNotification()
         {
             IntroducerOdinId = introducerOdinId,
             Introduction = introduction,
             OdinContext = odinContext,
             DatabaseConnection = cn
-        });
+        };
+
+        await _pushNotificationService.EnqueueNotification(introducerOdinId, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = introducerOdinId.ToHashId(),
+                Silent = false,
+            },
+            odinContext,
+            cn);
+
+        await _mediator.Publish(notification);
 
         await Task.CompletedTask;
     }
@@ -177,32 +184,32 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     }
 
     /// <summary>
-    /// Sends connection requests for pending introductions if one has not already been sent or received
+    /// Sends connection requests for introductions
     /// </summary>
-    public async Task SendConnectionRequests(OdinId sender, IdentityIntroduction identityIntroduction, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task SendOutstandingConnectionRequests(IOdinContext odinContext, DatabaseConnection cn)
     {
-        // var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(identityIntroduction.Identity, odinContext, cn);
-        //
-        // if (hasOutstandingRequest)
-        // {
-        //     //nothing to do
-        //     _logger.LogDebug("Pending or sent request already exist for introduced identity [{iid}]", identityIntroduction.Identity);
-        //     return;
-        // }
-
-        var id = Guid.NewGuid();
-        var requestHeader = new ConnectionRequestHeader()
+        //get the introductions from the list
+        var introductions = await GetReceivedIntroductions(odinContext, cn);
+        foreach (var intro in introductions)
         {
-            Id = id,
-            Recipient = identityIntroduction.Identity,
-            Message = identityIntroduction.Message,
-            IntroducerOdinId = sender,
-            ContactData = new ContactRequestData(),
-            CircleIds = [],
-            ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
-        };
+            var recipient = intro.Identity;
 
-        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
+            var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext, cn);
+            if (hasOutstandingRequest)
+            {
+                continue;
+            }
+
+            var alreadyConnected = await CircleNetworkService.IsConnected(recipient, odinContext, cn);
+            if (alreadyConnected)
+            {
+                continue;
+            }
+            
+            //TODO: maybe need to update the introduction to show a connection request was last sent
+
+            await this.SendConnectionRequests(intro, odinContext, cn);
+        }
     }
 
     public Task<List<IdentityIntroduction>> GetReceivedIntroductions(IOdinContext odinContext, DatabaseConnection cn)
@@ -233,46 +240,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         var combined = ByteArrayUtil.Combine(recipient.ToHashId().ToByteArray(), _receivedIntroductionDataType);
         var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
         return new Guid(bytes);
-    }
-
-    private async Task EnqueueInboxItemToSendConnectionRequest(IdentityIntroduction item, IOdinContext odinContext, DatabaseConnection cn)
-    {
-        //hack - the inbox requires a target drive
-        var targetDrive = SystemDriveConstants.FeedDrive;
-        var driveId = await _driveManager.GetDriveIdByAlias(targetDrive, cn);
-
-        await _inboxBoxStorage.Add(new TransferInboxItem
-        {
-            Id = Guid.NewGuid(),
-            InstructionType = TransferInstructionType.HandleIntroductions,
-            AddedTimestamp = UnixTimeUtc.Now(),
-            Sender = odinContext.GetCallerOdinIdOrFail(),
-            Priority = 190,
-
-            Data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray(),
-
-            FileId = Guid.NewGuid(), //hack
-            DriveId = driveId.GetValueOrDefault(),
-            TransferFileType = TransferFileType.Normal,
-            FileSystemType = FileSystemType.Standard,
-
-
-            GlobalTransitId = default,
-            SharedSecretEncryptedKeyHeader = null,
-            TransferInstructionSet = null,
-            EncryptedFeedPayload = null
-        }, cn);
-
-        await _mediator.Publish(new InboxItemReceivedNotification
-        {
-            OdinContext = odinContext,
-            TargetDrive = targetDrive,
-            FileSystemType = default,
-            TransferFileType = TransferFileType.Normal,
-            DatabaseConnection = cn
-        });
-
-        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -329,5 +296,25 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         };
 
         await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, connection);
+    }
+
+    /// <summary>
+    /// Sends connection requests for pending introductions if one has not already been sent or received
+    /// </summary>
+    private async Task SendConnectionRequests(IdentityIntroduction intro, IOdinContext odinContext, DatabaseConnection cn)
+    {
+        var id = Guid.NewGuid();
+        var requestHeader = new ConnectionRequestHeader()
+        {
+            Id = id,
+            Recipient = intro.Identity,
+            Message = intro.Message,
+            IntroducerOdinId = intro.IntroducerOdinId,
+            ContactData = new ContactRequestData(),
+            CircleIds = [],
+            ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
+        };
+
+        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
     }
 }
