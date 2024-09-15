@@ -40,5 +40,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(IntroductionsRoot + "/send-introductions")]
         Task<ApiResponse<IntroductionResult>> SendIntroductions([Body] IntroductionGroup group);
+        
+        [Post(IntroductionsRoot + "/process-incoming-introductions")]
+        Task<ApiResponse<HttpContent>> ProcessIncomingIntroductions();
+        
+        
     }
 }

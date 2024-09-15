@@ -63,8 +63,9 @@ public class AutoAcceptTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        //ensure sam sends a request
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        var processResponse = await frodoOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(processResponse.IsSuccessStatusCode);
 
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(TestIdentities.Merry.OdinId);
         var outgoingRequestToMerry = outgoingRequestToMerryResponse.Content;
@@ -101,7 +102,7 @@ public class AutoAcceptTests
 
         await Cleanup();
     }
-    
+
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
     {
@@ -121,9 +122,10 @@ public class AutoAcceptTests
         });
 
         var introResult = response.Content;
-        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId], "sam should reject since frodo does not have allow introductions permission");
+        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
+            "sam should reject since frodo does not have allow introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
-        
+
         // ensure introductions are processed
         await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -179,7 +181,7 @@ public class AutoAcceptTests
 
         await merry.Connections.DisconnectFrom(frodo.OdinId);
         await sam.Connections.DisconnectFrom(frodo.OdinId);
-        
+
         await merry.Connections.DisconnectFrom(sam.OdinId);
         await sam.Connections.DisconnectFrom(merry.OdinId);
     }

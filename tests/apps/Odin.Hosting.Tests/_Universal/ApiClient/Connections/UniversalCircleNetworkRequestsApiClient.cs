@@ -14,7 +14,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections;
 
 public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClientFactory factory)
 {
-
     public async Task<ApiResponse<HttpContent>> AcceptConnectionRequest(OdinId sender, IEnumerable<GuidId> circleIdsGrantedToSender = null)
     {
         // Accept the request
@@ -108,14 +107,22 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             return response;
         }
     }
-    
+
     public async Task<ApiResponse<IntroductionResult>> SendIntroductions(IntroductionGroup group)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
-
         {
             var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, ownerSharedSecret);
             return await svc.SendIntroductions(group);
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ProcessIncomingIntroductions()
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, ownerSharedSecret);
+            return await svc.ProcessIncomingIntroductions();
         }
     }
 

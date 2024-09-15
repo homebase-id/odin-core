@@ -329,6 +329,7 @@ namespace Odin.Services.Authentication.Owner
             {
                 _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
                 _cache.Reset();
+                _icrKeyAvailableContext.Reset();
             }
 
             return Task.CompletedTask;

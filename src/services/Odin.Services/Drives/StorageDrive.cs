@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -12,6 +13,7 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
         private readonly string _longTermHeaderRootPath;

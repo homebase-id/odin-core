@@ -51,7 +51,7 @@ public sealed class IcrKeyAvailableBackgroundService(
                 await circleNetworkService.UpgradeClientAccessTokens(odinContext, fixIcrCn);
             }
 
-            await SleepAsync(TimeSpan.FromSeconds(1), stoppingToken);
+            await SleepAsync(TimeSpan.FromSeconds(100), stoppingToken);
         }
     }
 }

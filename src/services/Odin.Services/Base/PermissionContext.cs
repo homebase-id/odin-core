@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -11,11 +12,22 @@ using Serilog;
 
 namespace Odin.Services.Base
 {
+    [DebuggerDisplay("{Stats}")]
     public class PermissionContext : IGenericCloneable<PermissionContext>
     {
         private readonly bool _isSystem = false;
         public SensitiveByteArray SharedSecretKey { get; private set; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
+
+        internal string Stats
+        {
+            get
+            {
+                var c1 = this.PermissionGroups.Keys.Count;
+                var c2 = this.PermissionGroups.Values.Sum(g => g.DriveGrantCount);
+                return $"{c2} drive grants across {c1} permission groups";
+            }
+        }
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
