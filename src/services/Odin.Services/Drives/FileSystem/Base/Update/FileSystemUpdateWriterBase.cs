@@ -200,7 +200,7 @@ public abstract class FileSystemUpdateWriterBase
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
 
-            Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
 
             return new FileUpdateResult()
             {
@@ -214,7 +214,7 @@ public abstract class FileSystemUpdateWriterBase
             // Note: all changes on remote servers need to use the newVersionTag
             // There is no local file - everything would be on the temp-transient-drive
 
-            var newVersionTag = Guid.NewGuid();
+            var newVersionTag = SequentialGuid.CreateGuid();
 
             Dictionary<string, TransferStatus> recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 Package.TempMetadataFile,

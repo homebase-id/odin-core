@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -49,9 +50,14 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
         //
         // Note: need to have just one version tag when all done
         //
-        
+
         // Here we will examine the manifest; by adding / deleting payloads according
         // then overwrite the metadata
+        var manifest = new BatchUpdateManifest()
+        {
+            NewVersionTag = SequentialGuid.CreateGuid(),
+            PayloadDescriptors = package.GetFinalPayloadDescriptors()
+        };
 
         var file = package.InternalFile;
         foreach (var descriptor in package.InstructionSet.Manifest.PayloadDescriptors ?? [])
@@ -59,7 +65,6 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
             var key = descriptor.PayloadKey;
             if (descriptor.FileUpdateOperationType == FileUpdateOperationType.AddPayload)
             {
-                // FileSystem.Storage.DeletePayload(file, key, )
             }
 
             if (descriptor.FileUpdateOperationType == FileUpdateOperationType.DeletePayload)
@@ -68,6 +73,9 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
                     odinContext, cn);
             }
         }
+
+        await FileSystem.Storage.UpdateBatch(manifest);
+
 
         // then save the metadata
         //

@@ -1196,5 +1196,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return header;
         }
+
+        public async Task UpdateBatch(BatchUpdateManifest manifest)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

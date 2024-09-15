@@ -1,4 +1,6 @@
-﻿using Odin.Services.Peer.Encryption;
+﻿using System;
+using System.Collections.Generic;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -18,4 +20,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
     }
 
+
+    public class BatchUpdateManifest
+    {
+        public Guid NewVersionTag { get; set; }
+        public List<PayloadDescriptor> PayloadDescriptors { get; set; }
+    }
 }
