@@ -208,7 +208,7 @@ public class CircleNetworkStorage
                 EncryptedData = data.EncryptedClientAccessToken
             },
             TemporaryWeakClientAccessToken64 = data.WeakClientAccessToken64,
-            TempWeakKeyStoreKey = data.WeakKeyStoreKey64.FromBase64(),
+            TempWeakKeyStoreKey = data.WeakKeyStoreKey64?.FromBase64(),
             ConnectionRequestOrigin = connectionOrigin,
             IntroducerOdinId = introducerOdinId,
             VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()

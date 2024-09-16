@@ -780,13 +780,17 @@ namespace Odin.Services.Membership.Connections
 
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                var masterKey = odinContext.Caller.GetMasterKey();
-                var keyStoreKey = icr.TempWeakKeyStoreKey;
-                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                if(icr.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
+                {
+                    var masterKey = odinContext.Caller.GetMasterKey();
+                    var keyStoreKey = icr.TempWeakKeyStoreKey;
+                    icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                    icr.TempWeakKeyStoreKey.Wipe();
+                }
 
-                icr.TemporaryWeakClientAccessToken64 = "";
-                icr.TempWeakKeyStoreKey.Wipe();
-                
+                //TODO: UPgrade encryption too for good measure
+                // icr.TemporaryWeakClientAccessToken64 = "";
+                throw new NotImplementedException("TODO: upgrade ICR encryption")
                 this.SaveIcr(icr, odinContext, cn);
 
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
