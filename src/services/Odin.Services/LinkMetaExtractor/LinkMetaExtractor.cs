@@ -86,11 +86,20 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
                 {
                     var image = await imageResponse.Content.ReadAsByteArrayAsync();
                     var mimeType = imageResponse.Content.Headers.ContentType?.ToString();
+                    var imageBase64 = Convert.ToBase64String(image);
                     if (string.IsNullOrEmpty(mimeType))
                         mimeType = "image/png"; // Force default the type to png
-
-                    var imageUri = $"data:{mimeType};base64,{Convert.ToBase64String(image)}";
-                    linkMeta.ImageUrl = imageUri;
+                    if (!string.IsNullOrWhiteSpace(imageBase64))
+                    {
+                        var imageUri = $"data:{mimeType};base64,{imageBase64}";
+                        linkMeta.ImageUrl = imageUri;
+                    }
+                    else
+                    {
+                        logger.LogInformation("Failed to convert image to base64 from {Url}. Original Url {LinkUrl} ",
+                            linkMeta.ImageUrl, url);
+                        linkMeta.ImageUrl = null;
+                    }
 
                 }
 
