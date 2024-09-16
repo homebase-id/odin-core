@@ -9,6 +9,7 @@ namespace Odin.Core.Cache;
 
 public interface IGenericMemoryCache
 {
+    void Clear();
     bool TryGet(string key, out object? value);
     bool TryGet(byte[] key, out object? value);
     bool TryGet<T>(string key, out T? value);
@@ -25,16 +26,43 @@ public interface IGenericMemoryCache
 
 //
 
-public class GenericMemoryCache(string name = "generic-memory-cache") : IGenericMemoryCache
+public class GenericMemoryCache(string name = "generic-memory-cache") : IGenericMemoryCache, IDisposable
 {
     private static readonly object NullValue = new ();
-    private readonly MemoryCache _cache = new(name);
+    private readonly object _mutex = new(); // We need locking because user can call Clear() at any time
+    private MemoryCache _cache = new(name);
+
+    //
+
+    public void Dispose()
+    {
+        lock (_mutex)
+        {
+            _cache.Dispose();
+        }
+    }
+
+    //
+
+    public void Clear()
+    {
+        lock (_mutex)
+        {
+            var name = _cache.Name;
+            _cache.Dispose();
+            _cache = new MemoryCache(name);
+        }
+    }
 
     //
 
     public bool TryGet(string key, out object? value)
     {
-        var result = _cache.Get(key);
+        object? result;
+        lock (_mutex)
+        {
+            result = _cache.Get(key);
+        }
 
         if (result == null)
         {
@@ -63,7 +91,11 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public bool TryGet<T>(string key, out T? value)
     {
-        var result = _cache.Get(key);
+        object? result;
+        lock (_mutex)
+        {
+            result = _cache.Get(key);
+        }
 
         if (result == null)
         {
@@ -98,7 +130,10 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
     public void Set(string key, object? value, TimeSpan lifespan)
     {
         var policy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.Add(lifespan) };
-        _cache.Set(new CacheItem(key, value ?? NullValue), policy);
+        lock (_mutex)
+        {
+            _cache.Set(new CacheItem(key, value ?? NullValue), policy);
+        }
     }
 
     //
@@ -112,7 +147,10 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public object? Remove(string key)
     {
-        return _cache.Remove(key);
+        lock (_mutex)
+        {
+            return _cache.Remove(key);
+        }
     }
 
     //
@@ -126,7 +164,10 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public bool Contains(string key)
     {
-        return _cache.Contains(key);
+        lock (_mutex)
+        {
+            return _cache.Contains(key);
+        }
     }
 
     //
