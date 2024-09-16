@@ -128,4 +128,17 @@ public class LinkMetaExtractorTests
         var sanitizedHtml = Parser.Parse(html);
         Assert.AreEqual("Test", sanitizedHtml["title"]);
     }
+    
+    [Test]
+    public async Task TestBrokenImagePreviews()
+    {
+        var logStore = new LogEventMemoryStore();
+        var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await  linkMetaExtractor.ExtractAsync("https://www.thermal.com/seek-nano.html");
+        Assert.NotNull(ogp.Title);
+        Assert.NotNull(ogp.Description);
+        Assert.Null(ogp.ImageUrl);
+    }
+    
 }
