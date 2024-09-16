@@ -360,7 +360,6 @@ namespace Odin.Services.Membership.Connections.Requests
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             accessGrant ??= new AccessExchangeGrant()
             {
-                //Note: we allow a null value here in case the connection request process doesn't have 
                 MasterKeyEncryptedKeyStoreKey = odinContext.Caller.HasMasterKey ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey) : null,
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
@@ -375,12 +374,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 AccessRegistration = accessRegistration
             };
 
-            keyStoreKey.Wipe();
 
             var verificationHash = _cns.CreateVerificationHash(incomingRequest.VerificationRandomCode, remoteClientAccessToken.SharedSecret);
 
             EncryptedClientAccessToken encryptedCat = null;
-            ClientAccessToken weakCat = null;
+            (ClientAccessToken Token, SensitiveByteArray KeyStoreKey) weakToken = default;
 
             if (odinContext.Caller.HasMasterKey)
             {
@@ -393,17 +391,19 @@ namespace Odin.Services.Membership.Connections.Requests
 
                 // this needs to be a temporary CAT that is encrypted with ECC
                 //find a way to ECC encrypt this until an app comes online
-                weakCat = remoteClientAccessToken;
+                weakToken = (remoteClientAccessToken, keyStoreKey);
             }
-            
+
             await _cns.Connect(senderOdinId,
                 accessGrant,
-                token: (encryptedCat, weakCat),
+                keys: (encryptedCat, weakToken),
                 incomingRequest.ContactData,
                 incomingRequest.ConnectionRequestOrigin,
                 incomingRequest.IntroducerOdinId,
                 verificationHash,
                 odinContext, cn);
+
+            keyStoreKey.Wipe();
 
             // Now tell the remote to establish the connection
 
@@ -497,7 +497,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var recipient = (OdinId)originalRequest.Recipient;
 
-            var (_, sharedSecret) = originalRequest.PendingAccessExchangeGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
+            var (keyStoreKey, sharedSecret) = originalRequest.PendingAccessExchangeGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
             var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
@@ -510,7 +510,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
 
             EncryptedClientAccessToken encryptedCat = null;
-            ClientAccessToken weakToken = null;
+            (ClientAccessToken Token, SensitiveByteArray KeyStoreKey) weakToken = default;
 
             var tempKey = reply.TempKey.ToSensitiveByteArray();
             SensitiveByteArray rawIcrKey = null;
@@ -521,7 +521,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 // we're here because the original request was
                 // automatically sent (w/o the owner)
                 //TODO: should we validate all drives are write-only ?
-                weakToken = remoteClientAccessToken;
+                weakToken = (remoteClientAccessToken, keyStoreKey);
             }
             else
             {
@@ -532,7 +532,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await _cns.Connect(reply.SenderOdinId,
                 originalRequest.PendingAccessExchangeGrant,
-                token: (encryptedCat, weakToken),
+                keys: (encryptedCat, weakToken),
                 reply.ContactData,
                 originalRequest.ConnectionRequestOrigin,
                 originalRequest.IntroducerOdinId,
@@ -827,7 +827,6 @@ namespace Odin.Services.Membership.Connections.Requests
             outgoingRequest.PendingAccessExchangeGrant = grant;
 
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-            // var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
             var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
 

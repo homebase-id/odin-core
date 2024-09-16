@@ -7,11 +7,13 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
+using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -167,7 +169,16 @@ namespace Odin.Services.Membership.Connections
             if (info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
+                info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 this.SaveIcr(info, odinContext, cn);
+
+                await mediator.Publish(new ConnectionBlockedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    DatabaseConnection = cn
+                });
+
                 return true;
             }
 
@@ -177,6 +188,15 @@ namespace Odin.Services.Membership.Connections
                 info.Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 this.SaveIcr(info, odinContext, cn);
+
+                await mediator.Publish(new ConnectionBlockedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    DatabaseConnection = cn
+                });
+
+
                 return true;
             }
 
@@ -305,7 +325,8 @@ namespace Odin.Services.Membership.Connections
         /// Adds the specified odinId to your network
         /// </summary>
         /// <returns></returns>
-        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, (EncryptedClientAccessToken EncryptedCat, ClientAccessToken WeakToken) token,
+        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant,
+            (EncryptedClientAccessToken EncryptedCat, (ClientAccessToken Token, SensitiveByteArray KeyStoreKey) Temp) keys,
             ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
@@ -328,15 +349,22 @@ namespace Odin.Services.Membership.Connections
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-                EncryptedClientAccessToken = token.EncryptedCat,
-                TemporaryWeakClientAccessToken64 = token.WeakToken?.ToPortableBytes64(),
+                EncryptedClientAccessToken = keys.EncryptedCat,
+                TemporaryWeakClientAccessToken64 = keys.Temp.Token?.ToPortableBytes64(),
+                TempWeakKeyStoreKey = keys.Temp.KeyStoreKey?.GetKey(),
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
                 VerificationHash = verificationHash
             };
 
             this.SaveIcr(newConnection, odinContext, cn);
-            return Task.CompletedTask;
+
+            await mediator.Publish(new ConnectionFinalizedNotification()
+            {
+                OdinId = odinId,
+                OdinContext = odinContext,
+                DatabaseConnection = cn
+            });
         }
 
         /// <summary>
@@ -750,10 +778,17 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException("Cannot confirm identity that is not in the AutoConnectionsCircle", OdinClientErrorCode.NotAnAutoConnection);
             }
 
-            //TODO: Here we can encrypt the master key as well
-
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
+                var masterKey = odinContext.Caller.GetMasterKey();
+                var keyStoreKey = icr.TempWeakKeyStoreKey;
+                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+
+                icr.TemporaryWeakClientAccessToken64 = "";
+                icr.TempWeakKeyStoreKey.Wipe();
+                
+                this.SaveIcr(icr, odinContext, cn);
+
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
                 await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, cn);
             });
@@ -819,7 +854,7 @@ namespace Odin.Services.Membership.Connections
         private async Task HandleDriveUpdated(StorageDrive drive, IOdinContext odinContext, DatabaseConnection cn)
         {
             //examine system circle; remove drive if needed
-            CircleDefinition systemCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+            CircleDefinition systemCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
 
             var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
             if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
@@ -848,7 +883,7 @@ namespace Odin.Services.Membership.Connections
                 return;
             }
 
-            CircleDefinition def = circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+            CircleDefinition def = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
 
             var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
             grants.Add(new DriveGrantRequest()
@@ -1057,6 +1092,8 @@ namespace Odin.Services.Membership.Connections
                     identity.EncryptedClientAccessToken = encryptedCat;
                     this.SaveIcr(identity, odinContext, cn);
                 }
+                
+                //TODO - encrpt the master key as well
             }
         }
     }

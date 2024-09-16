@@ -55,18 +55,11 @@ namespace Odin.Services.DataConversion
             //
             await circleDefinitionService.CreateSystemCircles(cn);
             
-            
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 foreach (var identity in allIdentities.Results)
                 {
-
-                    //
-                    // add existing identities to the confirmed circles
-                    //
-                    await circleNetworkService.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, identity.OdinId, odinContext, cn);
-                    
                     //
                     // Sync verification hash
                     //

@@ -68,9 +68,12 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var requestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(requestFromMerry);
@@ -131,9 +134,12 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var firstRequestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNull(firstRequestFromMerry, "merry should not have been able to send a request to sam");
@@ -200,9 +206,12 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var firstRequestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(firstRequestFromMerry);
@@ -227,9 +236,12 @@ public class SendingIntroductionsTests
         Assert.IsTrue(secondInvitationResponse.IsSuccessStatusCode);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse2 = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse2.IsSuccessStatusCode);
+        
+        var merryProcessResponse2 = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse2.IsSuccessStatusCode);
+        
         var samRequestFromMerryResponse2 = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var secondRequestFromMerry = samRequestFromMerryResponse2.Content;
         Assert.IsNotNull(secondRequestFromMerry);
@@ -272,9 +284,12 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
         // ensure introductions are processed
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        
         // Sam should get a connection request from merry (via frodo)
         var incomingRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);
         Assert.IsTrue(incomingRequestFromMerryResponse.IsSuccessStatusCode);

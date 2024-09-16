@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
@@ -18,13 +16,12 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Refit;
@@ -35,13 +32,17 @@ namespace Odin.Services.Membership.Connections.Requests;
 /// <summary>
 /// Enables introducing identities to each other
 /// </summary>
-public class CircleNetworkIntroductionService : PeerServiceBase
+public class CircleNetworkIntroductionService : PeerServiceBase,
+    INotificationHandler<ConnectionFinalizedNotification>,
+    INotificationHandler<ConnectionBlockedNotification>
 {
     private readonly byte[] _receivedIntroductionDataType = Guid.Parse("9b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
 
     private readonly OdinConfiguration _odinConfiguration;
+
     private readonly CircleNetworkRequestService _circleNetworkRequestService;
-    private readonly ILogger<CircleNetworkIntroductionService> _logger;
+
+    // private readonly ILogger<CircleNetworkIntroductionService> _logger;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly IMediator _mediator;
     private readonly PushNotificationService _pushNotificationService;
@@ -52,7 +53,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
         CircleNetworkRequestService circleNetworkRequestService,
-        ILogger<CircleNetworkIntroductionService> logger,
+        // ILogger<CircleNetworkIntroductionService> logger,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantSystemStorage tenantSystemStorage,
         FileSystemResolver fileSystemResolver,
@@ -61,7 +62,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     {
         _odinConfiguration = odinConfiguration;
         _circleNetworkRequestService = circleNetworkRequestService;
-        _logger = logger;
+        // _logger = logger;
         _odinHttpClientFactory = odinHttpClientFactory;
         _mediator = mediator;
         _pushNotificationService = pushNotificationService;
@@ -116,8 +117,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         OdinValidationUtils.AssertValidRecipientList(introduction.Identities, allowEmpty: false);
 
         introduction.Timestamp = UnixTimeUtc.Now();
-        var introducerOdinId = odinContext.GetCallerOdinIdOrFail();
+        var introducer = odinContext.GetCallerOdinIdOrFail();
 
+        //Store the introductions by the identity to which you're being introduces
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
             // Note: we do not check if you're already connected or
@@ -126,29 +128,28 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
             var iid = new IdentityIntroduction()
             {
-                IntroducerOdinId = introducerOdinId,
+                IntroducerOdinId = introducer,
                 Identity = identity,
                 Message = introduction.Message
             };
 
-            var key = MakeReceivedIntroductionKey(identity);
-            _receivedIntroductionValueStorage.Upsert(cn, key, GuidId.Empty, _receivedIntroductionDataType, iid);
+            _receivedIntroductionValueStorage.Upsert(cn, identity, introducer.ToHashId().ToByteArray(), _receivedIntroductionDataType, iid);
         }
 
         var notification = new IntroductionsReceivedNotification()
         {
-            IntroducerOdinId = introducerOdinId,
+            IntroducerOdinId = introducer,
             Introduction = introduction,
             OdinContext = odinContext,
             DatabaseConnection = cn
         };
 
         var newContext = OdinContextUpgrades.UsePushNotifications(odinContext);
-        await _pushNotificationService.EnqueueNotification(introducerOdinId, new AppNotificationOptions()
+        await _pushNotificationService.EnqueueNotification(introducer, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.OwnerAppId,
                 TypeId = notification.NotificationTypeId,
-                TagId = introducerOdinId.ToHashId(),
+                TagId = introducer,
                 Silent = false,
             },
             newContext,
@@ -206,7 +207,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
             {
                 continue;
             }
-            
+
             //TODO: maybe need to update the introduction to show a connection request was last sent
 
             await this.SendConnectionRequests(intro, odinContext, cn);
@@ -217,6 +218,21 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     {
         var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(cn, _receivedIntroductionDataType);
         return Task.FromResult(results.ToList());
+    }
+
+    public async Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+    {
+        await DeleteIntroductionsTo(notification.OdinId, notification.DatabaseConnection);
+    }
+
+    public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+    {
+        var cn = notification.DatabaseConnection;
+        await cn.CreateCommitUnitOfWorkAsync(async () =>
+        {
+            await DeleteIntroductionsTo(notification.OdinId, notification.DatabaseConnection);
+            await DeleteIntroductionsFrom(notification.OdinId, notification.DatabaseConnection);
+        });
     }
 
     private SignatureData Sign(byte[] data, IOdinContext odinContext)
@@ -234,13 +250,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase
     {
         bool isValid = SignatureData.Verify(signature, data);
         return isValid;
-    }
-
-    private Guid MakeReceivedIntroductionKey(OdinId recipient)
-    {
-        var combined = ByteArrayUtil.Combine(recipient.ToHashId().ToByteArray(), _receivedIntroductionDataType);
-        var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
-        return new Guid(bytes);
     }
 
     /// <summary>
@@ -282,8 +291,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase
 
     private Task<IdentityIntroduction> GetIntroduction(OdinId identity, DatabaseConnection cn)
     {
-        var key = MakeReceivedIntroductionKey(identity);
-        var result = _receivedIntroductionValueStorage.Get<IdentityIntroduction>(cn, key);
+        var result = _receivedIntroductionValueStorage.Get<IdentityIntroduction>(cn, identity);
         return Task.FromResult(result);
     }
 
@@ -317,5 +325,23 @@ public class CircleNetworkIntroductionService : PeerServiceBase
         };
 
         await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
+    }
+
+    private async Task DeleteIntroductionsTo(OdinId identity, DatabaseConnection cn)
+    {
+        _receivedIntroductionValueStorage.Delete(cn, identity);
+        await Task.CompletedTask;
+    }
+
+    private async Task DeleteIntroductionsFrom(OdinId introducer, DatabaseConnection cn)
+    {
+        var introductionsFromIdentity = _receivedIntroductionValueStorage.GetByDataType<IdentityIntroduction>(cn, introducer.ToHashId().ToByteArray());
+
+        foreach (var introduction in introductionsFromIdentity)
+        {
+            _receivedIntroductionValueStorage.Delete(cn, introduction.Identity);
+        }
+
+        await Task.CompletedTask;
     }
 }

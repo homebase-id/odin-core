@@ -61,9 +61,12 @@ public class ConfirmConnectionTests
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
         //ensure sam sends a request
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);

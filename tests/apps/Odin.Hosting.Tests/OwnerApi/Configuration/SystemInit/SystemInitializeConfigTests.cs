@@ -170,7 +170,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             Assert.IsTrue(circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count, "not all system circles were created");
 
-            var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
             Assert.IsTrue(connectedIdentitiesSystemCircle.Name == "All Connected Identities");
 
@@ -341,7 +341,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // System circle exists and has correct grants
             //
 
-            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsNotNull(systemCircle, "system circle should exist");
             Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");

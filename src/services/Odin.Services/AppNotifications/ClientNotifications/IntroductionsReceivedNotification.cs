@@ -27,7 +27,6 @@ public class IntroductionsReceivedNotification : MediatorNotificationBase, IClie
     }
 }
 
-
 public class IntroductionsAcceptedNotification : MediatorNotificationBase, IClientNotification
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.IntroductionAccepted;

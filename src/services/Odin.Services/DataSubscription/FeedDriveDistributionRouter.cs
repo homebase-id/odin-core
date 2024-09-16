@@ -391,7 +391,7 @@ namespace Odin.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,

@@ -44,6 +44,9 @@ public class AutoAcceptTests
     [Test]
     public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists()
     {
+        // Note: for your sanity, remember this is a background process that is
+        // automatically accepting introductions that are eligble
+
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
         await Prepare();
@@ -62,10 +65,9 @@ public class AutoAcceptTests
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-
-
-        var processResponse = await frodoOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(processResponse.IsSuccessStatusCode);
+        
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
 
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(TestIdentities.Merry.OdinId);
         var outgoingRequestToMerry = outgoingRequestToMerryResponse.Content;
@@ -77,9 +79,9 @@ public class AutoAcceptTests
         var requestFromSam = merryRequestFromSamResponse.Content;
         Assert.IsNotNull(requestFromSam, "there should be a request from sam since we have not yet processed the inbox");
 
-        // there is logic in the send connection request so once we process merry's
-        // inbox, he will already have a connection request from sam so it should get approved
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        // Note: remember there is a background process that is auto-accepting eligible connections so this call might not run the auto-accept code
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
         var getSamConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode);
@@ -127,8 +129,11 @@ public class AutoAcceptTests
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
         // ensure introductions are processed
-        await samOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        
+        var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
         // Sam should get a connection request from merry (via frodo)
         var incomingRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);

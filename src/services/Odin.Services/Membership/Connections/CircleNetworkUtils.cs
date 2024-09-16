@@ -12,12 +12,9 @@ public static class CircleNetworkUtils
     {
         var list = circleIds ?? new List<GuidId>();
 
-        // Always put identities in the system circle
-        list.EnsureItem(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-
         switch (origin)
         {
-            case ConnectionRequestOrigin.IdentityOwner:
+            case ConnectionRequestOrigin.IdentityOwner: 
                 list.EnsureItem(SystemCircleConstants.ConfirmedConnectionsCircleId);
                 break;
             case ConnectionRequestOrigin.Introduction:

@@ -369,7 +369,6 @@ public class TenantConfigService
             Name = "Homebase - Chat",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId,
                 SystemCircleConstants.ConfirmedConnectionsCircleId,
                 SystemCircleConstants.AutoConnectionsCircleId
             },
@@ -434,7 +433,6 @@ public class TenantConfigService
             Name = "Homebase - Mail",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId,
                 SystemCircleConstants.ConfirmedConnectionsCircleId,
                 SystemCircleConstants.AutoConnectionsCircleId
             },
@@ -517,7 +515,7 @@ public class TenantConfigService
 
     private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
 
         if (shouldGrantKey)
         {

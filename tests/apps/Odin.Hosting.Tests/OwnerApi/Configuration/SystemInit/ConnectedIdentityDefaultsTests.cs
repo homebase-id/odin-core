@@ -77,7 +77,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
 
-            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
             Assert.IsNotNull(getSystemCircleResponse1.Content);
 
@@ -92,7 +92,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // system circle should not have permissions
             //
-            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
             Assert.IsNotNull(getSystemCircleResponse2.Content);
             var systemCircle = getSystemCircleResponse2.Content;

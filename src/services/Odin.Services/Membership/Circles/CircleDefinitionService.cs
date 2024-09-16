@@ -36,27 +36,12 @@ namespace Odin.Services.Membership.Circles
 
         public async Task CreateSystemCircles(DatabaseConnection cn)
         {
-            if (null == this.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, cn))
-            {
-                await this.CreateCircleInternal(new CreateCircleRequest()
-                {
-                    Id = SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value,
-                    Name = "All Connected Identities",
-                    Description = "All Connected Identities",
-                    DriveGrants = SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives,
-                    Permissions = new PermissionSet()
-                    {
-                        Keys = new List<int>()
-                    }
-                }, cn, skipValidation: true);
-            }
-
             if (null == this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, cn))
             {
                 await this.CreateCircleInternal(new CreateCircleRequest()
                 {
                     Id = SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
-                    Name = "Confirmed Identities",
+                    Name = "Confirmed Connected Identities",
                     Description =
                         "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection",
                     DriveGrants = SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives,
@@ -66,7 +51,7 @@ namespace Odin.Services.Membership.Circles
                     }
                 }, cn, skipValidation: true);
             }
-
+            
             if (null == this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, cn))
             {
                 await this.CreateCircleInternal(new CreateCircleRequest()
@@ -161,7 +146,8 @@ namespace Odin.Services.Membership.Circles
                 var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault(), cn);
 
                 //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
-                var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) || dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.React);   
+                var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
+                                         dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.React);
                 if (drive.OwnerOnly && !hasValidPermission)
                 {
                     throw new OdinSecurityException("Cannot grant access to owner-only drives to circles");

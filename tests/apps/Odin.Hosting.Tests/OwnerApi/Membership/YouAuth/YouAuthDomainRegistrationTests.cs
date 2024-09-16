@@ -338,7 +338,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             CollectionAssert.AreEquivalent(someCircleGrant.PermissionSet.Keys, someCircle.Permissions.Keys);
 
             // ensure the system circle was not granted
-            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId),
+            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId),
                 "The connected identities circle should not be granted to youauth domains");
         }
 

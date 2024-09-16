@@ -61,6 +61,8 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public string TemporaryWeakClientAccessToken64 { get; set; }
         
+        public byte[] TempWeakKeyStoreKey { get; set; }
+        
         public long LastUpdated { get; set; }
         public long Created { get; set; }
 
