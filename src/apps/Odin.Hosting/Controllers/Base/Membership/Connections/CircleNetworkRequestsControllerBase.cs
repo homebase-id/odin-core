@@ -167,7 +167,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new JsonResult(result);
         }
 
-
         [HttpPost("introductions/process-incoming-introductions")]
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
@@ -175,7 +174,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             await introductionService.SendOutstandingConnectionRequests(WebOdinContext, cn);
             return new OkResult();
         }
-
 
         [HttpGet("introductions/received")]
         public async Task<IActionResult> GetReceivedIntroductions()

@@ -48,7 +48,7 @@ public sealed class IcrKeyAvailableBackgroundService(
                 await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, sendRequestCn);
 
                 using var fixIcrCn = tenantSystemStorage.CreateConnection();
-                await circleNetworkService.UpgradeClientAccessTokens(odinContext, fixIcrCn);
+                await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, fixIcrCn);
             }
 
             await SleepAsync(TimeSpan.FromSeconds(100), stoppingToken);

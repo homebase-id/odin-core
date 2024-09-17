@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Hosting.Controllers;
@@ -44,6 +45,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(IntroductionsRoot + "/process-incoming-introductions")]
         Task<ApiResponse<HttpContent>> ProcessIncomingIntroductions();
         
-        
+        [Get(IntroductionsRoot + "/received")]
+        Task<ApiResponse<List<IdentityIntroduction>>> GetReceivedIntroductions();
     }
 }

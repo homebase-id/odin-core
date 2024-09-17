@@ -1,8 +1,8 @@
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -68,17 +68,21 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
-        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var requestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(requestFromMerry);
         Assert.IsTrue(requestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(requestFromMerry.IntroducerOdinId == frodo);
+
+        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+
+        var samReceivedIntroductionsResponse = await samOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(samReceivedIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samReceivedIntroductionsResponse.Content.All(intro => intro.Identity != merry));
 
         var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
         var requestFromSam = merryRequestFromSamResponse.Content;
@@ -97,9 +101,8 @@ public class SendingIntroductionsTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var sendConnectionRequestResponse = await samOwnerClient.Connections.SendConnectionRequest(TestIdentities.Frodo.OdinId);
         Assert.IsTrue(sendConnectionRequestResponse.StatusCode == HttpStatusCode.BadRequest);
-        
-        await Cleanup();
 
+        await Cleanup();
     }
 
     [Test]
@@ -136,10 +139,10 @@ public class SendingIntroductionsTests
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
+
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var firstRequestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNull(firstRequestFromMerry, "merry should not have been able to send a request to sam");
@@ -208,10 +211,13 @@ public class SendingIntroductionsTests
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
+
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
+        var connectionInfo = await samOwnerClient.Network.GetConnectionInfo(merry);
+        Assert.IsTrue(connectionInfo.Content.Status == ConnectionStatus.Connected);
+
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var firstRequestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(firstRequestFromMerry);
@@ -238,10 +244,10 @@ public class SendingIntroductionsTests
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse2 = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse2.IsSuccessStatusCode);
-        
+
         var merryProcessResponse2 = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse2.IsSuccessStatusCode);
-        
+
         var samRequestFromMerryResponse2 = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var secondRequestFromMerry = samRequestFromMerryResponse2.Content;
         Assert.IsNotNull(secondRequestFromMerry);
@@ -286,10 +292,10 @@ public class SendingIntroductionsTests
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
+
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
         // Sam should get a connection request from merry (via frodo)
         var incomingRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(TestIdentities.Merry.OdinId);
         Assert.IsTrue(incomingRequestFromMerryResponse.IsSuccessStatusCode);
@@ -312,6 +318,62 @@ public class SendingIntroductionsTests
         await Cleanup();
     }
 
+
+    [Test]
+    public async Task CanAcceptConnectionRequestManually_AndRelatedIntroductionsAreDeleted()
+    {
+        // Note: for your sanity, remember this is a background process that is
+        // automatically accepting introductions that are eligible
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+
+        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+
+        await Prepare();
+
+        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+
+        var introResult = response.Content;
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        //
+        // validate introductions exist
+        //
+
+        var merryIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(merryIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(merryIntroductionsResponse.Content.Any(intro => intro.Identity == sam));
+
+        var samIntroductionsResponse = await samOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(samIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samIntroductionsResponse.Content.Any(intro => intro.Identity == merry));
+
+
+        await merryOwnerClient.Connections.SendConnectionRequest(sam);
+        await samOwnerClient.Connections.AcceptConnectionRequest(merry);
+
+        // there should now be no introductions
+
+        var merryIntroductionsResponse2 = await merryOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(merryIntroductionsResponse2.IsSuccessStatusCode);
+        Assert.IsFalse(merryIntroductionsResponse2.Content.Any(intro => intro.Identity == sam));
+
+        var samIntroductionsResponse2 = await samOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(samIntroductionsResponse2.IsSuccessStatusCode);
+        Assert.IsFalse(samIntroductionsResponse2.Content.Any(intro => intro.Identity == merry));
+
+        await Cleanup();
+    }
 
     private async Task Prepare()
     {

@@ -758,7 +758,6 @@ namespace Odin.Services.Membership.Connections
             return result;
         }
 
-
         /// <summary>
         /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
         /// </summary>
@@ -780,17 +779,9 @@ namespace Odin.Services.Membership.Connections
 
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                if(icr.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
-                {
-                    var masterKey = odinContext.Caller.GetMasterKey();
-                    var keyStoreKey = icr.TempWeakKeyStoreKey;
-                    icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                    icr.TempWeakKeyStoreKey.Wipe();
-                }
+                await UpgradeTokenEncryptionIfNeeded(icr, odinContext);
+                await UpgradeKeyStoreKeyEncryptionIfNeeded(odinContext, icr);
 
-                //TODO: UPgrade encryption too for good measure
-                // icr.TemporaryWeakClientAccessToken64 = "";
-                throw new NotImplementedException("TODO: upgrade ICR encryption")
                 this.SaveIcr(icr, odinContext, cn);
 
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
@@ -828,6 +819,27 @@ namespace Odin.Services.Membership.Connections
             }
 
             return false;
+        }
+
+        public byte[] CreateVerificationHash(Guid randomCode, SensitiveByteArray sharedSecret)
+        {
+            var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), sharedSecret.GetKey());
+            var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
+            return expectedHash;
+        }
+
+        public async Task UpgradeWeakClientAccessTokens(IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
+            foreach (var identity in allIdentities.Results)
+            {
+                await UpgradeTokenEncryptionIfNeeded(identity, odinContext);
+
+                if (odinContext.Caller.HasMasterKey)
+                {
+                    await UpgradeKeyStoreKeyEncryptionIfNeeded(odinContext, identity);
+                }
+            }
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(
@@ -1071,34 +1083,32 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public byte[] CreateVerificationHash(Guid randomCode, SensitiveByteArray sharedSecret)
+        private static async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
-            var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), sharedSecret.GetKey());
-            var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
-            return expectedHash;
+            if (!string.IsNullOrEmpty(identity.TemporaryWeakClientAccessToken64?.Trim()))
+            {
+                var unencryptedCat = ClientAccessToken.FromPortableBytes64(identity.TemporaryWeakClientAccessToken64);
+                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
+                var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
+
+                identity.TemporaryWeakClientAccessToken64 = "";
+                identity.EncryptedClientAccessToken = encryptedCat;
+            }
+
+            await Task.CompletedTask;
         }
 
-        public async Task UpgradeClientAccessTokens(IOdinContext odinContext, DatabaseConnection cn)
+        private static async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IOdinContext odinContext, IdentityConnectionRegistration icr)
         {
-            //find all ICRs with an unencrypted ICR token and fix it
-
-            var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
-            foreach (var identity in allIdentities.Results)
+            if (icr.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
             {
-                if (!string.IsNullOrEmpty(identity.TemporaryWeakClientAccessToken64?.Trim()))
-                {
-                    logger.LogDebug("Upgrading ICR for {odinId}", identity);
-                    var unencryptedCat = ClientAccessToken.FromPortableBytes64(identity.TemporaryWeakClientAccessToken64);
-                    var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
-                    var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
-
-                    identity.TemporaryWeakClientAccessToken64 = "";
-                    identity.EncryptedClientAccessToken = encryptedCat;
-                    this.SaveIcr(identity, odinContext, cn);
-                }
-                
-                //TODO - encrpt the master key as well
+                var masterKey = odinContext.Caller.GetMasterKey();
+                var keyStoreKey = icr.TempWeakKeyStoreKey;
+                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                icr.TempWeakKeyStoreKey.Wipe();
             }
+
+            await Task.CompletedTask;
         }
     }
 }

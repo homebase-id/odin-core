@@ -125,7 +125,16 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             return await svc.ProcessIncomingIntroductions();
         }
     }
-
+    
+    public async Task<ApiResponse<List<IdentityIntroduction>>> GetReceivedIntroductions()
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, ownerSharedSecret);
+            return await svc.GetReceivedIntroductions();
+        }
+    }
+    
     public async Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
