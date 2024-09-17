@@ -226,7 +226,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     r = ru;
                 }
 
-                logger.LogError(
+                //
+                // I wonder if we should test if the client UniqueId is in fact the culprit. 
+                // 
+                logger.LogDebug(
                     "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
                     s,
                     GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
