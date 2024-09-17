@@ -720,8 +720,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             // TODO - ?? not yet sure how I want to handle this
             // await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
-
-
+            
             var recipient = (OdinId)header.Recipient;
 
             if (_tenantContext.Settings.AutoAcceptIntroductions)

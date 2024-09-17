@@ -60,9 +60,9 @@ namespace Odin.Services.Membership.Connections
         /// Temporary storage for the CAT 
         /// </summary>
         public string TemporaryWeakClientAccessToken64 { get; set; }
-        
+
         public byte[] TempWeakKeyStoreKey { get; set; }
-        
+
         public long LastUpdated { get; set; }
         public long Created { get; set; }
 
@@ -117,26 +117,29 @@ namespace Odin.Services.Membership.Connections
                 OriginalContactData = omitContactData ? null : this.OriginalContactData,
                 IntroducerOdinId = this.IntroducerOdinId,
                 ConnectionRequestOrigin = this.ConnectionRequestOrigin,
-                AccessGrant = this.AccessGrant?.Redacted()
+                AccessGrant = this.AccessGrant?.Redacted(),
+                Rku = EncryptedClientAccessToken == null
             };
         }
     }
 
     public class RedactedIdentityConnectionRegistration
     {
-        public OdinId OdinId { get; set; }
+        public OdinId OdinId { get; init; }
 
-        public ConnectionStatus Status { get; set; }
+        public ConnectionStatus Status { get; init; }
 
         /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
-        public RedactedAccessExchangeGrant AccessGrant { get; set; }
+        public RedactedAccessExchangeGrant AccessGrant { get; init; }
 
         public long Created { get; set; }
         public long LastUpdated { get; set; }
-        public ContactRequestData OriginalContactData { get; set; }
+        public ContactRequestData OriginalContactData { get; init; }
         public OdinId? IntroducerOdinId { get; init; }
         public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; }
+
+        public bool Rku { get; init; }
     }
 }

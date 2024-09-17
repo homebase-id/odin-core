@@ -99,5 +99,6 @@ public enum OdinClientErrorCode
     NotInitialized = 9002,
     UnknownFlagName = 9003,
     InvalidOrExpiredRsaKey = 9004,
-    MissingVerificationHash = 9005
+    MissingVerificationHash = 9005,
+    PasswordAlreadySet = 9006
 }

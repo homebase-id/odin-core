@@ -64,7 +64,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddItem(item, cn);
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();

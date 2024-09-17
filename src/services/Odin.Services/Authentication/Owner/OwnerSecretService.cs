@@ -62,12 +62,12 @@ namespace Odin.Services.Authentication.Owner
             bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken || _tenantContext.IsPreconfigured;
             if (!canSet)
             {
-                throw new OdinSystemException("Invalid first run token; cannot set password");
+                throw new OdinClientException("Invalid first run token; cannot set password", OdinClientErrorCode.PasswordAlreadySet);
             }
 
             if (await IsMasterPasswordSet(cn))
             {
-                throw new OdinSecurityException("Password already set");
+                throw new OdinClientException("Password already set", OdinClientErrorCode.PasswordAlreadySet);
             }
 
             await SavePassword(reply, cn);
