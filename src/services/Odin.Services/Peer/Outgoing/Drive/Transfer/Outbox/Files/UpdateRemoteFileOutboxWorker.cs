@@ -192,7 +192,7 @@ public class UpdateRemoteFileOutboxWorker(
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
+            var response = await client.UpdatePeerFile(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
             return response;
         }
 

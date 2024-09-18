@@ -120,7 +120,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
             var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
-            var fileSystemWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+            var updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, WebOdinContext.Tenant);
 
             using var cn = tenantSystemStorage.CreateConnection();
-            await fileSystemWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
+            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
 
             //
             // Firstly, collect everything and store in the temp drive
@@ -144,25 +144,25 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 {
                     section = await reader.ReadNextSectionAsync();
                     AssertIsPart(section, MultipartUploadParts.Metadata);
-                    await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext, cn);
+                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, cn);
                 }
 
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var result = await fileSystemWriter.Finalize(WebOdinContext, cn);
+            var result = await updateWriter.Finalize(WebOdinContext, cn);
             return result;
         }
 
