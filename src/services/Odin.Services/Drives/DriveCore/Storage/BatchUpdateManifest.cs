@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Base;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
@@ -13,7 +14,7 @@ public class BatchUpdateManifest
     
     public KeyHeader KeyHeader { get; init; }
     
-    public FileMetadata Metadata { get; init; }
+    public FileMetadata FileMetadata { get; init; }
     
     public ServerMetadata ServerMetadata { get; init; }
 
@@ -26,6 +27,7 @@ public class BatchUpdateManifest
     /// Expectations of the actions to be taken on the <see cref="NewPayloadDescriptors"/> as well as keys that should be deleted
     /// </summary>
     public List<PayloadOperation> PayloadOperations { get; init; }
+    
 }
 
 /// <summary>

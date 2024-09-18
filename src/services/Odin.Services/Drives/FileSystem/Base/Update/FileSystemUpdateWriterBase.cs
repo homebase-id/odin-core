@@ -243,13 +243,13 @@ public abstract class FileSystemUpdateWriterBase
                 Key = p.PayloadKey,
                 OperationType = p.UpdateOperationType
             }).ToList(),
-            
+
             KeyHeader = keyHeader,
-            Metadata = metadata,
+            FileMetadata = metadata,
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatch(manifest, odinContext, cn);
+        await FileSystem.Storage.UpdateBatch(package.InternalFile, manifest, odinContext, cn);
     }
 
     /// <summary>

@@ -11,10 +11,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 {
     public class FileUpdatePackage
     {
-
         /// <summary />
         public FileUpdatePackage(InternalDriveFileId internalFile)
         {
+            InternalFile = internalFile;
             this.TempMetadataFile = new InternalDriveFileId()
             {
                 FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
@@ -25,7 +25,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
             this.Payloads = new List<PackagePayloadDescriptor>();
             this.NewVersionTag = DriveFileUtility.CreateVersionTag();
         }
-
+        
+        /// <summary>
+        /// The internal file on identity being updated
+        /// </summary>
+        public InternalDriveFileId InternalFile { get; init; }
+        
         /// <summary>
         /// A temp file name for use while storing the temporary metadata file being uploaded
         /// This is not the same as the final target file.
@@ -35,9 +40,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         public FileUpdateInstructionSet InstructionSet { get; init; }
 
         public FileSystemType FileSystemType { get; init; }
-
-        public InternalDriveFileId InternalFile { get; init; }
-
+        
         public Guid NewVersionTag { get; init; }
 
         /// <summary>

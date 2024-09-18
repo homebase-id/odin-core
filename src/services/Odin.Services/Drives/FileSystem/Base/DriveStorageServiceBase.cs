@@ -717,60 +717,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext, cn);
 
-            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
-            {
-                throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
-            }
-
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext, cn);
 
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
-
-            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
-            {
-                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
-                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
-            }
-
-            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
-
-            newMetadata.File = targetFile;
-            newMetadata.Created = existingServerHeader.FileMetadata.Created;
-            newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
-            newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
-            newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
-
-            newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
-
-            //only change the IV if the file was encrypted
-            if (existingServerHeader.FileMetadata.IsEncrypted)
-            {
-                // Critical Note: if this new key header's AES key does not match the
-                // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
-                var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var newKeyHeader = new KeyHeader()
-                {
-                    Iv = newKeyHeaderIv,
-                    AesKey = existingDecryptedKeyHeader.AesKey
-                };
-
-                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
-            }
-
-            existingServerHeader.FileMetadata = newMetadata;
-            existingServerHeader.ServerMetadata = newServerMetadata;
-
-            await WriteFileHeaderInternal(existingServerHeader, cn);
+            await OverwriteMetadataInternal(newKeyHeaderIv, existingServerHeader, newMetadata, newServerMetadata, odinContext, cn);
 
             //clean up temp storage
             var tsm = await GetTempStorageManager(targetFile.DriveId, cn);
@@ -1069,12 +1018,25 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task UpdateBatch(BatchUpdateManifest manifest, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task UpdateBatch(InternalDriveFileId targetFile, BatchUpdateManifest manifest, IOdinContext odinContext, DatabaseConnection cn)
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
+
+            //
+            // Validations
+            //
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext, cn);
+            if (null == existingHeader)
+            {
+                throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
+            }
+
+            DriveFileUtility.AssertVersionTagMatch(manifest.FileMetadata.VersionTag, existingHeader.FileMetadata.VersionTag);
             
-            // validations
-            //  existing version tag from metadata must exist on disk
+            var existingServerHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext, cn);
+            
+            await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingServerHeader, manifest.FileMetadata, manifest.ServerMetadata, odinContext, cn);
+            await cn.CreateCommitUnitOfWorkAsync(async () => { });
 
             // for each payload
             //      perform add or update or delete
@@ -1209,5 +1171,63 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
+        private async Task OverwriteMetadataInternal(byte[] newKeyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
+            ServerMetadata newServerMetadata,
+            IOdinContext odinContext, DatabaseConnection cn)
+        {
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
+            {
+                throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
+            }
+
+            if (null == existingServerHeader)
+            {
+                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
+            }
+
+            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            if (existingServerHeader.FileMetadata.IsEncrypted != newMetadata.IsEncrypted)
+            {
+                throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
+                                              $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
+            }
+
+            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
+
+            var targetFile = existingServerHeader.FileMetadata.File;
+            newMetadata.File = targetFile;
+            newMetadata.Created = existingServerHeader.FileMetadata.Created;
+            newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
+            newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
+
+            newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+
+            //only change the IV if the file was encrypted
+            if (existingServerHeader.FileMetadata.IsEncrypted)
+            {
+                // Critical Note: if this new key header's AES key does not match the
+                // payload's encryption; the data is lost forever.  (for-ev-er, capish?)
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(targetFile.DriveId);
+                var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var newKeyHeader = new KeyHeader()
+                {
+                    Iv = newKeyHeaderIv,
+                    AesKey = existingDecryptedKeyHeader.AesKey
+                };
+
+                existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
+            }
+
+            existingServerHeader.FileMetadata = newMetadata;
+            existingServerHeader.ServerMetadata = newServerMetadata;
+
+            await WriteFileHeaderInternal(existingServerHeader, cn);
+        }
     }
 }
