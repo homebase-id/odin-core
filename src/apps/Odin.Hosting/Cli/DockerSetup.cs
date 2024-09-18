@@ -2,17 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Mail;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using HttpClientFactoryLite;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Odin.Core.Configuration;
 using Odin.Core.Dns;
 using Odin.Core.Util;
 using Spectre.Console;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Hosting.Cli;
 
@@ -55,6 +56,7 @@ public static class DockerSetup
         //
         // My IP external address
         //
+        
         var myIp = settings.GetOrDefault("my-ip-address", null) ?? LookupMyIp();
         if (myIp == null)
         {
@@ -65,69 +67,50 @@ public static class DockerSetup
         //
         // Provisioning domain
         //
+        
         AnsiConsole.Markup(
             """
 
             [underline]Provisioning domain[/]
-            Lorem ipsum explaining stuff...
-
+            SEB:TODO Lorem ipsum explaining stuff...
+            
             """);
+
         var provisioningDomain = settings.GetOrDefault("provisioning-domain", null);
-        provisioningDomain = AnsiConsole.Prompt(new TextPrompt<string>("Provisioning domain:")
+        while (true)
+        {
+            var domain = AnsiConsole.Prompt(new TextPrompt<string>("Provisioning domain:")
                 .OptionalDefaultValue(provisioningDomain)
-                .WithConverter(x => x.Trim().ToLower())
-                .Validate(x =>
-                {
-                    var (success, error) = ValidateProvisioningDomain(x, myIp, httpPort, httpsPort).Result;
-                    return success ? ValidationResult.Success() : ValidationResult.Error($"[bold red]{error}[/]");
-                        //AnsiConsole.Markup($"[bold red]ERROR: [/]");
+                .WithConverter(domain => domain.Trim().ToLower()));
 
-                }));
+            var success = false;
+            var errorMessage = "unknown error";
+            AnsiConsole.Status().Start($"Checking domain {domain} ...", ctx =>
+            {
+                (success, errorMessage) = ValidateProvisioningDomain(domain, myIp, httpPort, httpsPort).Result;
+            });
 
+            if (success)
+            {
+                provisioningDomain = domain;
+                break;
+            }
+
+            AnsiConsole.MarkupLine($"[bold red]{errorMessage}[/]");
+        }        
         hostConfig.UpdateExisting("Registry__ProvisioningDomain", provisioningDomain);
-
-        // AnsiConsole.Status()
-        //     .Start("Checking provisioning domain", ctx =>
-        //     {
-        //         // AnsiConsole.MarkupLine("Doing some work...");
-        //         Thread.Sleep(5000);
-        //     });
-
-        // var (success, error) = ValidateProvisioningDomain(provisioningDomain, myIp, httpPort, httpsPort).Result;
-        // if (!success)
-        // {
-        //     AnsiConsole.Markup($"[bold red]ERROR: {error}[/]");
-        // }
 
         //
         // Provisioning apex A record
+        // NOTE: advanced setups should prompt and validate this if different from `myIp`
         //
-        AnsiConsole.Markup(
-            """
-
-            [underline]Provisioning apex A record[/]
-            Lorem ipsum explaining stuff...
-
-            """);
-        var provisioningApexIpAddress = settings.GetOrDefault("provisioning-apex-ip-address", null) ?? myIp;
-        provisioningApexIpAddress = AnsiConsole.Prompt(
-            new TextPrompt<string>("Provisioning apex IP address:").OptionalDefaultValue(provisioningApexIpAddress));
-        hostConfig.UpdateExisting("Registry__DnsRecordValues__ApexARecords__0", provisioningApexIpAddress);
+        hostConfig.UpdateExisting("Registry__DnsRecordValues__ApexARecords__0", myIp);
 
         //
         // Provisioning apex alias record
+        // NOTE: advanced setups should prompt and validate this if different from `provisioningDomain`
         //
-        AnsiConsole.Markup(
-            """
-
-            [underline]Provisioning apex alias record[/]
-            Lorem ipsum explaining stuff...
-
-            """);
-        var provisioningApexAlias = settings.GetOrDefault("provisioning-apex-alias", null) ?? provisioningDomain;
-        provisioningApexAlias = AnsiConsole.Prompt(
-            new TextPrompt<string>("Provisioning apex alias:").OptionalDefaultValue(provisioningApexAlias));
-        hostConfig.UpdateExisting("Registry__DnsRecordValues__ApexAliasRecord", provisioningApexAlias);
+        hostConfig.UpdateExisting("Registry__DnsRecordValues__ApexAliasRecord", provisioningDomain);
 
         //
         // Provisioning password
@@ -136,12 +119,12 @@ public static class DockerSetup
             """
 
             [underline]Provisioning password[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
         var provisioningPassword = settings.GetOrDefault("provisioning-password", null);
         provisioningPassword = AnsiConsole.Prompt(
-            new TextPrompt<string>("Provisioning password:").OptionalDefaultValue(provisioningPassword).AllowEmpty());
+            new TextPrompt<string>("Optional provisioning password:").OptionalDefaultValue(provisioningPassword).AllowEmpty());
         hostConfig.UpdateExisting("Registry__InvitationCodes__0", provisioningPassword);
 
         //
@@ -151,13 +134,17 @@ public static class DockerSetup
             """
 
             [underline]Letsencrypt certificate email[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
         var certificateEmail = settings.GetOrDefault("certificate-email", null);
         certificateEmail = AnsiConsole.Prompt(
             new TextPrompt<string>("Certificate authority associated email:")
-                .OptionalDefaultValue(certificateEmail));
+                .OptionalDefaultValue(certificateEmail)
+                .WithConverter(email => email.Trim().ToLower())
+                .Validate(email => !email.EndsWith("@example.com") && MailAddress.TryCreate(email, out _)
+                    ? ValidationResult.Success()
+                    : ValidationResult.Error("[red]Invalid email address[/]")));
         hostConfig.UpdateExisting("CertificateRenewal__CertificateAuthorityAssociatedEmail", certificateEmail);
 
         //
@@ -167,12 +154,12 @@ public static class DockerSetup
             """
 
             [underline]Docker image name[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
-        var defaultImageName = settings.GetOrDefault("default-image-name", "ghcr.io/homebase-id/odin-core:latest");
-        var prompt = new TextPrompt<string?>("Homebase Docker image name").DefaultValue(defaultImageName);
-        var imageName = AnsiConsole.Prompt(prompt);
+        var dockerImageName = settings.GetOrDefault("docker-image-name", "ghcr.io/homebase-id/odin-core:latest");
+        var prompt = new TextPrompt<string?>("Homebase Docker image name").DefaultValue(dockerImageName);
+        dockerImageName = AnsiConsole.Prompt(prompt);
 
         //
         // Input container name
@@ -181,11 +168,12 @@ public static class DockerSetup
             """
 
             [underline]Docker container name[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
-        prompt = new TextPrompt<string?>("Docker container name").DefaultValue("identity-host");
-        var containerName = AnsiConsole.Prompt(prompt);
+        var dockerContainerName = settings.GetOrDefault("docker-container-name", "identity-host");
+        prompt = new TextPrompt<string?>("Docker container name").DefaultValue(dockerContainerName);
+        dockerContainerName = AnsiConsole.Prompt(prompt);
 
         //
         // Input root directory volume mount
@@ -194,12 +182,12 @@ public static class DockerSetup
             """
 
             [underline]Docker volume mount[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
-        var defaultRootDir = settings.GetOrDefault("default-root-dir", null);
-        var rootDir =AnsiConsole.Prompt(
-            new TextPrompt<string?>("Docker volume mount root directory").OptionalDefaultValue(defaultRootDir));
+        var dockerRootDataMount = settings.GetOrDefault("docker-root-data-mount", null);
+        dockerRootDataMount = AnsiConsole.Prompt(
+            new TextPrompt<string?>("Docker volume mount root directory:").OptionalDefaultValue(dockerRootDataMount));
 
         //
         // Run container detached?
@@ -208,14 +196,15 @@ public static class DockerSetup
             """
 
             [underline]Docker run detached[/]
-            Lorem ipsum explaining stuff...
+            SEB:TODO Lorem ipsum explaining stuff...
 
             """);
-        var runDetached = AnsiConsole.Prompt(
+        var dockerRunDetached = settings.GetOrDefault("docker-run-detached", null) == "y";
+        dockerRunDetached = AnsiConsole.Prompt(
             new TextPrompt<bool>("Run container detached?")
                 .AddChoice(true)
                 .AddChoice(false)
-                .DefaultValue(false)
+                .DefaultValue(dockerRunDetached)
                 .WithConverter(choice => choice ? "y" : "n"));
 
         //
@@ -224,8 +213,8 @@ public static class DockerSetup
         var cmd = new List<string>();
         
         cmd.Add($"docker run");
-        cmd.Add($"--name {containerName}");
-        if (!runDetached)
+        cmd.Add($"--name {dockerContainerName}");
+        if (!dockerRunDetached)
         {
             cmd.Add($"--rm");
         }
@@ -246,11 +235,10 @@ public static class DockerSetup
            
         cmd.Add($"--publish {httpPort}:{httpPort}");
         cmd.Add($"--publish {httpsPort}:{httpsPort}");
-        cmd.Add($"--publish {adminPort}:{adminPort}");
         
-        cmd.Add($"--volume {rootDir}:/homebase");
+        cmd.Add($"--volume {dockerRootDataMount}:/homebase");
         cmd.Add($"--pull always");
-        cmd.Add($"{imageName}");
+        cmd.Add($"{dockerImageName}");
         
         var cmdline = string.Join(" \\\n  ", cmd);
 
@@ -275,10 +263,15 @@ public static class DockerSetup
             """
             Arguments:
               help                                Show this help
-              config-file=<path>                  Path to the appsettings.<env>.json file
-              default-root-dir=<path>             Default root directory for Docker volume mounts
+              config-file=<path>                  Name of appsettings file
               my-ip-address=<ip>                  My IP address
               provisioning-domain=<domain>        My provisioning domain
+              provisioning-password=<password>    My provisioning password
+              certificate-email=<email>           Certificate authority associated email
+              docker-image-name=<name>            Docker image name
+              docker-container-name=<name>        Docker container name
+              docker-root-data-mount=<path>       Root directory for Docker volume mounts
+              docker-run-detached=y|n             Run Docker container detached
             """);
 
         return 1;
@@ -351,7 +344,7 @@ public static class DockerSetup
             return (false, "Invalid domain");
         }
 
-        var addresses = Dns.GetHostAddresses(domain)
+        var addresses = (await Dns.GetHostAddressesAsync(domain))
             .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
             .Select(x => x.ToString())
             .ToList();
@@ -369,60 +362,77 @@ public static class DockerSetup
         {
             return (false, $"Domain ip ({domainIp}) must match your external ip ({myIp})");
         }
+        
+        using var cts = new CancellationTokenSource();
 
-        var httpListen = TcpListen(httpPort, TimeSpan.FromSeconds(5));
-        var httpsListen = TcpListen(httpsPort, TimeSpan.FromSeconds(5));
+        var httpListen = TcpListen(httpPort, cts.Token);
+        var httpsListen = TcpListen(httpsPort, cts.Token);
+        
+        Thread.Sleep(100);
+        
+        var httpProbeTask = ProbeTcp(domain, httpPort);
+        var httpsProbeTask = ProbeTcp(domain, httpsPort);
 
-        var client = HttpClientFactory.CreateClient("setup.homebase.id");
-        client.Timeout = TimeSpan.FromSeconds(5);
+        var (httpSuccess, httpError) = await httpProbeTask;
+        var (httpsSuccess, httpsError) = await httpsProbeTask;
+        
+        await cts.CancelAsync();
 
-        //HER!
-
-        try
+        const string thingsToCheck =
+            """
+            Things to check:
+            - Router NAT rules are set up correctly;
+            - Firewall rules are set up correctly; 
+            - Docker port mappings are set up correctly;
+            """;
+        
+        if (!httpSuccess && !httpsSuccess)
         {
-            var response = await client.GetAsync($"https://setup.homebase.id/api/v1/probe-tcp/{domain}/{httpPort}");
-            var content = await response.Content.ReadAsStringAsync();
+            return (false,
+                $"""
+                 Could not connect to {domain} on HTTP port {httpPort} and HTTPS port {httpsPort}.
+                 HTTP error: {httpError}
+                 HTTPS error: {httpsError}
+                 {thingsToCheck}
+                 """
+                );
         }
-        catch (Exception e)
+
+        if (!httpSuccess)
         {
-            Console.WriteLine(e);
-            throw;
+            return (false,
+                    $"""
+                     Could not connect to {domain} on HTTP port {httpPort}.
+                     HTTP error: {httpError}
+                     {thingsToCheck}
+                     """
+                );
         }
-
-        // var httpsClient = HttpClientFactory.CreateClient("setup.homebase.id");
-        // httpsClient.Timeout = TimeSpan.FromSeconds(5);
-
-
-
-
-        // if (result)
-        // {
-        //     Console.WriteLine("Connection established");
-        //     return (true, 0);
-        // }
-
-        // Start tcp listener
-        // Test that we can connect
+        
+        if (!httpsSuccess)
+        {
+            return (false,
+                    $"""
+                     Could not connect to {domain} on HTTPS port {httpsPort}.
+                     HTTPS error: {httpsError}
+                     {thingsToCheck}
+                     """
+                );
+        }
 
         return (true, null);
     }
 
     //
 
-    private static async Task<(bool connected, string? error)> TcpListen(int port, TimeSpan timeout)
+    private static async Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
     {
-        using var cts = new CancellationTokenSource(timeout);
         using var listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
         try
         {
-            var task = await listener.AcceptTcpClientAsync(cts.Token);
-            if (cts.Token.IsCancellationRequested)
-            {
-                return (false, "Timeout");
-            }
-
-            return (true, null);
+            await listener.AcceptTcpClientAsync(cancellationToken);
+            return cancellationToken.IsCancellationRequested ? (false, "Timeout") : (true, null);
         }
         catch (Exception e)
         {
@@ -430,6 +440,24 @@ public static class DockerSetup
         }
     }
 
+    //
+    
+    private static async Task<(bool connected, string? error)> ProbeTcp(string domain, int port)
+    {
+        var client = HttpClientFactory.CreateClient("setup.homebase.id");
+        client.Timeout = TimeSpan.FromSeconds(5);
+        try
+        {
+            var response = client.GetAsync($"https://setup.homebase.id/api/v1/probe-tcp/{domain}/{port}").Result;
+            var content = await response.Content.ReadAsStringAsync();
+            return response.StatusCode == HttpStatusCode.OK ? (true, null) : (false, content);
+        }
+        catch (Exception e)
+        {
+            return (false, e.Message);
+        }
+    }
+    
     //
 
     private static (string? nameServer, string? error) LookupAuthoritativeNameServer(string domain)
