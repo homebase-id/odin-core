@@ -162,7 +162,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var result = await updateWriter.Finalize(WebOdinContext, cn);
+            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, cn);
             return result;
         }
 

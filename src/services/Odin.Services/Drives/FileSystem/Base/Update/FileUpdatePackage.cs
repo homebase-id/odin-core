@@ -11,21 +11,19 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 {
     public class FileUpdatePackage
     {
-        public FileSystemType FileSystemType { get; }
 
         /// <summary />
-        public FileUpdatePackage(InternalDriveFileId internalFile, FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType)
+        public FileUpdatePackage(InternalDriveFileId internalFile)
         {
             this.TempMetadataFile = new InternalDriveFileId()
             {
                 FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
                 DriveId = internalFile.DriveId
             };
-            
+
             this.Thumbnails = new List<PackageThumbnailDescriptor>();
             this.Payloads = new List<PackagePayloadDescriptor>();
-            FileSystemType = fileSystemType;
-            this.TargetVersionTag = SequentialGuid.CreateGuid();
+            this.NewVersionTag = DriveFileUtility.CreateVersionTag();
         }
 
         /// <summary>
@@ -36,10 +34,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 
         public FileUpdateInstructionSet InstructionSet { get; init; }
 
+        public FileSystemType FileSystemType { get; init; }
+
         public InternalDriveFileId InternalFile { get; init; }
-        
-        public Guid TargetVersionTag { get; init; }
-        
+
+        public Guid NewVersionTag { get; init; }
+
         /// <summary>
         /// List of payloads uploaded
         /// </summary>

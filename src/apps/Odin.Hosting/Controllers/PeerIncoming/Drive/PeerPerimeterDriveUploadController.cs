@@ -200,14 +200,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var result = await updateWriter.Finalize(WebOdinContext, cn);
+            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, cn);
             return result;
         }
 
         [HttpPost("update")]
         public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
         {
-            throw new NotImplementedException("TODO");
+            
             await AssertIsValidCaller();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))

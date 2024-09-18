@@ -104,7 +104,7 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, cn);
     }
 
-    public virtual async Task AddPayload(string key, string overrideContentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, DatabaseConnection cn)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -123,17 +123,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (bytesWritten > 0)
         {
-            Package.Payloads.Add(new PackagePayloadDescriptor()
-            {
-                Iv = descriptor.Iv,
-                Uid = descriptor.PayloadUid,
-                PayloadKey = key,
-                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? overrideContentType : descriptor.ContentType,
-                LastModified = UnixTimeUtc.Now(),
-                BytesWritten = bytesWritten,
-                DescriptorContent = descriptor.DescriptorContent,
-                PreviewThumbnail = descriptor.PreviewThumbnail
-            });
+            Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
     }
 

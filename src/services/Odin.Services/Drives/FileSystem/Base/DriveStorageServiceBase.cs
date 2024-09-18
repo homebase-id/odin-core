@@ -26,7 +26,6 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
 
-
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
@@ -237,7 +236,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             var tsm = await GetTempStorageManager(file.DriveId, cn);
             await tsm.EnsureDeleted(file.FileId);
         }
-
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, DatabaseConnection cn, bool directMatchOnly = false)
@@ -768,7 +766,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 existingServerHeader.EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, newKeyHeader, odinContext, cn);
             }
-            
+
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
 
@@ -1071,6 +1069,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task UpdateBatch(BatchUpdateManifest manifest, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
+            
+            // validations
+            //  existing version tag from metadata must exist on disk
+
+            // for each payload
+            //      perform add or update or delete
+
+            // update the metadata header with payload info
+            // write the metadata header to disk
+        }
+
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
@@ -1091,7 +1103,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             if (!keepSameVersionTag)
             {
-                header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+                header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
             }
 
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
@@ -1197,9 +1209,5 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        public async Task UpdateBatch(BatchUpdateManifest manifest)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

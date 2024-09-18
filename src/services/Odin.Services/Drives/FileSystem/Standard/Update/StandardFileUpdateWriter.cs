@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -44,65 +45,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessExistingFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-    {
-        //
-        // Note: need to have just one version tag when all done
-        //
-
-        // Here we will examine the manifest; by adding / deleting payloads according
-        // then overwrite the metadata
-        var manifest = new BatchUpdateManifest()
-        {
-            NewVersionTag = SequentialGuid.CreateGuid(),
-            PayloadDescriptors = package.GetFinalPayloadDescriptors()
-        };
-
-        var file = package.InternalFile;
-        foreach (var descriptor in package.InstructionSet.Manifest.PayloadDescriptors ?? [])
-        {
-            var key = descriptor.PayloadKey;
-            if (descriptor.FileUpdateOperationType == FileUpdateOperationType.AddPayload)
-            {
-            }
-
-            if (descriptor.FileUpdateOperationType == FileUpdateOperationType.DeletePayload)
-            {
-                var newVersionTag = await FileSystem.Storage.DeletePayload(file, descriptor.PayloadKey, metadata.VersionTag.GetValueOrDefault(),
-                    odinContext, cn);
-            }
-        }
-
-        await FileSystem.Storage.UpdateBatch(manifest);
-
-
-        // then save the metadata
-        //
-        // await FileSystem.Storage.OverwriteMetadata(
-        //     keyHeader.Iv,
-        //     targetFile: package.InternalFile,
-        //     newMetadata: metadata,
-        //     newServerMetadata: serverMetadata,
-        //     odinContext: odinContext, cn);
-        //
-        //
-        // await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-        //     targetFile: package.InternalFile,
-        //     keyHeader: keyHeader,
-        //     newMetadata: metadata,
-        //     serverMetadata: serverMetadata,
-        //     ignorePayload: false,
-        //     odinContext: odinContext,
-        //     cn);
-    }
-
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package, IOdinContext odinContext,
-        DatabaseConnection cn)
-    {
-        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
-    }
-
+   
     protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()

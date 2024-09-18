@@ -82,7 +82,7 @@ public class UploadManifestPayloadDescriptor
     /// <summary>
     /// Indicates how to treat this payload during an update.
     /// </summary>
-    public FileUpdateOperationType FileUpdateOperationType { get; init; }
+    public PayloadUpdateOperationType PayloadUpdateOperationType { get; init; }
 
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
@@ -101,7 +101,7 @@ public class UploadManifestPayloadDescriptor
 
     public void AssertIsValid()
     {
-        if (this.FileUpdateOperationType == FileUpdateOperationType.AddPayload)
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AddPayload)
         {
             OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
             OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
@@ -114,10 +114,29 @@ public class UploadManifestPayloadDescriptor
             }
         }
 
-        if (this.FileUpdateOperationType == FileUpdateOperationType.DeletePayload)
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.DeletePayload)
         {
             DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
         }
+    }
+
+    public PackagePayloadDescriptor PackagePayloadDescriptor(uint bytesWritten, string fallbackContentType)
+    {
+        //TODO: remove the fallback in apiv2
+        var p = new PackagePayloadDescriptor()
+        {
+            Iv = this.Iv,
+            PayloadKey = this.PayloadKey,
+            Uid = this.PayloadUid,
+            ContentType = string.IsNullOrEmpty(this.ContentType?.Trim()) ? fallbackContentType : this.ContentType,
+            LastModified = UnixTimeUtc.Now(),
+            BytesWritten = bytesWritten,
+            DescriptorContent = this.DescriptorContent,
+            PreviewThumbnail = this.PreviewThumbnail,
+            UpdateOperationType = PayloadUpdateOperationType
+        };
+
+        return p;
     }
 }
 
@@ -130,10 +149,4 @@ public class UploadedManifestThumbnailDescriptor
     public int PixelHeight { get; set; }
 
     public string ContentType { get; set; }
-}
-
-public enum FileUpdateOperationType
-{
-    AddPayload = 2,
-    DeletePayload = 3
 }

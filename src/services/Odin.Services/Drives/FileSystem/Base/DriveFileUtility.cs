@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using NodaTime;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -262,5 +263,10 @@ public static class DriveFileUtility
     {
         var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+    }
+
+    public static Guid CreateVersionTag()
+    {
+        return SequentialGuid.CreateGuid();
     }
 }
