@@ -138,14 +138,14 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxContentLength)
             {
-                logger.LogWarning("Content length {ContentLength} exceeds maximum allowed size {MaxSize}", contentLength.Value, maxContentLength);
+                logger.LogWarning("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", contentLength.Value, maxContentLength,url);
                 return null;
             }
             // Read the content with a limited buffer
             var content = await response.Content.ReadAsStringAsync();
             if (content.Length > maxContentLength)
             {
-                logger.LogWarning("Content length {ContentLength} exceeds maximum allowed size {MaxSize}", content.Length, maxContentLength);
+                logger.LogWarning("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", content.Length, maxContentLength,url);
                 return null;
             }
             // Decode the HTML content
