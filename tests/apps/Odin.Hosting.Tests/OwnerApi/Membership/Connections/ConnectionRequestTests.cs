@@ -165,6 +165,7 @@ public class ConnectionRequestTests
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
 
+        
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
 
@@ -488,6 +489,9 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
+        await merryClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await pippinClient.Configuration.EnableAutoAcceptIntroductions(false);
+        
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
 
