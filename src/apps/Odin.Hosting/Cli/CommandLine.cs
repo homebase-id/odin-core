@@ -5,7 +5,7 @@ using Odin.Core.Configuration;
 
 namespace Odin.Hosting.Cli;
 
-public static class Cmd
+public static class CommandLine
 {
     public static (bool didHandle, int exitCode) HandleCommandLineArgs(string[] args)
     {
@@ -15,7 +15,7 @@ public static class Cmd
         // Example:
         //   dotnet run -- --docker-setup foo=bar
         //
-        // "commandLineArgs": "--docker-setup config-file-override=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
+        // "commandLineArgs": "--docker-setup config-file=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
         //
         if (args.Length > 0 && args[0] == "--docker-setup")
         {

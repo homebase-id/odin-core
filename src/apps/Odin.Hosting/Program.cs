@@ -34,7 +34,7 @@ namespace Odin.Hosting
     {
         public static int Main(string[] args)
         {
-            var (didHandle, exitCode) = Cmd.HandleCommandLineArgs(args);
+            var (didHandle, exitCode) = CommandLine.HandleCommandLineArgs(args);
             if (didHandle)
             {
                 return exitCode;

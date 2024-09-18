@@ -31,6 +31,12 @@ public static class DockerSetup
             
             """);
 
+        // Help?
+        if (args.Any(arg => arg.ToLower() is "help" or "--help"))
+        {
+            return ShowHelp();
+        }
+
         // We can only run on port 80 and 443 for the time being
         const int httpPort = 80;
         const int httpsPort = 443;
@@ -42,8 +48,8 @@ public static class DockerSetup
             Console.WriteLine(setting.Key + " = " + setting.Value);
         }
         
-        var configFileOverride = settings.GetOrDefault("config-file-override", null);
-        var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(false, configFileOverride);
+        var configFile = settings.GetOrDefault("config-file", "appsettings.table-top-defaults.json");
+        var (_, appSettingsConfig) = AppSettings.LoadConfig(false, configFile);
         var hostConfig = appSettingsConfig.ExportAsEnvironmentDictionary();
 
         //
@@ -67,16 +73,31 @@ public static class DockerSetup
 
             """);
         var provisioningDomain = settings.GetOrDefault("provisioning-domain", null);
-        provisioningDomain = AnsiConsole.Prompt(
-            new TextPrompt<string>("Provisioning domain:").OptionalDefaultValue(provisioningDomain));
-        provisioningDomain = provisioningDomain.ToLower();
+        provisioningDomain = AnsiConsole.Prompt(new TextPrompt<string>("Provisioning domain:")
+                .OptionalDefaultValue(provisioningDomain)
+                .WithConverter(x => x.Trim().ToLower())
+                .Validate(x =>
+                {
+                    var (success, error) = ValidateProvisioningDomain(x, myIp, httpPort, httpsPort).Result;
+                    return success ? ValidationResult.Success() : ValidationResult.Error($"[bold red]{error}[/]");
+                        //AnsiConsole.Markup($"[bold red]ERROR: [/]");
+
+                }));
+
         hostConfig.UpdateExisting("Registry__ProvisioningDomain", provisioningDomain);
 
-        var (success, error) = ValidateProvisioningDomain(provisioningDomain, myIp, httpPort, httpsPort).Result;
-        if (!success)
-        {
-            AnsiConsole.Markup($"[bold red]ERROR: {error}[/]");
-        }
+        // AnsiConsole.Status()
+        //     .Start("Checking provisioning domain", ctx =>
+        //     {
+        //         // AnsiConsole.MarkupLine("Doing some work...");
+        //         Thread.Sleep(5000);
+        //     });
+
+        // var (success, error) = ValidateProvisioningDomain(provisioningDomain, myIp, httpPort, httpsPort).Result;
+        // if (!success)
+        // {
+        //     AnsiConsole.Markup($"[bold red]ERROR: {error}[/]");
+        // }
 
         //
         // Provisioning apex A record
@@ -253,10 +274,11 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
             Arguments:
-              config-file-override=<path>  Path to the appsettings.<env>.json file
-              default-root-dir=<path>      Default root directory for Docker volume mounts
-              my-ip-address=<ip>           My IP address
-              provisioning-domain=<domain> My provisioning domain
+              help                                Show this help
+              config-file=<path>                  Path to the appsettings.<env>.json file
+              default-root-dir=<path>             Default root directory for Docker volume mounts
+              my-ip-address=<ip>                  My IP address
+              provisioning-domain=<domain>        My provisioning domain
             """);
 
         return 1;
@@ -354,7 +376,7 @@ public static class DockerSetup
         var client = HttpClientFactory.CreateClient("setup.homebase.id");
         client.Timeout = TimeSpan.FromSeconds(5);
 
-        HER!
+        //HER!
 
         try
         {
