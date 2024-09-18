@@ -211,7 +211,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var imageBase64 = Convert.ToBase64String(image);
             if (string.IsNullOrWhiteSpace(imageBase64))
             {
-                logger.LogDebug("Failed to convert image to base64 from {Url}. Original URL {OriginalUrl}", imageUrl, originalUrl);
+                logger.LogDebug("No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
                 return null;
             }
             var imageUri = $"data:{mimeType};base64,{imageBase64}";
