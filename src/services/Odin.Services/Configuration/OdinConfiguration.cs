@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
-using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Email;
@@ -118,8 +117,6 @@ namespace Odin.Services.Configuration
             public string PowerDnsApiKey { get; init; }
 
             public string ProvisioningDomain { get; init; }
-            public string ProvisioningEmailLogoImage { get; init; }
-            public string ProvisioningEmailLogoHref { get; init; }
             public bool ProvisioningEnabled { get; init; }
             
             public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
@@ -138,8 +135,6 @@ namespace Odin.Services.Configuration
                 PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
                 PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
-                ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
-                ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
@@ -185,14 +180,11 @@ namespace Odin.Services.Configuration
 
             public HostSection(IConfiguration config)
             {
-                var isDev = Env.IsDevelopment();
-                var home = Environment.GetEnvironmentVariable("HOME") ?? "";
-
-                var p = config.Required<string>("Host:TenantDataRootPath");
-                TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
-
-                var sd = config.Required<string>("Host:SystemDataRootPath");
-                SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
+                TenantDataRootPath =
+                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:TenantDataRootPath"));
+                
+                SystemDataRootPath =                 
+                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 
@@ -202,7 +194,7 @@ namespace Odin.Services.Configuration
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
 
-                HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
+                HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
                 ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 5);
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
@@ -305,7 +297,7 @@ namespace Odin.Services.Configuration
 
             public LoggingSection(IConfiguration config)
             {
-                LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
+                LogFilePath = Env.ExpandEnvironmentVariablesCrossPlatform(config.GetOrDefault("Logging:LogFilePath", ""));
                 EnableStatistics = config.GetOrDefault("Logging:EnableStatistics", false);
             }
         }
