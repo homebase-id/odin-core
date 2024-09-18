@@ -48,6 +48,14 @@ public static class DockerSetup
             Console.WriteLine(setting.Key + " = " + setting.Value);
         }
         
+        var dockerRunScript = settings.GetOrDefault("output-docker-run-script", null);
+        if (dockerRunScript == null)
+        {
+            AnsiConsole.MarkupLine("[bold red]Missing required argument output-docker-run-script[/]");
+            AnsiConsole.MarkupLine("[red]Example: output-docker-run-script=/tmp/docker-run-script.sh[/]");
+            return 1;
+        }
+        
         var configFile = settings.GetOrDefault("config-file", "appsettings.table-top-defaults.json");
         var (_, appSettingsConfig) = AppSettings.LoadConfig(false, configFile);
         var hostConfig = appSettingsConfig.ExportAsEnvironmentDictionary();
@@ -240,7 +248,13 @@ public static class DockerSetup
         cmd.Add($"{dockerImageName}");
         
         var cmdline = string.Join(" \\\n  ", cmd);
-
+        
+        using var dockerRunScriptFile = new System.IO.StreamWriter(dockerRunScript);
+        dockerRunScriptFile.WriteLine("#!/bin/bash");
+        dockerRunScriptFile.WriteLine("set -eou pipefail");
+        dockerRunScriptFile.WriteLine();
+        dockerRunScriptFile.WriteLine(cmdline);
+        
         AnsiConsole.Markup(
             """
 
@@ -262,6 +276,7 @@ public static class DockerSetup
             """
             Arguments:
               help                                Show this help
+              output-docker-run-script=<path>     Name of output Docker run script
               config-file=<path>                  Name of appsettings file
               my-ip-address=<ip>                  My IP address
               provisioning-domain=<domain>        My provisioning domain
