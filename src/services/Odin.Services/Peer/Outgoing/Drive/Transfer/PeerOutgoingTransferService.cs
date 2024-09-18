@@ -97,7 +97,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
-
             var request = new UpdateRemoteFileRequest()
             {
                 File = file,

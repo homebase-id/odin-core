@@ -327,17 +327,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return Guid.Empty;
             }
 
-            var lts = await GetLongTermStorageManager(file.DriveId, cn);
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
-            // Delete the thumbnail files for this payload
-            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
-            {
-                await lts.DeleteThumbnailFile(file.FileId, key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
-            }
-
-            // Delete the payload file
-            await lts.DeletePayloadFile(file.FileId, descriptor);
+            await DeletePayloadFromDiskInternal(file, descriptor, cn);
 
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header, odinContext, cn);
@@ -1032,17 +1024,86 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             DriveFileUtility.AssertVersionTagMatch(manifest.FileMetadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-            
-            var existingServerHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext, cn);
-            
-            await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingServerHeader, manifest.FileMetadata, manifest.ServerMetadata, odinContext, cn);
-            await cn.CreateCommitUnitOfWorkAsync(async () => { });
 
-            // for each payload
-            //      perform add or update or delete
+            //
+            // For the payloads, we have two sources and one set of operations
+            // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
+            // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
+            // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
 
-            // update the metadata header with payload info
-            // write the metadata header to disk
+            // now- each PayloadInstruction needs to be applied
+            // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
+            // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
+
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
+            {
+                var storageManager = await GetLongTermStorageManager(targetFile.DriveId, cn);
+                var tempStorageManager = await GetTempStorageManager(targetFile.DriveId, cn);
+
+                //Note: i've separated these for readability
+
+                var tempFile = targetFile;
+                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                {
+                    // Here look at the incoming payloads because we're adding a new one or overwriting
+                    var newDescriptor = manifest.FileMetadata.Payloads
+                        .SingleOrDefault(pk => string.Equals(pk.Key, op.Key, StringComparison.InvariantCultureIgnoreCase));
+
+                    if (newDescriptor == null)
+                    {
+                        var msg = $"Could not find payload with key {op.Key} in FileMetadata to perform operation {op.OperationType}";
+                        throw new OdinClientException(msg, OdinClientErrorCode.InvalidPayload);
+                    }
+
+                    // Move the payload from the temp folder to the long term folder
+                    var payloadExtension = DriveFileUtility.GetPayloadFileExtension(newDescriptor.Key, newDescriptor.Uid);
+                    var sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
+                    await storageManager.MovePayloadToLongTerm(targetFile.FileId, newDescriptor, sourceFile);
+
+                    // Process thumbnails
+                    var thumbs = newDescriptor.Thumbnails;
+                    // clean up any old thumbnails (if we're overwriting one)
+                    await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
+                    foreach (var thumb in thumbs)
+                    {
+                        var extension = DriveFileUtility.GetThumbnailFileExtension(newDescriptor.Key, newDescriptor.Uid, thumb.PixelWidth,
+                            thumb.PixelHeight);
+                        var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
+                        await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, newDescriptor, thumb);
+                    }
+
+                    //
+                    // Upsert the descriptor in the existing header
+                    //
+                    var idx = existingHeader.FileMetadata.Payloads
+                        .FindIndex(p => string.Equals(p.Key, op.Key, StringComparison.InvariantCultureIgnoreCase));
+
+                    if (idx == -1)
+                    {
+                        // item was new
+                        existingHeader.FileMetadata.Payloads.Add(newDescriptor);
+                    }
+                    else
+                    {
+                        existingHeader.FileMetadata.Payloads[idx] = newDescriptor;
+                    }
+                }
+
+                // Delete operations are for existing payloads so we need to update the existing header
+                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                {
+                    var descriptor = existingHeader.FileMetadata.GetPayloadDescriptor(op.Key);
+                    if (descriptor != null)
+                    {
+                        await this.DeletePayloadFromDiskInternal(targetFile, descriptor, cn);
+                        existingHeader.FileMetadata.Payloads.RemoveAll(pk => string.Equals(pk.Key, op.Key, StringComparison.InvariantCultureIgnoreCase));
+                    }
+                }
+
+                // update the metadata header with payload info
+                await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
+                    manifest.ServerMetadata, odinContext, cn);
+            });
         }
 
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, DatabaseConnection cn)
@@ -1228,6 +1289,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.ServerMetadata = newServerMetadata;
 
             await WriteFileHeaderInternal(existingServerHeader, cn);
+        }
+
+        private async Task DeletePayloadFromDiskInternal(InternalDriveFileId file, PayloadDescriptor descriptor, DatabaseConnection cn)
+        {
+            var lts = await GetLongTermStorageManager(file.DriveId, cn);
+
+            // Delete the thumbnail files for this payload
+            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
+            {
+                await lts.DeleteThumbnailFile(file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
+            }
+
+            // Delete the payload file
+            await lts.DeletePayloadFile(file.FileId, descriptor);
         }
     }
 }

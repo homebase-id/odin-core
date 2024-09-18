@@ -127,6 +127,7 @@ public class PeerUpdateFileTests
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
             File = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier(),
             Recipients = [recipient],
+            Locale = UpdateLocale.Peer,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors =

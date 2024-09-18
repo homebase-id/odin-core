@@ -25,22 +25,22 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
             this.Payloads = new List<PackagePayloadDescriptor>();
             this.NewVersionTag = DriveFileUtility.CreateVersionTag();
         }
-        
+
         /// <summary>
         /// The internal file on identity being updated
         /// </summary>
         public InternalDriveFileId InternalFile { get; init; }
-        
+
         /// <summary>
         /// A temp file name for use while storing the temporary metadata file being uploaded
         /// This is not the same as the final target file.
         /// </summary>
-        public InternalDriveFileId TempMetadataFile { get; init; }
+        public InternalDriveFileId TempMetadataFile { get; }
 
         public FileUpdateInstructionSet InstructionSet { get; init; }
 
         public FileSystemType FileSystemType { get; init; }
-        
+
         public Guid NewVersionTag { get; init; }
 
         /// <summary>

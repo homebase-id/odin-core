@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
-using System.Reflection.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -19,7 +18,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Util;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -90,12 +88,13 @@ public class UpdateRemoteFileOutboxWorker(
         var options = outboxFileItem.State.OriginalTransitOptions;
 
         var request = outboxFileItem.State.DeserializeData<UpdateRemoteFileRequest>();
+        
         var instructionSet = FileItem.State.TransferInstructionSet;
         var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
-
+        
         if (header.ServerMetadata.AllowDistribution == false)
         {
             throw new OdinOutboxProcessingException("File does not allow distribution")
@@ -107,7 +106,6 @@ public class UpdateRemoteFileOutboxWorker(
             };
         }
 
-        var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
@@ -140,7 +138,7 @@ public class UpdateRemoteFileOutboxWorker(
             Updated = sourceMetadata.Updated,
             AppData = sourceMetadata.AppData,
             IsEncrypted = sourceMetadata.IsEncrypted,
-            GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
+            GlobalTransitId = sourceMetadata.GlobalTransitId.GetValueOrDefault(),
             ReactionPreview = sourceMetadata.ReactionPreview,
             SenderOdinId = sourceMetadata.SenderOdinId,
             ReferencedFile = sourceMetadata.ReferencedFile,
@@ -155,37 +153,34 @@ public class UpdateRemoteFileOutboxWorker(
 
         var additionalStreamParts = new List<StreamPart>();
 
-        if (shouldSendPayload)
+        foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
         {
-            foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
+            var payloadKey = descriptor.Key;
+
+            string contentType = "application/unknown";
+
+            //TODO: consider what happens if the payload has been delete from disk
+            var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
+            var payloadStream = p.Stream;
+
+            var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
+            additionalStreamParts.Add(payload);
+
+            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
-                var payloadKey = descriptor.Key;
+                var (thumbStream, thumbHeader) =
+                    await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                        odinContext, cn);
 
-                string contentType = "application/unknown";
+                var thumbnailKey =
+                    $"{payloadKey}" +
+                    $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                    $"{thumb.PixelWidth}" +
+                    $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                    $"{thumb.PixelHeight}";
 
-                //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
-                var payloadStream = p.Stream;
-
-                var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-                additionalStreamParts.Add(payload);
-
-                foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
-                {
-                    var (thumbStream, thumbHeader) =
-                        await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
-                            odinContext, cn);
-
-                    var thumbnailKey =
-                        $"{payloadKey}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelWidth}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelHeight}";
-
-                    additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
-                }
+                additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                    Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
         }
 
@@ -242,7 +237,7 @@ public class UpdateRemoteFileOutboxWorker(
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-        
+
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         await Task.CompletedTask;
         return nextRunTime;

@@ -30,8 +30,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base.Update;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -48,7 +46,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly PushNotificationService _pushNotificationService;
-        private PeerDriveIncomingTransferService _incomingTransferService;
+        private PeerDriveIncomingFileUpdateService _fileUpdateService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
 
@@ -65,149 +63,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _loggerFactory = loggerFactory;
         }
 
-        /// <summary />
-        [HttpPost("upload")]
-        public async Task<PeerTransferResponse> ReceiveIncomingTransfer()
-        {
-            await AssertIsValidCaller();
-
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
-            {
-                throw new OdinClientException("Data is not multi-part content");
-            }
-
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-
-            OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
-
-            //Optimizations - the caller can't write to the drive, no need to accept any more of the file
-
-            //S0100
-            _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
-
-            //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
-            //End Optimizations
-
-            _incomingTransferService = GetPerimeterService(_fileSystem);
-            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
-
-            //
-
-            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync(), cn);
-
-            //
-
-            var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
-            if (shouldExpectPayload)
-            {
-                var section = await reader.ReadNextSectionAsync();
-                while (null != section)
-                {
-                    if (IsPayloadPart(section))
-                    {
-                        await ProcessPayloadSection(section, metadata, cn);
-                    }
-
-                    if (IsThumbnail(section))
-                    {
-                        await ProcessThumbnailSection(section, metadata, cn);
-                    }
-
-                    section = await reader.ReadNextSectionAsync();
-                }
-            }
-
-
-            return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext, cn);
-        }
-
-        [HttpPost("deletelinkedfile")]
-        public async Task<PeerTransferResponse> DeleteLinkedFile(DeleteRemoteFileRequest request)
-        {
-            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            var perimeterService = GetPerimeterService(fileSystem);
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.AcceptDeleteLinkedFileRequest(
-                request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
-                request.FileSystemType,
-                WebOdinContext,
-                cn);
-        }
-
-        /// <summary>
-        /// Uploads a file using multi-part form data
-        /// </summary>
-        /// <returns></returns>
-        [HttpPatch("files/update")]
-        public async Task<PeerTransferResponse> UpdateFile()
-        {
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
-            {
-                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
-            }
-
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
-            var updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
-
-            var section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartHostTransferParts.Instructions);
-
-            string json = await new StreamReader(section!.Body).ReadToEndAsync();
-            var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
-            instructionSet.AssertIsValid();
-            OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, WebOdinContext.Tenant);
-
-            using var cn = tenantSystemStorage.CreateConnection();
-            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
-
-            //
-            // Firstly, collect everything and store in the temp drive
-            //
-            section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                if (IsMetadataPart(section))
-                {
-                    section = await reader.ReadNextSectionAsync();
-                    AssertIsPart(section, MultipartUploadParts.Metadata);
-                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, cn);
-                }
-
-                if (IsPayloadPart(section))
-                {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                if (IsThumbnail(section))
-                {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                section = await reader.ReadNextSectionAsync();
-            }
-
-            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, cn);
-            return result;
-        }
-
-        [HttpPost("update")]
+        
+        [HttpPatch("update")]
         public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
         {
-            
             await AssertIsValidCaller();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
@@ -219,12 +78,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
             var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+            // OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
 
             //Optimizations - the caller can't write to the drive, no need to accept any more of the file
-
+            
             //S0100
             _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
 
@@ -234,8 +92,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
             //End Optimizations
 
-            _incomingTransferService = GetPerimeterService(_fileSystem);
-            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
+            _fileUpdateService = GetPerimeterService(_fileSystem);
+            await _fileUpdateService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
 
             //
 
@@ -264,26 +122,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
 
-            return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext, cn);
+            return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext, cn);
         }
-
-        [HttpPost("mark-file-read")]
-        public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)
-        {
-            await AssertIsValidCaller();
-
-            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            var perimeterService = GetPerimeterService(fileSystem);
-            using var cn = _tenantSystemStorage.CreateConnection();
-
-            return await perimeterService.MarkFileAsRead(
-                request.GlobalTransitIdFileIdentifier.TargetDrive,
-                request.GlobalTransitIdFileIdentifier.GlobalTransitId,
-                request.FileSystemType,
-                WebOdinContext,
-                cn);
-        }
-
+        
         private Task AssertIsValidCaller()
         {
             //TODO: later add check to see if this is from an introduction?
@@ -328,11 +169,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return part == MultipartHostTransferParts.Thumbnail;
         }
 
-        private async Task<EncryptedRecipientTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
+        private async Task<EncryptedRecipientFileUpdateInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
+            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(json);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
             OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
@@ -348,7 +189,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var json = await new StreamReader(section.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _incomingTransferService.AcceptMetadata("metadata", metadataStream, WebOdinContext, cn);
+            await _fileUpdateService.AcceptMetadata("metadata", metadataStream, WebOdinContext, cn);
             return metadata;
         }
 
@@ -364,7 +205,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext,
+            await _fileUpdateService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext,
                 cn);
         }
 
@@ -390,7 +231,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
-            await _incomingTransferService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
+            await _fileUpdateService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
                 fileSection.FileStream,
                 WebOdinContext, cn);
         }
@@ -496,10 +337,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
         }
 
-        private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
+        private PeerDriveIncomingFileUpdateService GetPerimeterService(IDriveFileSystem fileSystem)
         {
-            return new PeerDriveIncomingTransferService(
-                _loggerFactory.CreateLogger<PeerDriveIncomingTransferService>(),
+            return new PeerDriveIncomingFileUpdateService(
+                _loggerFactory.CreateLogger<PeerDriveIncomingFileUpdateService>(),
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

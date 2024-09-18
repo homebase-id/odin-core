@@ -45,4 +45,15 @@ namespace Odin.Services.Peer.Encryption
             return isValid;
         }
     }
+    
+    public class EncryptedRecipientFileUpdateInstructionSet
+    {
+        public TargetDrive TargetDrive { get; init; }
+
+        public FileSystemType FileSystemType { get; init; }
+
+        public byte[] SharedSecretEncryptedKeyHeaderIv { get; init; }
+        
+        public AppNotificationOptions AppNotificationOptions { get; set; }
+    }
 }

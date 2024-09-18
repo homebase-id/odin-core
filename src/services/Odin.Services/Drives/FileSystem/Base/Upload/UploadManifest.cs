@@ -101,7 +101,7 @@ public class UploadManifestPayloadDescriptor
 
     public void AssertIsValid()
     {
-        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AddPayload)
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite)
         {
             OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
             OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));

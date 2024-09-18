@@ -11,29 +11,23 @@ public class BatchUpdateManifest
     /// The version tag that must be used on the header when the batch is completed
     /// </summary>
     public Guid NewVersionTag { get; init; }
-    
-    public KeyHeader KeyHeader { get; init; }
-    
+
+    public byte[] KeyHeaderIv { get; set; }
+
     public FileMetadata FileMetadata { get; init; }
-    
+
     public ServerMetadata ServerMetadata { get; init; }
 
     /// <summary>
-    /// Incoming payloads that are to be added or overwritten
+    /// Expectations of the actions to be taken on the <see cref="FileMetadata"/> as well as keys that should be deleted
     /// </summary>
-    public List<PayloadDescriptor> NewPayloadDescriptors { get; init; }
-
-    /// <summary>
-    /// Expectations of the actions to be taken on the <see cref="NewPayloadDescriptors"/> as well as keys that should be deleted
-    /// </summary>
-    public List<PayloadOperation> PayloadOperations { get; init; }
-    
+    public List<PayloadInstruction> PayloadInstruction { get; init; }
 }
 
 /// <summary>
 /// Indicates the action to take with a given payload while processing the <see cref="BatchUpdateManifest"/>
 /// </summary>
-public class PayloadOperation
+public class PayloadInstruction
 {
     public string Key { get; init; }
 
@@ -42,6 +36,6 @@ public class PayloadOperation
 
 public enum PayloadUpdateOperationType
 {
-    AddPayload = 2,
+    AppendOrOverwrite = 2,
     DeletePayload = 3
 }

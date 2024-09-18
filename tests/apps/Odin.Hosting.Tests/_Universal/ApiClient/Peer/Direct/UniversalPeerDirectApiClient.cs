@@ -93,9 +93,9 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-            var descriptor = new UploadFileDescriptor()
+            var descriptor = new UpdateFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                KeyHeaderIv = keyHeader.Iv,
                 FileMetadata = fileMetadata
             };
 

@@ -15,7 +15,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
@@ -179,9 +178,9 @@ public abstract class FileSystemUpdateWriterBase
 
     public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext, DatabaseConnection cn)
     {
-        var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
+        var (keyHeaderIv, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
 
-        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, cn);
+        await this.ValidateUploadCore(Package, keyHeaderIv, metadata, serverMetadata, cn);
 
         if (Package.InstructionSet.Locale == UpdateLocale.Local)
         {
@@ -190,7 +189,7 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
-            await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
+            await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, cn);
 
             var recipientStatus = await ProcessTransitInstructions(odinContext, cn);
 
@@ -224,27 +223,26 @@ public abstract class FileSystemUpdateWriterBase
     /// <summary>
     /// Validates the uploaded data is correct before mapping to its final form.
     /// </summary>
-    /// <param name="uploadDescriptor"></param>
+    /// <param name="updateDescriptor"></param>
     /// <returns></returns>
-    protected abstract Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor);
+    protected abstract Task ValidateUploadDescriptor(UpdateFileDescriptor updateDescriptor);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
-    protected virtual async Task ProcessExistingFileUpload(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected virtual async Task ProcessExistingFileUpload(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
         IOdinContext odinContext, DatabaseConnection cn)
     {
         var manifest = new BatchUpdateManifest()
         {
             NewVersionTag = Package.NewVersionTag,
-            NewPayloadDescriptors = package.GetFinalPayloadDescriptors(),
-            PayloadOperations = package.Payloads.Select(p => new PayloadOperation()
+            PayloadInstruction = package.Payloads.Select(p => new PayloadInstruction()
             {
                 Key = p.PayloadKey,
                 OperationType = p.UpdateOperationType
             }).ToList(),
 
-            KeyHeader = keyHeader,
+            KeyHeaderIv = keyHeaderIv,
             FileMetadata = metadata,
             ServerMetadata = serverMetadata
         };
@@ -256,17 +254,35 @@ public abstract class FileSystemUpdateWriterBase
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext);
+    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UpdateFileDescriptor updateDescriptor, IOdinContext odinContext);
 
-    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUpdatePackage package,
+    protected virtual async Task<(byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUpdatePackage package,
         IOdinContext odinContext, DatabaseConnection cn)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
-        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
-        return await UnpackMetadataForNewFileOrOverwrite(package, uploadDescriptor, odinContext);
+        var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
+
+        byte[] iv = null;
+
+        if (updateDescriptor.FileMetadata.IsEncrypted)
+        {
+            iv = updateDescriptor!.KeyHeaderIv;
+        }
+
+        await ValidateUploadDescriptor(updateDescriptor);
+
+        var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
+
+        var serverMetadata = new ServerMetadata()
+        {
+            AccessControlList = updateDescriptor.FileMetadata.AccessControlList,
+            AllowDistribution = updateDescriptor.FileMetadata.AllowDistribution
+        };
+
+        return (iv, metadata, serverMetadata);
     }
 
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(IOdinContext odinContext, DatabaseConnection cn)
@@ -292,39 +308,10 @@ public abstract class FileSystemUpdateWriterBase
         return recipientStatus;
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
-        FileUpdatePackage package,
-        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
-    {
-        var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
-
-        if (null == transferKeyEncryptedKeyHeader)
-        {
-            throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header", OdinClientErrorCode.InvalidKeyHeader);
-        }
-
-        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
-            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
-            : KeyHeader.Empty();
-
-        await ValidateUploadDescriptor(uploadDescriptor);
-
-        var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-
-        var serverMetadata = new ServerMetadata()
-        {
-            AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
-            AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
-        };
-
-        return (keyHeader, metadata, serverMetadata);
-    }
-
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    private async Task ValidateUploadCore(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
         DatabaseConnection cn)
     {
         if (null == serverMetadata.AccessControlList)
@@ -383,7 +370,7 @@ public abstract class FileSystemUpdateWriterBase
 
         if (metadata.IsEncrypted)
         {
-            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+            if (ByteArrayUtil.IsStrongKey(keyHeaderIv) == false)
             {
                 throw new OdinClientException("Payload is set as encrypted but the encryption key is too simple",
                     code: OdinClientErrorCode.InvalidKeyHeader);
