@@ -189,20 +189,20 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(cleanedUrl, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogInformation("Failed to download image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
+                logger.LogDebug("Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
                 return null;
             }
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxImageSize)
             {
-                logger.LogWarning("Image size {ContentLength} exceeds maximum allowed size {MaxSize}", contentLength.Value, maxImageSize);
+                logger.LogWarning("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
                 return null;
             }
             var image = await response.Content.ReadAsByteArrayAsync();
             if (image.Length > maxImageSize)
             {
-                logger.LogWarning("Image size {ContentLength} exceeds maximum allowed size {MaxSize}", image.Length, maxImageSize);
+                logger.LogWarning("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
                 return null;
             }
             var mimeType = response.Content.Headers.ContentType?.ToString();
