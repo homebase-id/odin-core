@@ -37,17 +37,58 @@ main() {
 
   ODIN_DOCKER_IMAGE="ghcr.io/homebase-id/odin-core:install__main"
 
-  docker_run_script=$(mktemp /tmp/homebase/docker-run-script.sh)
+  setup_dir="/tmp/odin/setup"
+  mkdir -p "$setup_dir"
+
+  docker_run_script="$setup_dir/docker-run-script-$(uuidgen).sh"
+  touch "$docker_run_script"
   chmod +x "$docker_run_script"
+
+  # --entrypoint /bin/bash \
 
   docker run \
     --interactive \
     --tty \
     --publish "${ODIN_HTTP_PORT}":"${ODIN_HTTP_PORT}" \
     --publish "${ODIN_HTTPS_PORT}":"${ODIN_HTTPS_PORT}" \
-    --volume "${docker_run_script}":"${docker_run_script}" \
+    --volume "${setup_dir}":"${setup_dir}:rw" \
     --pull always \
-    "${ODIN_DOCKER_IMAGE}" --docker-setup
+    "${ODIN_DOCKER_IMAGE}" \
+    --docker-setup \
+    output-docker-run-script="${docker_run_script}" \
+    provisioning-domain=identity-host.sebbarg.net \
+    certificate-email=sebbarg@gmail.com \
+    docker-image-name="${ODIN_DOCKER_IMAGE}" \
+    docker-root-data-mount=/tmp/homebase
+
+  exit_code=$?
+
+  if [[ $exit_code -ne 0 ]]; then
+    echo "⛔️ Something went wrong. Please check the logs above."
+    exit 1
+  fi
+
+  echo
+  echo "✅ Docker container start-up script: $docker_run_script"
+  echo
+
+  view_script=$(prompt_choice "Do you want to view the script? [y/N]:" "n" "y" "n")
+  if [[ "$view_script" == "y" ]]; then
+    echo
+    cat "$docker_run_script"
+    echo
+  fi
+
+  execute_script=$(prompt_choice "Do you want to execute the script? [Y/n]:" "y" "y" "n")
+  if [[ "$execute_script" == "y" ]]; then
+    "$docker_run_script"
+  fi
+
+  exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    rm "$docker_run_script"
+  fi
 
 }
 

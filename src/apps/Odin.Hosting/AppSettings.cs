@@ -31,7 +31,7 @@ public static class AppSettings
         }
         else
         {
-            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json", false); // Specific env configuration
+            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json", includeEnvVars); // Specific env configuration
             AddConfigFile("appsettings.local.json", true); // Local development overrides
         }
 
