@@ -41,7 +41,6 @@ public static class DockerSetup
         // We can only run on port 80 and 443 for the time being
         const int httpPort = 80;
         const int httpsPort = 443;
-        const int adminPort = 4444;
         
         var settings = ParseSettings(args);
         foreach (var setting in settings)
