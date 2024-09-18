@@ -313,7 +313,7 @@ public class DataSubscriptionAndDistributionTests2
             AccessControlList = new AccessControlList()
             {
                 CircleIdList = new List<Guid>() { aclCircleId },
-                RequiredSecurityGroup = SecurityGroupType.ConfirmConnected
+                RequiredSecurityGroup = SecurityGroupType.Connected
             }
         };
 

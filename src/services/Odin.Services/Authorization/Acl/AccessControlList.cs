@@ -11,7 +11,7 @@ namespace Odin.Services.Authorization.Acl
     {
         public static AccessControlList OwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
         public static AccessControlList Authenticated => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated };
-        public static AccessControlList Connected => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.ConfirmConnected };
+        public static AccessControlList Connected => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected };
         public static AccessControlList Anonymous => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous };
 
         public SecurityGroupType RequiredSecurityGroup { get; set; }

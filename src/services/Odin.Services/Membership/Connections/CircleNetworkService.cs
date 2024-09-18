@@ -117,7 +117,7 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: SecurityGroupType.ConfirmConnected,
+                        securityLevel: SecurityGroupType.Connected,
                         circleIds: enabledCircles)
                 };
 

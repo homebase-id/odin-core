@@ -24,7 +24,7 @@ namespace Odin.Services.Authorization.Acl
         /// <summary>
         /// Requests where the caller is marked as connected and holds a connected token
         /// </summary>
-        ConfirmConnected = 777,
+        Connected = 777,
         
         /// <summary>
         /// Specifies that only the owner can access a file

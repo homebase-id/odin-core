@@ -57,7 +57,7 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Anonymous:
                     return true;
 
-                case SecurityGroupType.ConfirmConnected:
+                case SecurityGroupType.Connected:
                     return (await circleNetwork.GetIcr(odinId, odinContext, cn, true)).IsConnected();
             }
 
@@ -103,7 +103,7 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Authenticated:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
-                case SecurityGroupType.ConfirmConnected:
+                case SecurityGroupType.Connected:
                     return CallerIsConnected(odinContext);
             }
 

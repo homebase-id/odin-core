@@ -55,7 +55,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.ConfirmConnected);
+            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
             // var client = new UniversalDriveApiClient(identity.OdinId, new GuestApiClientFactory());
             // var getHeaderResponse = await client.GetFileHeader(
@@ -81,7 +81,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.ConfirmConnected);
+            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
             
             // var client = new UniversalDriveApiClient(identity.OdinId, new GuestApiClientFactory());
             // var getPayloadStreamResponse = await client.GetPayload(

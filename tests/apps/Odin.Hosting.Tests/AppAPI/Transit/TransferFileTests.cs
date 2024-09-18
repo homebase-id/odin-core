@@ -152,7 +152,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                         }
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.ConfirmConnected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
@@ -335,7 +335,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
             OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true,
-                SecurityGroupType.ConfirmConnected); //security group should be cause that's how we sent it
+                SecurityGroupType.Connected); //security group should be cause that's how we sent it
 
             // recipient server: Should still be in index and marked as deleted
 
@@ -450,7 +450,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                         }
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.ConfirmConnected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
@@ -768,7 +768,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                         }
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.ConfirmConnected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
