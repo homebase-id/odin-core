@@ -81,6 +81,10 @@ main() {
 
   execute_script=$(prompt_choice "Do you want to execute the script? [Y/n]:" "y" "y" "n")
   if [[ "$execute_script" == "y" ]]; then
+    echo
+    echo "Once the Docker container is running, you can provision your new identity"
+    echo "by pointing your browser to your selected provisioning domain."
+    echo
     "$docker_run_script"
   fi
 

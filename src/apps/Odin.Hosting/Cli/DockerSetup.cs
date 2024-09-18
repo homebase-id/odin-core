@@ -25,13 +25,14 @@ public static class DockerSetup
 
     public static int Execute(string[] args)
     {
-        AnsiConsole.Markup(
-            """
-            
-            [bold green]Homebase[/] table-top Docker setup
-            
-            """);
+        
+        AnsiConsole.Write(
+            new FigletText("Homebase")
+                .LeftJustified()
+                .Color(Color.Green));
 
+        AnsiConsole.MarkupLine("[bold green]Homebase[/] table-top Docker setup");
+        
         // Help?
         if (args.Any(arg => arg.ToLower() is "help" or "--help"))
         {
@@ -43,10 +44,10 @@ public static class DockerSetup
         const int httpsPort = 443;
         
         var settings = ParseSettings(args);
-        foreach (var setting in settings)
-        {
-            Console.WriteLine(setting.Key + " = " + setting.Value);
-        }
+        // foreach (var setting in settings)
+        // {
+        //     Console.WriteLine(setting.Key + " = " + setting.Value);
+        // }
         
         var dockerRunScript = settings.GetOrDefault("output-docker-run-script", null);
         if (dockerRunScript == null)
@@ -78,7 +79,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Provisioning domain[/]
+            [underline blue]Provisioning domain[/]
             SEB:TODO Lorem ipsum explaining stuff...
             
             """);
@@ -125,7 +126,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Provisioning password[/]
+            [underline blue]Provisioning password[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -140,7 +141,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Letsencrypt certificate email[/]
+            [underline blue]Letsencrypt certificate email[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -160,7 +161,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Docker image name[/]
+            [underline blue]Docker image name[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -174,7 +175,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Docker container name[/]
+            [underline blue]Docker container name[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -188,7 +189,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Docker volume mount[/]
+            [underline blue]Docker volume mount[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -202,7 +203,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Docker run detached[/]
+            [underline blue]Docker run detached[/]
             SEB:TODO Lorem ipsum explaining stuff...
 
             """);
@@ -258,7 +259,7 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
 
-            [underline]Final docker command[/]
+            [underline blue]Final docker command[/]
 
             """);
         Console.WriteLine();
