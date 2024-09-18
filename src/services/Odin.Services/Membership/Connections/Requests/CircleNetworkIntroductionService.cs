@@ -5,9 +5,11 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -26,7 +28,6 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Refit;
 
-
 namespace Odin.Services.Membership.Connections.Requests;
 
 /// <summary>
@@ -42,7 +43,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private readonly CircleNetworkRequestService _circleNetworkRequestService;
 
-    // private readonly ILogger<CircleNetworkIntroductionService> _logger;
+    private readonly ILogger<CircleNetworkIntroductionService> _logger;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly IMediator _mediator;
     private readonly PushNotificationService _pushNotificationService;
@@ -53,7 +54,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
         CircleNetworkRequestService circleNetworkRequestService,
-        // ILogger<CircleNetworkIntroductionService> logger,
+        ILogger<CircleNetworkIntroductionService> logger,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantSystemStorage tenantSystemStorage,
         FileSystemResolver fileSystemResolver,
@@ -62,6 +63,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     {
         _odinConfiguration = odinConfiguration;
         _circleNetworkRequestService = circleNetworkRequestService;
+        _logger = logger;
         // _logger = logger;
         _odinHttpClientFactory = odinHttpClientFactory;
         _mediator = mediator;
@@ -209,8 +211,24 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
 
             //TODO: maybe need to update the introduction to show a connection request was last sent
-
-            await this.SendConnectionRequests(intro, odinContext, cn);
+            try
+            {
+                await this.SendConnectionRequests(intro, odinContext, cn);
+            }
+            catch (OdinClientException)
+            {
+                //TODO: fow now I will delete the introduction
+                // however, this should go into the outbox so we can
+                // retry a few times before giving up
+                await DeleteIntroductionsTo(intro.Identity, cn);
+            }
+            catch (OdinSecurityException)
+            {
+                //TODO: fow now I will delete the introduction
+                // however, this should go into the outbox so we can
+                // retry a few times before giving up
+                await DeleteIntroductionsTo(intro.Identity, cn);
+            }
         }
     }
 
@@ -304,7 +322,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ContactData = new ContactRequestData(),
         };
 
-        await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, connection);
+        try
+        {
+            await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, connection);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
+        }
     }
 
     /// <summary>

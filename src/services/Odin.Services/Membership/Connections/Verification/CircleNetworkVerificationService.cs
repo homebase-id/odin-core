@@ -32,13 +32,28 @@ public class CircleNetworkVerificationService(
 
     public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
     {
+        // so this is a curious issue - 
+        // when the odinContext.Caller and the recipient param are the same
+        // there's a chance the odinContext.Caller will be only authenticated
+        // because the ICR is invalid but the ICR's status will show as connected
+        // 
+        
+        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
+
         if (odinContext.Caller.SecurityLevel == SecurityGroupType.Authenticated)
         {
+            if (odinContext.Caller.OdinId == recipient)
+            {
+                return new IcrVerificationResult
+                {
+                    IsValid = false,
+                    RemoteIdentityWasConnected = icr.IsConnected()
+                };
+            }
             //if the caller is only authenticated, there will be no ICR so verification will fail
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
         
-        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
 
         if (!icr.IsConnected())
         {
