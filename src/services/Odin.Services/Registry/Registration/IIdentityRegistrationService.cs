@@ -66,6 +66,11 @@ public interface IIdentityRegistrationService
     Task<bool> HasValidCertificate(string domain);
 
     /// <summary>
+    /// Checks if invitation code is needed
+    /// </summary>
+    Task<bool> IsInvitationCodeNeeded();
+
+    /// <summary>
     /// Determines if the invitation code is valid
     /// </summary>
     Task<bool> IsValidInvitationCode(string code);

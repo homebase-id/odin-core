@@ -281,6 +281,16 @@ public class RegistrationController : ControllerBase
         var firstRunToken = await _regService.CreateIdentityOnDomain(domain, identity.Email, identity.PlanId);
         return new JsonResult(firstRunToken);
     }
+    
+    /// <summary>
+    /// Checks if we need an invitation code
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet("is-invitation-code-needed")]
+    public async Task<IActionResult> IsInvitationCodeNeeded()
+    {
+        return Ok(await _regService.IsInvitationCodeNeeded());
+    }
 
     /// <summary>
     /// Determines if the invitation code is valid
