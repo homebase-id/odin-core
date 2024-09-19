@@ -37,7 +37,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     INotificationHandler<ConnectionFinalizedNotification>,
     INotificationHandler<ConnectionBlockedNotification>
 {
-    private readonly byte[] _receivedIntroductionDataType = Guid.Parse("9b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
+    private readonly byte[] _receivedIntroductionDataType = Guid.Parse("0b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
 
     private readonly OdinConfiguration _odinConfiguration;
 
