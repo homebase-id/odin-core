@@ -129,7 +129,7 @@ public class DirectDrivePayloadTests_1
             Assert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
         }
     }
-
+    
     [Test]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanModifyPayloadOnExistingFileAndMetadataIsAutomaticallyUpdated(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)

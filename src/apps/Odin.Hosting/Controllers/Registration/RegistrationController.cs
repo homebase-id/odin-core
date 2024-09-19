@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.Registration;
 
 [ApiController]
 [Route("/api/registration/v1/registration")]
+[ServiceFilter(typeof(RegistrationRestrictedAttribute))]
 public class RegistrationController : ControllerBase
 {
     private readonly IIdentityRegistrationService _regService;
@@ -139,12 +140,21 @@ public class RegistrationController : ControllerBase
     /// </summary>
     /// <param name="apex"></param>
     /// <param name="prefix"></param>
+    /// <param name="invitationCode"></param>
     /// <returns></returns>
     [HttpPost("create-managed-domain/{apex}/{prefix}")]
-    public async Task<IActionResult> CreateManagedDomain(string prefix, string apex)
+    public async Task<IActionResult> CreateManagedDomain(
+        string prefix,
+        string apex,
+        [FromQuery(Name = "invitation-code")] string invitationCode)
     {
         prefix = prefix.Trim();
         apex = apex.Trim();
+
+        if (!await _regService.IsValidInvitationCode(invitationCode))
+        {
+            throw new BadRequestException(message: "Invalid or expired Invitation Code");
+        }
 
         var available = await _regService.IsManagedDomainAvailable(prefix, apex);
         if (!available)
@@ -206,7 +216,7 @@ public class RegistrationController : ControllerBase
     {
         domain = domain.Trim();
         ValidateDomain(domain);
-        var (success, dnsConfig) = await _regService.GetAuthorativeDomainDnsStatus(domain);
+        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
         if (!includeAlias)
         {
             dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -257,19 +267,29 @@ public class RegistrationController : ControllerBase
         }
 
         //
-        // Check that our new domain can be looked up using authorative nameservers
+        // Check that our new domain can be looked up using authoritative nameservers
         //
-        var (resolved, _) = await _regService.GetAuthorativeDomainDnsStatus(domain);
+        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
         if (!resolved)
         {
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
-                title: "DNS records were not found by all authorative name servers. Try later."
+                title: "DNS records were not found by all authoritative name servers. Try later."
             );
         }
 
         var firstRunToken = await _regService.CreateIdentityOnDomain(domain, identity.Email, identity.PlanId);
         return new JsonResult(firstRunToken);
+    }
+    
+    /// <summary>
+    /// Checks if we need an invitation code
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet("is-invitation-code-needed")]
+    public async Task<IActionResult> IsInvitationCodeNeeded()
+    {
+        return Ok(await _regService.IsInvitationCodeNeeded());
     }
 
     /// <summary>

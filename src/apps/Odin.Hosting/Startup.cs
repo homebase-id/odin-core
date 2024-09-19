@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Tasks;
@@ -39,6 +40,7 @@ using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
+using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
@@ -194,7 +196,7 @@ namespace Odin.Hosting
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
+            services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
             services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
@@ -226,6 +228,8 @@ namespace Odin.Hosting
                 config.Admin.ApiKeyHttpHeaderName,
                 config.Admin.ApiPort,
                 config.Admin.Domain));
+
+            services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
 
@@ -285,14 +289,20 @@ namespace Odin.Hosting
             app.UseHsts();
 
             // Provisioning mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
-                a => Provisioning.Map(a, env, logger));
+            if (config.Registry.ProvisioningEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                    a => Provisioning.Map(a, env, logger));
+            }
 
             // Admin mapping
-            app.MapWhen(
-                context => context.Request.Host.Host == config.Admin.Domain,
-                a => Admin.Map(a, env, logger));
+            if (config.Admin.ApiEnabled)
+            {
+                app.MapWhen(
+                    context => context.Request.Host.Host == config.Admin.Domain,
+                    a => Admin.Map(a, env, logger));
+            }
 
             app.UseMultiTenancy();
 

@@ -4,6 +4,6 @@ docker run \
   --env ASPNETCORE_ENVIRONMENT='production' \
   --env ASPNETCORE_HTTP_PORTS=8080 \
   -p 8081:8080 \
-  ghcr.io/homebase-id/odin-core-push-notification:pushnotification
+  push-notification:local
 
 # docker exec --interactive --tty push-notification bash
