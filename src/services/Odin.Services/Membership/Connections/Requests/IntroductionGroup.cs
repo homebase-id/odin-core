@@ -30,7 +30,7 @@ public class IntroductionGroup
     /// </summary>
     public List<string> Recipients { get; init; }
 
-    public SignatureData Signature { get; set; }
+    // public SignatureData Signature { get; set; }
 }
 
 public class IdentityIntroduction

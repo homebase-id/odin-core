@@ -106,7 +106,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public async Task<ConnectionRequest> GetPendingRequest(OdinId sender, IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var header = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(cn, MakePendingRequestsKey(sender));
 
             if (null == header)
@@ -201,7 +201,7 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>
-        /// Stores an new pending/incoming request that is not yet accepted.
+        /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
         public async Task ReceiveConnectionRequest(RsaEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
@@ -277,7 +277,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
         public async Task<ConnectionRequest> GetSentRequest(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
 
             return await this.GetSentRequestInternal(recipient, cn);
         }
@@ -596,19 +596,27 @@ namespace Odin.Services.Membership.Connections.Requests
 
         public async Task<bool> HasPendingOrSentRequest(OdinId identity, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var hasPendingRequest = await GetPendingRequest(identity, odinContext, cn);
-            if (null != hasPendingRequest)
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
+            var hasPendingRequest = await HasPendingRequestInternal(identity, cn);
+            if (hasPendingRequest)
             {
                 return true;
             }
 
-            var hasSentRequest = await GetSentRequest(identity, odinContext, cn);
+            var hasSentRequest = await GetSentRequestInternal(identity, cn);
             if (null != hasSentRequest)
             {
                 return true;
             }
 
             return false;
+        }
+
+        private async Task<bool> HasPendingRequestInternal(OdinId sender, DatabaseConnection cn)
+        {
+            var header = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(cn, MakePendingRequestsKey(sender));
+            await Task.CompletedTask;
+            return header != null;
         }
 
         private Task DeletePendingRequestInternal(OdinId sender, DatabaseConnection cn)
@@ -720,30 +728,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             // TODO - ?? not yet sure how I want to handle this
             // await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
-            
+
             var recipient = (OdinId)header.Recipient;
 
-            if (_tenantContext.Settings.AutoAcceptIntroductions)
-            {
-                var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
-                if (incomingRequest == null)
-                {
-                    await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
-                }
-                else
-                {
-                    // just accept the request; using the ACL info (header.CircleIds, etc.)
-                    var ac = new AcceptRequestHeader
-                    {
-                        Sender = recipient,
-                        CircleIds = header.CircleIds,
-                        ContactData = header.ContactData
-                    };
-
-                    await this.AcceptConnectionRequest(ac, tryOverrideAcl: false, odinContext, cn);
-                }
-            }
-            else
+            if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
             {
                 var existingOutgoingRequest = await this.GetSentRequestInternal(recipient, cn);
                 if (null == existingOutgoingRequest)
@@ -765,6 +753,26 @@ namespace Odin.Services.Membership.Connections.Requests
                         header.CircleIds = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys.Select(c => new GuidId(c)).ToList();
                         await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
                     }
+                }
+            }
+            else
+            {
+                var incomingRequest = await this.GetPendingRequest(recipient, odinContext, cn);
+                if (incomingRequest == null)
+                {
+                    await CreateAndSendRequestInternal(header, masterKey: null, odinContext, cn);
+                }
+                else
+                {
+                    // just accept the request; using the ACL info (header.CircleIds, etc.)
+                    var ac = new AcceptRequestHeader
+                    {
+                        Sender = recipient,
+                        CircleIds = header.CircleIds,
+                        ContactData = header.ContactData
+                    };
+
+                    await this.AcceptConnectionRequest(ac, tryOverrideAcl: false, odinContext, cn);
                 }
             }
         }

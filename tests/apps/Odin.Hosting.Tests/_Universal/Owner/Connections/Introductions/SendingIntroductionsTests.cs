@@ -52,8 +52,8 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
 
         await Prepare();
 
@@ -221,8 +221,8 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
 
         await Prepare();
 
@@ -358,8 +358,8 @@ public class SendingIntroductionsTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        await merryOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
 
         await Prepare();
 

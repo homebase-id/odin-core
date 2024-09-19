@@ -99,10 +99,10 @@ public class OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentit
         }
     }
 
-    public async Task EnableAutoAcceptIntroductions(bool enabled)
+    public async Task DisableAutoAcceptIntroductions(bool disabled)
     {
         var updateTenantSettingsFlagResponse =
-            await this.UpdateTenantSettingsFlag(TenantConfigFlagNames.AutoAcceptIntroductions, enabled.ToString());
+            await this.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAutoAcceptIntroductions, disabled.ToString());
 
         if (!updateTenantSettingsFlagResponse.IsSuccessStatusCode)
         {

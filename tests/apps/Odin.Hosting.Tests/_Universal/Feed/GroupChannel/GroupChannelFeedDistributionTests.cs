@@ -21,7 +21,7 @@ namespace Odin.Hosting.Tests._Universal.Feed.GroupChannel;
 /// Tests that guests (via youauth) can post to a group channel and those posts
 /// are distributed to all connected identities which follow the channel
 /// </summary>
-public class GroupChannelFeedDistribution
+public class GroupChannelFeedDistributionTests
 {
     private WebScaffold _scaffold;
 

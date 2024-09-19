@@ -30,6 +30,8 @@ namespace Odin.Services.Authorization.Permissions
         
         public const int AllowIntroductions = 808;
         
+        public const int SendIntroductions = 909;
+        
         public static readonly List<int> All =
         [
             ReadConnections,

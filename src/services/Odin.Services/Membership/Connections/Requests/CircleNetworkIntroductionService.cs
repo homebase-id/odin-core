@@ -79,12 +79,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     public async Task<IntroductionResult> SendIntroductions(IntroductionGroup group, IOdinContext odinContext, DatabaseConnection cn)
     {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
 
         var recipients = group.Recipients.ToOdinIdList().Without(odinContext.Tenant);
-        var bytes = ByteArrayUtil.Combine(recipients.Select(i => i.ToByteArray()).ToArray());
-        group.Signature = Sign(bytes, odinContext);
+        // var bytes = ByteArrayUtil.Combine(recipients.Select(i => i.ToByteArray()).ToArray());
+        // group.Signature = Sign(bytes, odinContext);
 
         var result = new IntroductionResult();
         foreach (var recipient in recipients)
@@ -146,13 +148,18 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             DatabaseConnection = cn
         };
 
-        var newContext = OdinContextUpgrades.UsePushNotifications(odinContext);
+        var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications);
         await _pushNotificationService.EnqueueNotification(introducer, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.OwnerAppId,
                 TypeId = notification.NotificationTypeId,
                 TagId = introducer,
                 Silent = false,
+                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
+                // {
+                //     IntroducerOdinId = introducer,
+                //     Introduction = introduction,
+                // })
             },
             newContext,
             cn);
@@ -164,16 +171,13 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext, DatabaseConnection connection)
     {
-        // get all the introductions
-        odinContext.Caller.AssertHasMasterKey();
-
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequests(PageOptions.All, odinContext, connection);
 
         foreach (var request in incomingConnectionRequests.Results)
         {
             var sender = request.SenderOdinId;
 
-            var introduction = await this.GetIntroduction(sender, connection);
+            var introduction = await this.GetIntroductionInternal(sender, connection);
             if (null != introduction)
             {
                 await AutoAccept(sender, odinContext, connection);
@@ -234,6 +238,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public Task<List<IdentityIntroduction>> GetReceivedIntroductions(IOdinContext odinContext, DatabaseConnection cn)
     {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
         var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(cn, _receivedIntroductionDataType);
         return Task.FromResult(results.ToList());
     }
@@ -307,7 +312,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         return success;
     }
 
-    private Task<IdentityIntroduction> GetIntroduction(OdinId identity, DatabaseConnection cn)
+    private Task<IdentityIntroduction> GetIntroductionInternal(OdinId identity, DatabaseConnection cn)
     {
         var result = _receivedIntroductionValueStorage.Get<IdentityIntroduction>(cn, identity);
         return Task.FromResult(result);

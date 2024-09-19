@@ -209,6 +209,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor, IOdinContext odinContext,
             DatabaseConnection cn)
         {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Blocked, odinContext, cn));
         }
 
@@ -218,6 +219,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor, IOdinContext odinContext,
             DatabaseConnection cn)
         {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Connected, odinContext, cn));
         }
 
@@ -1022,7 +1024,6 @@ namespace Odin.Services.Membership.Connections
         private CursoredResult<long, IdentityConnectionRegistration> GetConnectionsInternal(int count, long cursor, ConnectionStatus status,
             IOdinContext odinContext, DatabaseConnection cn)
         {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
             var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status, cn);
             return new CursoredResult<long, IdentityConnectionRegistration>()

@@ -126,7 +126,7 @@ namespace Odin.Services.Base
             }
         }
 
-        private bool HasPermission(int permissionKey)
+        public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
             {

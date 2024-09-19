@@ -489,8 +489,8 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Configuration.EnableAutoAcceptIntroductions(false);
-        await pippinClient.Configuration.EnableAutoAcceptIntroductions(false);
+        await merryClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await pippinClient.Configuration.DisableAutoAcceptIntroductions(false);
         
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);

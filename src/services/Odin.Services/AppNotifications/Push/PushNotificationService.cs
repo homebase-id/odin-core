@@ -333,10 +333,7 @@ public class PushNotificationService(
             cn
         );
 
-        // serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
-        //     CronJobType.PendingTransitTransfer,
-        //     tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
-        //     UnixTimeUtc.Now());
+        // var pushNotificationsRedactedOptions = options.Redacted();
 
         var item = new OutboxFileItem()
         {

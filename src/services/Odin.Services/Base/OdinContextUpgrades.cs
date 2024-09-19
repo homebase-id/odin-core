@@ -48,7 +48,7 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
-    
+
     public static IOdinContext UseTransitRead(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
@@ -141,17 +141,15 @@ public static class OdinContextUpgrades
         return patchedContext;
     }
 
-    public static IOdinContext UsePushNotifications(IOdinContext odinContext)
+    public static IOdinContext UsePermissions(IOdinContext odinContext, params int[] permissionKeys)
     {
-        
         var patchedContext = odinContext.Clone();
 
-        patchedContext.PermissionsContext.PermissionGroups.TryAdd(nameof(PermissionKeys.SendPushNotifications),
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd($"UsePermissions_{Guid.NewGuid().ToString()}",
             new PermissionGroup(
-                new PermissionSet([PermissionKeys.SendPushNotifications]),
+                new PermissionSet(permissionKeys),
                 new List<DriveGrant>(), null, null));
 
         return patchedContext;
-        
     }
 }

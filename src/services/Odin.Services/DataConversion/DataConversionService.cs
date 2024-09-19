@@ -50,6 +50,9 @@ namespace Odin.Services.DataConversion
             odinContext.Caller.AssertHasMasterKey();
             using var cn = tenantSystemStorage.CreateConnection();
 
+            //enable autoApprove
+            
+            
             //
             // Create new circles
             //

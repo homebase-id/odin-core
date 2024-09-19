@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Authentication;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -35,20 +36,34 @@ public sealed class IcrKeyAvailableBackgroundService(
         var tenantContext = scope.Resolve<TenantContext>();
         while (!stoppingToken.IsCancellationRequested)
         {
-            var odinContext = (IOdinContext)accessor.GetContext();
-            if (odinContext != null)
+            try
             {
-                if (tenantContext.Settings.AutoAcceptIntroductions)
+                var odinContext = (IOdinContext)accessor.GetContext();
+                if (odinContext != null)
                 {
-                    using var cn = tenantSystemStorage.CreateConnection();
-                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cn);
-                }
-                
-                using var sendRequestCn = tenantSystemStorage.CreateConnection();
-                await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, sendRequestCn);
+                    if (!tenantContext.Settings.DisableAutoAcceptIntroductions &&
+                        odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
+                    {
+                        using var cn = tenantSystemStorage.CreateConnection();
+                        await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cn);
+                    }
 
-                using var fixIcrCn = tenantSystemStorage.CreateConnection();
-                await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, fixIcrCn);
+                    if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
+                    {
+                        using var sendRequestCn = tenantSystemStorage.CreateConnection();
+                        await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, sendRequestCn);
+                    }
+
+                    if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
+                    {
+                        using var fixIcrCn = tenantSystemStorage.CreateConnection();
+                        await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, fixIcrCn);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unhandled exception occured");
             }
 
             await SleepAsync(TimeSpan.FromSeconds(100), stoppingToken);

@@ -15,7 +15,7 @@ public class IntroductionsReceivedNotification : MediatorNotificationBase, IClie
 
     public DatabaseConnection DatabaseConnection { get; init; }
     public OdinId IntroducerOdinId { get; init; }
-    public Introduction Introduction { get; set; }
+    public Introduction Introduction { get; init; }
 
     public string GetClientData()
     {
