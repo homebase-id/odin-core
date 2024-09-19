@@ -89,7 +89,7 @@ public class UpdateRemoteFileOutboxWorker(
 
         var request = outboxFileItem.State.DeserializeData<UpdateRemoteFileRequest>();
         
-        var instructionSet = FileItem.State.TransferInstructionSet;
+        var instructionSet = FileItem.State.FileUpdateTransferInstructionSet;
         var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();

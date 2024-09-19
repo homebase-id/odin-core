@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Update;
@@ -36,6 +37,10 @@ public class FileUpdateInstructionSet
     /// Information about what is being uploaded
     /// </summary>
     public UploadManifest Manifest { get; init; }
+    
+    public bool UseAppNotification { get; init; }
+
+    public AppNotificationOptions AppNotificationOptions { get; init; }
 
     public bool AssertIsValid()
     {

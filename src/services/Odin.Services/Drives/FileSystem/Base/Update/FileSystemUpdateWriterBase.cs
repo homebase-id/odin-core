@@ -191,7 +191,7 @@ public abstract class FileSystemUpdateWriterBase
 
             await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, cn);
 
-            var recipientStatus = await ProcessTransitInstructions(keyHeaderIv, odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, cn);
 
             return new FileUpdateResult()
             {
@@ -209,7 +209,7 @@ public abstract class FileSystemUpdateWriterBase
             // the local caller since currently, there is no method to get back info from
             // the outbox when sending transient files.
 
-            var recipientStatus = await ProcessTransitInstructions(keyHeaderIv, odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, cn);
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -285,24 +285,26 @@ public abstract class FileSystemUpdateWriterBase
         return (iv, metadata, serverMetadata);
     }
 
-    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(byte[] keyHeaderIv, IOdinContext odinContext,
+    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package, byte[] keyHeaderIv,
+        IOdinContext odinContext,
         DatabaseConnection cn)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
-        var recipients = Package.InstructionSet.Recipients;
+        var recipients = package.InstructionSet.Recipients;
 
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
 
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
+                package.TempMetadataFile,
                 keyHeaderIv,
-                Package.TempMetadataFile,
-                Package.InstructionSet.File,
-                Package.InstructionSet.Manifest,
-                Package.InstructionSet.Recipients,
-                Package.NewVersionTag,
-                Package.FileSystemType,
+                package.InstructionSet.File,
+                package.InstructionSet.Manifest,
+                package.InstructionSet.Recipients,
+                package.NewVersionTag,
+                package.FileSystemType,
+                package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
                 odinContext,
                 cn);
         }

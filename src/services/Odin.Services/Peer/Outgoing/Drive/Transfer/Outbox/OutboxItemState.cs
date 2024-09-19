@@ -6,6 +6,7 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
+// TODO: this class has been decimated and needs to be refactored to something sensible.
 public class OutboxItemState
 {
     public string Recipient { get; set; }
@@ -30,6 +31,8 @@ public class OutboxItemState
     public byte[] EncryptedClientAuthToken { get; set; }
     
     public byte[] Data { get; set; }
+    
+    public EncryptedRecipientFileUpdateInstructionSet FileUpdateTransferInstructionSet { get; set; }
 
     public T DeserializeData<T>()
     {

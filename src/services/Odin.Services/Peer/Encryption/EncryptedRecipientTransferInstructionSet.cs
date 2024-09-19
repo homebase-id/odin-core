@@ -52,9 +52,8 @@ namespace Odin.Services.Peer.Encryption
 
         public FileSystemType FileSystemType { get; init; }
 
-        public byte[] SharedSecretEncryptedKeyHeaderIv { get; init; }
+        public EncryptedKeyHeader EncryptedKeyHeaderIvOnly { get; init; }
         
         public AppNotificationOptions AppNotificationOptions { get; set; }
-
     }
 }

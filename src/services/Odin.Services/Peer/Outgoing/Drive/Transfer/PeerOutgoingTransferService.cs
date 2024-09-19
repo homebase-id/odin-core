@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -28,11 +27,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     {
         public FileIdentifier File { get; init; }
 
-        public byte[] KeyHeaderIv { get; init; }
-
         public UploadManifest Manifest { get; init; }
 
         public Guid NewVersionTag { get; init; }
+
+        public AppNotificationOptions NotificationOptions { get; init; }
     }
 
     public class PeerOutgoingTransferService(
@@ -92,11 +91,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Updates a remote file
         /// </summary>
-        public async Task<Dictionary<string, TransferStatus>> UpdateFile(byte[] keyHeaderIv, InternalDriveFileId sourceFile, FileIdentifier file,
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
+            byte[] keyHeaderIv,
+            FileIdentifier file,
             UploadManifest manifest,
             List<OdinId> recipients,
             Guid newVersionTag,
             FileSystemType fileSystemType,
+            AppNotificationOptions notificationOptions,
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
@@ -105,14 +107,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var request = new UpdateRemoteFileRequest()
             {
                 File = file,
-                KeyHeaderIv = keyHeaderIv,
                 Manifest = manifest,
-                NewVersionTag = newVersionTag
+                NewVersionTag = newVersionTag,
+                NotificationOptions = notificationOptions
             };
 
             var priority = 100;
 
-            var (outboxStatus, _) = await CreateUpdateOutboxItems(sourceFile, request, recipients, priority, fileSystemType, odinContext, cn);
+            var (outboxStatus, _) = await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
@@ -355,22 +357,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        private EncryptedRecipientTransferInstructionSet CreateFileUpdateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
-            SensitiveByteArray sharedSecret,
-            TargetDrive targetDrive,
-            FileSystemType fileSystemType)
-        {
-            var iv = ByteArrayUtil.GetRndByteArray(16);
-            var ssIv = AesCbc.Encrypt(ivToEncrypt, sharedSecret, iv);
-
-            return new EncryptedRecipientFileUpdateInstructionSet()
-            {
-                TargetDrive = targetDrive,
-                FileSystemType = fileSystemType,
-                SharedSecretEncryptedKeyHeaderIv = ssIv
-            };
-        }
-
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateOutboxItems(InternalDriveFileId internalFile,
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
@@ -443,6 +429,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateUpdateOutboxItems(
             InternalDriveFileId sourceFile,
+            byte[] keyHeaderIv,
             UpdateRemoteFileRequest request,
             List<OdinId> recipients,
             int priority,
@@ -450,15 +437,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
-
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
-
-            var header = await fs.Storage.GetServerFileHeader(sourceFile, odinContext, cn);
-            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(sourceFile.DriveId);
-            var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
-            storageKey.Wipe();
 
             foreach (var recipient in recipients)
             {
@@ -467,6 +447,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
+                    var iv = ByteArrayUtil.GetRndByteArray(16);
+                    var ss = clientAuthToken.SharedSecret;
                     outboxItems.Add(new OutboxFileItem()
                     {
                         Priority = priority,
@@ -477,11 +459,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         {
                             IsTransientFile = true,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
-                            TransferInstructionSet = CreateFileUpdateTransferInstructionSet(
-                                request.KeyHeaderIv
-                                clientAuthToken.SharedSecret,
-                                request.File.TargetDrive,
-                                fileSystemType),
+                            TransferInstructionSet = null,
+                            FileUpdateTransferInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
+                            {
+                                TargetDrive = request.File.TargetDrive,
+                                FileSystemType = fileSystemType,
+                                EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
+                                    {
+                                        Iv = keyHeaderIv,
+                                        AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray()
+                                    },
+                                    iv,
+                                    ref ss),
+                            },
 
                             Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                         }
