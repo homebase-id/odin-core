@@ -11,7 +11,6 @@ public interface IApiClientContext
 {
     // Create the app and setup permissions
     // Create the guest domain and setup permissions
-    // Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
     Task Initialize(OwnerApiClientRedux ownerApiClient);
     
     TargetDrive TargetDrive { get; }

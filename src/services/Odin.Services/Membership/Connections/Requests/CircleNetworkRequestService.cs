@@ -39,6 +39,8 @@ namespace Odin.Services.Membership.Connections.Requests
     /// </summary>
     public class CircleNetworkRequestService : PeerServiceBase
     {
+        private const PublicPrivateKeyType _publicPrivateKeyType = PublicPrivateKeyType.OfflineKey;
+        
         private readonly byte[] _pendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
 
         private readonly byte[] _sentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
@@ -121,7 +123,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             var (isValidPublicKey, payloadBytes) =
-                await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, cn);
+                await _publicPrivateKeyService.RsaDecryptPayload(_publicPrivateKeyType, header.Payload, odinContext, cn);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -886,7 +888,7 @@ namespace Odin.Services.Membership.Connections.Requests
             async Task<ApiResponse<NoResultResponse>> Send()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
-                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(PublicPrivateKeyType.OnlineKey,
+                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(_publicPrivateKeyType,
                     recipient, payloadBytes, cn);
 
                 var token = await ResolveClientAccessToken(recipient, odinContext, cn, false);

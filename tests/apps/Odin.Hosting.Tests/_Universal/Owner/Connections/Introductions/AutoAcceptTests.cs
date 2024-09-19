@@ -1,8 +1,11 @@
+using System.Collections;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Tests._Universal.ApiClient.Connections;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -41,8 +44,20 @@ public class AutoAcceptTests
         _scaffold.AssertLogEvents();
     }
 
+    public static IEnumerable OwnerAllowed()
+    {
+        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+    }
+
+    public static IEnumerable AppAllowed()
+    {
+        yield return new object[] { new AppPermissionsKeysOnly(new TestPermissionKeyList(PermissionKeys.All.ToArray())), HttpStatusCode.OK };
+    }
+
     [Test]
-    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists()
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Note: for your sanity, remember this is a background process that is
         // automatically accepting introductions that are eligible
@@ -72,7 +87,9 @@ public class AutoAcceptTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
+        await callerContext.Initialize(samOwnerClient);
+        var samClient = new UniversalCircleNetworkRequestsApiClient(sam, callerContext.GetFactory());
+        var samProcessResponse = await samClient.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
 
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(merry);
@@ -91,7 +108,7 @@ public class AutoAcceptTests
 
         var merryForceAutoAccept = await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         Assert.IsTrue(merryForceAutoAccept.IsSuccessStatusCode);
-        
+
         var getSamConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(sam);
         Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode);
         Assert.IsTrue(getSamConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
@@ -106,13 +123,14 @@ public class AutoAcceptTests
         Assert.IsTrue(merryIntroductionsResponse.Content.All(intro => intro.Identity != sam), "there should be no introductions to sam");
 
         // Check Sam
-        
+
         var samForceAutoAccept = await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         Assert.IsTrue(samForceAutoAccept.IsSuccessStatusCode);
 
         var getMerryConnectionInfoResponse = await samOwnerClient.Network.GetConnectionInfo(merry);
         Assert.IsTrue(getMerryConnectionInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction, $"{getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin}");
+        Assert.IsTrue(getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction,
+            $"{getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin}");
         Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
         Assert.IsTrue(

@@ -165,7 +165,7 @@ public class ConnectionRequestTests
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
 
-        
+
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
 
@@ -491,7 +491,7 @@ public class ConnectionRequestTests
 
         await merryClient.Configuration.DisableAutoAcceptIntroductions(true);
         await pippinClient.Configuration.DisableAutoAcceptIntroductions(true);
-        
+
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
 

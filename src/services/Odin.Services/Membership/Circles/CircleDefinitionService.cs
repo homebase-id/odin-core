@@ -51,7 +51,7 @@ namespace Odin.Services.Membership.Circles
                     }
                 }, cn, skipValidation: true);
             }
-            
+
             if (null == this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, cn))
             {
                 await this.CreateCircleInternal(new CreateCircleRequest()
@@ -101,12 +101,13 @@ namespace Odin.Services.Membership.Circles
             return def;
         }
 
-        public Task<IEnumerable<CircleDefinition>> GetCircles(bool includeSystemCircle, DatabaseConnection cn)
+        public Task<List<CircleDefinition>> GetCircles(bool includeSystemCircle, DatabaseConnection cn)
         {
-            var circles = _circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType);
+            var circles = (_circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType) ?? []).ToList();
+            
             if (!includeSystemCircle)
             {
-                return Task.FromResult(circles.ExceptBy(SystemCircleConstants.AllSystemCircles, cd => cd.Id));
+                circles.ToList().RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
             }
 
             return Task.FromResult(circles);
