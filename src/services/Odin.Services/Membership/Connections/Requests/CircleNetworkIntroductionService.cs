@@ -364,7 +364,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         var introducer = intro.IntroducerOdinId;
 
         const int minDaysSinceLastSend = 3; //TODO: config
-        if (intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
+        if (intro.LastProcessed != UnixTimeUtc.ZeroTime && intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
         {
             _logger.LogDebug("Ignoring introduction to {recipient} from {introducer} since we last processed less than {days} days ago",
                 recipient,
