@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -26,7 +27,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     public class UpdateRemoteFileRequest()
     {
         public FileIdentifier File { get; init; }
+
+        public byte[] KeyHeaderIv { get; init; }
+
         public UploadManifest Manifest { get; init; }
+
         public Guid NewVersionTag { get; init; }
     }
 
@@ -87,7 +92,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Updates a remote file
         /// </summary>
-        public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile, FileIdentifier file,
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(byte[] keyHeaderIv, InternalDriveFileId sourceFile, FileIdentifier file,
             UploadManifest manifest,
             List<OdinId> recipients,
             Guid newVersionTag,
@@ -100,6 +105,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var request = new UpdateRemoteFileRequest()
             {
                 File = file,
+                KeyHeaderIv = keyHeaderIv,
                 Manifest = manifest,
                 NewVersionTag = newVersionTag
             };
@@ -350,22 +356,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private EncryptedRecipientTransferInstructionSet CreateFileUpdateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
-            ClientAccessToken clientAccessToken,
+            SensitiveByteArray sharedSecret,
             TargetDrive targetDrive,
-            TransferFileType transferFileType,
-            FileSystemType fileSystemType, TransitOptions transitOptions)
+            FileSystemType fileSystemType)
         {
-            var sharedSecret = clientAccessToken.SharedSecret;
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeaderToBeEncrypted, iv, ref sharedSecret);
+            var ssIv = AesCbc.Encrypt(ivToEncrypt, sharedSecret, iv);
 
-            return new EncryptedRecipientTransferInstructionSet()
+            return new EncryptedRecipientFileUpdateInstructionSet()
             {
                 TargetDrive = targetDrive,
-                TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
-                ContentsProvided = transitOptions.SendContents,
-                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+                SharedSecretEncryptedKeyHeaderIv = ssIv
             };
         }
 
@@ -476,12 +478,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             IsTransientFile = true,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
                             TransferInstructionSet = CreateFileUpdateTransferInstructionSet(
-                                keyHeader,
-                                clientAuthToken,
+                                request.KeyHeaderIv
+                                clientAuthToken.SharedSecret,
                                 request.File.TargetDrive,
-                                TransferFileType.Normal,
-                                fileSystemType,
-                                null),
+                                fileSystemType),
 
                             Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                         }

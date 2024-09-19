@@ -24,7 +24,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -63,7 +62,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _loggerFactory = loggerFactory;
         }
 
-        
+
         [HttpPatch("update")]
         public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
         {
@@ -78,11 +77,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
             var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-            OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            // OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
 
             //Optimizations - the caller can't write to the drive, no need to accept any more of the file
-            
+
             //S0100
             _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
 
@@ -101,30 +98,25 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             //
 
-            var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
-            if (shouldExpectPayload)
+            var section = await reader.ReadNextSectionAsync();
+            while (null != section)
             {
-                var section = await reader.ReadNextSectionAsync();
-                while (null != section)
+                if (IsPayloadPart(section))
                 {
-                    if (IsPayloadPart(section))
-                    {
-                        await ProcessPayloadSection(section, metadata, cn);
-                    }
-
-                    if (IsThumbnail(section))
-                    {
-                        await ProcessThumbnailSection(section, metadata, cn);
-                    }
-
-                    section = await reader.ReadNextSectionAsync();
+                    await ProcessPayloadSection(section, metadata, cn);
                 }
-            }
 
+                if (IsThumbnail(section))
+                {
+                    await ProcessThumbnailSection(section, metadata, cn);
+                }
+
+                section = await reader.ReadNextSectionAsync();
+            }
 
             return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext, cn);
         }
-        
+
         private Task AssertIsValidCaller()
         {
             //TODO: later add check to see if this is from an introduction?
@@ -176,7 +168,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(json);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+            // OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
 
             return transferInstructionSet;
         }
@@ -211,7 +203,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, DatabaseConnection cn)
         {
-            AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out _);
+            AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
 
             var parts = thumbnailUploadKey.Split(DriveFileUtility.TransitThumbnailKeyDelimiter);
             if (parts.Length != 3)
@@ -250,7 +242,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         }
 
         private void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
-            out string thumbnailUploadKey, out string contentType)
+            out string thumbnailUploadKey)
         {
             var expectedPart = MultipartHostTransferParts.Thumbnail;
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
@@ -266,14 +258,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             fileSection = section.AsFileSection();
-
-            contentType = section.ContentType;
-            if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
-            {
-                throw new OdinClientException(
-                    "Thumbnails must include a valid contentType in the multi-part upload.",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
 
             thumbnailUploadKey = fileSection?.FileName;
             if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))

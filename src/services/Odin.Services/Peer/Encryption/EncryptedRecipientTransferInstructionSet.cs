@@ -55,5 +55,6 @@ namespace Odin.Services.Peer.Encryption
         public byte[] SharedSecretEncryptedKeyHeaderIv { get; init; }
         
         public AppNotificationOptions AppNotificationOptions { get; set; }
+
     }
 }

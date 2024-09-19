@@ -191,7 +191,7 @@ public abstract class FileSystemUpdateWriterBase
 
             await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, cn);
 
-            var recipientStatus = await ProcessTransitInstructions(odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(keyHeaderIv, odinContext, cn);
 
             return new FileUpdateResult()
             {
@@ -209,7 +209,7 @@ public abstract class FileSystemUpdateWriterBase
             // the local caller since currently, there is no method to get back info from
             // the outbox when sending transient files.
 
-            var recipientStatus = await ProcessTransitInstructions(odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(keyHeaderIv, odinContext, cn);
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -285,7 +285,8 @@ public abstract class FileSystemUpdateWriterBase
         return (iv, metadata, serverMetadata);
     }
 
-    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(IOdinContext odinContext, DatabaseConnection cn)
+    protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(byte[] keyHeaderIv, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = Package.InstructionSet.Recipients;
@@ -295,6 +296,7 @@ public abstract class FileSystemUpdateWriterBase
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
+                keyHeaderIv,
                 Package.TempMetadataFile,
                 Package.InstructionSet.File,
                 Package.InstructionSet.Manifest,
