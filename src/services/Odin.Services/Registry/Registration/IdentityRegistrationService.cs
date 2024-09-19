@@ -312,6 +312,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
+    public Task<bool> IsInvitationCodeNeeded()
+    {
+        return Task.FromResult(_configuration.Registry.InvitationCodes.Count > 0);
+    }
+    
+    //
+
     public Task<bool> IsValidInvitationCode(string code)
     {
         if (_configuration.Registry.InvitationCodes.Count == 0)
