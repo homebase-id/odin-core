@@ -69,7 +69,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _mediator = mediator;
         _pushNotificationService = pushNotificationService;
 
-        const string receivedIntroductionContextKey = "d2f5c94c-c299-4122-8aa2-744d91f3b12d";
+        const string receivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
         _receivedIntroductionValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(receivedIntroductionContextKey));
     }
 
@@ -137,7 +137,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 Message = introduction.Message
             };
 
-            _receivedIntroductionValueStorage.Upsert(cn, identity, introducer.ToHashId().ToByteArray(), _receivedIntroductionDataType, iid);
+            UpsertIntroduction(iid, cn);
         }
 
         var notification = new IntroductionsReceivedNotification()
@@ -233,7 +233,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 continue;
             }
 
-            //TODO: maybe need to update the introduction to show a connection request was last sent
             try
             {
                 await this.SendConnectionRequests(intro, odinContext, cn);
@@ -361,19 +360,40 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     private async Task SendConnectionRequests(IdentityIntroduction intro, IOdinContext odinContext, DatabaseConnection cn)
     {
+        var recipient = intro.Identity;
+        var introducer = intro.IntroducerOdinId;
+
+        const int minDaysSinceLastSend = 3; //TODO: config
+        if (intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
+        {
+            _logger.LogDebug("Ignoring introduction to {recipient} from {introducer} since we last processed less than {days} days ago",
+                recipient,
+                introducer,
+                minDaysSinceLastSend);
+        }
+
         var id = Guid.NewGuid();
         var requestHeader = new ConnectionRequestHeader()
         {
             Id = id,
-            Recipient = intro.Identity,
+            Recipient = recipient,
             Message = intro.Message,
-            IntroducerOdinId = intro.IntroducerOdinId,
+            IntroducerOdinId = introducer,
             ContactData = new ContactRequestData(),
             CircleIds = [],
             ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
         };
 
         await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
+
+        intro.LastProcessed = UnixTimeUtc.Now();
+        UpsertIntroduction(intro, cn);
+    }
+
+    private void UpsertIntroduction(IdentityIntroduction intro, DatabaseConnection cn)
+    {
+        _receivedIntroductionValueStorage.Upsert(cn, intro.Identity, dataTypeKey: intro.IntroducerOdinId.ToHashId().ToByteArray(),
+            _receivedIntroductionDataType, intro);
     }
 
     private async Task DeleteIntroductionsTo(OdinId identity, DatabaseConnection cn)

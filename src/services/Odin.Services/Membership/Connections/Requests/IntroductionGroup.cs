@@ -39,5 +39,5 @@ public class IdentityIntroduction
     public string Message { get; init; }
     public OdinId IntroducerOdinId { get; init; }
     
-    public UnixTimeUtc LastProcessed { get; init; }
+    public UnixTimeUtc LastProcessed { get; set; }
 }
