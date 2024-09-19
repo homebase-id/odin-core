@@ -44,7 +44,8 @@ namespace Odin.Services.Authorization.Permissions
             SendPushNotifications,
             ManageFeed,
             PublishStaticContent,
-            AllowIntroductions
+            AllowIntroductions,
+            SendIntroductions
         ];
     }
 

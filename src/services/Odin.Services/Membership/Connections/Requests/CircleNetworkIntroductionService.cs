@@ -181,6 +181,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             if (null != introduction)
             {
                 await AutoAccept(sender, odinContext, connection);
+                return;
             }
 
             var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, connection);

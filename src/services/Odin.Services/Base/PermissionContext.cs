@@ -99,8 +99,7 @@ namespace Odin.Services.Base
 
             return false;
         }
-
-
+        
         public void AssertHasAtLeastOneDrivePermission(Guid driveId, params DrivePermission[] permissions)
         {
             if (!permissions.Any(p => HasDrivePermission(driveId, p)))

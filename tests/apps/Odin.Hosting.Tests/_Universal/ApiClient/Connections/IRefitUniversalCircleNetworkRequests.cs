@@ -45,6 +45,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(IntroductionsRoot + "/process-incoming-introductions")]
         Task<ApiResponse<HttpContent>> ProcessIncomingIntroductions();
         
+        [Post(IntroductionsRoot + "/auto-accept-eligible-introductions")]
+        Task<ApiResponse<HttpContent>> AutoAcceptEligibleIntroductions();
+            
         [Get(IntroductionsRoot + "/received")]
         Task<ApiResponse<List<IdentityIntroduction>>> GetReceivedIntroductions();
     }

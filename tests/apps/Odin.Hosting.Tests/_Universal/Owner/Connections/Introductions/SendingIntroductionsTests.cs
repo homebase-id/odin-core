@@ -52,8 +52,8 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await Prepare();
 
@@ -67,32 +67,33 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
-        
+
         // There are background processes running which will send introductions automatically
         // we can also call an endpoint to force this.
-        // since we dont know when this will occur, we'll call the endpoint
-        
+        // since we don't know when this will occur, we'll call the endpoint
+
         // there's also logic dictating that when sending a connection request due to an
         // introduction, we do not send it if there's already an incoming request
-        
+
         // so - we have to add some logic into this test
-        
+
         // firstly, force sending a request for both parties.
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
+
         // now, one of them should have a connection request, start with Sam
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var requestFromMerry = samRequestFromMerryResponse.Content;
-        
+
         if (null == requestFromMerry)
         {
             // merry should have a request from sam
             var merryRequestFromSamResponse = await merryOwnerClient.Connections.GetIncomingRequestFrom(sam);
             var requestFromSam = merryRequestFromSamResponse.Content;
+
             Assert.IsNotNull(requestFromSam);
             Assert.IsTrue(requestFromSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
             Assert.IsTrue(requestFromSam.IntroducerOdinId == frodo);
@@ -102,20 +103,20 @@ public class SendingIntroductionsTests
             Assert.IsTrue(requestFromMerry.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
             Assert.IsTrue(requestFromMerry.IntroducerOdinId == frodo);
         }
-        
+
         // both should have introductions in the list
         var samReceivedIntroductionsResponse = await samOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsTrue(samReceivedIntroductionsResponse.IsSuccessStatusCode);
         var samsIntroductionToMerry = samReceivedIntroductionsResponse.Content.Single();
         Assert.IsTrue(samsIntroductionToMerry.Identity == merry);
         Assert.IsTrue(samsIntroductionToMerry.IntroducerOdinId == frodo);
-        
+
         var merryReceivedIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsTrue(merryReceivedIntroductionsResponse.IsSuccessStatusCode);
         var merrysIntroductionToSam = merryReceivedIntroductionsResponse.Content.Single();
         Assert.IsTrue(merrysIntroductionToSam.Identity == sam);
         Assert.IsTrue(merrysIntroductionToSam.IntroducerOdinId == frodo);
-        
+
 
         await Cleanup();
     }
@@ -221,8 +222,8 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await Prepare();
 
@@ -233,7 +234,7 @@ public class SendingIntroductionsTests
         });
 
         var introResult = firstIntroductionResponse.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);    
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
@@ -242,9 +243,9 @@ public class SendingIntroductionsTests
 
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
         // here we should have outgoing requests that have an origin of introduction 
-        
+
         var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
         var firstRequestFromMerry = samRequestFromMerryResponse.Content;
         Assert.IsNotNull(firstRequestFromMerry);
@@ -358,8 +359,8 @@ public class SendingIntroductionsTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
-        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(false);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await Prepare();
 
@@ -434,5 +435,11 @@ public class SendingIntroductionsTests
 
         await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
         await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
+
+        await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
+        await merry.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
+        
+        await sam.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
+        await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
     }
 }

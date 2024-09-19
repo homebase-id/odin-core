@@ -41,7 +41,6 @@ public class AutoAcceptTests
         _scaffold.AssertLogEvents();
     }
 
-
     [Test]
     public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists()
     {
@@ -61,6 +60,8 @@ public class AutoAcceptTests
             Message = "test message from frodo",
             Recipients = [sam, merry]
         });
+
+        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
 
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
@@ -88,6 +89,9 @@ public class AutoAcceptTests
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
+        var merryForceAutoAccept = await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        Assert.IsTrue(merryForceAutoAccept.IsSuccessStatusCode);
+        
         var getSamConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(sam);
         Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode);
         Assert.IsTrue(getSamConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
@@ -96,16 +100,19 @@ public class AutoAcceptTests
         Assert.IsTrue(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
             cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
-        
+
         var merryIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsTrue(merryIntroductionsResponse.IsSuccessStatusCode);
         Assert.IsTrue(merryIntroductionsResponse.Content.All(intro => intro.Identity != sam), "there should be no introductions to sam");
-        
+
         // Check Sam
         
+        var samForceAutoAccept = await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        Assert.IsTrue(samForceAutoAccept.IsSuccessStatusCode);
+
         var getMerryConnectionInfoResponse = await samOwnerClient.Network.GetConnectionInfo(merry);
         Assert.IsTrue(getMerryConnectionInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        Assert.IsTrue(getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction, $"{getMerryConnectionInfoResponse.Content.ConnectionRequestOrigin}");
         Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
         Assert.IsTrue(
@@ -117,9 +124,14 @@ public class AutoAcceptTests
         Assert.IsTrue(samIntroductionsResponse.IsSuccessStatusCode);
         Assert.IsTrue(samIntroductionsResponse.Content.All(intro => intro.Identity != merry), "there should be no introductions to sam");
 
-        
+
         await Cleanup();
     }
+
+    // [Test]
+    // public Task WillAutoAcceptIncomingConnectionRequestsWhenOnlyOneRecipientIsConnected()
+    // {
+    // }
 
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
