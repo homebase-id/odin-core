@@ -48,7 +48,7 @@ public sealed class IcrKeyAvailableBackgroundService(
                         await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cn);
                     }
 
-                    if (!odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
+                    if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
                     {
                         using var sendRequestCn = tenantSystemStorage.CreateConnection();
                         await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, sendRequestCn);

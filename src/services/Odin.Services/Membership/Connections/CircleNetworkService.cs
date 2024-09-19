@@ -296,8 +296,7 @@ namespace Odin.Services.Membership.Connections
             //allow the caller to see if s/he is connected, otherwise
             if (odinContext.Caller.OdinId != odinId)
             {
-                //TODO: this needs to be changed to - can view connections
-                odinContext.AssertCanManageConnections();
+                odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
             var info = await this.GetIcr(odinId, odinContext, cn);

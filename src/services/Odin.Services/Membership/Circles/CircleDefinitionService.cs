@@ -107,7 +107,7 @@ namespace Odin.Services.Membership.Circles
             
             if (!includeSystemCircle)
             {
-                circles.ToList().RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
+                circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
             }
 
             return Task.FromResult(circles);

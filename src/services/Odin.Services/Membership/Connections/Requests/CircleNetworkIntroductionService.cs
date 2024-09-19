@@ -177,17 +177,30 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         {
             var sender = request.SenderOdinId;
 
-            var introduction = await this.GetIntroductionInternal(sender, connection);
-            if (null != introduction)
+            try
             {
-                await AutoAccept(sender, odinContext, connection);
-                return;
-            }
+                var introduction = await this.GetIntroductionInternal(sender, connection);
+                if (null != introduction)
+                {
+                    await AutoAccept(sender, odinContext, connection);
+                    return;
+                }
 
-            var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, connection);
-            if (null != existingSentRequest)
+                var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, connection);
+                if (null != existingSentRequest)
+                {
+                    await AutoAccept(sender, odinContext, connection);
+                    return;
+                }
+
+                if (await CircleNetworkService.IsConnected(sender, odinContext, connection))
+                {
+                    await AutoAccept(sender, odinContext, connection);
+                }
+            }
+            catch (Exception ex)
             {
-                await AutoAccept(sender, odinContext, connection);
+                _logger.LogWarning(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
             }
         }
     }
@@ -199,6 +212,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     {
         //get the introductions from the list
         var introductions = await GetReceivedIntroductions(odinContext, cn);
+
+        _logger.LogDebug("Sending outstanding connection requests to {introductionCount} introductions", introductions.Count);
+
         foreach (var intro in introductions)
         {
             var recipient = intro.Identity;
@@ -206,12 +222,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext, cn);
             if (hasOutstandingRequest)
             {
+                _logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
                 continue;
             }
 
             var alreadyConnected = await CircleNetworkService.IsConnected(recipient, odinContext, cn);
             if (alreadyConnected)
             {
+                _logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
                 continue;
             }
 
