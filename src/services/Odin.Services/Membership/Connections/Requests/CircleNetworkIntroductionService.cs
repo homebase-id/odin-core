@@ -370,6 +370,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 recipient,
                 introducer,
                 minDaysSinceLastSend);
+            
+            return;
         }
 
         var id = Guid.NewGuid();
