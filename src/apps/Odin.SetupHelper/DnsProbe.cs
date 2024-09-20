@@ -57,7 +57,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
             resolvers = [authorityLookup.Authority];
             
             queryResponse = await lookupClient.Query(resolvers, cNameRecord.CanonicalName, QueryType.A, options);
-            aRecord = queryResponse?.Answers.ARecords().FirstOrDefault();
+            aRecord = queryResponse?.Answers.ARecords().FirstOrDefault(); // SEB:TODO handle multiple A records
             if (aRecord != null)
             {
                 result = new ResolveIpResult(aRecord.Address.ToString(), $"Resolved {domainName} to {aRecord.Address}");

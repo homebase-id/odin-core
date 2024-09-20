@@ -12,6 +12,7 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Odin.Core.Configuration;
 using Odin.Core.Dns;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Spectre.Console;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
@@ -136,7 +137,7 @@ public static class DockerSetup
             AnsiConsole.MarkupLine(
                 $"""
                  [bold red]ERROR[/]
-                 {errorMessage}
+                 {Markup.Escape(errorMessage)}
                  """);
         }        
         hostConfig.UpdateExisting("Registry__ProvisioningDomain", provisioningDomain);
@@ -287,7 +288,7 @@ public static class DockerSetup
             [underline blue]Docker run detached[/]
             Run Docker container detached?
             Detached mode runs the container in the background and you will not see the output in the console.
-            You can always check the logs with "docker logs {dockerContainerName}".
+            You can always check the logs with "docker logs {Markup.Escape(dockerContainerName)}".
 
             """);
         var dockerRunDetached = settings.GetOrDefault("docker-run-detached", null) == "y";
@@ -352,7 +353,7 @@ public static class DockerSetup
             Console.WriteLine();
         }
 
-        AnsiConsole.MarkupLine($"Wrote docker run script to [bold green]{dockerRunScript}[/]");
+        AnsiConsole.MarkupLine($"Wrote docker run script to [bold green]{Markup.Escape(dockerRunScript)}[/]");
 
         return 0;
     }
@@ -450,28 +451,13 @@ public static class DockerSetup
             return (false, "Invalid domain");
         }
 
-        List<string> addresses;
-        try
+        var (domainIp, error) = await ResolveIp(domain);
+
+        if (error != null)
         {
-            addresses = (await Dns.GetHostAddressesAsync(domain))
-                .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .Select(x => x.ToString())
-                .ToList();
-        }
-        catch (Exception)
-        {
-            return (false, "Could not resolve IPv4 address from domain");
-        }
-        if (addresses.Count < 1)
-        {
-            return (false, "Could not resolve IPv4 address from domain");
-        }
-        if (addresses.Count > 1)
-        {
-            return (false, $"Domain must not resolve to more that one IPv4 address ({string.Join(',', addresses)})");
+            return (false, $"Could not resolve IP for domain. Error: {error}");
         }
 
-        var domainIp = addresses.First();
         if (domainIp != myIp)
         {
             return (false, $"Domain ip ({domainIp}) must match your external ip ({myIp})");
@@ -555,7 +541,25 @@ public static class DockerSetup
     }
 
     //
-    
+
+    private static async Task<(string? ip, string? error)> ResolveIp(string domain)
+    {
+        var client = HttpClientFactory.CreateClient("setup.homebase.id");
+        client.Timeout = TimeSpan.FromSeconds(5);
+        try
+        {
+            var response = client.GetAsync($"https://setup.homebase.id/api/v1/resolve-ip/{domain}").Result;
+            var content = OdinSystemSerializer.Deserialize<string>(await response.Content.ReadAsStringAsync());
+            return response.StatusCode == HttpStatusCode.OK ? (content, null) : (null, content);
+        }
+        catch (Exception e)
+        {
+            return (null, e.Message);
+        }
+    }
+
+    //
+
     private static async Task<(bool connected, string? error)> ProbeTcp(string domain, int port)
     {
         var client = HttpClientFactory.CreateClient("setup.homebase.id");
@@ -563,7 +567,7 @@ public static class DockerSetup
         try
         {
             var response = client.GetAsync($"https://setup.homebase.id/api/v1/probe-tcp/{domain}/{port}").Result;
-            var content = await response.Content.ReadAsStringAsync();
+            var content = OdinSystemSerializer.Deserialize<string>(await response.Content.ReadAsStringAsync());
             return response.StatusCode == HttpStatusCode.OK ? (true, null) : (false, content);
         }
         catch (Exception e)

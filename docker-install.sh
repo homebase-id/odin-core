@@ -56,8 +56,8 @@ main() {
     "${ODIN_DOCKER_IMAGE}" \
     --docker-setup \
     output-docker-run-script="${docker_run_script}" \
-    provisioning-domain=identity-host.sebbarg.net \
-    certificate-email=sebbarg@gmail.com \
+    provisioning-domain=table-top.sebbarg.net \
+    certificate-email=sebbar+tabletopg@gmail.com \
     docker-image-name="${ODIN_DOCKER_IMAGE}" \
     docker-root-data-mount=/tmp/homebase
 
@@ -120,9 +120,9 @@ check_prerequisites() {
   #
   # Check that Docker is installed
   #
-  echo "Checking docker is installed..."
+  echo "Checking Docker is installed..."
   if ! command -v docker &>/dev/null; then
-    echo "⛔️ docker is not installed. Please install Docker and try again."
+    echo "⛔️ Docker is not installed. Please install Docker and try again."
     exit 1
   fi
 
