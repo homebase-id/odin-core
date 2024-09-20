@@ -109,6 +109,7 @@ public static class DockerSetup
             - it resolves to your external IP address;
             - it is reachable from the internet on ports {httpPort} and {httpsPort};
             Example domain name: deathstar.empire.org
+            Keep it mind that it can take up to 24 hours for DNS changes to propagate around the globe.
 
             """);
 
