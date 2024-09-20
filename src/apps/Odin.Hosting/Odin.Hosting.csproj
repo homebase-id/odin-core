@@ -65,7 +65,7 @@
         <None Update="appsettings.ansible-templating.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <None Update="appsettings.table-top-defaults.json">
+        <None Update="appsettings.minimal-docker-setup.json">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="appsettings.local.json">

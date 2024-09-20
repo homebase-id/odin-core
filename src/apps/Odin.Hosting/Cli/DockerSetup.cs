@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
@@ -25,13 +26,13 @@ public static class DockerSetup
 
     public static int Execute(string[] args)
     {
-        
         AnsiConsole.Write(
             new FigletText("Homebase")
                 .LeftJustified()
                 .Color(Color.Green));
 
-        AnsiConsole.MarkupLine("[bold green]Homebase[/] table-top Docker setup");
+        AnsiConsole.MarkupLine(
+            "[bold green]Homebase[/] minimal Docker setup");
         
         // Help?
         if (args.Any(arg => arg.ToLower() is "help" or "--help"))
@@ -39,27 +40,33 @@ public static class DockerSetup
             return ShowHelp();
         }
 
+        AnsiConsole.MarkupLine(
+            """
+            Based on your input, I will generate a Docker run bash script for a minimal Homebase setup.
+            When I'm done, feel free to tweak the script to suit your needs, or just run it as is.
+            If it fails to run, you can either fix the script or re-run me redoing your prompt answers.
+            Argument help: run me with the arguments [underline]--docker-setup help[/]
+            """);
+
         // We can only run on port 80 and 443 for the time being
         const int httpPort = 80;
         const int httpsPort = 443;
         
         var settings = ParseSettings(args);
+        var verbose = settings.GetOrDefault("verbose", null) == "y";
         // foreach (var setting in settings)
         // {
         //     Console.WriteLine(setting.Key + " = " + setting.Value);
         // }
-        
-        var dockerRunScript = settings.GetOrDefault("output-docker-run-script", null);
-        if (dockerRunScript == null)
-        {
-            AnsiConsole.MarkupLine("[bold red]Missing required argument output-docker-run-script[/]");
-            AnsiConsole.MarkupLine("[red]Example: output-docker-run-script=/tmp/docker-run-script.sh[/]");
-            return 1;
-        }
-        
-        var configFile = settings.GetOrDefault("config-file", "appsettings.table-top-defaults.json");
+
+        var configFile = settings.GetOrDefault("config-file", "appsettings.minimal-docker-setup.json");
         var (_, appSettingsConfig) = AppSettings.LoadConfig(false, configFile);
         var hostConfig = appSettingsConfig.ExportAsEnvironmentDictionary();
+
+        const string homebaseRoot = "/homebase";
+        hostConfig.UpdateExisting("Host__SystemDataRootPath", Path.Combine(homebaseRoot, "system"));
+        hostConfig.UpdateExisting("Host__TenantDataRootPath", Path.Combine(homebaseRoot, "tenants"));
+        hostConfig.UpdateExisting("Logging__LogFilePath", Path.Combine(homebaseRoot, "logs"));
 
         //
         // My IP external address
@@ -73,15 +80,39 @@ public static class DockerSetup
         }
 
         //
+        // Output Docker run script
+        //
+
+        AnsiConsole.MarkupLine(
+            """
+
+            [underline blue]Output Docker run script[/]
+            Enter the path to the output Docker run script.
+            This is the script I will create for you to run the Homebase Docker container.
+            Remember to volume-map the immediate parent directory if you are running me from a Docker container.
+            
+            """);
+
+        var dockerRunScript = settings.GetOrDefault("output-docker-run-script", null);
+        dockerRunScript = AnsiConsole.Prompt(
+            new TextPrompt<string>("Output Docker run script:").OptionalDefaultValue(dockerRunScript));
+
+        //
         // Provisioning domain
         //
         
-        AnsiConsole.Markup(
-            """
+        AnsiConsole.MarkupLine(
+            $"""
 
             [underline blue]Provisioning domain[/]
-            SEB:TODO Lorem ipsum explaining stuff...
-            
+            The "provisioning domain" is the domain name you will use to provision your Homebase identity (or identities).
+            You will need to configure DNS for your provisioning domain so that it resolves to your external IP address ({myIp}).
+            You will also need to make sure that your router forwards traffic on ports {httpPort} and {httpsPort} to your Homebase server.
+            Once you enter your provisioning domain, I will check that:
+            - it resolves to your external IP address;
+            - it is reachable from the internet on ports {httpPort} and {httpsPort};
+            Example domain name: deathstar.empire.org
+
             """);
 
         var provisioningDomain = settings.GetOrDefault("provisioning-domain", null);
@@ -104,7 +135,11 @@ public static class DockerSetup
                 break;
             }
 
-            AnsiConsole.MarkupLine($"[bold red]{errorMessage}[/]");
+            AnsiConsole.MarkupLine(
+                $"""
+                 [bold red]ERROR[/]
+                 {errorMessage}
+                 """);
         }        
         hostConfig.UpdateExisting("Registry__ProvisioningDomain", provisioningDomain);
 
@@ -123,27 +158,29 @@ public static class DockerSetup
         //
         // Provisioning password
         //
-        AnsiConsole.Markup(
+        AnsiConsole.MarkupLine(
             """
 
-            [underline blue]Provisioning password[/]
-            SEB:TODO Lorem ipsum explaining stuff...
+            [underline blue]Provisioning invitation code[/]
+            If you want to secure your provisioning domain, you can set a password in the form of an "invitation code".
+            Anybody visiting your provisioning domain will be prompted to enter this code before they can provision an identity.
 
             """);
-        var provisioningPassword = settings.GetOrDefault("provisioning-password", null);
-        provisioningPassword = AnsiConsole.Prompt(
-            new TextPrompt<string>("Optional provisioning password:").OptionalDefaultValue(provisioningPassword).AllowEmpty());
-        hostConfig.UpdateExisting("Registry__InvitationCodes__0", provisioningPassword);
+        var invitationCode = settings.GetOrDefault("invitation-code", null);
+        invitationCode = AnsiConsole.Prompt(
+            new TextPrompt<string>("Optional invitation code:").OptionalDefaultValue(invitationCode).AllowEmpty());
+        hostConfig.UpdateExisting("Registry__InvitationCodes__0", invitationCode);
 
         //
         // Letsencrypt certificate email
         //
-        AnsiConsole.Markup(
+        AnsiConsole.MarkupLine(
             """
 
             [underline blue]Letsencrypt certificate email[/]
-            SEB:TODO Lorem ipsum explaining stuff...
-
+            Homebase uses Let's Encrypt certificates for HTTPS.
+            Certificates are automatically handled by the server, but Let's Encrypt requires an email address.
+            
             """);
         var certificateEmail = settings.GetOrDefault("certificate-email", null);
         certificateEmail = AnsiConsole.Prompt(
@@ -156,13 +193,37 @@ public static class DockerSetup
         hostConfig.UpdateExisting("CertificateRenewal__CertificateAuthorityAssociatedEmail", certificateEmail);
 
         //
+        // Log to file?
+        //
+        AnsiConsole.MarkupLine(
+            """
+
+            [underline blue]File logging[/]
+            Do you want to enable file logging?
+            File logging is useful for debugging and troubleshooting, but can consume a lot of disk space.
+            We always log to the console, so you can always see what's going on.
+
+            """);
+        var fileLogging = settings.GetOrDefault("log-to-file", null) == "y";
+        fileLogging = AnsiConsole.Prompt(
+            new TextPrompt<bool>("File logging?")
+                .AddChoice(true)
+                .AddChoice(false)
+                .DefaultValue(fileLogging)
+                .WithConverter(choice => choice ? "y" : "n"));
+        if (!fileLogging)
+        {
+            hostConfig.Remove("Logging__LogFilePath");
+        }
+
+        //
         // Input image name
         //
-        AnsiConsole.Markup(
+        AnsiConsole.MarkupLine(
             """
 
             [underline blue]Docker image name[/]
-            SEB:TODO Lorem ipsum explaining stuff...
+            Enter the name of the Homebase Docker image you want to run.
 
             """);
         var dockerImageName = settings.GetOrDefault("docker-image-name", "ghcr.io/homebase-id/odin-core:latest");
@@ -172,11 +233,11 @@ public static class DockerSetup
         //
         // Input container name
         //
-        AnsiConsole.Markup(
+        AnsiConsole.MarkupLine(
             """
 
             [underline blue]Docker container name[/]
-            SEB:TODO Lorem ipsum explaining stuff...
+            Enter the name of the running Docker container.
 
             """);
         var dockerContainerName = settings.GetOrDefault("docker-container-name", "identity-host");
@@ -186,11 +247,13 @@ public static class DockerSetup
         //
         // Input root directory volume mount
         //
-        AnsiConsole.Markup(
+        AnsiConsole.MarkupLine(
             """
 
             [underline blue]Docker volume mount[/]
-            SEB:TODO Lorem ipsum explaining stuff...
+            By default, Homebase stores all data in a self-contained directory structure.
+            Enter the Docker volume mount to use for this directory, so that data is persisted across container restarts.
+            Example: /opt/homebase
 
             """);
         var dockerRootDataMount = settings.GetOrDefault("docker-root-data-mount", null);
@@ -200,11 +263,13 @@ public static class DockerSetup
         //
         // Run container detached?
         //
-        AnsiConsole.Markup(
-            """
+        AnsiConsole.MarkupLine(
+            $"""
 
             [underline blue]Docker run detached[/]
-            SEB:TODO Lorem ipsum explaining stuff...
+            Run Docker container detached?
+            Detached mode runs the container in the background and you will not see the output in the console.
+            You can always check the logs with "docker logs {dockerContainerName}".
 
             """);
         var dockerRunDetached = settings.GetOrDefault("docker-run-detached", null) == "y";
@@ -219,8 +284,8 @@ public static class DockerSetup
         // Construct the Docker command
         //
         var cmd = new List<string>();
-        
-        cmd.Add($"docker run");
+
+        cmd.Add("docker run");
         cmd.Add($"--name {dockerContainerName}");
         if (!dockerRunDetached)
         {
@@ -228,8 +293,8 @@ public static class DockerSetup
         }
         else
         {
-            cmd.Add($"--detach");
-            cmd.Add($"--restart always");
+            cmd.Add("--detach");
+            cmd.Add("--restart always");
         }
 
         foreach (var keyVal in hostConfig)
@@ -244,28 +309,32 @@ public static class DockerSetup
         cmd.Add($"--publish {httpPort}:{httpPort}");
         cmd.Add($"--publish {httpsPort}:{httpsPort}");
         
-        cmd.Add($"--volume {dockerRootDataMount}:/homebase");
+        cmd.Add($"--volume {dockerRootDataMount}:{homebaseRoot}");
         cmd.Add($"--pull always");
         cmd.Add($"{dockerImageName}");
         
         var cmdline = string.Join(" \\\n  ", cmd);
         
-        using var dockerRunScriptFile = new System.IO.StreamWriter(dockerRunScript);
+        using var dockerRunScriptFile = new StreamWriter(dockerRunScript);
         dockerRunScriptFile.WriteLine("#!/bin/bash");
         dockerRunScriptFile.WriteLine("set -eou pipefail");
         dockerRunScriptFile.WriteLine();
         dockerRunScriptFile.WriteLine(cmdline);
-        
-        AnsiConsole.Markup(
-            """
 
-            [underline blue]Final docker command[/]
+        if (verbose)
+        {
+            AnsiConsole.MarkupLine(
+                """
 
-            """);
-        Console.WriteLine();
-        Console.WriteLine(cmdline);
-        Console.WriteLine();
-        
+                [underline blue]Final docker command[/]
+                """);
+            Console.WriteLine();
+            Console.WriteLine(cmdline);
+            Console.WriteLine();
+        }
+
+        AnsiConsole.MarkupLine($"Wrote docker run script to [bold green]{dockerRunScript}[/]");
+
         return 0;
     }
     
@@ -276,17 +345,19 @@ public static class DockerSetup
         AnsiConsole.Markup(
             """
             Arguments:
-              help                                Show this help
-              output-docker-run-script=<path>     Name of output Docker run script
-              config-file=<path>                  Name of appsettings file
-              my-ip-address=<ip>                  My IP address
-              provisioning-domain=<domain>        My provisioning domain
-              provisioning-password=<password>    My provisioning password
-              certificate-email=<email>           Certificate authority associated email
-              docker-image-name=<name>            Docker image name
-              docker-container-name=<name>        Docker container name
-              docker-root-data-mount=<path>       Root directory for Docker volume mounts
-              docker-run-detached=y|n             Run Docker container detached
+              help                              Show this help text
+              output-docker-run-script=<path>   Name of output Docker run script
+              config-file=<path>                Name of appsettings file
+              my-ip-address=<ip>                My IP address
+              provisioning-domain=<domain>      My provisioning domain
+              invitation-code=<code>            Provisioning password
+              certificate-email=<email>         Certificate authority associated email
+              log-to-file=<y|n>                 Log to file
+              docker-image-name=<name>          Docker image name
+              docker-container-name=<name>      Docker container name
+              docker-root-data-mount=<path>     Root directory for Docker volume mounts
+              docker-run-detached=<y|n>         Run Docker container detached
+              verbose=<y|n?                     Verbose output
             """);
 
         return 1;
@@ -395,7 +466,7 @@ public static class DockerSetup
 
         const string thingsToCheck =
             """
-            Things to check:
+            Things for you to check:
             - Router NAT rules are set up correctly;
             - Firewall rules are set up correctly; 
             - Docker port mappings are set up correctly;
