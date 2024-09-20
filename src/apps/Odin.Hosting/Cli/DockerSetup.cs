@@ -449,10 +449,18 @@ public static class DockerSetup
             return (false, "Invalid domain");
         }
 
-        var addresses = (await Dns.GetHostAddressesAsync(domain))
-            .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
-            .Select(x => x.ToString())
-            .ToList();
+        List<string> addresses;
+        try
+        {
+            addresses = (await Dns.GetHostAddressesAsync(domain))
+                .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
+                .Select(x => x.ToString())
+                .ToList();
+        }
+        catch (Exception)
+        {
+            return (false, "Could not resolve IPv4 address from domain");
+        }
         if (addresses.Count < 1)
         {
             return (false, "Could not resolve IPv4 address from domain");
