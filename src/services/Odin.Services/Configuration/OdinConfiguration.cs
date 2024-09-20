@@ -132,7 +132,7 @@ namespace Odin.Services.Configuration
 
             public RegistrySection(IConfiguration config)
             {
-                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
+                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "localhost");
                 PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
