@@ -71,7 +71,6 @@ public static class DockerSetup
         //
         // My IP external address
         //
-        
         var myIp = settings.GetOrDefault("my-ip-address", null) ?? LookupMyIp();
         if (myIp == null)
         {
@@ -82,7 +81,6 @@ public static class DockerSetup
         //
         // Output Docker run script
         //
-
         AnsiConsole.MarkupLine(
             """
 
@@ -100,7 +98,6 @@ public static class DockerSetup
         //
         // Provisioning domain
         //
-        
         AnsiConsole.MarkupLine(
             $"""
 
@@ -191,6 +188,26 @@ public static class DockerSetup
                     ? ValidationResult.Success()
                     : ValidationResult.Error("[red]Invalid email address[/]")));
         hostConfig.UpdateExisting("CertificateRenewal__CertificateAuthorityAssociatedEmail", certificateEmail);
+
+        //
+        // Letsencrypt production or staging certificates
+        //
+        AnsiConsole.MarkupLine(
+            """
+
+            [underline blue]Production or staging certificates[/]
+            Let's Encrypt limits the number of production certificates you can create in a given time period with a given account.
+            Using staging certificates allows you to test the setup without hitting these limits, but they are not trusted by browsers,
+            but it can be a good idea to use staging certificates until you are sure everything is working correctly.
+
+            """);
+        var certificateType = settings.GetOrDefault("certificate-type", "p")!;
+        certificateType = AnsiConsole.Prompt(
+            new TextPrompt<string>("Production or staging certificates?")
+                .AddChoice("p")
+                .AddChoice("s")
+                .DefaultValue(certificateType));
+        hostConfig.UpdateExisting("CertificateRenewal__UseCertificateAuthorityProductionServers", (certificateType == "p").ToString());
 
         //
         // Log to file?
@@ -353,6 +370,7 @@ public static class DockerSetup
               provisioning-domain=<domain>      My provisioning domain
               invitation-code=<code>            Provisioning password
               certificate-email=<email>         Certificate authority associated email
+              certificate-type=<p|s>            Production or staging certificates
               log-to-file=<y|n>                 Log to file
               docker-image-name=<name>          Docker image name
               docker-container-name=<name>      Docker container name
