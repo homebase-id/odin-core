@@ -288,7 +288,7 @@ public static class DockerSetup
             [underline blue]Docker run detached[/]
             Run Docker container detached?
             Detached mode runs the container in the background and you will not see the output in the console.
-            You can always check the logs with "docker logs {Markup.Escape(dockerContainerName)}".
+            You can always check the logs with "docker logs {Markup.Escape(dockerContainerName!)}".
 
             """);
         var dockerRunDetached = settings.GetOrDefault("docker-run-detached", null) == "y";
