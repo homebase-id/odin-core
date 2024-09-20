@@ -40,7 +40,7 @@ main() {
   setup_dir="/tmp/odin/setup"
   mkdir -p "$setup_dir"
 
-  docker_run_script="$setup_dir/docker-run-script-$(uuidgen).sh"
+  docker_run_script="$setup_dir/docker-run-script.sh"
   touch "$docker_run_script"
   chmod +x "$docker_run_script"
 
@@ -89,10 +89,6 @@ main() {
   fi
 
   exit_code=$?
-
-  if [[ $exit_code -eq 0 ]]; then
-    rm "$docker_run_script"
-  fi
 
 }
 

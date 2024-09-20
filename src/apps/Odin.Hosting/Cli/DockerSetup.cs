@@ -314,8 +314,9 @@ public static class DockerSetup
         cmd.Add($"{dockerImageName}");
         
         var cmdline = string.Join(" \\\n  ", cmd);
-        
-        using var dockerRunScriptFile = new StreamWriter(dockerRunScript);
+
+        using var fileStream = new FileStream(dockerRunScript, FileMode.Create);
+        using var dockerRunScriptFile = new StreamWriter(fileStream);
         dockerRunScriptFile.WriteLine("#!/bin/bash");
         dockerRunScriptFile.WriteLine("set -eou pipefail");
         dockerRunScriptFile.WriteLine();
