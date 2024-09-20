@@ -274,7 +274,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_transferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_transferInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
 
             if (metadata.IsEncrypted == false)
             {
