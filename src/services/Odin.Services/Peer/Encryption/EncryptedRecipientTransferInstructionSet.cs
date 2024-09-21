@@ -28,7 +28,7 @@ namespace Odin.Services.Peer.Encryption
         public SendContents ContentsProvided { get; set; }
 
         public AppNotificationOptions AppNotificationOptions { get; set; }
-        
+
         public AccessControlList OriginalAcl { get; set; }
 
         public bool IsValid()
@@ -44,16 +44,5 @@ namespace Odin.Services.Peer.Encryption
 
             return isValid;
         }
-    }
-    
-    public class EncryptedRecipientFileUpdateInstructionSet
-    {
-        public TargetDrive TargetDrive { get; init; }
-
-        public FileSystemType FileSystemType { get; init; }
-
-        public EncryptedKeyHeader EncryptedKeyHeaderIvOnly { get; init; }
-        
-        public AppNotificationOptions AppNotificationOptions { get; set; }
     }
 }

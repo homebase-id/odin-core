@@ -23,12 +23,12 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -76,21 +76,21 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
+            var updateInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
 
             //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
             //S0100
-            _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
+            _fileSystem = ResolveFileSystem(updateInstructionSet.FileSystemType);
 
             //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(updateInstructionSet.Request.File.TargetDrive);
             using var cn = _tenantSystemStorage.CreateConnection();
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
             //End Optimizations
 
             _fileUpdateService = GetPerimeterService(_fileSystem);
-            await _fileUpdateService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext, cn);
+            await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, WebOdinContext, cn);
 
             //
 

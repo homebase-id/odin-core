@@ -18,22 +18,12 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
-    public class UpdateRemoteFileRequest()
-    {
-        public FileIdentifier File { get; init; }
-
-        public UploadManifest Manifest { get; init; }
-
-        public Guid NewVersionTag { get; init; }
-
-        public AppNotificationOptions NotificationOptions { get; init; }
-    }
-
     public class PeerOutgoingTransferService(
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -109,7 +99,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 File = file,
                 Manifest = manifest,
                 NewVersionTag = newVersionTag,
-                NotificationOptions = notificationOptions
+                AppNotificationOptions = notificationOptions
             };
 
             var priority = 100;
@@ -444,36 +434,44 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
+                    
                     var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     var iv = ByteArrayUtil.GetRndByteArray(16);
                     var ss = clientAuthToken.SharedSecret;
+
+                    var updateInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
+                    {
+                        FileSystemType = fileSystemType,
+                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
+                            {
+                                Iv = keyHeaderIv,
+                                AesKey = Guid.Empty.ToByteArray()
+                                    .ToSensitiveByteArray()
+                            },
+                            iv,
+                            ref ss),
+                        
+                        Request = request
+                    };
+                    
+                    
                     outboxItems.Add(new OutboxFileItem()
                     {
-                        Priority = priority,
                         Type = OutboxItemType.RemoteFileUpdate,
                         File = sourceFile,
+                        Priority = priority,
                         Recipient = recipient,
-                        State = new OutboxItemState()
+                        State = new OutboxItemState
                         {
+                            Recipient = null,
                             IsTransientFile = true,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
                             TransferInstructionSet = null,
-                            FileUpdateTransferInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
-                            {
-                                TargetDrive = request.File.TargetDrive,
-                                FileSystemType = fileSystemType,
-                                EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
-                                    {
-                                        Iv = keyHeaderIv,
-                                        AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray()
-                                    },
-                                    iv,
-                                    ref ss),
-                            },
+                            OriginalTransitOptions = null,
 
-                            Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
+                            Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
                         }
                     });
 

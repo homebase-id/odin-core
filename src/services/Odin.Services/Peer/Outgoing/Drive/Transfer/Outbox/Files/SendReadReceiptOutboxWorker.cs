@@ -22,7 +22,7 @@ public class SendReadReceiptOutboxWorker(
     ILogger<SendReadReceiptOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {

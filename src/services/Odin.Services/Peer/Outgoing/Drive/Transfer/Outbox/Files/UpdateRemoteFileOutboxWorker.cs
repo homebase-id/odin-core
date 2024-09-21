@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -15,9 +14,8 @@ using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -28,7 +26,7 @@ public class UpdateRemoteFileOutboxWorker(
     ILogger<UpdateRemoteFileOutboxWorker> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, fileSystemResolver)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
     {
@@ -55,6 +53,11 @@ public class UpdateRemoteFileOutboxWorker(
                 async () => { (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, cn, cancellationToken); });
 
             logger.LogDebug("Success Sending updated file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+
+            if (!FileItem.State.IsTransientFile)
+            {
+                await UpdateFileTxHistory(globalTransitId, versionTag, odinContext, cn);
+            }
 
             return (true, UnixTimeUtc.ZeroTime);
         }
@@ -85,16 +88,13 @@ public class UpdateRemoteFileOutboxWorker(
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
-        var options = outboxFileItem.State.OriginalTransitOptions;
 
-        var request = outboxFileItem.State.DeserializeData<UpdateRemoteFileRequest>();
-        
-        var instructionSet = FileItem.State.FileUpdateTransferInstructionSet;
-        var fileSystem = fileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
+        var instructionSet = outboxFileItem.State.DeserializeData<EncryptedRecipientFileUpdateInstructionSet>();
+        var fileSystem = FileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
-        
+
         if (header.ServerMetadata.AllowDistribution == false)
         {
             throw new OdinOutboxProcessingException("File does not allow distribution")
@@ -106,88 +106,25 @@ public class UpdateRemoteFileOutboxWorker(
             };
         }
 
-        var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
-        var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
-
-        if (options.UseAppNotification)
-        {
-            instructionSet.AppNotificationOptions = options.AppNotificationOptions;
-        }
-
         var redactedAcl = header.ServerMetadata.AccessControlList;
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
 
-        var transferInstructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
         var transferKeyHeaderStream = new StreamPart(
-            new MemoryStream(transferInstructionSetBytes),
+            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
             "transferInstructionSet.encrypted", "application/json",
             Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-        var sourceMetadata = header.FileMetadata;
+        var (metaDataStream, payloadStreams) = await PackageFileStreams(header, true, odinContext, cn);
 
-        //redact the info by explicitly stating what we will keep
-        //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
-        var redactedMetadata = new FileMetadata()
-        {
-            //TODO: here I am removing the file and drive id from the stream but we need
-            // to resolve this by moving the file information to the server header
-            File = InternalDriveFileId.Redacted(),
-            Created = sourceMetadata.Created,
-            Updated = sourceMetadata.Updated,
-            AppData = sourceMetadata.AppData,
-            IsEncrypted = sourceMetadata.IsEncrypted,
-            GlobalTransitId = sourceMetadata.GlobalTransitId.GetValueOrDefault(),
-            ReactionPreview = sourceMetadata.ReactionPreview,
-            SenderOdinId = sourceMetadata.SenderOdinId,
-            ReferencedFile = sourceMetadata.ReferencedFile,
-            VersionTag = sourceMetadata.VersionTag,
-            Payloads = sourceMetadata.Payloads,
-            FileState = sourceMetadata.FileState,
-        };
-
-        var json = OdinSystemSerializer.Serialize(redactedMetadata);
-        var stream = new MemoryStream(json.ToUtf8ByteArray());
-        var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
-
-        var additionalStreamParts = new List<StreamPart>();
-
-        foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
-        {
-            var payloadKey = descriptor.Key;
-
-            string contentType = "application/unknown";
-
-            //TODO: consider what happens if the payload has been delete from disk
-            var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
-            var payloadStream = p.Stream;
-
-            var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-            additionalStreamParts.Add(payload);
-
-            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
-            {
-                var (thumbStream, thumbHeader) =
-                    await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
-                        odinContext, cn);
-
-                var thumbnailKey =
-                    $"{payloadKey}" +
-                    $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                    $"{thumb.PixelWidth}" +
-                    $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                    $"{thumb.PixelHeight}";
-
-                additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-            }
-        }
-
+        var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
+        var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
+        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.UpdatePeerFile(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
+            var response = await client.UpdatePeerFile(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
             return response;
         }
 

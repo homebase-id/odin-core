@@ -32,8 +32,6 @@ public class OutboxItemState
     
     public byte[] Data { get; set; }
     
-    public EncryptedRecipientFileUpdateInstructionSet FileUpdateTransferInstructionSet { get; set; }
-
     public T DeserializeData<T>()
     {
         return OdinSystemSerializer.Deserialize<T>(Data.ToStringFromUtf8Bytes());

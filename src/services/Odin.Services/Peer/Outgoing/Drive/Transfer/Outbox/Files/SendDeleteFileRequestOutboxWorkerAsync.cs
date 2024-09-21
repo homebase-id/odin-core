@@ -22,7 +22,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null)
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
