@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -51,7 +52,34 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             incomingMetadata!.SenderOdinId = sender;
 
-            await UpdateLongTermFile(fs, tempFile, decryptedKeyHeader, incomingMetadata, serverMetadata, odinContext, cn);
+            incomingMetadata.VersionTag = header.FileMetadata.VersionTag;
+
+            //Update existing file
+
+            await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
+            {
+                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
+                //one is written any time you save a header)
+                incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+
+                var request = instructionSet.Request;
+                var manifest = new BatchUpdateManifest()
+                {
+                    NewVersionTag = request.NewVersionTag,
+                    PayloadInstruction = request.Manifest..Select(p => new PayloadInstruction()
+                    {
+                        Key = p.PayloadKey,
+                        OperationType = p.UpdateOperationType
+                    }).ToList(),
+
+                    KeyHeaderIv = keyHeaderIv,
+                    FileMetadata = metadata,
+                    ServerMetadata = serverMetadata
+                };
+
+                await fs.Storage.UpdateBatch();
+                // await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, odinContext, cn);
+            });
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
@@ -133,23 +161,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return (targetAcl, isCollabChannel);
         }
 
-        private async Task UpdateLongTermFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext,
-            DatabaseConnection cn)
-        {
-            var targetDriveId = tempFile.DriveId;
-            metadata.VersionTag = header.FileMetadata.VersionTag;
-
-            //Update existing file
-            var targetFile = new InternalDriveFileId()
-            {
-                FileId = header.FileId,
-                DriveId = targetDriveId
-            };
-
-            //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, odinContext, cn);
-        }
 
         private async Task<SharedSecretEncryptedFileHeader> GetTargetFileHeader(FileIdentifier file, IDriveFileSystem fs,
             IOdinContext odinContext, DatabaseConnection cn)
@@ -202,20 +213,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             targetAcl = referencedFile.ServerMetadata.AccessControlList;
 
             return targetAcl;
-        }
-        
-        private async Task UpdateExistingFile(IDriveFileSystem fs, InternalDriveFileId targetFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext,
-            DatabaseConnection cn)
-        {
-            await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
-            {
-                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-                //one is written any time you save a header)
-                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
-            });
         }
     }
 }

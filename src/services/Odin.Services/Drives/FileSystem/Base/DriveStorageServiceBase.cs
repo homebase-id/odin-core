@@ -1040,8 +1040,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var storageManager = await GetLongTermStorageManager(targetFile.DriveId, cn);
                 var tempStorageManager = await GetTempStorageManager(targetFile.DriveId, cn);
 
-                //Note: i've separated these for readability
-
+                // 
+                // Note: i've separated the payload instructions for readability
+                // 
                 var tempFile = targetFile;
                 foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
@@ -1100,9 +1101,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                 }
 
-                // update the metadata header with payload info
+                existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
                 await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
-                    manifest.ServerMetadata, odinContext, cn);
+                    manifest.ServerMetadata, odinContext, cn, keepSameVersionTag: true);
             });
         }
 
@@ -1234,7 +1235,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task OverwriteMetadataInternal(byte[] newKeyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
-            IOdinContext odinContext, DatabaseConnection cn)
+            IOdinContext odinContext, DatabaseConnection cn, bool keepSameVersionTag = false)
         {
             if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
             {
@@ -1288,7 +1289,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
 
-            await WriteFileHeaderInternal(existingServerHeader, cn);
+            await WriteFileHeaderInternal(existingServerHeader, cn, keepSameVersionTag);
         }
 
         private async Task DeletePayloadFromDiskInternal(InternalDriveFileId file, PayloadDescriptor descriptor, DatabaseConnection cn)
