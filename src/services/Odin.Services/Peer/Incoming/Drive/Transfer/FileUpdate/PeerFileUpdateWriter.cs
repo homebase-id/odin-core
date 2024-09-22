@@ -38,8 +38,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext, cn);
 
             // Validations
-            var header = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, cn);
-            header.AssertOriginalSender((OdinId)header.FileMetadata.SenderOdinId);
+            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, cn);
+            existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
 
             var (targetAcl, isCollabChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, cn);
 
@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             incomingMetadata!.SenderOdinId = sender;
 
-            incomingMetadata.VersionTag = header.FileMetadata.VersionTag;
+            incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
 
             //Update existing file
 
@@ -61,24 +61,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
                 //one is written any time you save a header)
                 incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-
+                
                 var request = instructionSet.Request;
                 var manifest = new BatchUpdateManifest()
                 {
                     NewVersionTag = request.NewVersionTag,
-                    PayloadInstruction = request.Manifest..Select(p => new PayloadInstruction()
+                    PayloadInstruction = request.Manifest.PayloadDescriptors.Select(p => new PayloadInstruction()
                     {
                         Key = p.PayloadKey,
-                        OperationType = p.UpdateOperationType
+                        OperationType = p.PayloadUpdateOperationType
                     }).ToList(),
 
-                    KeyHeaderIv = keyHeaderIv,
-                    FileMetadata = metadata,
+                    KeyHeaderIv = decryptedKeyHeader.Iv,
+                    FileMetadata = incomingMetadata,
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatch();
-                // await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, odinContext, cn);
+                await fs.Storage.UpdateBatch(targetFile, manifest, odinContext, cn);
             });
         }
 
@@ -162,10 +161,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
 
-        private async Task<SharedSecretEncryptedFileHeader> GetTargetFileHeader(FileIdentifier file, IDriveFileSystem fs,
+        private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
+            IDriveFileSystem fs,
             IOdinContext odinContext, DatabaseConnection cn)
         {
             var targetDriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+
             SharedSecretEncryptedFileHeader header =
                 await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
@@ -175,7 +176,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             header.AssertFileIsActive();
-            return header;
+            var targetFile = new InternalDriveFileId
+            {
+                DriveId = targetDriveId,
+                FileId = header.FileId
+            };
+
+            return (targetFile, header);
         }
 
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, DatabaseConnection cn)

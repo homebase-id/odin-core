@@ -36,6 +36,7 @@ public class PayloadInstruction
 
 public enum PayloadUpdateOperationType
 {
+    None = 0, // only used to catch scenarios where the client does not set this
     AppendOrOverwrite = 2,
     DeletePayload = 3
 }

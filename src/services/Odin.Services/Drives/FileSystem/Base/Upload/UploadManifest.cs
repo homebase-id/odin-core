@@ -101,6 +101,11 @@ public class UploadManifestPayloadDescriptor
 
     public void AssertIsValid()
     {
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.None)
+        {
+            throw new OdinClientException($"Missing operation type on payload {this.PayloadKey}", OdinClientErrorCode.InvalidPayload);
+        }
+
         if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite)
         {
             OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));

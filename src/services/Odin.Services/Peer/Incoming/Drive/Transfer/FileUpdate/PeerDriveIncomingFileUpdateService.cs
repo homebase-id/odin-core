@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         FileSystemResolver fileSystemResolver,
         PushNotificationService pushNotificationService)
     {
-        private EncryptedRecipientFileUpdateInstructionSet _transferInstructionSet;
+        private EncryptedRecipientFileUpdateInstructionSet _updateInstructionSet;
         private InternalDriveFileId _tempFile;
 
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage = new(tenantSystemStorage);
@@ -46,7 +46,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // Notice here: we always create a new fileId when receiving a new file.
             _tempFile = await fileSystem.Storage.CreateInternalFileId(driveId, cn);
-            _transferInstructionSet = transferInstructionSet;
+            _updateInstructionSet = transferInstructionSet;
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
@@ -110,7 +110,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
-                var notificationOptions = _transferInstructionSet.Request.AppNotificationOptions;
+                var notificationOptions = _updateInstructionSet.Request.AppNotificationOptions;
                 if (null != notificationOptions)
                 {
                     var senderId = odinContext.GetCallerOdinIdOrFail();
@@ -156,12 +156,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_transferInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _transferInstructionSet, odinContext, cn);
+                await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, cn);
                 return true;
             }
 
@@ -175,12 +175,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 if (hasStorageKey)
                 {
                     //S1205
-                    await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _transferInstructionSet, odinContext, cn);
+                    await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, cn);
                     return true;
                 }
 
                 //S2210 - comments cannot fall back to inbox
-                if (_transferInstructionSet.FileSystemType == FileSystemType.Comment)
+                if (_updateInstructionSet.FileSystemType == FileSystemType.Comment)
                 {
                     throw new OdinSecurityException("Sender cannot write the comment");
                 }
@@ -201,21 +201,25 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         /// </summary>
         private async Task<PeerResponseCode> RouteToInbox(IOdinContext odinContext, DatabaseConnection cn)
         {
-            var item = new TransferInboxItem()
+            var item = new TransferInboxItem
             {
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = odinContext.GetCallerOdinIdOrFail(),
+                Priority = 0,
 
-                InstructionType = TransferInstructionType.SaveFile,
+                InstructionType = TransferInstructionType.UpdateFile,
                 DriveId = _tempFile.DriveId,
                 FileId = _tempFile.FileId,
-                TransferInstructionSet = _transferInstructionSet,
-
-                FileSystemType = _transferInstructionSet.FileSystemType,
+                FileSystemType = _updateInstructionSet.FileSystemType,
+                Data = OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray(),
+                
+                Marker = default,
+                GlobalTransitId = default,
+                TransferInstructionSet = null,
+                EncryptedFeedPayload = null,
                 TransferFileType = TransferFileType.Normal,
-
-                SharedSecretEncryptedKeyHeader = _transferInstructionSet.EncryptedKeyHeaderIvOnly,
+                SharedSecretEncryptedKeyHeader = null
             };
 
             await _transitInboxBoxStorage.Add(item, cn);
