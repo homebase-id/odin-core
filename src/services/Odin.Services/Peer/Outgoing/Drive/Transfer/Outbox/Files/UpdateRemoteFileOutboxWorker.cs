@@ -56,7 +56,7 @@ public class UpdateRemoteFileOutboxWorker(
 
             if (!FileItem.State.IsTransientFile)
             {
-                await UpdateFileTxHistory(globalTransitId, versionTag, odinContext, cn);
+                await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext, cn);
             }
 
             return (true, UnixTimeUtc.ZeroTime);
@@ -91,6 +91,7 @@ public class UpdateRemoteFileOutboxWorker(
 
         var instructionSet = outboxFileItem.State.DeserializeData<EncryptedRecipientFileUpdateInstructionSet>();
         var fileSystem = FileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
+        
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, cn);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;

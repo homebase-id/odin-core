@@ -46,6 +46,7 @@ public abstract class FileSystemUpdateWriterBase
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
+        OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, true, odinContext.Tenant);
 
         instructionSet.Manifest.ResetPayloadUiDs();
 
@@ -179,7 +180,7 @@ public abstract class FileSystemUpdateWriterBase
     public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext, DatabaseConnection cn)
     {
         var (keyHeaderIv, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
-
+        
         await this.ValidateUploadCore(Package, keyHeaderIv, metadata, serverMetadata, cn);
 
         if (Package.InstructionSet.Locale == UpdateLocale.Local)
@@ -208,6 +209,11 @@ public abstract class FileSystemUpdateWriterBase
             // We send a version tag to other identities so that we can also return it to
             // the local caller since currently, there is no method to get back info from
             // the outbox when sending transient files.
+
+            if (!serverMetadata.AllowDistribution)
+            {
+                throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
+            }
 
             var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, cn);
             return new FileUpdateResult()
@@ -318,6 +324,9 @@ public abstract class FileSystemUpdateWriterBase
     private async Task ValidateUploadCore(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
         DatabaseConnection cn)
     {
+        //re-run validation in case we need to verify the instructions are good for encrypted data
+        Package.InstructionSet.AssertIsValid(metadata.IsEncrypted);
+
         if (null == serverMetadata.AccessControlList)
         {
             throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);

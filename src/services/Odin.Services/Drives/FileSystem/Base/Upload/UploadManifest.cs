@@ -99,7 +99,7 @@ public class UploadManifestPayloadDescriptor
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
 
-    public void AssertIsValid()
+    public void AssertIsValid(bool encrypted)
     {
         if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.None)
         {
@@ -108,8 +108,12 @@ public class UploadManifestPayloadDescriptor
 
         if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite)
         {
-            OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
-            OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
+            if(encrypted)
+            {
+                OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
+                OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
+            }
+            
             DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
             OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
 
@@ -124,6 +128,7 @@ public class UploadManifestPayloadDescriptor
             DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
         }
     }
+    
 
     public PackagePayloadDescriptor PackagePayloadDescriptor(uint bytesWritten, string fallbackContentType)
     {

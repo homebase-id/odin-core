@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
-using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.Peer.DirectSend;
 
@@ -23,6 +23,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend;
 public class PeerUpdateFileTests
 {
     private WebScaffold _scaffold;
+
+    // Other Tests
+    // Bad Requests - fail when missing payload operation type, invalid upload manifest
+
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -70,7 +74,8 @@ public class PeerUpdateFileTests
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     [TestCaseSource(nameof(GuestAllowed))]
-    public async Task CanUpdateFileUpdateHeaderDeletePayloadAndAddNewPayload(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateRemoteFileFileUpdateHeaderDeletePayloadAndAddNewPayload_PeerOnly(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -114,8 +119,10 @@ public class PeerUpdateFileTests
         //
         // Update the file via pippin's identity
         //
+
+        var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(senderOwnerClient);
-        var callerDriveClient = new UniversalPeerDirectApiClient(sender, callerContext.GetFactory());
+        var callerDriveClient = new UniversalDriveApiClient(sender, callerContext.GetFactory());
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
@@ -125,7 +132,7 @@ public class PeerUpdateFileTests
         var updateInstructionSet = new FileUpdateInstructionSet
         {
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier(),
+            File = remoteTargetFile,
             Recipients = [recipient],
             Locale = UpdateLocale.Peer,
             Manifest = new UploadManifest
@@ -134,12 +141,13 @@ public class PeerUpdateFileTests
                 [
                     new UploadManifestPayloadDescriptor
                     {
+                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
                         Iv = Guid.Empty.ToByteArray(),
                         PayloadKey = payloadToAdd.Key,
                         DescriptorContent = null,
                         ContentType = payloadToAdd.ContentType,
                         PreviewThumbnail = default,
-                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
+                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
                     }
                 ]
             }
@@ -155,12 +163,12 @@ public class PeerUpdateFileTests
             var uploadResult = updateFileResponse.Content;
             Assert.IsNotNull(uploadResult);
 
-            var gtid = uploadResult.RemoteGlobalTransitIdFileIdentifier;
+            // await recipientOwnerClient.DriveRedux.WaitForEmptyInbox(remoteTargetFile.TargetDrive);
 
             //
             // Recipient should have the updated file
             //
-            var getHeaderResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(gtid);
+            var getHeaderResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
             Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(header);

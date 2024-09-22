@@ -97,7 +97,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
-                    await HandleUpdateFile(inboxItem, fs, odinContext, cn);
+                    await HandleUpdateFile(inboxItem, odinContext, cn);
                     await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
@@ -233,7 +233,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // });
         }
 
-        private async Task HandleUpdateFile(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task HandleUpdateFile(TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var tempFile = new InternalDriveFileId()
@@ -241,7 +241,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileId = inboxItem.FileId,
                 DriveId = inboxItem.DriveId
             };
-            
+
             var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
             var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext, cn);
             await writer.UpdateFile(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, cn);
@@ -329,7 +329,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
         }
-        
+
         private async Task<KeyHeader> DecryptedKeyHeader(OdinId sender, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext, DatabaseConnection cn)
         {
             var icr = await circleNetworkService.GetIdentityConnectionRegistration(sender, odinContext, cn, overrideHack: true);

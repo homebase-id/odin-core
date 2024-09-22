@@ -81,7 +81,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Updates a remote file
         /// </summary>
-        public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(
+            InternalDriveFileId sourceFile,
             byte[] keyHeaderIv,
             FileIdentifier file,
             UploadManifest manifest,
@@ -104,8 +105,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var priority = 100;
 
-            var (outboxStatus, _) = await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
+            var (outboxStatus, outboxItems) = await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
 
+            //TODO: change this to a batch update of the transfer history
+            foreach (var item in outboxItems)
+            {
+                if (!item.State.IsTransientFile)
+                {
+                    var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
+                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                }
+              
+                await peerOutbox.AddItem(item, cn);
+            }
+            
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
             return outboxStatus;
@@ -417,7 +430,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return (status, outboxItems);
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateUpdateOutboxItems(
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)> CreateUpdateOutboxItems(
             InternalDriveFileId sourceFile,
             byte[] keyHeaderIv,
             UpdateRemoteFileRequest request,
@@ -446,7 +459,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         FileSystemType = fileSystemType,
                         EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
                             {
-                                Iv = keyHeaderIv,
+                                Iv = keyHeaderIv ?? Guid.Empty.ToByteArray(),
                                 AesKey = Guid.Empty.ToByteArray()
                                     .ToSensitiveByteArray()
                             },

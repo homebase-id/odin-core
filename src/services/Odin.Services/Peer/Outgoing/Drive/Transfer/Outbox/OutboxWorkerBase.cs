@@ -171,7 +171,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
         return (metaDataStream, payloadStreams);
     }
 
-    protected async Task UpdateFileTxHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, DatabaseConnection cn)
+    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, DatabaseConnection cn)
     {
         logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 

@@ -17,11 +17,9 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Peer;
-using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Middleware
 {
@@ -62,19 +60,19 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
-                $"{OwnerApiPathConstants.PeerSenderV1}/files/update",
+                $"{OwnerApiPathConstants.DriveV1}/files/update",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{GuestApiPathConstants.PeerSenderV1}/files/send",
-                $"{GuestApiPathConstants.PeerSenderV1}/files/update",
+                $"{GuestApiPathConstants.DriveV1}/files/update",
 
                 $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
-                $"{AppApiPathConstants.PeerSenderV1}/files/update",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{AppApiPathConstants.DriveV1}/files/update",
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth"
             };

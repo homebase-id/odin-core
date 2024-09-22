@@ -13,7 +13,6 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base.Update;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -102,70 +101,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
-
-        /// <summary>
-        /// Uploads a file using multi-part form data
-        /// </summary>
-        /// <returns></returns>
-        [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
-        [HttpPatch("files/update")]
-        public async Task<FileUpdateResult> UpdateFile()
-        {
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
-            {
-                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
-            }
-
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
-            var updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
-
-            var section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Instructions);
-
-            string json = await new StreamReader(section!.Body).ReadToEndAsync();
-            var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
-            instructionSet.AssertIsValid();
-            OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, WebOdinContext.Tenant);
-
-            using var cn = tenantSystemStorage.CreateConnection();
-            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
-
-            //
-            // Firstly, collect everything and store in the temp drive
-            //
-            section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                if (IsMetadataPart(section))
-                {
-                    section = await reader.ReadNextSectionAsync();
-                    AssertIsPart(section, MultipartUploadParts.Metadata);
-                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, cn);
-                }
-
-                if (IsPayloadPart(section))
-                {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                if (IsThumbnail(section))
-                {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
-                }
-
-                section = await reader.ReadNextSectionAsync();
-            }
-
-            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, cn);
-            return result;
-        }
-
+        
         /// <summary>
         /// Sends a Delete Linked File Request to recipients
         /// </summary>

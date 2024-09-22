@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 
@@ -42,7 +43,7 @@ public class FileUpdateInstructionSet
 
     public AppNotificationOptions AppNotificationOptions { get; init; }
 
-    public bool AssertIsValid()
+    public bool AssertIsValid(bool encrypted = false)
     {
         OdinValidationUtils.AssertNotNull(Manifest, "UploadManifest");
         OdinValidationUtils.AssertNotEmptyByteArray(TransferIv, nameof(TransferIv));
@@ -50,7 +51,7 @@ public class FileUpdateInstructionSet
 
         foreach (var descriptor in this.Manifest.PayloadDescriptors)
         {
-            descriptor.AssertIsValid();
+            descriptor.AssertIsValid(encrypted);
         }
 
         return true;

@@ -51,7 +51,7 @@ public class SendFileOutboxWorkerAsync(
             await PerformanceCounter.MeasureExecutionTime("Outbox SendOutboxFileItemAsync",
                 async () => { (versionTag, globalTransitId) = await SendOutboxFileItemAsync(FileItem, odinContext, cn, cancellationToken); });
 
-            await UpdateFileTxHistory(globalTransitId, versionTag, odinContext, cn);
+            await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext, cn);
             logger.LogDebug("Successful transfer of {gtid} to {recipient} - ", globalTransitId, FileItem.Recipient);
 
             return (true, UnixTimeUtc.ZeroTime);

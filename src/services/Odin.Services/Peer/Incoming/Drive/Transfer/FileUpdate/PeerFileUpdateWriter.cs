@@ -159,8 +159,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             return (targetAcl, isCollabChannel);
         }
-
-
+        
         private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
             IDriveFileSystem fs,
             IOdinContext odinContext, DatabaseConnection cn)
