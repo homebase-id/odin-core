@@ -207,7 +207,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
         /// <returns></returns>
-        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<byte[]> GetAllFileBytesFromTemp(InternalDriveFileId file, string extension, IOdinContext odinContext, DatabaseConnection cn)
         {
             await this.AssertCanReadDrive(file.DriveId, odinContext, cn);
             var tsm = await GetTempStorageManager(file.DriveId, cn);

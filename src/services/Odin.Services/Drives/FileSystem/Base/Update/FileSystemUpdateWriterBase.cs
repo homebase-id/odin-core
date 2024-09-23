@@ -15,6 +15,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 
@@ -210,6 +211,14 @@ public abstract class FileSystemUpdateWriterBase
             // the local caller since currently, there is no method to get back info from
             // the outbox when sending transient files.
 
+            var keyHeader = new KeyHeader()
+            {
+                Iv = keyHeaderIv,
+                AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray() // for file updates, we dont touch the key
+            };
+            
+            await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+
             if (!serverMetadata.AllowDistribution)
             {
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
@@ -267,7 +276,7 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTemp(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -303,7 +312,7 @@ public abstract class FileSystemUpdateWriterBase
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
-                package.TempMetadataFile,
+                package.InternalFile,
                 keyHeaderIv,
                 package.InstructionSet.File,
                 package.InstructionSet.Manifest,
@@ -311,6 +320,7 @@ public abstract class FileSystemUpdateWriterBase
                 package.NewVersionTag,
                 package.FileSystemType,
                 package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
+                package.InstructionSet.Locale,
                 odinContext,
                 cn);
         }

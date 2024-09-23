@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
@@ -81,8 +82,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Updates a remote file
         /// </summary>
-        public async Task<Dictionary<string, TransferStatus>> UpdateFile(
-            InternalDriveFileId sourceFile,
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
             byte[] keyHeaderIv,
             FileIdentifier file,
             UploadManifest manifest,
@@ -90,6 +90,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             Guid newVersionTag,
             FileSystemType fileSystemType,
             AppNotificationOptions notificationOptions,
+            UpdateLocale updateLocale,
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
@@ -100,7 +101,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 File = file,
                 Manifest = manifest,
                 NewVersionTag = newVersionTag,
-                AppNotificationOptions = notificationOptions
+                AppNotificationOptions = notificationOptions,
+                UpdateLocale = updateLocale
             };
 
             var priority = 100;

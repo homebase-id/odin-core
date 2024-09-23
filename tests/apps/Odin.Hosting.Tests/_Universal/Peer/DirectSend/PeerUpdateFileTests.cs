@@ -11,6 +11,8 @@ using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -23,6 +25,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend;
 public class PeerUpdateFileTests
 {
     private WebScaffold _scaffold;
+
+    private static readonly Dictionary<string, string> IsGroupChannelAttributes = new()
+        { { FeedDriveDistributionRouter.IsCollaborativeChannel, bool.TrueString } };
 
     // Other Tests
     // Bad Requests - fail when missing payload operation type, invalid upload manifest
@@ -84,7 +89,7 @@ public class PeerUpdateFileTests
         var recipient = recipientOwnerClient.Identity.OdinId;
 
         var targetDrive = callerContext.TargetDrive;
-        await recipientOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await recipientOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, attributes: IsGroupChannelAttributes);
 
         var cid = Guid.NewGuid();
         var permissions = TestUtils.CreatePermissionGrantRequest(callerContext.TargetDrive, DrivePermission.Write);
@@ -97,6 +102,7 @@ public class PeerUpdateFileTests
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
 
@@ -131,10 +137,11 @@ public class PeerUpdateFileTests
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = new FileUpdateInstructionSet
         {
+            Locale = UpdateLocale.Peer,
+
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
             File = remoteTargetFile,
             Recipients = [recipient],
-            Locale = UpdateLocale.Peer,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors =
