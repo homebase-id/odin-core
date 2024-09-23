@@ -35,7 +35,7 @@ main() {
   ODIN_HTTP_PORT=80
   ODIN_HTTPS_PORT=443
 
-  ODIN_DOCKER_IMAGE="ghcr.io/homebase-id/odin-core:install__main"
+  ODIN_DOCKER_IMAGE="ghcr.io/homebase-id/odin-core:latest"
 
   setup_dir="/tmp/odin/setup"
   mkdir -p "$setup_dir"
@@ -56,8 +56,6 @@ main() {
     "${ODIN_DOCKER_IMAGE}" \
     --docker-setup \
     output-docker-run-script="${docker_run_script}" \
-    provisioning-domain=table-top.sebbarg.net \
-    certificate-email=sebbar+tabletopg@gmail.com \
     docker-image-name="${ODIN_DOCKER_IMAGE}" \
     docker-root-data-mount=/tmp/homebase
 
