@@ -9,7 +9,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: "${{ github.repository }}-setup-helper"
+  IMAGE_NAME: "${{ github.repository }}-setup-helper-internal"
   BRANCH_NAME: ""
   DEPLOY_IMAGE: ""
 

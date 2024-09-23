@@ -9,7 +9,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: "${{ github.repository }}-push-notification"
+  IMAGE_NAME: "${{ github.repository }}-push-notification-internal"
   BRANCH_NAME: ""
   DEPLOY_IMAGE: ""
 
