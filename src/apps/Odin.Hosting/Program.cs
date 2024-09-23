@@ -332,13 +332,13 @@ namespace Odin.Hosting
 
         private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
         {
-            if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
+            if (hostName == config.Registry.ProvisioningDomain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;
             }
             
-            if (config.Admin.ApiEnabled && hostName == config.Admin.Domain)
+            if (hostName == config.Admin.Domain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;
