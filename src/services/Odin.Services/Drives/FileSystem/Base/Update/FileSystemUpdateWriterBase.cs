@@ -181,7 +181,7 @@ public abstract class FileSystemUpdateWriterBase
     public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext, DatabaseConnection cn)
     {
         var (keyHeaderIv, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
-        
+
         await this.ValidateUploadCore(Package, keyHeaderIv, metadata, serverMetadata, cn);
 
         if (Package.InstructionSet.Locale == UpdateLocale.Local)
@@ -216,7 +216,7 @@ public abstract class FileSystemUpdateWriterBase
                 Iv = keyHeaderIv,
                 AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray() // for file updates, we dont touch the key
             };
-            
+
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
 
             if (!serverMetadata.AllowDistribution)
@@ -262,7 +262,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatch(package.InternalFile, manifest, odinContext, cn);
+        await FileSystem.Storage.UpdateBatch(package.TempMetadataFile, package.InternalFile, manifest, odinContext, cn);
     }
 
     /// <summary>
@@ -276,7 +276,8 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTemp(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
+        var metadataBytes =
+            await FileSystem.Storage.GetAllFileBytesFromTemp(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 

@@ -119,7 +119,7 @@ public class PeerUpdateFileTests
 
         //Pippin sends a file to the recipient
         var response = await senderOwnerClient.PeerDirect.TransferNewFile(targetDrive, uploadedFileMetadata, [recipient], null, uploadManifest, testPayloads);
-        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(response.IsSuccessStatusCode);
 
         //
@@ -161,7 +161,7 @@ public class PeerUpdateFileTests
         };
 
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
-        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more

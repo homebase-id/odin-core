@@ -1010,7 +1010,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task UpdateBatch(InternalDriveFileId targetFile, BatchUpdateManifest manifest, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task UpdateBatch(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
 
@@ -1043,7 +1044,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // 
                 // Note: i've separated the payload instructions for readability
                 // 
-                var tempFile = targetFile;
                 foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
@@ -1103,7 +1103,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
                 await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
-                    manifest.ServerMetadata, odinContext, cn, keepSameVersionTag: true);
+                    manifest.ServerMetadata, odinContext, cn, manifest.NewVersionTag);
             });
         }
 
@@ -1235,7 +1235,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task OverwriteMetadataInternal(byte[] newKeyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
-            IOdinContext odinContext, DatabaseConnection cn, bool keepSameVersionTag = false)
+            IOdinContext odinContext, DatabaseConnection cn, Guid? newVersionTag = null)
         {
             if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
             {
@@ -1288,8 +1288,15 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
-
-            await WriteFileHeaderInternal(existingServerHeader, cn, keepSameVersionTag);
+            if (newVersionTag == null)
+            {
+                await WriteFileHeaderInternal(existingServerHeader, cn);
+            }
+            else
+            {
+                existingServerHeader.FileMetadata.VersionTag = newVersionTag.Value;
+                await WriteFileHeaderInternal(existingServerHeader, cn, keepSameVersionTag: true);
+            }
         }
 
         private async Task DeletePayloadFromDiskInternal(InternalDriveFileId file, PayloadDescriptor descriptor, DatabaseConnection cn)

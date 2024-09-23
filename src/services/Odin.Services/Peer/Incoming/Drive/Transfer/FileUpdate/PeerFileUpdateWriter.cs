@@ -61,7 +61,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
                 //one is written any time you save a header)
                 incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
-                
+
                 var request = instructionSet.Request;
                 var manifest = new BatchUpdateManifest()
                 {
@@ -77,7 +77,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatch(targetFile, manifest, odinContext, cn);
+                await fs.Storage.UpdateBatch(tempFile, targetFile, manifest, odinContext, cn);
             });
         }
 
@@ -159,7 +159,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             return (targetAcl, isCollabChannel);
         }
-        
+
         private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
             IDriveFileSystem fs,
             IOdinContext odinContext, DatabaseConnection cn)
