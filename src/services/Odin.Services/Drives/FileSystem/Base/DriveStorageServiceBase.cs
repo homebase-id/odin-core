@@ -1043,7 +1043,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 // 
                 // Note: i've separated the payload instructions for readability
-                // 
+                // f
                 foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
@@ -1258,7 +1258,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                                               $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
+            if (newVersionTag == null)
+            {
+                DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
+            }
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;

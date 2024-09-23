@@ -89,6 +89,8 @@ public class PeerUpdateFileTests
         var recipient = recipientOwnerClient.Identity.OdinId;
 
         var targetDrive = callerContext.TargetDrive;
+        await senderOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, attributes: IsGroupChannelAttributes);
+
         await recipientOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, attributes: IsGroupChannelAttributes);
 
         var cid = Guid.NewGuid();
@@ -155,6 +157,11 @@ public class PeerUpdateFileTests
                         ContentType = payloadToAdd.ContentType,
                         PreviewThumbnail = default,
                         Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
+                    },
+                    new UploadManifestPayloadDescriptor()
+                    {
+                        PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
+                        PayloadKey = payload1.Key
                     }
                 ]
             }
@@ -220,13 +227,13 @@ public class PeerUpdateFileTests
             //
             // Ensure we get payload2 for the payload1
             //
-            var getPayload2Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payloadToAdd.Key);
+            var getPayload2Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payload2.Key);
             Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
 
             //
             // Ensure we get 404 for the payload1
             //
-            var getPayload1Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payloadToAdd.Key);
+            var getPayload1Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payload1.Key);
             Assert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
         }
     }
