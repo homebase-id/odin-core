@@ -29,7 +29,7 @@ public class RegistrationRestrictedAttributeTest
     //
 
     [Test]
-    public async Task ItShouldReturn404IfNotEnabled()
+    public void ItShouldShouldFailToConnectIfNotEnabled()
     {
         var env = new Dictionary<string, string>
         {
@@ -38,8 +38,8 @@ public class RegistrationRestrictedAttributeTest
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var exception = Assert.ThrowsAsync<HttpRequestException>(() =>
-            apiClient.GetAsync($"https://provisioning.dotyou.cloud:{WebScaffold.HttpsPort}/api/registration/v1/registration/is-valid-domain/example.com"));
+        var exception = Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await apiClient.GetAsync($"https://provisioning.dotyou.cloud:{WebScaffold.HttpsPort}/api/registration/v1/registration/is-valid-domain/example.com"));
         Assert.That(exception!.Message, Is.EqualTo("The SSL connection could not be established, see inner exception."));
     }
 
