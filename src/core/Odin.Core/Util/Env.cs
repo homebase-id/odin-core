@@ -32,6 +32,15 @@ public static class Env
     
     //
     
+    public static string EnvironmentVariableEscape(string value)
+    {
+        return value
+            .Replace(@"\", @"\\") // Escape backslashes first to avoid double escaping
+            .Replace("'", @"\'"); // Escape single quotes
+    }
+    
+    //
+    
     // Rules for Environment Variable Names:
     // In Linux/macOS, valid environment variable names:
     // - Can consist of A-Z, a-z, 0-9, _
