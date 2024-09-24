@@ -543,10 +543,11 @@ public static class DockerSetup
 
     internal static async Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
     {
-        using var listener = new TcpListener(IPAddress.Any, port);
-        listener.Start();
         try
         {
+            using var listener = new TcpListener(IPAddress.Any, port);
+            listener.Start();
+
             using var tcpClient = await listener.AcceptTcpClientAsync(cancellationToken);
 
             await using var networkStream = tcpClient.GetStream();
