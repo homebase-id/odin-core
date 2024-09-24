@@ -23,11 +23,11 @@ public class TcpProbeTests
     public async Task ItShouldConnectToHttpPortAndGetExpectedResponse()
     {
         var cts = new CancellationTokenSource();
-        var listenTask = DockerSetup.TcpListen(8080, cts.Token);
+        var listenTask = DockerSetup.TcpListen(38080, cts.Token);
         
         var cache = new GenericMemoryCache();
         var tcpProbe = new TcpProbe(cache);
-        var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "8080");
+        var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38080");
         
         await cts.CancelAsync();
         var (connected, error) = await listenTask;
@@ -35,7 +35,7 @@ public class TcpProbeTests
         Assert.That(connected, Is.True);
         Assert.That(error, Is.Null);
         
-        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8080"));
+        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:38080"));
         Assert.That(success, Is.True);
     }
     
@@ -45,11 +45,11 @@ public class TcpProbeTests
     public async Task ItShouldConnectToHttpsPortAndGetExpectedResponse()
     {
         var cts = new CancellationTokenSource();
-        var listenTask = DockerSetup.TcpListen(8443, cts.Token);
+        var listenTask = DockerSetup.TcpListen(38443, cts.Token);
         
         var cache = new GenericMemoryCache();
         var tcpProbe = new TcpProbe(cache);
-        var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "8443");
+        var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38443");
         
         await cts.CancelAsync();
         var (connected, error) = await listenTask;
@@ -57,7 +57,7 @@ public class TcpProbeTests
         Assert.That(connected, Is.True);
         Assert.That(error, Is.Null);
         
-        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443"));
+        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:38443"));
         Assert.That(success, Is.True);
     }
     
@@ -71,8 +71,8 @@ public class TcpProbeTests
         var tcpProbe = new TcpProbe(cache);
 
         {
-            using var listenTask = DockerSetup.TcpListen(8443, cts.Token);
-            var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "8443");
+            using var listenTask = DockerSetup.TcpListen(38443, cts.Token);
+            var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38443");
         
             await cts.CancelAsync();
             var (connected, error) = await listenTask;
@@ -80,13 +80,13 @@ public class TcpProbeTests
             Assert.That(connected, Is.True);
             Assert.That(error, Is.Null);
         
-            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443"));
+            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:38443"));
             Assert.That(success, Is.True);
         }
         
         {
             var listenTask = DockerSetup.TcpListen(443, cts.Token);
-            var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "8443");
+            var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38443");
         
             await cts.CancelAsync();
             var (connected, error) = await listenTask;
@@ -94,7 +94,7 @@ public class TcpProbeTests
             Assert.That(connected, Is.True);
             Assert.That(error, Is.Null);
         
-            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443 [cache hit]"));
+            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:38443 [cache hit]"));
             Assert.That(success, Is.True);
         }
     }
