@@ -125,11 +125,12 @@ check_prerequisites() {
   fi
 
   #
-  # Check we have sufficent privileges to run Docker commands
+  # Check if Docker daemon is up and that we are privileged to run Docker commands
   #
-  echo "Checking Docker permissions..."
+  echo "Checking Docker daemon..."
   if ! docker info >/dev/null 2>&1; then
-    echo "⛔️ you do not have sufficient access to interact with Docker."
+    echo "⛔️ there was a problem communicating with the Docker daemon."
+    echo "Try running 'docker run hello-world' to check your installation."
     exit 1
   fi
 

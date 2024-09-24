@@ -469,11 +469,13 @@ public static class DockerSetup
         
         using var cts = new CancellationTokenSource();
 
+        // Set up a listener on the HTTP and HTTPS ports
         var httpListenTask = TcpListen(httpPort, cts.Token);
         var httpsListenTask = TcpListen(httpsPort, cts.Token);
         
         Thread.Sleep(100);
         
+        // Probe above listeners through setup.homebase.id
         var httpProbeTask = ProbeTcp(domain, httpPort);
         var httpsProbeTask = ProbeTcp(domain, httpsPort);
 
