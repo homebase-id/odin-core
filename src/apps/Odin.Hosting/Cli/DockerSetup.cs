@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging.Abstractions;
+using Odin.Core;
 using Odin.Core.Configuration;
 using Odin.Core.Dns;
 using Odin.Core.Serialization;
@@ -553,15 +554,10 @@ public static class DockerSetup
             var buffer = new byte[256];
             var bytesRead = await networkStream.ReadAsync(buffer, cancellationToken);
 
-            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-
-            // Reverse the string
-            var charArray = receivedMessage.ToCharArray();
-            Array.Reverse(charArray);
-            var reversedMessage = new string(charArray);
+            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead).Reverse();
 
             // Send the reversed string back to the client
-            var responseBytes = Encoding.UTF8.GetBytes(reversedMessage);
+            var responseBytes = Encoding.UTF8.GetBytes(receivedMessage);
             await networkStream.WriteAsync(responseBytes, cancellationToken);
 
             return (true, null);

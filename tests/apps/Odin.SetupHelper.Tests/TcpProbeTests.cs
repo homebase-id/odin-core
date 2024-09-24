@@ -14,7 +14,7 @@ public class TcpProbeTests
         var tcpProbe = new TcpProbe(cache);
         var (success, message) = await tcpProbe.ProbeAsync("example.com", "22");
         Assert.That(success, Is.False);
-        Assert.That(message, Does.StartWith("Failed to connect to TCP: example.com:22"));
+        Assert.That(message, Does.StartWith("Failed to connect to example.com:22"));
     }
     
     //
@@ -35,7 +35,7 @@ public class TcpProbeTests
         Assert.That(connected, Is.True);
         Assert.That(error, Is.Null);
         
-        Assert.That(message, Is.EqualTo("Successfully connected to TCP: 127.0.0.1:8080"));
+        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8080"));
         Assert.That(success, Is.True);
     }
     
@@ -57,7 +57,7 @@ public class TcpProbeTests
         Assert.That(connected, Is.True);
         Assert.That(error, Is.Null);
         
-        Assert.That(message, Is.EqualTo("Successfully connected to TCP: 127.0.0.1:8443"));
+        Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443"));
         Assert.That(success, Is.True);
     }
     
@@ -80,7 +80,7 @@ public class TcpProbeTests
             Assert.That(connected, Is.True);
             Assert.That(error, Is.Null);
         
-            Assert.That(message, Is.EqualTo("Successfully connected to TCP: 127.0.0.1:8443"));
+            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443"));
             Assert.That(success, Is.True);
         }
         
@@ -94,7 +94,7 @@ public class TcpProbeTests
             Assert.That(connected, Is.True);
             Assert.That(error, Is.Null);
         
-            Assert.That(message, Is.EqualTo("Successfully connected to TCP: 127.0.0.1:8443 [cache hit]"));
+            Assert.That(message, Is.EqualTo("Successfully connected to 127.0.0.1:8443 [cache hit]"));
             Assert.That(success, Is.True);
         }
     }
@@ -107,7 +107,7 @@ public class TcpProbeTests
         var cache = new GenericMemoryCache();
         var tcpProbe = new TcpProbe(cache);
         var (success, message) = await tcpProbe.ProbeAsync("example.com", "80");
-        Assert.That(message, Is.EqualTo("Successfully connected to TCP: example.com:80, but did not get the expected response"));
+        Assert.That(message, Is.EqualTo("Successfully connected to example.com:80, but did not get the expected response"));
         Assert.That(success, Is.False);
     }
     
