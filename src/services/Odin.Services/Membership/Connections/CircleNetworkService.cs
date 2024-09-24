@@ -870,27 +870,33 @@ namespace Odin.Services.Membership.Connections
 
         private async Task HandleDriveUpdated(StorageDrive drive, IOdinContext odinContext, DatabaseConnection cn)
         {
-            //examine system circle; remove drive if needed
-            CircleDefinition systemCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
-
-            var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
-            if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
+            async Task UpdateIfRequired(CircleDefinition def)
             {
-                //remove the drive as it no longer allows anonymous reads
-                systemCircle.DriveGrants = systemCircle.DriveGrants.Where(dg => dg.PermissionedDrive.Drive != drive.TargetDriveInfo).ToList();
-                await this.UpdateCircleDefinition(systemCircle, odinContext, cn);
-                return;
+                var existingDriveGrant = def.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
+                if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
+                {
+                    //remove the drive as it no longer allows anonymous reads
+                    def.DriveGrants = def.DriveGrants.Where(dg => dg.PermissionedDrive.Drive != drive.TargetDriveInfo).ToList();
+                    await this.UpdateCircleDefinition(def, odinContext, cn);
+                    return;
+                }
+
+                if (drive.AllowAnonymousReads && null == existingDriveGrant)
+                {
+                    //act like it's new
+                    await this.HandleDriveAdded(drive, odinContext, cn);
+                }
             }
 
-            if (drive.AllowAnonymousReads && null == existingDriveGrant)
-            {
-                //act like it's new
-                await this.HandleDriveAdded(drive, odinContext, cn);
-            }
+            CircleDefinition confirmedCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
+            await UpdateIfRequired(confirmedCircle);
+            
+            CircleDefinition autoConnectedCircle= circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext, cn);
+            await UpdateIfRequired(autoConnectedCircle);
         }
 
         /// <summary>
-        /// Updates the system circle's drive grants
+        /// Updates the system circles drive grants
         /// </summary>
         private async Task HandleDriveAdded(StorageDrive drive, IOdinContext odinContext, DatabaseConnection cn)
         {
@@ -899,21 +905,28 @@ namespace Odin.Services.Membership.Connections
             {
                 return;
             }
-
-            CircleDefinition def = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
-
-            var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
-            grants.Add(new DriveGrantRequest()
+            
+            async Task GrantAnonymousRead(CircleDefinition def)
             {
-                PermissionedDrive = new PermissionedDrive()
+                var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
+                grants.Add(new DriveGrantRequest()
                 {
-                    Drive = drive.TargetDriveInfo,
-                    Permission = DrivePermission.Read
-                }
-            });
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = drive.TargetDriveInfo,
+                        Permission = DrivePermission.Read
+                    }
+                });
 
-            def.DriveGrants = grants;
-            await this.UpdateCircleDefinition(def, odinContext, cn);
+                def.DriveGrants = grants;
+                await this.UpdateCircleDefinition(def, odinContext, cn);
+            }
+
+            CircleDefinition confirmedCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
+            await GrantAnonymousRead(confirmedCircle);
+
+            CircleDefinition autoConnectedCircle = circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext, cn);
+            await GrantAnonymousRead(autoConnectedCircle);
         }
 
 
