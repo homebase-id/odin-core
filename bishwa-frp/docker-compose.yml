@@ -1,0 +1,49 @@
+services:
+  identity-host:
+    container_name: identity-host
+    image: ghcr.io/homebase-id/odin-core:latest
+    entrypoint: ["dotnet", "Odin.Hosting.dll"]
+    restart: always
+    environment:
+      CertificateRenewal__CertificateAuthorityAssociatedEmail: "bishwajeet.techmaster@gmail.com"
+      CertificateRenewal__UseCertificateAuthorityProductionServers: "True"
+      Host__CacheSlidingExpirationSeconds: "15"
+      Host__IPAddressListenList__0__HttpPort: "80"
+      Host__IPAddressListenList__0__HttpsPort: "443"
+      Host__IPAddressListenList__0__Ip: "*"
+      Host__SystemDataRootPath: "/homebase/system"
+      Host__TenantDataRootPath: "/homebase/tenants"
+      Job__EnsureCertificateProcessorIntervalSeconds: "3600"
+      Job__InboxOutboxReconciliationIntervalSeconds: "43200"
+      Job__JobCleanUpIntervalSeconds: "14400"
+      Registry__DnsRecordValues__ApexAliasRecord: "provisioning.bishwajeetparhi.dev"
+      Registry__DnsRecordValues__ApexARecords__0: "167.235.203.161"
+      Registry__ProvisioningDomain: "provisioning.bishwajeetparhi.dev"
+      Registry__ProvisioningEnabled: "True"
+      Serilog__MinimumLevel__Default: "Debug"
+      Serilog__MinimumLevel__Override__Microsoft: "Information"
+      Serilog__MinimumLevel__Override__Microsoft.AspNetCore: "Warning"
+      Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Authentication: "Error"
+    volumes:
+      - /tmp/homebase:/homebase
+    ports:
+      - "80:80"
+      - "443:443"
+
+  frpc:
+    container_name: frpc
+    image: snowdreamtech/frpc
+    restart: always
+    network_mode: host
+    volumes:
+      - ./frpc.yml:/etc/frp/frpc.yml
+    entrypoint: /usr/bin/frpc
+    command: -c /etc/frp/frpc.yml --strict_config
+
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: identity-host --interval 60

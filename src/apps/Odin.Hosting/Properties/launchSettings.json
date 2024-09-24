@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": ""
+      "commandLineArgs": "--docker-setup   output-docker-run-script=/tmp/docker-run-script.sh   provisioning-domain=identity-host.sebbarg.net   provisioning-password=Password123   certificate-email=sebbarg@gmail.com   docker-image-name=foo    docker-container-name=bar   docker-root-data-mount=/tmp    docker-run-detached=y"
     }
   }
 }

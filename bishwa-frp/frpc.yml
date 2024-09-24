@@ -1,0 +1,25 @@
+serverAddr: provisioning.bishwajeetparhi.dev
+serverPort: 7000
+auth:
+  token: "some-secret-token"
+proxies:
+  - name: "300e75bc-a329-440c-91c5-92d048b93e51"
+    type: http
+    localIP: 127.0.0.1
+    localPort: 80
+    customDomains:
+      [
+        "home.bishwajeetparhi.dev",
+        "*.home.bishwajeetparhi.dev",
+        "provisioning.bishwajeetparhi.dev",
+      ]
+  - name: "7b528bd4-bb3e-45c9-8671-4b724b355bd2"
+    type: https
+    localIP: 127.0.0.1
+    localPort: 443
+    customDomains:
+      [
+        "home.bishwajeetparhi.dev",
+        "*.home.bishwajeetparhi.dev",
+        "provisioning.bishwajeetparhi.dev",
+      ]
