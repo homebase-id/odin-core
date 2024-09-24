@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Exceptions;
+using Odin.Core.Util;
 
 namespace Odin.Core.Configuration;
 
@@ -55,10 +56,7 @@ public static class ConfigurationExtensions
             if (!string.IsNullOrEmpty(section.Key) && !string.IsNullOrEmpty(section.Value))
             {
                 var key = section.Key.Replace(":", "__");
-                var value = section.Value
-                    .Replace(@"\", @"\\") // Escape backslashes first to avoid double escaping
-                    .Replace("'", @"\'"); // Escape single quotes
-
+                var value = Env.EnvironmentVariableEscape(section.Value);
                 result.Add($"{key}='{value}'");
             }
         }
@@ -68,4 +66,25 @@ public static class ConfigurationExtensions
     }
 
     //
+    
+    public static SortedDictionary<string, string> ExportAsEnvironmentDictionary(this IConfiguration config)
+    {
+        var result = new SortedDictionary<string, string>();
+
+        foreach (var section in config.AsEnumerable())
+        {
+            if (!string.IsNullOrEmpty(section.Key) && !string.IsNullOrEmpty(section.Value))
+            {
+                var key = section.Key.Replace(":", "__");
+                var value = Env.EnvironmentVariableEscape(section.Value);
+                result[key] = $"\"{value}\"";
+            }
+        }
+
+        return result;
+    }
+    
+    //
+    
+    
 }

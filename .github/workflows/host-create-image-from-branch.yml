@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}-internal
 
 jobs:
   build_and_deploy:
@@ -67,4 +67,5 @@ jobs:
           tags: ${{ env.IMAGE_WITH_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
