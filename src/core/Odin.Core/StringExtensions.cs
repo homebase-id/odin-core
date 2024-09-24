@@ -6,5 +6,12 @@ namespace Odin.Core
         {
             return System.Text.Encoding.UTF8.GetBytes(str);
         }
+        
+        public static string Reverse(this string str)
+        {
+            var charArray = str.ToCharArray();
+            System.Array.Reverse(charArray);
+            return new string(charArray);
+        }
     }
 }
