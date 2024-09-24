@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
@@ -17,10 +19,11 @@ using Odin.Core.Util;
 using Spectre.Console;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
+[assembly: InternalsVisibleTo("Odin.SetupHelper.Tests")]
+
 namespace Odin.Hosting.Cli;
 
 #nullable enable
-
 public static class DockerSetup
 {
     private static readonly IHttpClientFactory HttpClientFactory = new HttpClientFactory();
@@ -465,8 +468,8 @@ public static class DockerSetup
         
         using var cts = new CancellationTokenSource();
 
-        var httpListen = TcpListen(httpPort, cts.Token);
-        var httpsListen = TcpListen(httpsPort, cts.Token);
+        var httpListenTask = TcpListen(httpPort, cts.Token);
+        var httpsListenTask = TcpListen(httpsPort, cts.Token);
         
         Thread.Sleep(100);
         
@@ -477,11 +480,23 @@ public static class DockerSetup
         var (httpsSuccess, httpsError) = await httpsProbeTask;
         
         await cts.CancelAsync();
+        
+        var (_, httpListenError) = await httpListenTask;
+        if (httpListenError != null)
+        {
+            return (false, $"Error listening on HTTP port {httpPort}: {httpListenError}. Is something else already listening on that port?");
+        }
+        
+        var (_, httpsListenError) = await httpsListenTask;
+        if (httpsListenError != null)
+        {
+            return (false, $"Error listening on HTTPS port {httpsPort}: {httpsListenError}. Is something else already listening on that port?");
+        }
 
         const string thingsToCheck =
             """
             Things for you to check:
-            - Router NAT rules are set up correctly;
+            - Router NAT (port forwarding) rules are set up correctly;
             - Firewall rules are set up correctly; 
             - Docker port mappings are set up correctly;
             """;
@@ -525,14 +540,35 @@ public static class DockerSetup
 
     //
 
-    private static async Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
+    internal static async Task<(bool connected, string? error)> TcpListen(int port, CancellationToken cancellationToken)
     {
         using var listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
         try
         {
-            await listener.AcceptTcpClientAsync(cancellationToken);
-            return cancellationToken.IsCancellationRequested ? (false, "Timeout") : (true, null);
+            using var tcpClient = await listener.AcceptTcpClientAsync(cancellationToken);
+
+            await using var networkStream = tcpClient.GetStream();
+
+            var buffer = new byte[256];
+            var bytesRead = await networkStream.ReadAsync(buffer, cancellationToken);
+
+            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+
+            // Reverse the string
+            var charArray = receivedMessage.ToCharArray();
+            Array.Reverse(charArray);
+            var reversedMessage = new string(charArray);
+
+            // Send the reversed string back to the client
+            var responseBytes = Encoding.UTF8.GetBytes(reversedMessage);
+            await networkStream.WriteAsync(responseBytes, cancellationToken);
+
+            return (true, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (true, null);
         }
         catch (Exception e)
         {
