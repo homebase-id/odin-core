@@ -85,7 +85,7 @@ public class TcpProbeTests
         }
         
         {
-            var listenTask = DockerSetup.TcpListen(443, cts.Token);
+            var listenTask = DockerSetup.TcpListen(38443, cts.Token);
             var (success, message) = await tcpProbe.ProbeAsync("127.0.0.1", "38443");
         
             await cts.CancelAsync();
