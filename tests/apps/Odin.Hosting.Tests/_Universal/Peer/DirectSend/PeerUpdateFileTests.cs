@@ -12,6 +12,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -65,19 +66,20 @@ public class PeerUpdateFileTests
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-    public static IEnumerable AppAllowed()
+    public static IEnumerable AppWithOnlyUseTransitWrite()
     {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new AppPermissionKeysOnly(new TestPermissionKeyList(PermissionKeys.UseTransitWrite)), HttpStatusCode.OK };
     }
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[]
+            { new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)), HttpStatusCode.OK };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
     [TestCaseSource(nameof(GuestAllowed))]
     public async Task CanUpdateRemoteFileFileUpdateHeaderDeletePayloadAndAddNewPayload_PeerOnly(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
@@ -88,13 +90,12 @@ public class PeerUpdateFileTests
         var sender = senderOwnerClient.Identity.OdinId;
         var recipient = recipientOwnerClient.Identity.OdinId;
 
-        var targetDrive = callerContext.TargetDrive;
-        await senderOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, attributes: IsGroupChannelAttributes);
-
-        await recipientOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, attributes: IsGroupChannelAttributes);
+        var remoteTargetDrive = TargetDrive.NewTargetDrive();
+        await recipientOwnerClient.DriveManager.CreateDrive(remoteTargetDrive, "Test Drive 001", "", allowAnonymousReads: true,
+            attributes: IsGroupChannelAttributes);
 
         var cid = Guid.NewGuid();
-        var permissions = TestUtils.CreatePermissionGrantRequest(callerContext.TargetDrive, DrivePermission.Write);
+        var permissions = TestUtils.CreatePermissionGrantRequest(remoteTargetDrive, DrivePermission.Write);
         await recipientOwnerClient.Network.CreateCircle(cid, "circle with some access", permissions);
 
         await senderOwnerClient.Connections.SendConnectionRequest(recipient);
@@ -120,7 +121,8 @@ public class PeerUpdateFileTests
         };
 
         //Pippin sends a file to the recipient
-        var response = await senderOwnerClient.PeerDirect.TransferNewFile(targetDrive, uploadedFileMetadata, [recipient], null, uploadManifest, testPayloads);
+        var response = await senderOwnerClient.PeerDirect.TransferNewFile(remoteTargetDrive, uploadedFileMetadata, [recipient], null, uploadManifest,
+            testPayloads);
         await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(response.IsSuccessStatusCode);
 
