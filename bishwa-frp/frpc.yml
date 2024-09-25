@@ -1,7 +1,8 @@
 serverAddr: provisioning.bishwajeetparhi.dev
 serverPort: 7000
-auth:
-  token: "some-secret-token"
+user: "bishwa"
+metadatas:
+  token: "easypeasylemonsqueezy"
 proxies:
   - name: "300e75bc-a329-440c-91c5-92d048b93e51"
     type: http
