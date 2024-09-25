@@ -15,7 +15,6 @@ namespace Odin.Hosting.Tests._Universal;
 
 public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermissionKeyList keys) : IApiClientContext
 {
-    private readonly TestPermissionKeyList _keys = keys;
     private GuestApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; }

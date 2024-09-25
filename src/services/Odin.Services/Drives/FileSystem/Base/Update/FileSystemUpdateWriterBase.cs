@@ -53,27 +53,28 @@ public abstract class FileSystemUpdateWriterBase
 
         if (instructionSet.Locale == UpdateLocale.Local)
         {
+            throw new NotImplementedException("UpdateLocale.Local will be implemented in api v2");
             //  There must be a local file that will be updated - then sent out to recipients
             //  the outbox is used, and we can write the result to the local file in the transfer history
 
-            instructionSet.File.AssertIsValid(expectedType: FileIdentifierType.File);
-            var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet.File.TargetDrive);
-
-            // File to overwrite
-            InternalDriveFileId file = new InternalDriveFileId()
-            {
-                DriveId = driveId,
-                FileId = instructionSet.File.FileId.GetValueOrDefault()
-            };
-
-            this.Package = new FileUpdatePackage(file)
-            {
-                InstructionSet = instructionSet,
-                FileSystemType = fileSystemType
-            };
-
-            await Task.CompletedTask;
-            return;
+            // instructionSet.File.AssertIsValid(expectedType: FileIdentifierType.File);
+            // var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet.File.TargetDrive);
+            //
+            // // File to overwrite
+            // InternalDriveFileId file = new InternalDriveFileId()
+            // {
+            //     DriveId = driveId,
+            //     FileId = instructionSet.File.FileId.GetValueOrDefault()
+            // };
+            //
+            // this.Package = new FileUpdatePackage(file)
+            // {
+            //     InstructionSet = instructionSet,
+            //     FileSystemType = fileSystemType
+            // };
+            //
+            // await Task.CompletedTask;
+            // return;
         }
 
         if (instructionSet.Locale == UpdateLocale.Peer)
