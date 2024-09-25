@@ -26,6 +26,7 @@ using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Serilog;
+using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Odin.Hosting
@@ -249,6 +250,11 @@ namespace Odin.Hosting
             OdinConfiguration config,
             IServiceProvider serviceProvider)
         {
+            if (Log.IsEnabled(LogEventLevel.Verbose))
+            {
+                Log.Verbose("Getting certificate for {host}", hostName);
+            }
+            
             if (string.IsNullOrWhiteSpace(hostName))
             {
                 return (null, false);
