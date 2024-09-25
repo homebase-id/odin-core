@@ -15,7 +15,9 @@ public interface IGenericMemoryCache
     bool TryGet<T>(string key, out T? value);
     bool TryGet<T>(byte[] key, out T? value);
     void Set(string key, object? value, TimeSpan lifespan);
+    void Set(string key, object? value, DateTimeOffset absoluteExpiration);
     void Set(byte[] key, object? value, TimeSpan lifespan);
+    void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration);
     object? Remove(string key);
     object? Remove(byte[] key);
     bool Contains(string key);
@@ -129,7 +131,14 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public void Set(string key, object? value, TimeSpan lifespan)
     {
-        var policy = new CacheItemPolicy { AbsoluteExpiration = DateTimeOffset.Now.Add(lifespan) };
+        Set(key, value, DateTimeOffset.Now.Add(lifespan));
+    }
+
+    //
+
+    public void Set(string key, object? value, DateTimeOffset absoluteExpiration)
+    {
+        var policy = new CacheItemPolicy { AbsoluteExpiration = absoluteExpiration };
         lock (_mutex)
         {
             _cache.Set(new CacheItem(key, value ?? NullValue), policy);
@@ -141,6 +150,13 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
     public void Set(byte[] key, object? value, TimeSpan lifespan)
     {
         Set(Convert.ToBase64String(key), value, lifespan);
+    }
+
+    //
+
+    public void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration)
+    {
+        Set(Convert.ToBase64String(key), value, absoluteExpiration);
     }
 
     //
