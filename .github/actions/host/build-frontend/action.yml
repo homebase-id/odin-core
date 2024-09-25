@@ -54,6 +54,7 @@ runs:
         echo VITE_VERSION=$(date +%s) >> packages/mail-app/.env
         touch packages/provisioning-app/.env
         echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
+        echo VITE_BRAND=ravenhosting >> packages/provisioning-app/.env
 
     - name: Build owner-app
       shell: bash
@@ -102,4 +103,3 @@ runs:
         npm run build:provisioning
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
         mv packages/provisioning-app/dist ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
-
