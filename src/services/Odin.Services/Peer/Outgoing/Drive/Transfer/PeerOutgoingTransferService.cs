@@ -71,7 +71,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddItem(item, cn);
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -107,7 +107,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var priority = 100;
 
-            var (outboxStatus, outboxItems) = await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
+            var (outboxStatus, outboxItems) =
+                await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -117,10 +118,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                     await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
                 }
-              
-                await peerOutbox.AddItem(item, cn);
+
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
-            
+
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
 
             return outboxStatus;
@@ -449,7 +450,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
-                    
                     var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
@@ -467,11 +467,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             },
                             iv,
                             ref ss),
-                        
+
                         Request = request
                     };
-                    
-                    
+
+
                     outboxItems.Add(new OutboxFileItem()
                     {
                         Type = OutboxItemType.RemoteFileUpdate,
