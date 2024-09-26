@@ -143,6 +143,11 @@ public class SendingIntroductionsTests
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        
+        await Cleanup();
+        
+        var introsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsFalse(introsResponse.Content.Any(), "Cannot start test - merry has pending introductions, but why Gandalf?!");
 
         // Merry blocks sam
         var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
@@ -153,6 +158,10 @@ public class SendingIntroductionsTests
         Assert.IsTrue(samInfoResponse.Content.Status == ConnectionStatus.Blocked);
 
         await Prepare();
+
+        var samRequestFromMerryResponse2 = await samOwnerClient.Connections.GetIncomingRequestFrom(merryOwnerClient.OdinId);
+        var firstRequestFromMerry2 = samRequestFromMerryResponse2.Content;
+        Assert.IsNull(firstRequestFromMerry2, "xx merry already has a request from sam");
 
         var firstIntroductionResponse = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
@@ -427,6 +436,10 @@ public class SendingIntroductionsTests
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
+        await frodo.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
+        await merry.Connections.DeleteAllIntroductions();
+
         await frodo.Connections.DisconnectFrom(sam.Identity.OdinId);
         await frodo.Connections.DisconnectFrom(merry.Identity.OdinId);
 
@@ -438,7 +451,7 @@ public class SendingIntroductionsTests
 
         await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
         await merry.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
-        
+
         await sam.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
         await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
     }

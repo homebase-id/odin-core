@@ -182,14 +182,22 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext, cn);
             return new OkResult();
         }
-        
-        
+
+
         [HttpGet("introductions/received")]
         public async Task<IActionResult> GetReceivedIntroductions()
         {
             using var cn = tenantSystemStorage.CreateConnection();
             var list = await introductionService.GetReceivedIntroductions(WebOdinContext, cn);
             return new JsonResult(list);
+        }
+
+        [HttpDelete("introductions")]
+        public async Task<IActionResult> DeleteAllIntroductions()
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+             await introductionService.DeleteIntroductions(WebOdinContext, cn);
+            return Ok();
         }
     }
 }

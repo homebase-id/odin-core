@@ -50,5 +50,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
             
         [Get(IntroductionsRoot + "/received")]
         Task<ApiResponse<List<IdentityIntroduction>>> GetReceivedIntroductions();
+        
+        [Delete(IntroductionsRoot)]
+        Task<ApiResponse<HttpContent>> DeleteAllIntroductions();
     }
 }

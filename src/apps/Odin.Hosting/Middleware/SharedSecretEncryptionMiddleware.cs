@@ -98,7 +98,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
-                
+
                 $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
                 $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
 
@@ -171,6 +171,17 @@ namespace Odin.Hosting.Middleware
                     if (_logger.IsEnabled(LogLevel.Trace))
                     {
                         _logger.LogTrace("qs: {querystring}", request.QueryString.ToString());
+                    }
+                }
+                else if (request.Method.ToUpper() == "DELETE")
+                {
+                    //some holding for delete verbs
+                    if (request.Body.CanSeek && request.Body.Length > 0)
+                    {
+                        request.Body.Position = 0;
+                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
+                        //update the body with the decrypted json file so it can be read down stream as expected
+                        request.Body = new MemoryStream(decryptedBytes);
                     }
                 }
                 else

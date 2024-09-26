@@ -125,7 +125,7 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             return await svc.ProcessIncomingIntroductions();
         }
     }
-    
+
     public async Task<ApiResponse<HttpContent>> AutoAcceptEligibleIntroductions()
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
@@ -134,7 +134,7 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             return await svc.AutoAcceptEligibleIntroductions();
         }
     }
-    
+
     public async Task<ApiResponse<List<IdentityIntroduction>>> GetReceivedIntroductions()
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
@@ -143,7 +143,16 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             return await svc.GetReceivedIntroductions();
         }
     }
-    
+
+    public async Task<ApiResponse<HttpContent>> DeleteAllIntroductions()
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, ownerSharedSecret);
+            return await svc.DeleteAllIntroductions();
+        }
+    }
+
     public async Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
