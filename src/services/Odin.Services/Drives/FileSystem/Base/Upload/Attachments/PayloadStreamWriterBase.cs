@@ -63,7 +63,7 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -86,7 +86,7 @@ public abstract class PayloadStreamWriterBase
                 Iv = descriptor.Iv,
                 PayloadKey = key,
                 Uid = descriptor.PayloadUid,
-                ContentType = contentType,
+                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? contentTypeFromMultipartSection : descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -95,7 +95,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -139,7 +139,7 @@ public abstract class PayloadStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType,
+            ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? contentTypeFromMultipartSection : result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });

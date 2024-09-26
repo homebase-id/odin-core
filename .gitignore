@@ -6,7 +6,10 @@ project.lock.json
 nupkg/
 
 # Visual Studio Code
-.vscode
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 
 # Rider
 .idea
@@ -40,7 +43,8 @@ dist/
 # examples stuffs dependencies
 node_modules/
 
-# local settings file
+# production settings will have secrets, so leave it out of source control
+appsettings.production.json
+
+# "your" local setting files
 appsettings.local.json
-
-

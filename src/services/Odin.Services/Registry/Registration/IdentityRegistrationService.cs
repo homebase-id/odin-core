@@ -238,9 +238,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
     {
-        return _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+        return _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
     }
 
     //
@@ -289,8 +289,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     Domain = domain,
                     Email = email,
                     FirstRunToken = firstRunToken.ToString(),
-                    ProvisioningEmailLogoImage = _configuration.Registry.ProvisioningEmailLogoImage,
-                    ProvisioningEmailLogoHref = _configuration.Registry.ProvisioningEmailLogoHref            
                 };
 
                 await _jobManager.ScheduleJobAsync(job, new JobSchedule
@@ -312,6 +310,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
     }
 
+    //
+
+    public Task<bool> IsInvitationCodeNeeded()
+    {
+        return Task.FromResult(_configuration.Registry.InvitationCodes.Count > 0);
+    }
+    
     //
 
     public Task<bool> IsValidInvitationCode(string code)

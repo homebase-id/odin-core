@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
-using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Email;
@@ -118,8 +117,6 @@ namespace Odin.Services.Configuration
             public string PowerDnsApiKey { get; init; }
 
             public string ProvisioningDomain { get; init; }
-            public string ProvisioningEmailLogoImage { get; init; }
-            public string ProvisioningEmailLogoHref { get; init; }
             public bool ProvisioningEnabled { get; init; }
             
             public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
@@ -135,15 +132,13 @@ namespace Odin.Services.Configuration
 
             public RegistrySection(IConfiguration config)
             {
-                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "");
+                PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "localhost");
                 PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
-                ProvisioningEmailLogoImage = config.Required<string>("Registry:ProvisioningEmailLogoImage").Trim().ToLower();
-                ProvisioningEmailLogoHref = config.Required<string>("Registry:ProvisioningEmailLogoHref").Trim().ToLower();
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
-                DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
+                DnsResolvers = config.GetOrDefault("Registry:DnsResolvers", new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
                     config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
@@ -185,14 +180,11 @@ namespace Odin.Services.Configuration
 
             public HostSection(IConfiguration config)
             {
-                var isDev = Env.IsDevelopment();
-                var home = Environment.GetEnvironmentVariable("HOME") ?? "";
-
-                var p = config.Required<string>("Host:TenantDataRootPath");
-                TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
-
-                var sd = config.Required<string>("Host:SystemDataRootPath");
-                SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
+                TenantDataRootPath =
+                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:TenantDataRootPath"));
+                
+                SystemDataRootPath =                 
+                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 
@@ -202,9 +194,9 @@ namespace Odin.Services.Configuration
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
 
-                HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
+                HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
-                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 5);
+                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 30);
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
                 //TODO: changed to required when Seb and I can coordinate config changes
@@ -305,7 +297,7 @@ namespace Odin.Services.Configuration
 
             public LoggingSection(IConfiguration config)
             {
-                LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
+                LogFilePath = Env.ExpandEnvironmentVariablesCrossPlatform(config.GetOrDefault("Logging:LogFilePath", ""));
                 EnableStatistics = config.GetOrDefault("Logging:EnableStatistics", false);
             }
         }
@@ -361,14 +353,17 @@ namespace Odin.Services.Configuration
 
             public MailgunSection(IConfiguration config)
             {
-                ApiKey = config.Required<string>("Mailgun:ApiKey");
-                DefaultFrom = new NameAndEmailAddress
+                Enabled = config.GetOrDefault("Mailgun:Enabled", false);
+                if (Enabled)
                 {
-                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
-                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
-                };
-                EmailDomain = config.Required<string>("Mailgun:EmailDomain");
-                Enabled = config.Required<bool>("Mailgun:Enabled");
+                    ApiKey = config.Required<string>("Mailgun:ApiKey");
+                    DefaultFrom = new NameAndEmailAddress
+                    {
+                        Email = config.Required<string>("Mailgun:DefaultFromEmail"),
+                        Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
+                    };
+                    EmailDomain = config.Required<string>("Mailgun:EmailDomain");
+                }
             }
         }
 
@@ -390,12 +385,15 @@ namespace Odin.Services.Configuration
 
             public AdminSection(IConfiguration config)
             {
-                ApiEnabled = config.Required<bool>("Admin:ApiEnabled");
-                ApiKey = config.Required<string>("Admin:ApiKey");
-                ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
-                ApiPort = config.Required<int>("Admin:ApiPort");
-                Domain = config.Required<string>("Admin:Domain");
-                ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
+                ApiEnabled = config.GetOrDefault("Admin:ApiEnabled", false);
+                if (ApiEnabled)
+                {
+                    ApiKey = config.Required<string>("Admin:ApiKey");
+                    ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
+                    ApiPort = config.Required<int>("Admin:ApiPort");
+                    Domain = config.Required<string>("Admin:Domain");
+                    ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
+                }
             }
         }
 
@@ -412,7 +410,7 @@ namespace Odin.Services.Configuration
 
             public PushNotificationSection(IConfiguration config)
             {
-                BaseUrl = config.Required<string>("PushNotification:BaseUrl");
+                BaseUrl = config.GetOrDefault("PushNotification:BaseUrl", "https://push.homebase.id");
             }
         }
     }

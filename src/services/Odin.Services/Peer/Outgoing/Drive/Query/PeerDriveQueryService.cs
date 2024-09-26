@@ -568,9 +568,11 @@ public class PeerDriveQueryService(
         {
             ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
         }
+        
+        var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
         var stream = await response.Content!.ReadAsStreamAsync();
-        var payloadStream = new PayloadStream(key, decryptedContentType, lastModified.GetValueOrDefault(UnixTimeUtc.Now()), stream);
+        var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()), stream);
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 

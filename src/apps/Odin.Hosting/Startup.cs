@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Tasks;
@@ -195,7 +196,7 @@ namespace Odin.Hosting
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
+            services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
             services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(

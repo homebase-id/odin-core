@@ -113,7 +113,7 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, db);
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddPayload(string key, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -137,7 +137,7 @@ public abstract class FileSystemStreamWriterBase
                 Iv = descriptor.Iv,
                 Uid = descriptor.PayloadUid,
                 PayloadKey = key,
-                ContentType = contentType,
+                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? overrideContentType : descriptor.ContentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
                 DescriptorContent = descriptor.DescriptorContent,
@@ -146,7 +146,7 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -190,7 +190,7 @@ public abstract class FileSystemStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType,
+            ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? overrideContentType : result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });

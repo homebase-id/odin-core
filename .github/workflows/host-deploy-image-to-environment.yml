@@ -3,8 +3,8 @@ name: "Host: Deploy image to environment"
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Docker image tag (e.g., v0.1.96)"
+      image_name:
+        description: "Image (e.g. ghcr.io/homebase-id/odin-core-internal:v0.1.123)"
         required: true
       env_choice:
         type: choice
@@ -30,7 +30,7 @@ jobs:
     - name: Deploy Docker Image    
       uses: ./.github/actions/host/deploy-image-to-environment
       with:
-        image_name: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag }}
+        image_name: ${{ github.event.inputs.image_name }}
         env_name: ${{ github.event.inputs.env_choice }}
         force_update: 'true'
         start_container: ${{ github.event.inputs.start_choice }}

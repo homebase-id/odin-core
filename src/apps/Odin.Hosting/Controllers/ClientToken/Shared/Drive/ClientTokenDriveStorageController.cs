@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -77,7 +78,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             var db = tenantSystemStorage.IdentityDatabase;
-            return await base.GetPayloadStream(
+            var payload = await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
                     File = new ExternalFileIdentifier()
@@ -93,6 +94,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     Chunk = chunk
                 },
                 db);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
         }
 
         /// <summary>

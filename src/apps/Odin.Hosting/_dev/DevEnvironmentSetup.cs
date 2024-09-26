@@ -78,6 +78,7 @@ namespace Odin.Hosting._dev
         private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration)
         {
             // Provisioning system
+            if (odinConfiguration.Registry.ProvisioningEnabled)
             {
                 var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Registry.ProvisioningDomain);
                 Directory.CreateDirectory(targetPath);
@@ -98,6 +99,7 @@ namespace Odin.Hosting._dev
             }
 
             // Admin system
+            if (odinConfiguration.Admin.ApiEnabled)
             {
                 var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Admin.Domain);
                 Directory.CreateDirectory(targetPath);

@@ -25,7 +25,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 
-
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
@@ -439,7 +438,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var lts = await GetLongTermStorageManager(file.DriveId, db);
                 var stream = await lts.GetPayloadStream(file.FileId, descriptor, chunk);
-                return new PayloadStream(descriptor, stream);
+                return new PayloadStream(descriptor, stream.Length, stream);
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
             {

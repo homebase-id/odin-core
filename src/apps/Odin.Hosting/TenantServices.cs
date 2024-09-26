@@ -52,7 +52,7 @@ namespace Odin.Hosting
     /// <summary>
     /// Set up per-tenant services
     /// </summary>
-    public static class DependencyInjection
+    public static class TenantServices
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
