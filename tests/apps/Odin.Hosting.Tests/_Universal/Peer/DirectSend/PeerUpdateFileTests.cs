@@ -71,16 +71,16 @@ public class PeerUpdateFileTests
         yield return new object[] { new AppPermissionKeysOnly(new TestPermissionKeyList(PermissionKeys.UseTransitWrite)), HttpStatusCode.OK };
     }
 
-    public static IEnumerable GuestAllowed()
+    public static IEnumerable GuestNotAllowed()
     {
         yield return new object[]
-            { new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)), HttpStatusCode.OK };
+            { new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)), HttpStatusCode.MethodNotAllowed };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanUpdateRemoteFileFileUpdateHeaderDeletePayloadAndAddNewPayload_PeerOnly(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
