@@ -52,10 +52,10 @@ public class EnsureVerificationHashTests
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        var response1 = await frodoOwnerClient.DataConversion.EnsureVerificationHash();
+        var response1 = await frodoOwnerClient.DataConversion.PrepareIntroductionsRelease();
         Assert.IsTrue(response1.IsSuccessStatusCode);
 
-        var response2 = await samOwnerClient.DataConversion.EnsureVerificationHash();
+        var response2 = await samOwnerClient.DataConversion.PrepareIntroductionsRelease();
         Assert.IsTrue(response2.IsSuccessStatusCode);
 
         var samVerificationResponse = await frodoOwnerClient.Network.VerifyConnection(sam);

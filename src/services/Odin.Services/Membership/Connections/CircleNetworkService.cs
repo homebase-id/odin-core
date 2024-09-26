@@ -21,6 +21,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
@@ -42,7 +43,8 @@ namespace Odin.Services.Membership.Connections
         CircleMembershipService circleMembershipService,
         IMediator mediator,
         CircleDefinitionService circleDefinitionService,
-        DriveManager driveManager)
+        DriveManager driveManager,
+        PublicPrivateKeyService publicPrivateKeyService)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
     {
@@ -327,7 +329,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         /// <returns></returns>
         public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant,
-            (EncryptedClientAccessToken EncryptedCat, (ClientAccessToken Token, SensitiveByteArray KeyStoreKey) Temp) keys,
+            (EncryptedClientAccessToken EncryptedCat, (EccEncryptedPayload Token, EccEncryptedPayload KeyStoreKey) Temp) keys,
             ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
             OdinId? introducerOdinId,
@@ -351,8 +353,8 @@ namespace Odin.Services.Membership.Connections
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
                 EncryptedClientAccessToken = keys.EncryptedCat,
-                TemporaryWeakClientAccessToken64 = keys.Temp.Token?.ToPortableBytes64(),
-                TempWeakKeyStoreKey = keys.Temp.KeyStoreKey?.GetKey(),
+                TemporaryWeakClientAccessToken = keys.Temp.Token,
+                TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
                 VerificationHash = verificationHash
@@ -780,8 +782,8 @@ namespace Odin.Services.Membership.Connections
 
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                await UpgradeTokenEncryptionIfNeeded(icr, odinContext);
-                await UpgradeKeyStoreKeyEncryptionIfNeeded(odinContext, icr);
+                await UpgradeTokenEncryptionIfNeeded(icr, odinContext, cn);
+                await UpgradeKeyStoreKeyEncryptionIfNeeded(icr, odinContext, cn);
 
                 this.SaveIcr(icr, odinContext, cn);
 
@@ -834,11 +836,11 @@ namespace Odin.Services.Membership.Connections
             var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             foreach (var identity in allIdentities.Results)
             {
-                await UpgradeTokenEncryptionIfNeeded(identity, odinContext);
+                await UpgradeTokenEncryptionIfNeeded(identity, odinContext, cn);
 
                 if (odinContext.Caller.HasMasterKey)
                 {
-                    await UpgradeKeyStoreKeyEncryptionIfNeeded(odinContext, identity);
+                    await UpgradeKeyStoreKeyEncryptionIfNeeded(identity, odinContext, cn);
                 }
             }
         }
@@ -890,8 +892,8 @@ namespace Odin.Services.Membership.Connections
 
             CircleDefinition confirmedCircle = circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
             await UpdateIfRequired(confirmedCircle);
-            
-            CircleDefinition autoConnectedCircle= circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext, cn);
+
+            CircleDefinition autoConnectedCircle = circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext, cn);
             await UpdateIfRequired(autoConnectedCircle);
         }
 
@@ -905,7 +907,7 @@ namespace Odin.Services.Membership.Connections
             {
                 return;
             }
-            
+
             async Task GrantAnonymousRead(CircleDefinition def)
             {
                 var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
@@ -1036,7 +1038,6 @@ namespace Odin.Services.Membership.Connections
         private CursoredResult<long, IdentityConnectionRegistration> GetConnectionsInternal(int count, long cursor, ConnectionStatus status,
             IOdinContext odinContext, DatabaseConnection cn)
         {
-
             var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status, cn);
             return new CursoredResult<long, IdentityConnectionRegistration>()
             {
@@ -1096,32 +1097,35 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        private static async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext, DatabaseConnection cn)
         {
-            if (!string.IsNullOrEmpty(identity.TemporaryWeakClientAccessToken64?.Trim()))
+            if (identity.TemporaryWeakClientAccessToken != null)
             {
-                var unencryptedCat = ClientAccessToken.FromPortableBytes64(identity.TemporaryWeakClientAccessToken64);
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
+                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
+                    identity.TemporaryWeakClientAccessToken, odinContext, cn);
+
+                var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
-                identity.TemporaryWeakClientAccessToken64 = "";
                 identity.EncryptedClientAccessToken = encryptedCat;
+                identity.TemporaryWeakClientAccessToken = null;
             }
-
-            await Task.CompletedTask;
         }
 
-        private static async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IOdinContext odinContext, IdentityConnectionRegistration icr)
+        private async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
         {
             if (icr.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
             {
-                var masterKey = odinContext.Caller.GetMasterKey();
-                var keyStoreKey = icr.TempWeakKeyStoreKey;
-                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                icr.TempWeakKeyStoreKey.Wipe();
-            }
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
+                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
+                    icr.TempWeakKeyStoreKey, odinContext, cn);
 
-            await Task.CompletedTask;
+                var masterKey = odinContext.Caller.GetMasterKey();
+                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                icr.TempWeakKeyStoreKey = null;
+            }
         }
     }
 }

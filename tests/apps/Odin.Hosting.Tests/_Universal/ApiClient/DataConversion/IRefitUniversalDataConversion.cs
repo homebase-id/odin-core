@@ -8,7 +8,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.DataConversion
     {
         private const string RootPath = "/data-conversion";
 
-        [Post(RootPath + "/ensure-verification-hash")]
-        Task<ApiResponse<HttpContent>> EnsureVerificationHash();
+        [Post(RootPath + "/prepare-introductions-release")]
+        Task<ApiResponse<HttpContent>> PrepareIntroductionsRelease();
     }
 }

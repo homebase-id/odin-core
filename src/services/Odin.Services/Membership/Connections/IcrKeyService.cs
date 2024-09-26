@@ -12,14 +12,9 @@ namespace Odin.Services.Membership.Connections
     /// <summary>
     /// Manages the Icr keys
     /// </summary>
-    public class IcrKeyService
+    public class IcrKeyService(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
-        private readonly CircleNetworkStorage _storage;
-
-        public IcrKeyService(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
-        {
-            _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
-        }
+        private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
 
         /// <summary>
         /// Creates initial encryption keys

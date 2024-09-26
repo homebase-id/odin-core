@@ -140,10 +140,9 @@ public class TenantConfigService
         odinContext.Caller.AssertHasMasterKey();
 
         await _recoverService.CreateInitialKey(odinContext, cn);
-
+        await _icrKeyService.CreateInitialKeys(odinContext, cn);
         await _publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
 
-        await _icrKeyService.CreateInitialKeys(odinContext, cn);
     }
 
     /// <summary>

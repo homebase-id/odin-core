@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Verification;
@@ -18,7 +19,8 @@ namespace Odin.Services.DataConversion
         TenantSystemStorage tenantSystemStorage,
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
-        CircleNetworkVerificationService verificationService)
+        CircleNetworkVerificationService verificationService,
+        PublicPrivateKeyService publicPrivateKeyService)
     {
         public async Task AutoFixCircleGrants(IOdinContext odinContext)
         {
@@ -51,10 +53,15 @@ namespace Odin.Services.DataConversion
             using var cn = tenantSystemStorage.CreateConnection();
 
             //
+            // Generate new Online Icr Encrypted ECC Key
+            //
+            await publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
+            
+            //
             // Create new circles
             //
             await circleDefinitionService.CreateSystemCircles(cn);
-            
+
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
@@ -72,7 +79,7 @@ namespace Odin.Services.DataConversion
             });
         }
 
-        
+
         private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
@@ -86,6 +93,5 @@ namespace Odin.Services.DataConversion
                 await circleNetworkService.GrantCircle(circleId, icr.OdinId, odinContext, cn);
             }
         }
-
     }
 }

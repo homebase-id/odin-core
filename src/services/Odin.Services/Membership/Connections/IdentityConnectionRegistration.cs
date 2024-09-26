@@ -4,6 +4,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Membership.Connections
@@ -57,11 +58,15 @@ namespace Odin.Services.Membership.Connections
         public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
 
         /// <summary>
-        /// Temporary storage for the CAT 
+        /// Temporary storage for the CAT until the ICR key is available to encrypt it
         /// </summary>
-        public string TemporaryWeakClientAccessToken64 { get; set; }
+        public EccEncryptedPayload TemporaryWeakClientAccessToken { get; set; }
 
-        public byte[] TempWeakKeyStoreKey { get; set; }
+        /// <summary>
+        /// Storage of the KeyStoreKey until the master key is available to finalize
+        /// the encryption of the <see cref="AccessExchangeGrant"/> MasterKeyEncryptedKeyStoreKey
+        /// </summary>
+        public EccEncryptedPayload TempWeakKeyStoreKey { get; set; }
 
         public long LastUpdated { get; set; }
         public long Created { get; set; }

@@ -14,6 +14,7 @@ using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections.Requests;
 
@@ -59,8 +60,8 @@ public class CircleNetworkStorage
             VerificationHash64 = icr.VerificationHash?.ToBase64(),
             ConnectionOrigin = Enum.GetName(icr.ConnectionRequestOrigin),
             EncryptedClientAccessToken = icr.EncryptedClientAccessToken?.EncryptedData,
-            WeakClientAccessToken64 = icr.TemporaryWeakClientAccessToken64,
-            WeakKeyStoreKey64 = icr.TempWeakKeyStoreKey?.ToBase64()
+            WeakClientAccessToken = icr.TemporaryWeakClientAccessToken == null ? "" : OdinSystemSerializer.Serialize(icr.TemporaryWeakClientAccessToken),
+            WeakKeyStoreKey = icr.TempWeakKeyStoreKey == null ? "" : OdinSystemSerializer.Serialize(icr.TempWeakKeyStoreKey)
         };
 
         cn.CreateCommitUnitOfWork(() =>
@@ -140,8 +141,6 @@ public class CircleNetworkStorage
     /// <summary>
     /// Creates a new icr key; fails if one already exists
     /// </summary>
-    /// <param name="masterKey"></param>
-    /// <exception cref="OdinClientException"></exception>
     public void CreateIcrKey(SensitiveByteArray masterKey, DatabaseConnection cn)
     {
         var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(cn, _icrKeyStorageId);
@@ -207,8 +206,15 @@ public class CircleNetworkStorage
             {
                 EncryptedData = data.EncryptedClientAccessToken
             },
-            TemporaryWeakClientAccessToken64 = data.WeakClientAccessToken64,
-            TempWeakKeyStoreKey = data.WeakKeyStoreKey64?.FromBase64(),
+            
+            TemporaryWeakClientAccessToken = string.IsNullOrEmpty(data.WeakClientAccessToken)
+                ? null
+                : OdinSystemSerializer.Deserialize<EccEncryptedPayload>(data.WeakClientAccessToken),
+            
+            TempWeakKeyStoreKey = string.IsNullOrEmpty(data.WeakKeyStoreKey)
+                ? null
+                : OdinSystemSerializer.Deserialize<EccEncryptedPayload>(data.WeakKeyStoreKey),
+            
             ConnectionRequestOrigin = connectionOrigin,
             IntroducerOdinId = introducerOdinId,
             VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()
@@ -232,9 +238,9 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
 
-    public string WeakClientAccessToken64 { get; set; }
+    public string WeakClientAccessToken { get; set; }
 
-    public string WeakKeyStoreKey64 { get; set; }
+    public string WeakKeyStoreKey { get; set; }
 
     public ContactRequestData OriginalContactData { get; set; }
     public string IntroducerOdinId { get; init; }
