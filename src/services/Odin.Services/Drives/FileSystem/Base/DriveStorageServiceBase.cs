@@ -1104,6 +1104,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
                 await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
                     manifest.ServerMetadata, odinContext, cn, manifest.NewVersionTag);
+
+                if (await ShouldRaiseDriveEvent(targetFile, cn))
+                {
+                    await mediator.Publish(new DriveFileChangedNotification
+                    {
+                        File = targetFile,
+                        ServerFileHeader = existingHeader,
+                        OdinContext = odinContext,
+                        DatabaseConnection = cn,
+                        IgnoreFeedDistribution = true
+                    });
+                }
             });
         }
 
