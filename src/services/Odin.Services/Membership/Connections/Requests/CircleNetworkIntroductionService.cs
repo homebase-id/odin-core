@@ -370,7 +370,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 recipient,
                 introducer,
                 minDaysSinceLastSend);
-            
+
             return;
         }
 
@@ -400,7 +400,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private async Task DeleteIntroductionsTo(OdinId identity, DatabaseConnection cn)
     {
-        _receivedIntroductionValueStorage.Delete(cn, identity);
+        var deleteCount = _receivedIntroductionValueStorage.Delete(cn, identity);
         await Task.CompletedTask;
     }
 
@@ -411,6 +411,20 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         foreach (var introduction in introductionsFromIdentity)
         {
             _receivedIntroductionValueStorage.Delete(cn, introduction.Identity);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    public async Task DeleteIntroductions(IOdinContext odinContext, DatabaseConnection cn)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+
+        var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(cn, _receivedIntroductionDataType);
+        foreach (var intro in results)
+        {
+            var count = _receivedIntroductionValueStorage.Delete(cn, intro.Identity);
+            var x = "";
         }
 
         await Task.CompletedTask;
