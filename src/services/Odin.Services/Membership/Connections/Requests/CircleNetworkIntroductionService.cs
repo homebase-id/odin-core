@@ -423,8 +423,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(cn, _receivedIntroductionDataType);
         foreach (var intro in results)
         {
-            var count = _receivedIntroductionValueStorage.Delete(cn, intro.Identity);
-            var x = "";
+            _receivedIntroductionValueStorage.Delete(cn, intro.Identity);
         }
 
         await Task.CompletedTask;
