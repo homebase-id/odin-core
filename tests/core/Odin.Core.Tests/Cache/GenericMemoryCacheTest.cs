@@ -119,6 +119,21 @@ public class GenericMemoryCacheTest
             Assert.AreEqual("bar", value!.Name);
         }
 
+        cache.Set("zig", new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        {
+            var hit = cache.TryGet<SampleValue>("zig", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
+        var key2 = RandomNumberGenerator.GetBytes(16);
+        cache.Set(key2, new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        {
+            var hit = cache.TryGet<SampleValue>(key2, out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
         Thread.Sleep(200);
 
         {
@@ -129,6 +144,18 @@ public class GenericMemoryCacheTest
 
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        {
+            var hit = cache.TryGet<SampleValue>("zig", out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        {
+            var hit = cache.TryGet<SampleValue>(key2, out var value);
             Assert.IsFalse(hit);
             Assert.IsNull(value);
         }

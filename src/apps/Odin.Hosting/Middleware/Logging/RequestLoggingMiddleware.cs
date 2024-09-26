@@ -34,7 +34,7 @@ namespace Odin.Hosting.Middleware.Logging
         {
             var path = context.Request.Path + context.Request.QueryString;
 
-            if (!IsLoggable(path))
+            if (!_logger.IsEnabled(LogLevel.Trace) && !IsLoggable(path))
             {
                 await _next(context);
                 return;

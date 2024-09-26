@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
-using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -14,7 +12,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
@@ -22,13 +19,14 @@ using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
-using Odin.Core.Storage.SQLite.Migrations;
+using Odin.Hosting.Cli;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Serilog;
+using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Odin.Hosting
@@ -37,7 +35,7 @@ namespace Odin.Hosting
     {
         public static int Main(string[] args)
         {
-            var (didHandle, exitCode) = HandleCommandLineArgs(args);
+            var (didHandle, exitCode) = CommandLine.HandleCommandLineArgs(args);
             if (didHandle)
             {
                 return exitCode;
@@ -47,7 +45,7 @@ namespace Odin.Hosting
             // Web host
             //
             {
-                var (odinConfig, appSettingsConfig) = LoadConfig(true);
+                var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
                 Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
                 try
                 {
@@ -67,48 +65,6 @@ namespace Odin.Hosting
                 }
 
                 return 0;
-            }
-        }
-
-        //
-
-        private static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars)
-        {
-            var configFolder = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-            var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
-            var configSources = new List<string>();
-            var configBuilder = new ConfigurationBuilder();
-
-            void AddConfigFile(string fileName)
-            {
-                var appSettingsFile = Path.Combine(configFolder, fileName);
-                if (File.Exists(appSettingsFile))
-                {
-                    configSources.Insert(0, appSettingsFile);
-                    configBuilder.AddJsonFile(appSettingsFile, optional: true, reloadOnChange: false);
-                }
-            }
-
-            AddConfigFile("appsettings.json"); // Common env configuration
-            AddConfigFile($"appsettings.{aspNetCoreEnv.ToLower()}.json"); // Specific env configuration
-            AddConfigFile("appsettings.local.json"); // Local development overrides
-
-            // Environment variables configuration
-            if (includeEnvVars)
-            {
-                configBuilder.AddEnvironmentVariables();
-                configSources.Insert(0, "environment variables");
-            }
-
-            try
-            {
-                var config = configBuilder.Build();
-                return (new OdinConfiguration(config), config);
-            }
-            catch (Exception e)
-            {
-                var text = $"{e.Message} - check config sources in this order: {string.Join(", ", configSources)}";
-                throw new Exception(text, e);
             }
         }
 
@@ -159,7 +115,7 @@ namespace Odin.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (odinConfig, appSettingsConfig) = LoadConfig(true);
+            var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
 
             if (odinConfig.Logging.LogFilePath != "")
             {
@@ -294,6 +250,11 @@ namespace Odin.Hosting
             OdinConfiguration config,
             IServiceProvider serviceProvider)
         {
+            if (Log.IsEnabled(LogEventLevel.Verbose))
+            {
+                Log.Verbose("Getting certificate for {host}", hostName);
+            }
+            
             if (string.IsNullOrWhiteSpace(hostName))
             {
                 return (null, false);
@@ -377,7 +338,13 @@ namespace Odin.Hosting
 
         private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
         {
-            if (hostName == config.Registry.ProvisioningDomain || hostName == config.Admin.Domain)
+            if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
+            {
+                sslRoot = config.Host.SystemSslRootPath;
+                return true;
+            }
+            
+            if (config.Admin.ApiEnabled && hostName == config.Admin.Domain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;
@@ -389,124 +356,5 @@ namespace Odin.Hosting
 
         //
 
-        private static (bool didHandle, int exitCode) HandleCommandLineArgs(string[] args)
-        {
-            //
-            // Command line: export docker env config
-            //
-            //
-            // Example:
-            //   dotnet run --no-build -- --export-docker-env
-            //
-            if (args.Contains("--export-docker-env"))
-            {
-                var (_, appSettingsConfig) = LoadConfig(false);
-                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
-                foreach (var envVar in envVars)
-                {
-                    Console.WriteLine($@"--env {envVar} \");
-                }
-                return (true, 0);
-            }
-
-            //
-            // Command line: export shell env config
-            //
-            //
-            // Example:
-            //   dotnet run --no-build -- --export-shell-env
-            //
-            if (args.Contains("--export-shell-env"))
-            {
-                var (_, appSettingsConfig) = LoadConfig(false);
-                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
-                foreach (var envVar in envVars)
-                {
-                    Console.WriteLine($"export {envVar}");
-                }
-                return (true, 0);
-            }
-
-            //
-            // Command line: export shell env config as bash array
-            //
-            //
-            // Example:
-            //   dotnet run --no-build -- --export-shell-env
-            //
-            if (args.Contains("--export-bash-array-env"))
-            {
-                var (_, appSettingsConfig) = LoadConfig(false);
-                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
-                Console.WriteLine("env_vars=(");
-                foreach (var envVar in envVars)
-                {
-                    Console.WriteLine($"  \"{envVar}\"");
-                }
-                Console.WriteLine(")");
-                Console.WriteLine(
-                    """
-                    for env_var in "${env_vars[@]}"; do
-                      echo $env_var
-                    done
-                    """);
-                return (true, 0);
-            }
-
-            //
-            // Command line: dump environment variables
-            //
-            // examples:
-            //
-            //   FOO=BAR dotnet run --no-build -- --dump-env
-            //
-            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --dump-env
-            //
-            //
-            if (args.Contains("--dump-env"))
-            {
-                var (_, appSettingsConfig) = LoadConfig(true);
-                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
-                foreach (var envVar in envVars)
-                {
-                    Console.WriteLine(envVar);
-                }
-                return (true, 0);
-            }
-
-            //
-            // Command line: start connection test
-            //
-            // examples:
-            //
-            //   dotnet run -- --tcp-connection-test 80 5000
-            //
-            //   80: TCP port to listen on
-            //   5000: timeout in milliseconds before giving up
-            //
-            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --tcp-connection-test 80 5000
-            //
-            //
-            if (args.Length == 3 && args[0] == "--tcp-connection-test")
-            {
-                var port = int.Parse(args[1]);
-                var timeout = int.Parse(args[2]);
-                var listener = new TcpListener(IPAddress.Any, port);
-                listener.Start();
-                Console.WriteLine($"Listening on port {port} for {timeout} ms");
-                var task = listener.AcceptTcpClientAsync();
-                var result = task.Wait(timeout);
-                if (result)
-                {
-                    Console.WriteLine("Connection established");
-                    return (true, 0);
-                }
-
-                Console.WriteLine("Connection timed out");
-                return (true, 1);
-            }
-
-            return (false, 0);
-        }
     }
 }

@@ -13,5 +13,12 @@ namespace Odin.Core
         {
             return Convert.FromBase64String(str);
         }
+
+        public static string Reverse(this string str)
+        {
+            var charArray = str.ToCharArray();
+            System.Array.Reverse(charArray);
+            return new string(charArray);
+        }
     }
 }
