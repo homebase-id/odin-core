@@ -142,7 +142,6 @@ public class TenantConfigService
         await _recoverService.CreateInitialKey(odinContext, cn);
         await _icrKeyService.CreateInitialKeys(odinContext, cn);
         await _publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
-
     }
 
     /// <summary>
@@ -380,7 +379,7 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 ],
@@ -417,7 +416,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
-                // PermissionKeys.UseTransitRead,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
@@ -481,6 +480,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
