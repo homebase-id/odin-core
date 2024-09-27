@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -74,7 +75,10 @@ public class PeerUpdateFileTests
     public static IEnumerable GuestNotAllowed()
     {
         yield return new object[]
-            { new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)), HttpStatusCode.MethodNotAllowed };
+        {
+            new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)),
+            HttpStatusCode.MethodNotAllowed
+        };
     }
 
     [Test]
@@ -195,7 +199,7 @@ public class PeerUpdateFileTests
             Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
             Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key), "payloadToAdd should have been, well, added :)");
 
-            var file = new ExternalFileIdentifier()
+            var recipientFile = new ExternalFileIdentifier()
             {
                 FileId = header.FileId,
                 TargetDrive = header.TargetDrive
@@ -204,7 +208,7 @@ public class PeerUpdateFileTests
             //
             // Ensure payloadToAdd add is added
             //
-            var getPayloadToAddResponse = await recipientOwnerClient.DriveRedux.GetPayload(file, payloadToAdd.Key);
+            var getPayloadToAddResponse = await recipientOwnerClient.DriveRedux.GetPayload(recipientFile, payloadToAdd.Key);
             Assert.IsTrue(getPayloadToAddResponse.IsSuccessStatusCode);
             Assert.IsTrue(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue);
             Assert.IsTrue(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
@@ -215,7 +219,7 @@ public class PeerUpdateFileTests
             // Check all the thumbnails
             foreach (var thumbnail in payloadToAdd.Thumbnails)
             {
-                var getThumbnailResponse = await recipientOwnerClient.DriveRedux.GetThumbnail(file,
+                var getThumbnailResponse = await recipientOwnerClient.DriveRedux.GetThumbnail(recipientFile,
                     thumbnail.PixelWidth, thumbnail.PixelHeight, payloadToAdd.Key);
 
                 Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
@@ -229,14 +233,32 @@ public class PeerUpdateFileTests
             //
             // Ensure we get payload2 for the payload1
             //
-            var getPayload2Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payload2.Key);
+            var getPayload2Response = await recipientOwnerClient.DriveRedux.GetPayload(recipientFile, payload2.Key);
             Assert.IsTrue(getPayload2Response.IsSuccessStatusCode);
 
             //
             // Ensure we get 404 for the payload1
             //
-            var getPayload1Response = await recipientOwnerClient.DriveRedux.GetPayload(file, payload1.Key);
+            var getPayload1Response = await recipientOwnerClient.DriveRedux.GetPayload(recipientFile, payload1.Key);
             Assert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
+
+            //
+            // Ensure we find the file on the recipient
+            // 
+            var searchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(new QueryBatchRequest
+            {
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = recipientFile.TargetDrive,
+                    DataType = [updatedFileMetadata.AppData.DataType]
+                },
+                ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            });
+            
+            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(theFileSearchResult);
+            Assert.IsTrue(theFileSearchResult.FileId == recipientFile.FileId);
         }
     }
 }
