@@ -143,11 +143,12 @@ public class SendingIntroductionsTests
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        
-        await Cleanup();
-        
+
+        // await Cleanup();
+
         var introsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
-        Assert.IsFalse(introsResponse.Content.Any(), "Cannot start test - merry has pending introductions, but why Gandalf?!");
+        Assert.IsFalse(introsResponse.Content.Any(),
+            "Cannot start test - merry has pending introductions. this probably happened because they were cleaned up from other tests");
 
         // Merry blocks sam
         var blockResponse = await merryOwnerClient.Network.BlockConnection(sam);
@@ -428,6 +429,10 @@ public class SendingIntroductionsTests
 
         await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        
+        await frodo.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
+        await merry.Connections.DeleteAllIntroductions();
     }
 
     private async Task Cleanup()

@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("connect")]
-        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] EccEncryptedPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
             await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, cn);

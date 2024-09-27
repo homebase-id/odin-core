@@ -24,7 +24,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary />
-        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService, TenantSystemStorage tenantSystemStorage)
+        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService,
+            TenantSystemStorage tenantSystemStorage)
         {
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _followerPerimeterService = followerPerimeterService;
@@ -33,18 +34,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 
         /// <summary />
         [HttpPost("follow")]
-        public async Task<IActionResult> ReceiveFollowRequest([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> ReceiveFollowRequest([FromBody] EccEncryptedPayload payload)
         {
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
-            OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
 
             using var cn = _tenantSystemStorage.CreateConnection();
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, cn);
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return BadRequest("Invalid Public Key");
-            }
+            var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, cn);
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             OdinValidationUtils.AssertNotNull(request, nameof(request));

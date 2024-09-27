@@ -63,10 +63,13 @@ public class ConfirmConnectionTests
         //ensure sam sends a request
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
-        
+
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
-        
+
+        await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
@@ -84,15 +87,15 @@ public class ConfirmConnectionTests
         Assert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
-        
+
         var samConfirmationResponse = await samOwnerClient.Network.ConfirmConnection(TestIdentities.Merry.OdinId);
-        Assert.IsTrue(samConfirmationResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samConfirmationResponse.IsSuccessStatusCode, $"status code was {samConfirmationResponse.StatusCode}");
         var merryConnectionInfo = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(merryConnectionInfo.IsSuccessStatusCode);
         Assert.IsFalse(merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsTrue(merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
-        
+
         await Cleanup();
     }
 
@@ -112,6 +115,11 @@ public class ConfirmConnectionTests
 
         await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+
+        await frodo.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
+        await merry.Connections.DeleteAllIntroductions();
     }
 
     private async Task Cleanup()
@@ -120,14 +128,17 @@ public class ConfirmConnectionTests
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
+        await frodo.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
+        await merry.Connections.DeleteAllIntroductions();
+
         await frodo.Connections.DisconnectFrom(sam.Identity.OdinId);
         await frodo.Connections.DisconnectFrom(merry.Identity.OdinId);
 
         await merry.Connections.DisconnectFrom(frodo.Identity.OdinId);
         await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
-        
+
         await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
         await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
-
     }
 }

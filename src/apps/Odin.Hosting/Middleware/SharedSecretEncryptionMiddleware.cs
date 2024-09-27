@@ -175,11 +175,11 @@ namespace Odin.Hosting.Middleware
                 }
                 else if (request.Method.ToUpper() == "DELETE")
                 {
-                    //some holding for delete verbs
-                    if (request.Body.CanSeek && request.Body.Length > 0)
+                    // Some hand-holding for delete verbs; i don't understand why i have to do this, however.
+                    var bytes = request.Body.ToByteArray();
+                    if (bytes.Length > 0)
                     {
-                        request.Body.Position = 0;
-                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
+                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(bytes), this.GetSharedSecret(context), context.RequestAborted);
                         //update the body with the decrypted json file so it can be read down stream as expected
                         request.Body = new MemoryStream(decryptedBytes);
                     }

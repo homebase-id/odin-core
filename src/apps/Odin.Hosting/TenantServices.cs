@@ -25,7 +25,6 @@ using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
-using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -193,7 +192,6 @@ namespace Odin.Hosting
             cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
-                .As<INotificationHandler<RsaKeyRotatedNotification>>()
                 .SingleInstance();
 
             cb.RegisterType<TransitAuthenticationService>()
@@ -224,7 +222,6 @@ namespace Odin.Hosting
             cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().SingleInstance();
             
             cb.RegisterType<PublicPrivateKeyService>()
-                .As<INotificationHandler<OwnerIsOnlineNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

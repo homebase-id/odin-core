@@ -16,11 +16,11 @@ namespace Odin.Services.Membership.Connections.Requests
         private const string RootPath = PeerApiPathConstants.InvitationsV1;
 
         [Post(RootPath + "/connect")]
-        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] RsaEncryptedPayload request);
+        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] EccEncryptedPayload request);
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply);
-        
+
         /// <summary>
         /// Makes an introduction between two identities
         /// </summary>

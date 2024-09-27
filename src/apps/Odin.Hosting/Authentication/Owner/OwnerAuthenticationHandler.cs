@@ -1,27 +1,21 @@
 ﻿#nullable enable
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Mediator.Owner;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Authentication.Owner

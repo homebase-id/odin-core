@@ -39,7 +39,7 @@ namespace Odin.Services.Membership.Connections.Requests
     /// </summary>
     public class CircleNetworkRequestService : PeerServiceBase
     {
-        private const PublicPrivateKeyType RsaPublicPrivateKeyType = PublicPrivateKeyType.OfflineKey;
+        private const PublicPrivateKeyType KeyType = PublicPrivateKeyType.OnlineIcrEncryptedKey;
 
         private readonly byte[] _pendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
 
@@ -116,17 +116,28 @@ namespace Odin.Services.Membership.Connections.Requests
                 return null;
             }
 
+            bool isValidPublicKey;
+            byte[] payloadBytes;
+
+            // Updated to fall back to ecc encryption until we fully remove RSA
             if (null == header.Payload)
             {
-                _logger.LogWarning($"RSA Payload for incoming/pending request from {sender} was null");
-                return null;
-            }
+                if (null == header.EccEncryptedPayload)
+                {
+                    _logger.LogWarning($"RSA Payload for incoming/pending request from {sender} was null");
+                    return null;
+                }
 
-            var (isValidPublicKey, payloadBytes) =
-                await _publicPrivateKeyService.RsaDecryptPayload(RsaPublicPrivateKeyType, header.Payload, odinContext, cn);
-            if (isValidPublicKey == false)
+                payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(KeyType, header.EccEncryptedPayload, odinContext, cn);
+            }
+            else
             {
-                throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
+                (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(KeyType, header.Payload, odinContext, cn);
+
+                if (isValidPublicKey == false)
+                {
+                    throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
+                }
             }
 
             // To use an online key, we need to store most of the payload encrypted but need to know who it's from
@@ -205,7 +216,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
-        public async Task ReceiveConnectionRequest(RsaEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task ReceiveConnectionRequest(EccEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertCallerIsAuthenticated();
 
@@ -257,7 +268,8 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
                 ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
-                Payload = payload
+                // Payload = payload
+                EccEncryptedPayload = payload
             };
 
             UpsertPendingConnectionRequest(request, cn);
@@ -391,12 +403,12 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 //TODO: should we validate all drives are write-only ?
 
-                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(PublicPrivateKeyType.OnlineIcrEncryptedKey,
+                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
                     remoteClientAccessToken.ToPortableBytes(), cn);
 
-                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                        keyStoreKey.GetKey(), cn);
-                
+                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
+                    keyStoreKey.GetKey(), cn);
+
                 eccEncryptedKeys = (Token: eccEncryptedCat, KeyStoreKey: eccEncryptedKeyStoreKey);
             }
 
@@ -527,13 +539,13 @@ namespace Odin.Services.Membership.Connections.Requests
                 // we're here because the original request was
                 // automatically sent (w/o the owner)
                 //TODO: should we validate all drives are write-only ?
-                
-                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(PublicPrivateKeyType.OnlineIcrEncryptedKey,
+
+                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
                     remoteClientAccessToken.ToPortableBytes(), cn);
 
-                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(PublicPrivateKeyType.OnlineIcrEncryptedKey,
+                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
                     keyStoreKey.GetKey(), cn);
-                
+
                 eccEncryptedKeys = (Token: eccEncryptedCat, KeyStoreKey: eccEncryptedKeyStoreKey);
             }
             else
@@ -790,7 +802,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
         }
 
-        private async Task ValidateWriteOnlyDriveGrants(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task dValidateWriteOnlyDriveGrants(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
         {
             //so here i could remove circles that any drives granting read or i could just indicate you 
             foreach (var cid in header.CircleIds)
@@ -899,8 +911,12 @@ namespace Odin.Services.Membership.Connections.Requests
             async Task<ApiResponse<NoResultResponse>> Send()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
-                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(RsaPublicPrivateKeyType,
-                    recipient, payloadBytes, cn);
+
+                var rsaEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipient(
+                    KeyType,
+                    recipient,
+                    payloadBytes,
+                    cn);
 
                 var token = await ResolveClientAccessToken(recipient, odinContext, cn, false);
                 var client = token == null
@@ -920,7 +936,7 @@ namespace Odin.Services.Membership.Connections.Requests
             if (!response.IsSuccessStatusCode && response.Content!.Success)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivateKeyService.InvalidateRecipientRsaPublicKey(recipient, cn);
+                await _publicPrivateKeyService.InvalidateRecipientEccPublicKey(KeyType, recipient, cn);
 
                 var response2 = await Send();
                 if (response2.StatusCode == HttpStatusCode.Forbidden)

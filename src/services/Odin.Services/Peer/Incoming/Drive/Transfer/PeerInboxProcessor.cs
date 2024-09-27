@@ -18,7 +18,6 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
-using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -36,7 +35,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         DriveManager driveManager,
         TenantSystemStorage tenantSystemStorage,
         ReactionContentService reactionContentService)
-        : INotificationHandler<RsaKeyRotatedNotification>
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
@@ -319,10 +317,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
 
         private InboxStatus GetPendingCount(TargetDrive targetDrive, DatabaseConnection cn, Guid driveId)
         {
