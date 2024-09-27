@@ -135,9 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             };
 
             var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-            var isCollabChannel = drive.Attributes.TryGetValue(BuiltInDriveAttributes.IsCollaborativeChannel, out string value)
-                                  && bool.TryParse(value, out bool collabChannelFlagValue)
-                                  && collabChannelFlagValue;
+            var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
@@ -149,7 +147,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 //
                 // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
                 //
-                if (isCollabChannel)
+                if (isCollaborationChannel)
                 {
                     targetAcl = instructionSet.OriginalAcl ?? new AccessControlList()
                     {
@@ -158,7 +156,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 }
             }
 
-            return (targetAcl, isCollabChannel);
+            return (targetAcl, isCollaborationChannel);
         }
 
         private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,

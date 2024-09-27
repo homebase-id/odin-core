@@ -29,6 +29,8 @@ public class FeedDistributionItem
 public class FeedItemPayload
 {
     public byte[] KeyHeaderBytes { get; set; }
+    
+    public OdinId? CollaborationChannelSender { get; set; }
 }
 
 public enum FeedDistroType

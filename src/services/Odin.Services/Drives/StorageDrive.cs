@@ -159,6 +159,11 @@ namespace Odin.Services.Drives
                    bool.TryParse(value, out bool flagValue) &&
                    flagValue;
         }
+
+        public bool IsCollaborationDrive()
+        {
+            return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
+        }
     }
 
 

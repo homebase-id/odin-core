@@ -13,7 +13,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
-using Odin.Services.DataSubscription;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -28,7 +28,7 @@ public class PeerUpdateFileTests
 {
     private WebScaffold _scaffold;
 
-    private static readonly Dictionary<string, string> IsGroupChannelAttributes = new()
+    private static readonly Dictionary<string, string> IsCollaborativeChannelAttributes = new()
         { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
 
     // Other Tests
@@ -96,7 +96,8 @@ public class PeerUpdateFileTests
 
         var remoteTargetDrive = TargetDrive.NewTargetDrive();
         await recipientOwnerClient.DriveManager.CreateDrive(remoteTargetDrive, "Test Drive 001", "", allowAnonymousReads: true,
-            attributes: IsGroupChannelAttributes);
+            allowSubscriptions: true,
+            attributes: IsCollaborativeChannelAttributes);
 
         var cid = Guid.NewGuid();
         var permissions = TestUtils.CreatePermissionGrantRequest(remoteTargetDrive, DrivePermission.Write);
@@ -254,11 +255,161 @@ public class PeerUpdateFileTests
                 },
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
-            
+
             Assert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theFileSearchResult);
             Assert.IsTrue(theFileSearchResult.FileId == recipientFile.FileId);
+        }
+    }
+
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    [TestCaseSource(nameof(GuestNotAllowed))]
+    public async Task CanUpdateRemoteFile_AndSeeChangesDistributedToFeed(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        var member1OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
+        var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var member2OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await collabChannelOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await member1OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await member2OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+
+        var member1 = member1OwnerClient.OdinId;
+        var collabChannel = collabChannelOwnerClient.OdinId;
+        var member2 = member2OwnerClient.OdinId;
+
+        var collabChannelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await collabChannelOwnerClient.DriveManager.CreateDrive(collabChannelDrive, "Test channel drive 001", "", allowAnonymousReads: true,
+            allowSubscriptions: true,
+            attributes: IsCollaborativeChannelAttributes);
+
+        var collabChannelId = Guid.NewGuid();
+        var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, DrivePermission.Write);
+        await collabChannelOwnerClient.Network.CreateCircle(collabChannelId, "circle with some access", permissions);
+
+        await member1OwnerClient.Connections.SendConnectionRequest(collabChannel);
+        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member1, [collabChannelId]);
+
+        await member2OwnerClient.Connections.SendConnectionRequest(collabChannel);
+        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId]);
+        await member2OwnerClient.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications);
+
+        // upload metadata
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
+
+        var testPayloads = new List<TestPayloadDefinition>()
+        {
+            payload1,
+            payload2
+        };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        //Pippin sends a file to the recipient
+        var response = await member1OwnerClient.PeerDirect.TransferNewFile(collabChannelDrive, uploadedFileMetadata, [collabChannel], null, uploadManifest,
+            testPayloads);
+        await member1OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
+        Assert.IsTrue(response.IsSuccessStatusCode);
+
+        //
+        // Update the file via pippin's identity
+        //
+
+        var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
+        await callerContext.Initialize(member1OwnerClient);
+        var callerDriveClient = new UniversalDriveApiClient(member1, callerContext.GetFactory());
+
+        var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.AppData.Content = "some new content here";
+        updatedFileMetadata.AppData.DataType = 2900;
+
+        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
+        var updateInstructionSet = new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Peer,
+
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = remoteTargetFile,
+            Recipients = [collabChannel],
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors =
+                [
+                    new UploadManifestPayloadDescriptor
+                    {
+                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
+                        Iv = Guid.Empty.ToByteArray(),
+                        PayloadKey = payloadToAdd.Key,
+                        DescriptorContent = null,
+                        ContentType = payloadToAdd.ContentType,
+                        PreviewThumbnail = default,
+                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
+                    },
+                    new UploadManifestPayloadDescriptor()
+                    {
+                        PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
+                        PayloadKey = payload1.Key
+                    }
+                ]
+            }
+        };
+
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        await member1OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
+        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
+
+        // Let's test more
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            var uploadResult = updateFileResponse.Content;
+            Assert.IsNotNull(uploadResult);
+
+            // handle any incoming feed items
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(remoteTargetFile.TargetDrive);
+
+            //
+            // Recipient should have the updated file
+            //
+            var getHeaderResponse = await collabChannelOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
+            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(header);
+            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+            Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payload1.Key), "payload 1 should have been removed");
+            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
+            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key), "payloadToAdd should have been, well, added :)");
+
+            // file should be on the feed of those connected
+            var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                TargetDrive = SystemDriveConstants.FeedDrive
+            };
+
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(collabChannelDrive);
+            await member2OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+
+            var channelOnMembersFeedDrive = await member2OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
+            Assert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
+            var theFileOnFeedDrive = channelOnMembersFeedDrive.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(theFileOnFeedDrive);
+
+            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == member1);
         }
     }
 }

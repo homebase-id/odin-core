@@ -1113,7 +1113,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         ServerFileHeader = existingHeader,
                         OdinContext = odinContext,
                         DatabaseConnection = cn,
-                        IgnoreFeedDistribution = true
+                        IgnoreFeedDistribution = false
                     });
                 }
             });

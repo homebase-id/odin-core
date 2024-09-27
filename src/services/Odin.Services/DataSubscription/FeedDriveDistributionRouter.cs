@@ -76,13 +76,9 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-            // var isCollabChannel = drive.Attributes.TryGetValue(BuiltInDriveAttributes.IsCollaborativeChannel, out string value) &&
-            //                       bool.TryParse(value, out bool collabChannelFlagValue) &&
-            //                       collabChannelFlagValue;
+            var isCollaborationChannel = drive.IsCollaborationDrive();
 
-            var isCollabChannel = drive.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
-
-            if (await ShouldDistribute(notification, isCollabChannel))
+            if (await ShouldDistribute(notification, isCollaborationChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -107,7 +103,7 @@ namespace Odin.Services.DataSubscription
                 {
                     try
                     {
-                        if (isCollabChannel)
+                        if (isCollaborationChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -130,7 +126,6 @@ namespace Odin.Services.DataSubscription
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
                         _peerOutboxProcessorBackgroundService.PulseBackgroundProcessor();
-                        return;
                     }
                 }
             }
@@ -156,7 +151,7 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollabChannel)
+        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollaborationChannel)
         {
             if (notification.IgnoreFeedDistribution)
             {
@@ -167,7 +162,7 @@ namespace Odin.Services.DataSubscription
             var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
-            if (!uploadedByThisIdentity && !isCollabChannel)
+            if (!uploadedByThisIdentity && !isCollaborationChannel)
             {
                 return false;
             }
@@ -219,6 +214,7 @@ namespace Odin.Services.DataSubscription
 
                         var payload = new FeedItemPayload()
                         {
+                            CollaborationChannelSender = notification.OdinContext.GetCallerOdinIdOrFail(),
                             KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
 
