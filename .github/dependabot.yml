@@ -19,9 +19,6 @@ updates:
       - "/tests/helpers/Odin.Test.Helpers"
       - "/tests/services/Odin.Services.Tests"
     schedule:
-      interval: weekly  # Check for updates weekly
-    allow:
-      - dependency-type: all
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
-    open-pull-requests-limit: 5
-    rebase-strategy: auto  # Automatically rebase PRs
+      interval: weekly
+    versioning-strategy: increase
+    rebase-strategy: auto
