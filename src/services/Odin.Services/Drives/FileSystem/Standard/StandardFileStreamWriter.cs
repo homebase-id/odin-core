@@ -117,7 +117,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 

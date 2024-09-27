@@ -12,7 +12,6 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
@@ -39,19 +38,21 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, cn);
-            existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
-
-            var (targetAcl, isCollabChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, cn);
+            var (targetAcl, isCollaborationChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, cn);
+            
+            if (!isCollaborationChannel)
+            {
+                existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
+            }
 
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = isCollabChannel,
+                AllowDistribution = isCollaborationChannel,
                 AccessControlList = targetAcl
             };
 
             incomingMetadata!.SenderOdinId = sender;
-
             incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
 
             //Update existing file

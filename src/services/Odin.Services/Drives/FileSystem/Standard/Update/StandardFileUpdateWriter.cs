@@ -63,7 +63,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
             },
 
             IsEncrypted = updateDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
