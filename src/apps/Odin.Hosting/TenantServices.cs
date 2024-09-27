@@ -44,6 +44,8 @@ using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Authentication;
 using Odin.Services.Background;
 using Odin.Services.DataConversion;
+using Odin.Services.Drives.FileSystem.Comment.Update;
+using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Membership.Connections.Verification;
@@ -140,7 +142,8 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-
+            cb.RegisterType<StandardFileUpdateWriter>().AsSelf().InstancePerDependency();
+            
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
@@ -148,7 +151,8 @@ namespace Odin.Hosting
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
-
+            cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
+            
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -210,7 +214,7 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
+            cb.RegisterType<PeerOutgoingTransferService>().As<PeerOutgoingTransferService>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 

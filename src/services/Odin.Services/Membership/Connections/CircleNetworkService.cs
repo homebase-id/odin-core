@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -114,6 +113,26 @@ namespace Odin.Services.Membership.Connections
                     odinContext: odinContext,
                     cn: cn);
 
+
+                var transientTempDrive = SystemDriveConstants.TransientTempDrive;
+                var transientTempDriveGrant = new DriveGrant()
+                {
+                    DriveId = (await driveManager.GetDriveIdByAlias(transientTempDrive, cn)).GetValueOrDefault(),
+                    PermissionedDrive = new()
+                    {
+                        Drive = transientTempDrive,
+                        Permission = DrivePermission.Write
+                    },
+                    KeyStoreKeyEncryptedStorageKey = null
+                };
+
+                permissionContext.PermissionGroups.Add(
+                    "grant_transient_temp_drive_to_connected_youauth_identity",
+                    new PermissionGroup(
+                        new PermissionSet(new[] { PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections }),
+                        new List<DriveGrant>() { transientTempDriveGrant }, null, null));
+
+
                 var context = new OdinContext()
                 {
                     Caller = new CallerContext(
@@ -126,8 +145,6 @@ namespace Odin.Services.Membership.Connections
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
-
-            //TODO: what about blocked??
 
             return null;
         }
@@ -1055,7 +1072,7 @@ namespace Odin.Services.Membership.Connections
         {
             if (registration.Status == ConnectionStatus.Blocked)
             {
-                throw new SecurityException("OdinId is blocked");
+                throw new OdinSecurityException("OdinId is blocked");
             }
         }
 

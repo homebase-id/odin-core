@@ -14,9 +14,12 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 
@@ -32,10 +35,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         ILogger<PeerOutgoingTransferService> logger,
         PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService
     )
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver), IPeerOutgoingTransferService
+        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
+        /// <summary>
+        /// Sends the specified file
+        /// </summary>
+        /// <returns></returns>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext,
             DatabaseConnection cn)
@@ -64,6 +71,54 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                await peerOutbox.AddItem(item, cn, useUpsert: true);
+            }
+
+            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+
+            return outboxStatus;
+        }
+
+        /// <summary>
+        /// Updates a remote file
+        /// </summary>
+        public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
+            byte[] keyHeaderIv,
+            FileIdentifier file,
+            UploadManifest manifest,
+            List<OdinId> recipients,
+            Guid newVersionTag,
+            FileSystemType fileSystemType,
+            AppNotificationOptions notificationOptions,
+            UpdateLocale updateLocale,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+
+            var request = new UpdateRemoteFileRequest()
+            {
+                File = file,
+                Manifest = manifest,
+                NewVersionTag = newVersionTag,
+                AppNotificationOptions = notificationOptions,
+                UpdateLocale = updateLocale
+            };
+
+            var priority = 100;
+
+            var (outboxStatus, outboxItems) =
+                await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
+
+            //TODO: change this to a batch update of the transfer history
+            foreach (var item in outboxItems)
+            {
+                if (!item.State.IsTransientFile)
+                {
+                    var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
+                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                }
+
                 await peerOutbox.AddItem(item, cn, useUpsert: true);
             }
 
@@ -114,6 +169,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, cn);
         }
 
+        /// <summary>
+        /// Sends a notification to the original sender indicating the file was read
+        /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             DatabaseConnection cn,
             FileSystemType fileSystemType)
@@ -360,6 +418,75 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.FileSystemType,
                                 options),
                             Data = []
+                        }
+                    });
+
+                    status.Add(recipient, TransferStatus.Enqueued);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
+                    status.Add(recipient, TransferStatus.EnqueuedFailed);
+                }
+            }
+
+            return (status, outboxItems);
+        }
+
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)> CreateUpdateOutboxItems(
+            InternalDriveFileId sourceFile,
+            byte[] keyHeaderIv,
+            UpdateRemoteFileRequest request,
+            List<OdinId> recipients,
+            int priority,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
+        {
+            var status = new Dictionary<string, TransferStatus>();
+            var outboxItems = new List<OutboxFileItem>();
+
+            foreach (var recipient in recipients)
+            {
+                try
+                {
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
+
+                    var iv = ByteArrayUtil.GetRndByteArray(16);
+                    var ss = clientAuthToken.SharedSecret;
+
+                    var updateInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
+                    {
+                        FileSystemType = fileSystemType,
+                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
+                            {
+                                Iv = keyHeaderIv ?? Guid.Empty.ToByteArray(),
+                                AesKey = Guid.Empty.ToByteArray()
+                                    .ToSensitiveByteArray()
+                            },
+                            iv,
+                            ref ss),
+
+                        Request = request
+                    };
+
+
+                    outboxItems.Add(new OutboxFileItem()
+                    {
+                        Type = OutboxItemType.RemoteFileUpdate,
+                        File = sourceFile,
+                        Priority = priority,
+                        Recipient = recipient,
+                        State = new OutboxItemState
+                        {
+                            Recipient = null,
+                            IsTransientFile = true,
+                            EncryptedClientAuthToken = encryptedClientAccessToken,
+                            TransferInstructionSet = null,
+                            OriginalTransitOptions = null,
+
+                            Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
                         }
                     });
 

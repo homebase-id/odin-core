@@ -308,8 +308,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 return;
             }
 
-            // The header new points to a file by either gtid or uid (in this priority)
-            //
             header.AssertFileIsActive();
             header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
 

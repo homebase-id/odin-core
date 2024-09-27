@@ -11,6 +11,11 @@ namespace Odin.Services.Util;
 
 public static class OdinExtensions
 {
+    public static List<OdinId> ToOdinIdList(this IEnumerable<string> items)
+    {
+        return items.Select(r => (OdinId)r).ToList();
+    }
+
     public static List<OdinId> ToOdinIdList(this List<string> items)
     {
         return items.Select(r => (OdinId)r).ToList();
@@ -62,6 +67,11 @@ public static class OdinValidationUtils
 
     public static void AssertValidRecipientList(IEnumerable<string> recipients, bool allowEmpty = true, OdinId? tenant = null)
     {
+        AssertValidRecipientList(recipients?.ToOdinIdList(), allowEmpty, tenant);
+    }
+
+    public static void AssertValidRecipientList(IEnumerable<OdinId> recipients, bool allowEmpty = true, OdinId? tenant = null)
+    {
         var list = recipients?.ToList() ?? [];
         if (list.Count == 0 && !allowEmpty)
         {
@@ -92,6 +102,14 @@ public static class OdinValidationUtils
         if (!value)
         {
             throw new OdinClientException(message, OdinClientErrorCode.ArgumentError);
+        }
+    }
+
+    public static void AssertNotEmptyByteArray(byte[] array, string name)
+    {
+        if (array.All(b => b == 0))
+        {
+            throw new OdinClientException($"{name} is empty", OdinClientErrorCode.ArgumentError);
         }
     }
 

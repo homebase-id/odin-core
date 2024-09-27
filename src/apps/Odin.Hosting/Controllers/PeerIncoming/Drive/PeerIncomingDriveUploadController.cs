@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerIncomingDriveUpdateController : OdinControllerBase
+    public class PeerIncomingDriveUploadController : OdinControllerBase
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
@@ -51,7 +51,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IMediator _mediator;
 
         /// <summary />
-        public PeerIncomingDriveUpdateController(DriveManager driveManager,
+        public PeerIncomingDriveUploadController(DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory)
         {
@@ -139,7 +139,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 WebOdinContext,
                 cn);
         }
-
 
         [HttpPost("mark-file-read")]
         public async Task<PeerTransferResponse> MarkFileAsRead(MarkFileAsReadRequest request)

@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public abstract class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+    public abstract class PeerSenderControllerBase(PeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
         : DriveUploadControllerBase
     {
         /// <summary>
@@ -101,8 +101,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
-
-
+        
         /// <summary>
         /// Sends a Delete Linked File Request to recipients
         /// </summary>

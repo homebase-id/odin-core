@@ -1,14 +1,12 @@
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -20,6 +18,7 @@ using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
@@ -91,9 +90,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             try
             {
-                var fst = inboxItem.FileSystemType == 0 ? FileSystemType.Standard : inboxItem.FileSystemType;
-                var fs = fileSystemResolver.ResolveFileSystem(fst);
-                if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
+                var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
+                if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
+                {
+                    await HandleUpdateFile(inboxItem, odinContext, cn);
+                    await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, cn);
+                }
+                else if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                 {
                     if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
                     {
@@ -111,10 +114,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
-                        var icr = await circleNetworkService.GetIcr(inboxItem.Sender, odinContext, cn, overrideHack: true);
-                        var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-                        var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-
+                        var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext, cn);
                         var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                         {
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
@@ -248,6 +248,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // });
         }
 
+        private async Task HandleUpdateFile(TransferInboxItem inboxItem, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
+            var tempFile = new InternalDriveFileId()
+            {
+                FileId = inboxItem.FileId,
+                DriveId = inboxItem.DriveId
+            };
+
+            var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
+            var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext, cn);
+            await writer.UpdateFile(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, cn);
+        }
+
         private async Task HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext, DatabaseConnection connection)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(inboxItem.DriveId, inboxItem.GlobalTransitId, odinContext, connection);
@@ -325,6 +339,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 pendingCount.PoppedCount, pendingCount.TotalItems,
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
+        }
+
+        private async Task<KeyHeader> DecryptedKeyHeader(OdinId sender, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var icr = await circleNetworkService.GetIcr(sender, odinContext, cn, overrideHack: true);
+            var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
+            var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            return decryptedKeyHeader;
         }
     }
 }
