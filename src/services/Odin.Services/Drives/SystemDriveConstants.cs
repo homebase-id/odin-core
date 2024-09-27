@@ -112,8 +112,7 @@ public static class SystemDriveConstants
         Metadata = "",
         TargetDrive = PublicPostsChannelDrive,
         OwnerOnly = false,
-        AllowSubscriptions = true,
-        Attributes = new() { { BuiltInDriveAttributes.AllowAutoConnectionsReadAccess, bool.TrueString } },
+        AllowSubscriptions = true
     };
 
     public static readonly CreateDriveRequest CreateContactDriveRequest = new()
@@ -149,7 +148,6 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = ChatDrive,
-        Attributes = new() { { BuiltInDriveAttributes.AllowAutoConnectionsReadAccess, bool.FalseString } },
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
 
@@ -159,7 +157,6 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = MailDrive,
-        Attributes = new() { { BuiltInDriveAttributes.AllowAutoConnectionsReadAccess, bool.FalseString } },
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
 }

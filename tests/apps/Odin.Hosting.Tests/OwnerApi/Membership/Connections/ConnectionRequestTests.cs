@@ -113,9 +113,9 @@ public class ConnectionRequestTests
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
 
         // They try to reconnect again fully
-        await Connect(merry, pippin);
-        await AssertConnected(merry, pippin);
-        await Cleanup(merry, pippin);
+        await Connect(pippin, merry);
+        await AssertConnected(pippin, merry);
+        await Cleanup(pippin, merry);
     }
 
     [Test]
@@ -459,6 +459,9 @@ public class ConnectionRequestTests
 
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+
+        await merryClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await pippinClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.AcceptConnectionRequest(pippin);

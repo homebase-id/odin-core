@@ -801,26 +801,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
             }
         }
-
-        private async Task dValidateWriteOnlyDriveGrants(ConnectionRequestHeader header, IOdinContext odinContext, DatabaseConnection cn)
-        {
-            //so here i could remove circles that any drives granting read or i could just indicate you 
-            foreach (var cid in header.CircleIds)
-            {
-                var def = _circleMembershipService.GetCircle(cid, odinContext, cn);
-                var grantsWithReadPermission = def.DriveGrants.Where(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read));
-                foreach (var grant in grantsWithReadPermission)
-                {
-                    var drive = await _driveManager.GetDrive(grant.PermissionedDrive.Drive, cn);
-                    var allowAutoConnectionReadAccess = drive?.AttributeHasTrueValue(BuiltInDriveAttributes.AllowAutoConnectionsReadAccess) ?? false;
-                    if (!allowAutoConnectionReadAccess)
-                    {
-                        //TODO: throw exception or? 
-                    }
-                }
-            }
-        }
-
+        
         private async Task CreateAndSendRequestInternal(ConnectionRequestHeader header, SensitiveByteArray masterKey, IOdinContext odinContext,
             DatabaseConnection cn)
         {
