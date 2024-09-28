@@ -19,6 +19,8 @@ updates:
       - "/tests/helpers/Odin.Test.Helpers"
       - "/tests/services/Odin.Services.Tests"
     schedule:
-      interval: weekly
-    versioning-strategy: increase
+      interval: daily
+    # disable pull requests until versioning-strategy works with nugets
+    open-pull-requests-limit: 0
+    # versioning-strategy: increase
     rebase-strategy: auto
