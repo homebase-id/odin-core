@@ -11,7 +11,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         Active = 1,
         // Archived = 3
     }
-    
+
     /// <summary>
     /// Metadata about the file being stored.  This data is managed by the system. See AppFileMetaData for
     /// data owned by the app
@@ -40,20 +40,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// A file to which this file references.  I.e. this file is a comment about another file
         /// </summary>
         public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
-        
+
         public InternalDriveFileId File { get; set; }
-        
+
         /// <summary>
         /// A globally unique Id to cross reference this file across Identities 
         /// </summary>
         public Guid? GlobalTransitId { get; set; }
-        
+
         public FileState FileState { get; set; }
 
         public Int64 Created { get; set; }
 
         public Int64 Updated { get; set; }
-        
+
         public Int64 TransitCreated { get; set; }
 
         public Int64 TransitUpdated { get; set; }
@@ -65,7 +65,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
         /// </summary>
         public bool IsEncrypted { get; set; }
-        
+
         /// <summary>
         /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
@@ -79,7 +79,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
-            return Payloads?.SingleOrDefault(pk => pk.Key == key);
+            return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

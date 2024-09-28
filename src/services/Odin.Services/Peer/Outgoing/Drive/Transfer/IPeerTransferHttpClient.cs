@@ -17,6 +17,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             StreamPart metaData,
             params StreamPart[] additionalStreamParts);
 
+        [Multipart]
+        [Patch(DriveRoot + "/update")]
+        Task<ApiResponse<PeerTransferResponse>> UpdatePeerFile(
+            StreamPart header,
+            StreamPart metaData,
+            params StreamPart[] additionalStreamParts);
+        
         [Post(DriveRoot + "/deletelinkedfile")]
         Task<ApiResponse<PeerTransferResponse>> DeleteLinkedFile([Body] DeleteRemoteFileRequest request);
 

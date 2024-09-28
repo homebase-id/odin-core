@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -44,7 +43,7 @@ namespace Odin.Services.Membership.Connections
             INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
-        
+
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
@@ -109,6 +108,26 @@ namespace Odin.Services.Membership.Connections
                     odinContext: odinContext,
                     cn: cn);
 
+
+                var transientTempDrive = SystemDriveConstants.TransientTempDrive;
+                var transientTempDriveGrant = new DriveGrant()
+                {
+                    DriveId = (await driveManager.GetDriveIdByAlias(transientTempDrive, cn)).GetValueOrDefault(),
+                    PermissionedDrive = new()
+                    {
+                        Drive = transientTempDrive,
+                        Permission = DrivePermission.Write
+                    },
+                    KeyStoreKeyEncryptedStorageKey = null
+                };
+
+                permissionContext.PermissionGroups.Add(
+                    "grant_transient_temp_drive_to_connected_youauth_identity",
+                    new PermissionGroup(
+                        new PermissionSet(new[] { PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections }),
+                        new List<DriveGrant>() { transientTempDriveGrant }, null, null));
+
+
                 var context = new OdinContext()
                 {
                     Caller = new CallerContext(
@@ -121,8 +140,6 @@ namespace Odin.Services.Membership.Connections
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
-
-            //TODO: what about blocked??
 
             return null;
         }
@@ -432,7 +449,7 @@ namespace Odin.Services.Membership.Connections
 
             this.SaveIcr(icr, odinContext, cn);
         }
-        
+
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey,
             IOdinContext odinContext,
@@ -443,7 +460,7 @@ namespace Odin.Services.Membership.Connections
             list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, cn);
         }
-        
+
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             List<GuidId> circleIds,
@@ -858,7 +875,7 @@ namespace Odin.Services.Membership.Connections
         {
             if (registration.Status == ConnectionStatus.Blocked)
             {
-                throw new SecurityException("OdinId is blocked");
+                throw new OdinSecurityException("OdinId is blocked");
             }
         }
 
@@ -900,7 +917,8 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration, IOdinContext odinContext,
+        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
+            IOdinContext odinContext,
             DatabaseConnection cn)
         {
             var masterKey = odinContext.Caller.GetMasterKey();

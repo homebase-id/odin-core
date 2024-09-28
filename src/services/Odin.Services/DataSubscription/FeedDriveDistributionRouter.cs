@@ -36,7 +36,7 @@ namespace Odin.Services.DataSubscription
 
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
-        private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+        private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
@@ -51,7 +51,7 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            IPeerOutgoingTransferService peerOutgoingTransferService,
+            PeerOutgoingTransferService peerOutgoingTransferService,
             DriveManager driveManager,
             TenantContext tenantContext,
             CircleNetworkService circleNetworkService,

@@ -201,6 +201,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.File:
                     return await SendFileOutboxItem(fileItem, odinContext, connection, cancellationToken);
 
+                case OutboxItemType.RemoteFileUpdate:
+                    return await UpdateRemoteFile(fileItem, odinContext, connection, cancellationToken);
+
                 case OutboxItemType.UnencryptedFeedItem:
                     return await SendUnencryptedFeedItem(fileItem, odinContext, connection, cancellationToken);
 
@@ -263,6 +266,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, connection, cancellationToken);
         }
 
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> UpdateRemoteFile(OutboxFileItem fileItem, IOdinContext odinContext,
+            DatabaseConnection connection,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<UpdateRemoteFileOutboxWorker>();
+            var worker = new UpdateRemoteFileOutboxWorker(fileItem,
+                fileSystemResolver,
+                workLogger,
+                odinConfiguration,
+                odinHttpClientFactory
+            );
+
+            return await worker.Send(odinContext, connection, cancellationToken);
+        }
+        
+        
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext,
             DatabaseConnection connection,
             CancellationToken cancellationToken)

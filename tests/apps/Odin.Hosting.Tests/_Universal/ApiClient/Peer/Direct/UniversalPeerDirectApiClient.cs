@@ -60,7 +60,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             };
 
             var svc = RestService.For<IUniversalRefitPeerDirect>(client);
-            ApiResponse<TransitResult> response = await svc.TransferStream(parts.ToArray());
+            ApiResponse<TransitResult> response = await svc.UploadFile(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
@@ -92,11 +92,13 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+     
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
+            
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
@@ -120,14 +122,14 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             }
 
             var driveSvc = RestService.For<IUniversalRefitPeerDirect>(client);
-            ApiResponse<TransitResult> response = await driveSvc.TransferStream(parts.ToArray());
+            ApiResponse<TransitResult> response = await driveSvc.UploadFile(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
             return response;
         }
     }
-
+    
 
     public async Task DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
         List<OdinId> recipients)
@@ -187,7 +189,7 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             };
 
             var transitSvc = RestService.For<IUniversalRefitPeerDirect>(client);
-            ApiResponse<TransitResult> transitResultResponse = await transitSvc.TransferStream(parts.ToArray());
+            ApiResponse<TransitResult> transitResultResponse = await transitSvc.UploadFile(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 

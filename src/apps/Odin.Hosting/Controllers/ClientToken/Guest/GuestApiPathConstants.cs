@@ -12,11 +12,16 @@
         public const string AuthV1 = BasePathV1 + "/auth";
         public const string DriveV1 = BasePathV1 + "/drive";
         public const string DriveQueryV1 = DriveV1 + "/query";
+        public const string DriveStorageV1 = DriveV1 + "/files";
 
         public const string DriveQuerySpecializedV1 = DriveQueryV1 + "/specialized";
 
         public const string DriveQuerySpecializedClientUniqueId = DriveQuerySpecializedV1 + "/cuid";
 
+        public const string PeerV1 = BasePathV1 + "/transit";
+
+        public const string PeerSenderV1 = PeerV1 + "/sender";
+        
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
         public const string CirclesV1 = BasePathV1 + "/circles";
         public const string FollowersV1 = BasePathV1 + "/followers";

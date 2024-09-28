@@ -4,6 +4,8 @@ public enum OutboxItemType
 {
     File = 100,
 
+    RemoteFileUpdate = 200,
+    
     PushNotification = 300,
 
     UnencryptedFeedItem = 500,

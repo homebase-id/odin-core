@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using NodaTime;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -215,18 +216,22 @@ public static class DriveFileUtility
 
     public static void AssertValidPayloadKey(string payloadKey)
     {
-        if (null == payloadKey)
+        if (!IsValidPayloadKey(payloadKey))
         {
             throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
                 OdinClientErrorCode.InvalidPayloadNameOrKey);
         }
+    }
+
+    public static bool IsValidPayloadKey(string payloadKey)
+    {
+        if (string.IsNullOrEmpty(payloadKey?.Trim()))
+        {
+            return false;
+        }
 
         bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
-        if (!isMatch)
-        {
-            throw new OdinClientException($"Invalid payload key {payloadKey}.  It must match pattern {ValidPayloadKeyRegex}.",
-                OdinClientErrorCode.InvalidPayloadNameOrKey);
-        }
+        return isMatch;
     }
 
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
@@ -258,5 +263,10 @@ public static class DriveFileUtility
     {
         var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+    }
+
+    public static Guid CreateVersionTag()
+    {
+        return SequentialGuid.CreateGuid();
     }
 }
