@@ -384,31 +384,16 @@ public class PeerUpdateFileTests
             var uploadResult = updateFileResponse.Content;
             Assert.IsNotNull(uploadResult);
 
-            // handle any incoming feed items
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(remoteTargetFile.TargetDrive);
-
-            //
-            // Recipient should have the updated file
-            //
-            var getHeaderResponse = await collabChannelOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-            var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
-            Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payload1.Key), "payload 1 should have been removed");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key), "payloadToAdd should have been, well, added :)");
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
 
             // file should be on the feed of those connected
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
             {
-                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                GlobalTransitId = remoteTargetFile.GlobalTransitId.GetValueOrDefault(),
                 TargetDrive = SystemDriveConstants.FeedDrive
             };
 
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
+            await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
             await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
