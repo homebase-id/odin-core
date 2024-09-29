@@ -36,7 +36,21 @@ namespace Odin.Services.Apps
             }
         }
 
-        public void AssertOriginalSender(OdinId odinId)
+        public void AssertOriginalAuthor(OdinId odinId)
+        {
+            if (string.IsNullOrEmpty(this.FileMetadata.OriginalAuthor))
+            {
+                // backwards compatibility
+                AssertOriginalSender(odinId);
+            }
+
+            if (this.FileMetadata.OriginalAuthor != odinId)
+            {
+                throw new OdinSecurityException("Sender does not match original author");
+            }
+        }
+
+        private void AssertOriginalSender(OdinId odinId)
         {
             if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
             {

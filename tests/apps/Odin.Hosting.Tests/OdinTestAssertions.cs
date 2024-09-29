@@ -11,13 +11,14 @@ namespace Odin.Hosting.Tests;
 /// </summary>
 public static class OdinTestAssertions
 {
-    public static void FileHeaderIsMarkedDeleted(SharedSecretEncryptedFileHeader fileHeader, bool shouldHaveGlobalTransitId = false, SecurityGroupType expectedSecurityGroupType= SecurityGroupType.Owner)
+    public static void FileHeaderIsMarkedDeleted(SharedSecretEncryptedFileHeader fileHeader, bool shouldHaveGlobalTransitId = false,
+        SecurityGroupType expectedSecurityGroupType = SecurityGroupType.Owner)
     {
-        if(shouldHaveGlobalTransitId)
+        if (shouldHaveGlobalTransitId)
         {
             Assert.IsNotNull(fileHeader.FileMetadata.GlobalTransitId);
         }
-        
+
         Assert.IsTrue(fileHeader.FileState == FileState.Deleted);
         Assert.IsTrue(fileHeader.FileId != Guid.Empty);
         Assert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
@@ -25,6 +26,7 @@ public static class OdinTestAssertions
         Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
         Assert.IsTrue(fileHeader.FileMetadata.Created == default);
         Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
+        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.OriginalAuthor));
         Assert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
 
         Assert.IsNotNull(fileHeader.FileMetadata.AppData);

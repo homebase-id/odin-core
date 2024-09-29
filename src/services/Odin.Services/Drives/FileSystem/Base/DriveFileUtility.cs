@@ -136,6 +136,7 @@ public static class DriveFileUtility
             GlobalTransitId = fileMetadata.GlobalTransitId,
             IsEncrypted = fileMetadata.IsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
+            OriginalAuthor = fileMetadata.OriginalAuthor,
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
             Payloads = fileMetadata.Payloads,

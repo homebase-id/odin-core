@@ -311,7 +311,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // The header new points to a file by either gtid or uid (in this priority)
             //
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
+            header.AssertOriginalAuthor((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 
@@ -348,7 +348,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
+            header.AssertOriginalAuthor((OdinId)metadata.SenderOdinId);
 
             metadata.VersionTag = header.FileMetadata.VersionTag;
 

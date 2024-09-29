@@ -90,7 +90,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 thumbnailKeys = new List<string>();
                 _uploadedKeys.Add(payloadKey, thumbnailKeys);
             }
-            
+
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
@@ -179,11 +179,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     throw new OdinClientException("Invalid global transit Id");
                 }
 
-                //requester must be the original commenter
-                if (header.FileMetadata.SenderOdinId != odinContext.Caller.OdinId)
-                {
-                    throw new OdinSecurityException("Requester must be the original commenter");
-                }
+                header.AssertOriginalAuthor(odinContext.Caller.OdinId.GetValueOrDefault());
 
                 await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
