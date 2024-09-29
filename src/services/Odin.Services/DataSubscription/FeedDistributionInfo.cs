@@ -30,7 +30,7 @@ public class FeedItemPayload
 {
     public byte[] KeyHeaderBytes { get; set; }
     
-    public OdinId? CollaborationChannelSender { get; set; }
+    public OdinId? CollaborationChannelAuthor { get; set; }
 }
 
 public enum FeedDistroType

@@ -17,6 +17,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
@@ -32,6 +33,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage,
+        PublicPrivateKeyService keyService,
         DriveManager driveManager)
     {
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
@@ -39,14 +41,25 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext, cn);
 
+            var sender = odinContext.GetCallerOdinIdOrFail();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
+            if (request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
-                return await RouteFeedRequestToInbox(request, odinContext, cn);
+                if (request.FileMetadata.IsEncrypted)
+                {
+                    return await RouteFeedRequestToInbox(request, odinContext, cn);
+                }
+
+                byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey,
+                    request.EncryptedPayload, odinContext, cn);
+                var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
+
+                // Overwrite the sender with the identity that actually posted to the channel
+                sender = feedPayload.CollaborationChannelAuthor.GetValueOrDefault();
             }
 
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, cn);
@@ -88,14 +101,14 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // Clearing the UID for any files that go into the feed drive because the feed drive 
                     // comes from multiple channel drives from many different identities so there could be a clash
                     request.FileMetadata.AppData.UniqueId = null;
-
+                    request.FileMetadata.SenderOdinId = sender;
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, cn);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, cn, raiseEvent: true);
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
-                        Sender = odinContext.GetCallerOdinIdOrFail(),
+                        Sender = sender,
                         OdinContext = newContext,
                         DatabaseConnection = cn
                     });
@@ -109,8 +122,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // perform update
                     try
                     {
-                        request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
-                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, cn);
+                        request.FileMetadata.SenderOdinId = sender;
+                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, cn, bypassCallerCheck: true);
                     }
                     catch (Exception e)
                     {

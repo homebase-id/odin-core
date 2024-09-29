@@ -312,23 +312,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("Processing Feed Inbox Item -> Handling TransferFileType.EncryptedFileForFeed");
 
-                byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, inboxItem.EncryptedFeedPayload, odinContext, cn);
+                byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OnlineIcrEncryptedKey,
+                    inboxItem.EncryptedFeedPayload, odinContext, cn);
 
                 var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
                 var decryptedKeyHeader = KeyHeader.FromCombinedBytes(feedPayload.KeyHeaderBytes);
 
-                //
-                // this feed payload item is only set when the file is encrypted, i need to support unencrypted files getting the original sender too
-                //
-                
                 //if the source of this was a collab channel then we read it from the original identity
-                bool driveOriginWasCollaborative = feedPayload.CollaborationChannelSender != null;
-                var sender = driveOriginWasCollaborative ? feedPayload.CollaborationChannelSender.Value : inboxItem.Sender;
-                
-                
+                bool driveOriginWasCollaborative = feedPayload.CollaborationChannelAuthor != null;
+                var author = driveOriginWasCollaborative ? feedPayload.CollaborationChannelAuthor.Value : inboxItem.Sender;
+
                 var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                 {
-                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, sender, inboxItem.TransferInstructionSet,
+                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, author, inboxItem.TransferInstructionSet,
                         odinContext, cn,
                         driveOriginWasCollaborative);
                 });

@@ -92,13 +92,13 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-     
+
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
-            
+
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
@@ -129,7 +129,73 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             return response;
         }
     }
-    
+
+
+    public async Task<(ApiResponse<TransitResult> response, string encryptedMetadataContent64)> TransferNewEncryptedFile(
+        TargetDrive remoteTargetDrive,
+        UploadFileMetadata fileMetadata,
+        List<OdinId> recipients,
+        Guid? overwriteGlobalTransitFileId,
+        UploadManifest uploadManifest,
+        List<TestPayloadDefinition> payloads,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        var keyHeader = KeyHeader.NewRandom16();
+
+        TransitInstructionSet instructionSet = new TransitInstructionSet()
+        {
+            TransferIv = transferIv,
+            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            RemoteTargetDrive = remoteTargetDrive,
+            Recipients = recipients.Select(d => d.DomainName).ToList(),
+            Manifest = uploadManifest
+        };
+
+        var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+        fileMetadata.AppData.Content = encryptedJsonContent64;
+        fileMetadata.IsEncrypted = true;
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+            List<StreamPart> parts =
+            [
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            ];
+
+            foreach (var payloadDefinition in payloads)
+            {
+                var pc = keyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
+                parts.Add(new StreamPart(pc, payloadDefinition.Key, payloadDefinition.ContentType, Enum.GetName(MultipartUploadParts.Payload)));
+
+                foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
+                {
+                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    var tc = keyHeader.EncryptDataAesAsStream(thumbnail.Content);
+                    parts.Add(new StreamPart(tc, thumbnailKey, thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
+            }
+
+            var driveSvc = RestService.For<IUniversalRefitPeerDirect>(client);
+            ApiResponse<TransitResult> response = await driveSvc.UploadFile(parts.ToArray());
+
+            keyHeader.AesKey.Wipe();
+
+            return (response, encryptedJsonContent64);
+        }
+    }
+
 
     public async Task DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
         List<OdinId> recipients)

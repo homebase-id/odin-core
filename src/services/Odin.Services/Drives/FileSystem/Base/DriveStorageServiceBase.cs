@@ -804,7 +804,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinSystemException("Method cannot be used on drive");
             }
 
-            if (!bypassCallerCheck) //eww
+            if (!bypassCallerCheck) //eww: this allows the follower service to synchronize files when you start following someone.
             {
                 //S0510
                 if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())

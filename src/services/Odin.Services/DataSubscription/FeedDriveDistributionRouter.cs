@@ -197,34 +197,29 @@ namespace Odin.Services.DataSubscription
 
             var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, cn);
 
-            // var author = odinContext.GetCallerOdinIdOrFail();
-            // connectedFollowers = connectedFollowers.Where(f => (OdinId)f.AsciiDomain != author).ToList();
 
             if (connectedFollowers.Any())
             {
+                // Prepare the file
+                var payload = new FeedItemPayload()
+                {
+                    CollaborationChannelAuthor = notification.OdinContext.GetCallerOdinIdOrFail(),
+                };
+                    
+                if (header.FileMetadata.IsEncrypted)
+                {
+                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+                    var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                    payload.KeyHeaderBytes = keyHeader.Combine().GetKey();
+                }
+                
                 foreach (var recipient in connectedFollowers)
                 {
-                    // Prepare the file
-                    EccEncryptedPayload encryptedPayload = null;
-
-                    if (header.FileMetadata.IsEncrypted)
-                    {
-                        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-                        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                        var payload = new FeedItemPayload()
-                        {
-                            CollaborationChannelSender = notification.OdinContext.GetCallerOdinIdOrFail(),
-                            KeyHeaderBytes = keyHeader.Combine().GetKey()
-                        };
-
-                        //TODO: encryption - need to convert to the online key
-                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
-                            PublicPrivateKeyType.OfflineKey,
-                            recipient,
-                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                            cn);
-                    }
+                    var encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
+                        PublicPrivateKeyType.OfflineKey,
+                        recipient,
+                        OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
+                        cn);
 
                     await AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {
