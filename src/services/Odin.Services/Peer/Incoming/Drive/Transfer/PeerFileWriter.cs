@@ -6,7 +6,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -277,13 +276,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
-            IdentityDatabase db)
+            FileMetadata newMetadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
+            IdentityDatabase cn)
         {
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
             var targetDriveId = tempFile.DriveId;
 
-            if (metadata.GlobalTransitId.HasValue == false)
+            if (newMetadata.GlobalTransitId.HasValue == false)
             {
                 throw new OdinClientException("Must have a global transit id to write peer.", OdinClientErrorCode.InvalidFile);
             }
@@ -294,27 +293,27 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If we can, then the gtid is the winner and decides the matching file
             //
 
-            header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
+            header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
             // If there is no file matching the gtid, let's check if the UID might point to one
-            if (header == null && metadata.AppData.UniqueId.HasValue)
+            if (header == null && newMetadata.AppData.UniqueId.HasValue)
             {
-                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value, odinContext, db);
+                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext, cn);
             }
 
             if (header == null)
             {
                 // Neither gtid not uid points to an exiting file, so it's a new file
-                await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, db);
+                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, cn);
                 return;
             }
 
             // The header new points to a file by either gtid or uid (in this priority)
             //
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
+            header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
 
-            metadata.VersionTag = header.FileMetadata.VersionTag;
+            newMetadata.VersionTag = header.FileMetadata.VersionTag;
 
             //Update existing file
             var targetFile = new InternalDriveFileId()
@@ -324,34 +323,35 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, db);
+            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, cn);
         }
 
+
         private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
+            FileMetadata newMetadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
         {
             // Rules:
             // You must have a global transit id to write to the feed drive
             // We never allow uniqueId for the feed drive
-            metadata.AppData.UniqueId = null;
+            newMetadata.AppData.UniqueId = null;
 
-            if (metadata.GlobalTransitId.HasValue == false)
+            if (newMetadata.GlobalTransitId.HasValue == false)
             {
                 throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
             }
 
-            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
+            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
 
             if (header == null)
             {
-                await WriteNewFile(fs, tempFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, db);
+                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
                 return;
             }
 
             header.AssertFileIsActive();
-            header.AssertOriginalSender((OdinId)metadata.SenderOdinId);
+            header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
 
-            metadata.VersionTag = header.FileMetadata.VersionTag;
+            newMetadata.VersionTag = header.FileMetadata.VersionTag;
 
             //Update existing file
             var targetFile = new InternalDriveFileId()
@@ -362,10 +362,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
-            await fs.Storage.UpdateReactionSummary(targetFile, metadata.ReactionPreview, odinContext, db);
+            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext, db);
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads: true, odinContext, db);
+            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
