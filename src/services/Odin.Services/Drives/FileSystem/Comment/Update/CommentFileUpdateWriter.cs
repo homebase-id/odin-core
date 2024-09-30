@@ -1,16 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Services.Drives.FileSystem.Comment.Update;
@@ -49,7 +43,7 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
 
         return Task.CompletedTask;
     }
-    
+
     protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package,
         UpdateFileDescriptor updateDescriptor, IOdinContext odinContext)
     {
@@ -78,7 +72,7 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
 
             IsEncrypted = updateDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = odinContext.Caller.OdinId,
-
+            // OriginalAuthor = //Nothing to do here since callers never update the original author
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors()

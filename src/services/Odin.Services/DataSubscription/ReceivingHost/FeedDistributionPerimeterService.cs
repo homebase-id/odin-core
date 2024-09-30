@@ -33,7 +33,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage,
-        PublicPrivateKeyService keyService,
         DriveManager driveManager)
     {
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
@@ -54,12 +53,10 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     return await RouteFeedRequestToInbox(request, odinContext, cn);
                 }
 
-                byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey,
-                    request.EncryptedPayload, odinContext, cn);
-                var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
-
-                // Overwrite the sender with the identity that actually posted to the channel
-                sender = feedPayload.CollaborationChannelAuthor.GetValueOrDefault();
+                // byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey,
+                //     request.EncryptedPayload, odinContext, cn);
+                // var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
+                // sender = feedPayload.CollaborationChannelAuthor.GetValueOrDefault();
             }
 
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, cn);

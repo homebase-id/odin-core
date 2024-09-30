@@ -203,16 +203,17 @@ namespace Odin.Services.DataSubscription
                 // Prepare the file
                 var payload = new FeedItemPayload()
                 {
-                    CollaborationChannelAuthor = notification.OdinContext.GetCallerOdinIdOrFail(),
+                    DriveOriginWasCollaborative = true
+                    // CollaborationChannelAuthor = notification.OdinContext.GetCallerOdinIdOrFail(),
                 };
-                    
+
                 if (header.FileMetadata.IsEncrypted)
                 {
                     var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
                     var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
                     payload.KeyHeaderBytes = keyHeader.Combine().GetKey();
                 }
-                
+
                 foreach (var recipient in connectedFollowers)
                 {
                     var encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(

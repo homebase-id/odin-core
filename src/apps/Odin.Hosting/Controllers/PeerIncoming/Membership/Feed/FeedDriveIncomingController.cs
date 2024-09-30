@@ -9,7 +9,6 @@ using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Drives.Management;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
@@ -28,13 +27,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly TransitInboxBoxStorage _transitInboxStorage;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DriveManager _driveManager;
-        private readonly PublicPrivateKeyService _keyService;
 
 
         /// <summary />
         public FeedDriveIncomingController(
             FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage,
-            TenantSystemStorage tenantSystemStorage, DriveManager driveManager, PublicPrivateKeyService keyService)
+            TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
@@ -42,7 +40,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
             _transitInboxStorage = transitInboxStorage;
             _tenantSystemStorage = tenantSystemStorage;
             _driveManager = driveManager;
-            _keyService = keyService;
         }
 
         [HttpPost("send-feed-filemetadata")]
@@ -70,7 +67,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
                 _followerService,
                 _mediator,
                 _transitInboxStorage,
-                _keyService,
                 _driveManager);
         }
     }

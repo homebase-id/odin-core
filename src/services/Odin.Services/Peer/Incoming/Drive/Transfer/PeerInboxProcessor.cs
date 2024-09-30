@@ -318,15 +318,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
                 var decryptedKeyHeader = KeyHeader.FromCombinedBytes(feedPayload.KeyHeaderBytes);
 
-                //if the source of this was a collab channel then we read it from the original identity
-                bool driveOriginWasCollaborative = feedPayload.CollaborationChannelAuthor != null;
-                var author = driveOriginWasCollaborative ? feedPayload.CollaborationChannelAuthor.Value : inboxItem.Sender;
-
                 var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                 {
-                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, author, inboxItem.TransferInstructionSet,
+                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
                         odinContext, cn,
-                        driveOriginWasCollaborative);
+                        feedPayload.DriveOriginWasCollaborative);
                 });
 
                 logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);

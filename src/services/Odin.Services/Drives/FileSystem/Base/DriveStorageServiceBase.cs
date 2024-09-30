@@ -1033,7 +1033,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
             // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
 
-            // now- each PayloadInstruction needs to be applied
+            // now - each PayloadInstruction needs to be applied
             // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
             // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
 
@@ -1043,8 +1043,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var tempStorageManager = await GetTempStorageManager(targetFile.DriveId, cn);
 
                 // 
-                // Note: i've separated the payload instructions for readability
-                // f
+                // Note: I have separated the payload instructions for readability
+                // 
                 foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
@@ -1103,6 +1103,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
+                
                 await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
                     manifest.ServerMetadata, odinContext, cn, manifest.NewVersionTag);
 
@@ -1283,6 +1284,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
+            newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 

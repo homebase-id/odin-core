@@ -64,7 +64,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
 
             IsEncrypted = updateDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
-
+            // OriginalAuthor = //Nothing to do here since callers never update the original author 
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors()

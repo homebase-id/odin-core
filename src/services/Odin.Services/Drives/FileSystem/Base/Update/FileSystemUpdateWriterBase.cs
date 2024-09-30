@@ -403,12 +403,4 @@ public abstract class FileSystemUpdateWriterBase
         }
     }
 
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
-    {
-        return new InternalDriveFileId()
-        {
-            FileId = file.FileId,
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
-        };
-    }
 }
