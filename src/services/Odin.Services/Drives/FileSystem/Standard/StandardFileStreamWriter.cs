@@ -118,7 +118,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
-
+            OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors()

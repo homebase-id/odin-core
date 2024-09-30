@@ -122,7 +122,7 @@ public class SendFileOutboxWorkerAsync(
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
-
+        
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);

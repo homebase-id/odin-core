@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Identity;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -30,9 +31,16 @@ public class ClientFileMetadata
     public bool IsEncrypted { get; set; }
         
     /// <summary>
-    /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
+    /// The OdinId of the DI that sent this file.
     /// </summary>
     public string SenderOdinId { get; set; }
+    
+    /// <summary>
+    /// The identity that originally created this file; even if it was sent around.
+    ///
+    /// This is only nullable because of existing production data
+    /// </summary>
+    public OdinId? OriginalAuthor { get; set; }
     
     public AppFileMetaData AppData { get; set; }
     
