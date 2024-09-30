@@ -179,7 +179,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     throw new OdinClientException("Invalid global transit Id");
                 }
 
-                header.AssertOriginalAuthor(odinContext.Caller.OdinId.GetValueOrDefault());
+                header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
 
                 await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {

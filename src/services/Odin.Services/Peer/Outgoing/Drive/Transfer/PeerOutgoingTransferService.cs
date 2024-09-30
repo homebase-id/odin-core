@@ -180,7 +180,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 };
             }
 
-            if (header.FileMetadata.SenderOdinId == odinContext.Tenant)
+            var recipient = (OdinId)header.FileMetadata.SenderOdinId;
+
+            if (recipient == odinContext.Tenant)
             {
                 return new SendReadReceiptResultRecipientStatusItem()
                 {
@@ -188,8 +190,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     Status = SendReadReceiptResultStatus.CannotSendReadReceiptToSelf
                 };
             }
-
-            var recipient = (OdinId)header.FileMetadata.SenderOdinId;
 
 
             if (header.FileMetadata.GlobalTransitId == null)

@@ -50,7 +50,7 @@ namespace Odin.Services.Apps
             }
         }
 
-        private void AssertOriginalSender(OdinId odinId)
+        public void AssertOriginalSender(OdinId odinId)
         {
             if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
             {
