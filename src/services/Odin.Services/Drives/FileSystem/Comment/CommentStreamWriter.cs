@@ -140,7 +140,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = odinContext.Caller.OdinId,
+            SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
+            OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 
