@@ -328,7 +328,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
 
         private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata newMetadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
+            FileMetadata newMetadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase cn)
         {
             // Rules:
             // You must have a global transit id to write to the feed drive
@@ -340,11 +340,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
             }
 
-            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
+            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
 
             if (header == null)
             {
-                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
+                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, cn);
                 return;
             }
 
@@ -362,10 +362,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
-            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext, db);
+            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext, cn);
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
+            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, cn);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
