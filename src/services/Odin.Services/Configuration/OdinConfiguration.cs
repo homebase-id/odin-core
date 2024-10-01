@@ -269,6 +269,8 @@ namespace Odin.Services.Configuration
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
             public int InboxOutboxReconciliationIntervalSeconds { get; init; }
             public int JobCleanUpIntervalSeconds { get; init; }
+            public bool SystemJobsEnabled { get; init; }
+            public bool TenantJobsEnabled { get; init; }
 
             public JobSection()
             {
@@ -280,6 +282,8 @@ namespace Odin.Services.Configuration
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");
                 InboxOutboxReconciliationIntervalSeconds = config.Required<int>("Job:InboxOutboxReconciliationIntervalSeconds");
                 JobCleanUpIntervalSeconds = config.Required<int>("Job:JobCleanUpIntervalSeconds");
+                SystemJobsEnabled = config.GetOrDefault("Job:SystemJobsEnabled", true);
+                TenantJobsEnabled = config.GetOrDefault("Job:TenantJobsEnabled", true);
             }
         }
 
