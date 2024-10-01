@@ -42,7 +42,7 @@ This repo includes several pre-built identities for local development and testin
 
 Contributions are highly Welcomed 💙 . Feel free to open PRs for small issues such as typos. For large issues or features, please open an issue and wait for it to be assigned to you.
 
-You can reach out to us on our [Discord](<INSERT DISCORD LINK>) server if you have any questions or need help.
+You can reach out to us on our [Discord](https://id.homebase.id/links) server if you have any questions or need help.
 
 
 ### Security disclosures
