@@ -18,4 +18,10 @@ public interface IApiClientContext
     DrivePermission DrivePermission { get; }
 
     IApiClientFactory GetFactory();
+
+    /// <summary>
+    /// Remove anything related this factory (i.e. delete youauth domain registrations, etc).
+    /// </summary>
+    /// <returns></returns>
+    Task Cleanup();
 }

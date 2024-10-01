@@ -45,4 +45,11 @@ public class AppReadonlyAccessToDrive //: IApiClientContext
     {
         return _factory;
     }
+    
+    public Task Cleanup()
+    {
+        //no-op
+        return Task.CompletedTask;
+    }
+
 }

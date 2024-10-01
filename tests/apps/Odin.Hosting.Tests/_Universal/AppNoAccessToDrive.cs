@@ -39,6 +39,12 @@ public class AppPermissionKeysOnly(TestPermissionKeyList keys) : IApiClientConte
     {
         return _factory;
     }
+    
+    public Task Cleanup()
+    {
+        //no-op
+        return Task.CompletedTask;
+    }
 
     public override string ToString()
     {

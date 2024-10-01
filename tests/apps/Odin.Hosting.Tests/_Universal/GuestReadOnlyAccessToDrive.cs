@@ -65,7 +65,13 @@ public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionK
     {
         return _factory;
     }
-
+    
+    public Task Cleanup()
+    {
+        //no-op
+        return Task.CompletedTask;
+    }
+    
     public override string ToString()
     {
         return MethodBase.GetCurrentMethod()!.DeclaringType!.Name;

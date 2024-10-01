@@ -20,8 +20,11 @@ public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermission
     public TargetDrive TargetDrive { get; }
     public DrivePermission DrivePermission { get; }
 
+    private OwnerApiClientRedux _api;
+
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
+        this._api = ownerApiClient;
 
         var circleId = Guid.NewGuid();
         await ownerApiClient.Network.CreateCircle(circleId, "Circle with valid permissions",
@@ -30,11 +33,10 @@ public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermission
                 PermissionSet = new PermissionSet(keys.PermissionKeys)
             });
 
-
         var registerResponse = await ownerApiClient.YouAuth.RegisterDomain(identity, [circleId]);
         if (!registerResponse.IsSuccessStatusCode)
         {
-            throw new Exception($"Failed to initialize scenario; Register domain returned status code: {registerResponse.StatusCode}");
+            throw new Exception($"Failed to initialize scenario; Register domain ({identity}) returned status code: {registerResponse.StatusCode}");
         }
 
         var registerClientResponse = await ownerApiClient.YouAuth.RegisterClient(identity, "test scenario client");
@@ -52,6 +54,11 @@ public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermission
     public IApiClientFactory GetFactory()
     {
         return _factory;
+    }
+
+    public async Task Cleanup()
+    {
+        await this._api.YouAuth.DeleteDomainRegistration(identity);
     }
 
     public override string ToString()

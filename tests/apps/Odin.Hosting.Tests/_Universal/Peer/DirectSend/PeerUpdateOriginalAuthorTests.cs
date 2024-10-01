@@ -234,6 +234,18 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == originalAuthor, $"original author was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
         }
+        
+        await originalAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
+        await secondaryAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
+        await member2_OwnerClient.Connections.DisconnectFrom(collabChannel);
+
+        await collabChannelOwnerClient.Connections.DisconnectFrom(originalAuthor);
+        await collabChannelOwnerClient.Connections.DisconnectFrom(secondaryAuthor);
+        await collabChannelOwnerClient.Connections.DisconnectFrom(member2);
+
+        await originalAuthor_OwnerClient.Follower.UnfollowIdentity(collabChannel);
+        await secondaryAuthor_OwnerClient.Follower.UnfollowIdentity(collabChannel);
+        await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel);
     }
 
     [Test]
@@ -394,7 +406,18 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == originalAuthor, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
-            
         }
+        
+        await originalAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
+        await secondaryAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
+        await member2_OwnerClient.Connections.DisconnectFrom(collabChannel);
+
+        await collabChannelOwnerClient.Connections.DisconnectFrom(originalAuthor);
+        await collabChannelOwnerClient.Connections.DisconnectFrom(secondaryAuthor);
+        await collabChannelOwnerClient.Connections.DisconnectFrom(member2);
+
+        await originalAuthor_OwnerClient.Follower.UnfollowIdentity(collabChannel);
+        await secondaryAuthor_OwnerClient.Follower.UnfollowIdentity(collabChannel);
+        await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel);
     }
 }
