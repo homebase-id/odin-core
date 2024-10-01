@@ -47,4 +47,4 @@ You can reach out to us on our [Discord](https://id.homebase.id/links) server if
 
 ### Security disclosures
 
-If you discover any security issues, please send an email to security@homebase.id. The email is automatically CCed to the entire team and we'll respond promptly.
+If you discover any security issues, please send an email to info *at* homebase *dot* id. The email is automatically CCed to the entire team and we'll respond promptly.
