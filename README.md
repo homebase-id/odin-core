@@ -16,8 +16,10 @@ The Homebase project provides everyone with a fully distributed self-sovereign i
 - 🚀 Personal Link-tree
 - 🚀 Personal Homepage with Bio, CV.
 - 🚀 App Platform - included apps: Chat, Feed, Photos.
-- 🚀 Fully Self-sovereign Identity
+- 🚀 Fully Self-sovereign Identity (your identity is a domain name!)
 - 🚀 Federated Identity Authentication (YouAuth, similar to OAUTH, but more secure)
+- 🚀 Optional at-home table-top hosting
+- 🚀 Everything is fully encryptable
 - 🚀 And much more
 
 ## Installation of odin-core (Locally)
