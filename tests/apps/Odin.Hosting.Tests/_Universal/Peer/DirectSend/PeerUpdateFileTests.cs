@@ -339,8 +339,9 @@ public class PeerUpdateFileTests
         //
         // Update the file via pippin's identity
         //
-
-        await Task.Delay(1000 * 3);
+        
+        await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
@@ -490,7 +491,10 @@ public class PeerUpdateFileTests
         // Update the file via pippin's identity
         //
 
-        await Task.Delay(1000 * 3);
+        await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+
+        // await Task.Delay(1000 * 3);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
@@ -581,7 +585,7 @@ public class PeerUpdateFileTests
         }
 
         await callerContext.Cleanup();
-        
+
         await member1_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await member2_OwnerClient.Connections.DisconnectFrom(collabChannel);
 

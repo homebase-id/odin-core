@@ -93,7 +93,7 @@ public class PeerUpdateOriginalAuthorTests
         await originalAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await member2_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await secondaryAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
-        
+
         var originalAuthor = originalAuthor_OwnerClient.OdinId;
         var collabChannel = collabChannelOwnerClient.OdinId;
         var secondaryAuthor = secondaryAuthor_OwnerClient.OdinId;
@@ -111,15 +111,19 @@ public class PeerUpdateOriginalAuthorTests
         var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, DrivePermission.Write);
         await collabChannelOwnerClient.Network.CreateCircle(collabChannelId, "circle with some access", permissions);
 
-        await originalAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(originalAuthor, [collabChannelId]);
 
-        await secondaryAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(secondaryAuthor, [collabChannelId]);
+        Assert.IsTrue((await originalAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode);
+        Assert.IsTrue((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(originalAuthor, [collabChannelId])).IsSuccessStatusCode);
+        
+        Assert.IsTrue((await secondaryAuthor_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode);
+        Assert.IsTrue((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(secondaryAuthor, [collabChannelId])).IsSuccessStatusCode);
 
-        await member2_OwnerClient.Connections.SendConnectionRequest(collabChannel);
-        await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId]);
-        await member2_OwnerClient.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications);
+        Assert.IsTrue((await member2_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode);
+        Assert.IsTrue((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId])).IsSuccessStatusCode);
+
+        // await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel);
+
+        Assert.IsTrue((await member2_OwnerClient.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications)).IsSuccessStatusCode);
 
         //
         // original author makes a post (upload metadata)
@@ -156,11 +160,11 @@ public class PeerUpdateOriginalAuthorTests
         // Update the file via pippin's identity
         //
 
-        await Task.Delay(1000 * 3);
-
+        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        
         var remoteTargetFile = originalFileUpload.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
-        await callerContext.Initialize(secondaryAuthor_OwnerClient);
-        var callerContextDriveClient = new UniversalDriveApiClient(secondaryAuthor, callerContext.GetFactory());
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
@@ -197,7 +201,8 @@ public class PeerUpdateOriginalAuthorTests
             }
         };
 
-        
+        await callerContext.Initialize(secondaryAuthor_OwnerClient);
+        var callerContextDriveClient = new UniversalDriveApiClient(secondaryAuthor, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedMetadataContent64) = await callerContextDriveClient.UpdateEncryptedFile(
             updateInstructionSet,
             updatedFileMetadata,
@@ -205,7 +210,7 @@ public class PeerUpdateOriginalAuthorTests
 
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
         await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-        
+
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
@@ -232,9 +237,10 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == originalAuthor, $"original author was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
+            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == originalAuthor,
+                $"original author was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
         }
-        
+
         await originalAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await secondaryAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await member2_OwnerClient.Connections.DisconnectFrom(collabChannel);
@@ -269,7 +275,8 @@ public class PeerUpdateOriginalAuthorTests
         var originalAuthor = originalAuthor_OwnerClient.OdinId;
         var collabChannel = collabChannelOwnerClient.OdinId;
         var secondaryAuthor = secondaryAuthor_OwnerClient.OdinId;
-        var member2 = member2_OwnerClient.OdinId;;
+        var member2 = member2_OwnerClient.OdinId;
+        ;
 
         var collabChannelDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
         await collabChannelOwnerClient.DriveManager.CreateDrive(collabChannelDrive, "Test channel drive 001", "", allowAnonymousReads: true,
@@ -309,7 +316,8 @@ public class PeerUpdateOriginalAuthorTests
         };
 
         //Pippin sends a file to the recipient
-        var response = await originalAuthor_OwnerClient.PeerDirect.TransferNewFile(collabChannelDrive, uploadedFileMetadata, [collabChannel], null, uploadManifest,
+        var response = await originalAuthor_OwnerClient.PeerDirect.TransferNewFile(collabChannelDrive, uploadedFileMetadata, [collabChannel], null,
+            uploadManifest,
             testPayloads);
         await originalAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
         Assert.IsTrue(response.IsSuccessStatusCode);
@@ -318,7 +326,9 @@ public class PeerUpdateOriginalAuthorTests
         // Update the file via pippin's identity
         //
 
-        await Task.Delay(1000 * 3);
+        await originalAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await secondaryAuthor_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
+        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(originalAuthor_OwnerClient);
@@ -407,7 +417,7 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == originalAuthor, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
         }
-        
+
         await originalAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await secondaryAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await member2_OwnerClient.Connections.DisconnectFrom(collabChannel);
