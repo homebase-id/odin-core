@@ -130,6 +130,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
+            metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
 
             await WriteFileHeaderInternal(header, db, keepSameVersionTag);
 
