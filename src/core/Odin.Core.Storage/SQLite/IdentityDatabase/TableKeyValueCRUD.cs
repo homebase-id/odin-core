@@ -5,9 +5,8 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
 
-//[assembly: InternalsVisibleTo("DatabaseCommitTest")]
-//[assembly: InternalsVisibleTo("DatabaseConnectionTests")]
-[assembly: InternalsVisibleTo("Odin.Hosting.Tests")]
+[assembly: InternalsVisibleTo("DatabaseCommitTest")]
+[assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {

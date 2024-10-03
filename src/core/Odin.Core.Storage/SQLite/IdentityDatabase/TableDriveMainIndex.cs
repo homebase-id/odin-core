@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Org.BouncyCastle.Crypto.Engines;
@@ -24,6 +27,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             base.Dispose();
             GC.SuppressFinalize(this);
+        }
+
+        public void RecreateTable()
+        {
+            using var conn = _db.CreateDisposableConnection();
+            EnsureTableExists(conn, true);
         }
 
         public DriveMainIndexRecord GetByUniqueId(Guid driveId, Guid? uniqueId)
@@ -194,14 +203,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam16.Value = item.byteCount;
                 _upsertParam17.Value = item.hdrEncryptedKeyHeader;
-                _upsertParam18.Value = item.hdrVersionTag.ToByteArray();
+                _upsertParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam19.Value = item.hdrAppData;
                 _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 _upsertParam21.Value = item.hdrServerData;
                 _upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 _upsertParam23.Value = item.hdrFileMetaData;
-                _upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                _upsertParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;;
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
@@ -372,6 +381,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return conn.ExecuteNonQuery(_touchCommand);
                 }
             }
+        }
+
+        public async Task<List<DriveMainIndexRecord>> GetAll()
+        {
+            using var cn = _db.CreateDisposableConnection();
+            var records = await cn.Connection.QueryAsync<DriveMainIndexRecord>(
+                $"SELECT * FROM {_db.tblDriveMainIndex._tableName} order by fileId");
+            return records.AsList();
         }
    }
 }

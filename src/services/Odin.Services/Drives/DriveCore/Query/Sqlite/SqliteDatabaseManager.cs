@@ -147,6 +147,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
+        // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
+        var nakedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
+        nakedFileMetadata.AppData = null;
+        
         var driveMainIndexRecord = new DriveMainIndexRecord
         {
             identityId = default,
@@ -172,7 +176,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
             hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(header.EncryptedKeyHeader),
 
-            hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
+            // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
+            hdrFileMetaData = OdinSystemSerializer.Serialize(nakedFileMetadata),
+            // hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
+            
             hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
             hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
 
@@ -230,14 +237,15 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                 // I wonder if we should test if the client UniqueId is in fact the culprit. 
                 // 
                 logger.LogDebug(
-                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}",
+                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
                     s,
                     GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
                     GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
                     GuidOneOrTwo(Drive.Id, r?.driveId),
                     IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
                     IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                    GuidOneOrTwo(metadata.File.FileId, r.fileId));
+                    GuidOneOrTwo(metadata.File.FileId, r.fileId),
+                    drive.Name);
 
                 throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }

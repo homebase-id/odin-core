@@ -186,7 +186,7 @@ TaskPerformanceTest_Db_MultiThread
                 {
                     sw.Restart();
 
-                    var r = _db.tblKeyValue.Get(myc, _db._identityId, _keys[0].ToByteArray());
+                    var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
                     Debug.Assert(r != null);
 
                     timers[count] = sw.ElapsedMilliseconds;
