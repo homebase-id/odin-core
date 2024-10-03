@@ -99,6 +99,7 @@ public class ConnectionRequestTests
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
+        // await Cleanup(pippin, merry);
 
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
@@ -618,6 +619,9 @@ public class ConnectionRequestTests
         var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
         var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
+        await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await recipientOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        
         await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>());
         await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
     }

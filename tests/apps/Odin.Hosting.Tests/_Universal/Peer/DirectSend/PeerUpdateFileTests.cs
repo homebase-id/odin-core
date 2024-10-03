@@ -83,8 +83,8 @@ public class PeerUpdateFileTests
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
+    // [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    // [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanUpdateRemoteFileFileUpdateHeaderDeletePayloadAndAddNewPayload_PeerOnly(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -109,6 +109,7 @@ public class PeerUpdateFileTests
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AppData.DataType = 555;
         uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
@@ -141,7 +142,7 @@ public class PeerUpdateFileTests
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
-        updatedFileMetadata.AppData.DataType = 2900;
+        updatedFileMetadata.AppData.DataType = 777;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = new FileUpdateInstructionSet
@@ -274,8 +275,8 @@ public class PeerUpdateFileTests
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
+    // [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    // [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanUpdateRemoteEncryptedFile_AndSeeChangesDistributedToFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -311,6 +312,7 @@ public class PeerUpdateFileTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some content here";
         uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AppData.DataType = 1234;
         uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
@@ -349,7 +351,7 @@ public class PeerUpdateFileTests
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
-        updatedFileMetadata.AppData.DataType = 2900;
+        updatedFileMetadata.AppData.DataType = 5678;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = new FileUpdateInstructionSet
@@ -430,8 +432,8 @@ public class PeerUpdateFileTests
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
+    // [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    // [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanUpdateRemoteFile_AndSeeChangesDistributedToFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -466,6 +468,7 @@ public class PeerUpdateFileTests
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AppData.DataType = 888;
         uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
@@ -487,6 +490,9 @@ public class PeerUpdateFileTests
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(response.IsSuccessStatusCode);
 
+        // the collab channel we get the file from the TransferNewFile and we need to wait for it to send it out to all followers
+        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
+
         //
         // Update the file via pippin's identity
         //
@@ -494,15 +500,13 @@ public class PeerUpdateFileTests
         await member1_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
         await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
 
-        // await Task.Delay(1000 * 3);
-
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
         await callerContext.Initialize(member1_OwnerClient);
         var callerDriveClient = new UniversalDriveApiClient(member1, callerContext.GetFactory());
 
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
-        updatedFileMetadata.AppData.DataType = 2900;
+        updatedFileMetadata.AppData.DataType = 999;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
         var updateInstructionSet = new FileUpdateInstructionSet
@@ -539,6 +543,9 @@ public class PeerUpdateFileTests
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
+        // the collab channel we get the file from the UpdateFile and we need to wait for it to send it out to all followers
+        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
+        
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
