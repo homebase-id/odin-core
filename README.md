@@ -46,6 +46,9 @@ Contributions are highly Welcomed 💙 . Feel free to open PRs for small issues 
 
 You can reach out to us on our [Discord](https://id.homebase.id/links) server if you have any questions or need help.
 
+## Alpha Version Disclaimer
+
+This is an Alpha version of Homebase.id. Expect breaking changes and significant updates as development progresses. Upgrading will be required during the Alpha phase due to ongoing changes to core functionality. Upgrading may sometimes require running upgrade scripts. Proceed with a production installation only if you're willing to stay up to data and manage the upgrade process as necessary.
 
 ### Security disclosures
 
