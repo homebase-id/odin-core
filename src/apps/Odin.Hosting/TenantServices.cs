@@ -97,6 +97,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionContentDeletedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .As<INotificationHandler<AppNotificationAddedNotification>>()
+                .As<INotificationHandler<ConnectionFinalizedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

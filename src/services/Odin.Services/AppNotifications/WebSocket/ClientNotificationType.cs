@@ -23,6 +23,6 @@ public enum ClientNotificationType
     AppNotificationAdded = 3001,
     IntroductionsReceived = 4001,
     IntroductionAccepted = 4002,
-
+    ConnectionFinalized = 4003,
     Error = 0xBADBEEF,
 }
