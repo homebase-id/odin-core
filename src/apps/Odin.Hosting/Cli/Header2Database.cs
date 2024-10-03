@@ -143,8 +143,6 @@ public static class Header2Database
             
             var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
             sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
-            
-            // SEB:TODO
             sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
             sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
         }
