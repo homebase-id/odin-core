@@ -24,7 +24,6 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -876,5 +875,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         });
 
         return response;
+    }
+
+    public async Task WaitForFeedOutboxDistribution(TargetDrive drive, TimeSpan? timeout = null)
+    {
+        await this.WaitForEmptyOutbox(drive, timeout);
     }
 }
