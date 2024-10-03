@@ -178,13 +178,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrEncryptedKeyHeader;
                }
            set {
+                    if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 16) throw new Exception("Too short");
                     if (value?.Length > 512) throw new Exception("Too long");
                   _hdrEncryptedKeyHeader = value;
                }
         }
-        private Guid? _hdrVersionTag;
-        public Guid? hdrVersionTag
+        private Guid _hdrVersionTag;
+        public Guid hdrVersionTag
         {
            get {
                    return _hdrVersionTag;
@@ -200,6 +201,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrAppData;
                }
            set {
+                    if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 65536) throw new Exception("Too long");
                   _hdrAppData = value;
@@ -224,6 +226,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrServerData;
                }
            set {
+                    if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 16384) throw new Exception("Too long");
                   _hdrServerData = value;
@@ -248,13 +251,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    return _hdrFileMetaData;
                }
            set {
+                    if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 16384) throw new Exception("Too long");
                   _hdrFileMetaData = value;
                }
         }
-        private Guid? _hdrTmpDriveAlias;
-        public Guid? hdrTmpDriveAlias
+        private Guid _hdrTmpDriveAlias;
+        public Guid hdrTmpDriveAlias
         {
            get {
                    return _hdrTmpDriveAlias;
@@ -263,8 +267,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                   _hdrTmpDriveAlias = value;
                }
         }
-        private Guid? _hdrTmpDriveType;
-        public Guid? hdrTmpDriveType
+        private Guid _hdrTmpDriveType;
+        public Guid hdrTmpDriveType
         {
            get {
                    return _hdrTmpDriveType;
@@ -341,15 +345,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"groupId BLOB , "
                      +"uniqueId BLOB , "
                      +"byteCount INT NOT NULL, "
-                     +"hdrEncryptedKeyHeader STRING , "
-                     +"hdrVersionTag BLOB  UNIQUE, "
-                     +"hdrAppData STRING , "
+                     +"hdrEncryptedKeyHeader STRING NOT NULL, "
+                     +"hdrVersionTag BLOB NOT NULL UNIQUE, "
+                     +"hdrAppData STRING NOT NULL, "
                      +"hdrReactionSummary STRING , "
-                     +"hdrServerData STRING , "
+                     +"hdrServerData STRING NOT NULL, "
                      +"hdrTransferHistory STRING , "
-                     +"hdrFileMetaData STRING , "
-                     +"hdrTmpDriveAlias BLOB , "
-                     +"hdrTmpDriveType BLOB , "
+                     +"hdrFileMetaData STRING NOT NULL, "
+                     +"hdrTmpDriveAlias BLOB NOT NULL, "
+                     +"hdrTmpDriveType BLOB NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT  "
                      +", PRIMARY KEY (identityId,driveId,fileId)"
@@ -465,15 +469,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam16.Value = item.byteCount;
-                _insertParam17.Value = item.hdrEncryptedKeyHeader ?? (object)DBNull.Value;
-                _insertParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam19.Value = item.hdrAppData ?? (object)DBNull.Value;
+                _insertParam17.Value = item.hdrEncryptedKeyHeader;
+                _insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                _insertParam19.Value = item.hdrAppData;
                 _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _insertParam21.Value = item.hdrServerData ?? (object)DBNull.Value;
+                _insertParam21.Value = item.hdrServerData;
                 _insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _insertParam23.Value = item.hdrFileMetaData ?? (object)DBNull.Value;
-                _insertParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam23.Value = item.hdrFileMetaData;
+                _insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                _insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
                 _insertParam26.Value = now.uniqueTime;
                 item.modified = null;
@@ -590,15 +594,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam16.Value = item.byteCount;
-                _insertParam17.Value = item.hdrEncryptedKeyHeader ?? (object)DBNull.Value;
-                _insertParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam19.Value = item.hdrAppData ?? (object)DBNull.Value;
+                _insertParam17.Value = item.hdrEncryptedKeyHeader;
+                _insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                _insertParam19.Value = item.hdrAppData;
                 _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _insertParam21.Value = item.hdrServerData ?? (object)DBNull.Value;
+                _insertParam21.Value = item.hdrServerData;
                 _insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _insertParam23.Value = item.hdrFileMetaData ?? (object)DBNull.Value;
-                _insertParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam23.Value = item.hdrFileMetaData;
+                _insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                _insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
                 _insertParam26.Value = now.uniqueTime;
                 item.modified = null;
@@ -719,15 +723,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam16.Value = item.byteCount;
-                _upsertParam17.Value = item.hdrEncryptedKeyHeader ?? (object)DBNull.Value;
-                _upsertParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam19.Value = item.hdrAppData ?? (object)DBNull.Value;
+                _upsertParam17.Value = item.hdrEncryptedKeyHeader;
+                _upsertParam18.Value = item.hdrVersionTag.ToByteArray();
+                _upsertParam19.Value = item.hdrAppData;
                 _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _upsertParam21.Value = item.hdrServerData ?? (object)DBNull.Value;
+                _upsertParam21.Value = item.hdrServerData;
                 _upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _upsertParam23.Value = item.hdrFileMetaData ?? (object)DBNull.Value;
-                _upsertParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam23.Value = item.hdrFileMetaData;
+                _upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
@@ -853,15 +857,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam16.Value = item.byteCount;
-                _updateParam17.Value = item.hdrEncryptedKeyHeader ?? (object)DBNull.Value;
-                _updateParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam19.Value = item.hdrAppData ?? (object)DBNull.Value;
+                _updateParam17.Value = item.hdrEncryptedKeyHeader;
+                _updateParam18.Value = item.hdrVersionTag.ToByteArray();
+                _updateParam19.Value = item.hdrAppData;
                 _updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _updateParam21.Value = item.hdrServerData ?? (object)DBNull.Value;
+                _updateParam21.Value = item.hdrServerData;
                 _updateParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _updateParam23.Value = item.hdrFileMetaData ?? (object)DBNull.Value;
-                _updateParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;
+                _updateParam23.Value = item.hdrFileMetaData;
+                _updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                _updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _updateParam26.Value = now.uniqueTime;
                 _updateParam27.Value = now.uniqueTime;
                 var count = conn.ExecuteNonQuery(_updateCommand);
@@ -1078,14 +1082,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(16))
-                item.hdrEncryptedKeyHeader = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrEncryptedKeyHeader = rdr.GetString(16);
             }
 
             if (rdr.IsDBNull(17))
-                item.hdrVersionTag = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(17, 0, _guid, 0, 16);
@@ -1095,7 +1099,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(18))
-                item.hdrAppData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrAppData = rdr.GetString(18);
@@ -1109,7 +1113,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(20))
-                item.hdrServerData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrServerData = rdr.GetString(20);
@@ -1123,14 +1127,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(22))
-                item.hdrFileMetaData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrFileMetaData = rdr.GetString(22);
             }
 
             if (rdr.IsDBNull(23))
-                item.hdrTmpDriveAlias = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(23, 0, _guid, 0, 16);
@@ -1140,7 +1144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(24))
-                item.hdrTmpDriveType = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(24, 0, _guid, 0, 16);
@@ -1303,14 +1307,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(13))
-                item.hdrEncryptedKeyHeader = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrEncryptedKeyHeader = rdr.GetString(13);
             }
 
             if (rdr.IsDBNull(14))
-                item.hdrVersionTag = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
@@ -1320,7 +1324,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(15))
-                item.hdrAppData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrAppData = rdr.GetString(15);
@@ -1334,7 +1338,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(17))
-                item.hdrServerData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrServerData = rdr.GetString(17);
@@ -1348,14 +1352,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(19))
-                item.hdrFileMetaData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrFileMetaData = rdr.GetString(19);
             }
 
             if (rdr.IsDBNull(20))
-                item.hdrTmpDriveAlias = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
@@ -1365,7 +1369,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(21))
-                item.hdrTmpDriveType = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);
@@ -1538,14 +1542,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(13))
-                item.hdrEncryptedKeyHeader = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrEncryptedKeyHeader = rdr.GetString(13);
             }
 
             if (rdr.IsDBNull(14))
-                item.hdrVersionTag = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
@@ -1555,7 +1559,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(15))
-                item.hdrAppData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrAppData = rdr.GetString(15);
@@ -1569,7 +1573,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(17))
-                item.hdrServerData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrServerData = rdr.GetString(17);
@@ -1583,14 +1587,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(19))
-                item.hdrFileMetaData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrFileMetaData = rdr.GetString(19);
             }
 
             if (rdr.IsDBNull(20))
-                item.hdrTmpDriveAlias = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
@@ -1600,7 +1604,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(21))
-                item.hdrTmpDriveType = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);
@@ -1773,14 +1777,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(13))
-                item.hdrEncryptedKeyHeader = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrEncryptedKeyHeader = rdr.GetString(13);
             }
 
             if (rdr.IsDBNull(14))
-                item.hdrVersionTag = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
@@ -1790,7 +1794,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(15))
-                item.hdrAppData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrAppData = rdr.GetString(15);
@@ -1804,7 +1808,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(17))
-                item.hdrServerData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrServerData = rdr.GetString(17);
@@ -1818,14 +1822,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(19))
-                item.hdrFileMetaData = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 item.hdrFileMetaData = rdr.GetString(19);
             }
 
             if (rdr.IsDBNull(20))
-                item.hdrTmpDriveAlias = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
@@ -1835,7 +1839,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(21))
-                item.hdrTmpDriveType = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);

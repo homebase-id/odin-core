@@ -203,14 +203,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam16.Value = item.byteCount;
                 _upsertParam17.Value = item.hdrEncryptedKeyHeader;
-                _upsertParam18.Value = item.hdrVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam18.Value = item.hdrVersionTag.ToByteArray();
                 _upsertParam19.Value = item.hdrAppData;
                 _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 _upsertParam21.Value = item.hdrServerData;
                 _upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 _upsertParam23.Value = item.hdrFileMetaData;
-                _upsertParam24.Value = item.hdrTmpDriveAlias?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam25.Value = item.hdrTmpDriveType?.ToByteArray() ?? (object)DBNull.Value;;
+                _upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
