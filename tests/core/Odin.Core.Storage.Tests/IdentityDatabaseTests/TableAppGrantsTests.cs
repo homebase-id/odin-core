@@ -40,10 +40,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase();
-                var i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                var i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
                 Debug.Assert(i == 1);
 
-                i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
                 Debug.Assert(i == 0);
             }
         }

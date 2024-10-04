@@ -165,7 +165,7 @@ namespace Odin.Core.Storage.Tests
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests005");
             db.CreateDatabase(true);
 
-            var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
+            var kv = new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             using var cn = db.CreateDisposableConnection();
 
@@ -180,14 +180,14 @@ namespace Odin.Core.Storage.Tests
             cn.CreateCommitUnitOfWork(() =>
             {
                 db.tblKeyValue.Insert(cn,
-                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                 cn.CreateCommitUnitOfWork(() =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     db.tblKeyValue.Insert(cn, 
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 });
             });
 
@@ -202,12 +202,12 @@ namespace Odin.Core.Storage.Tests
                 cn.CreateCommitUnitOfWork(() =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     cn.CreateCommitUnitOfWork(() =>
                     {
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                         db.tblKeyValue.Insert(cn, kv);
                     });
@@ -226,14 +226,14 @@ namespace Odin.Core.Storage.Tests
                 cn.CreateCommitUnitOfWork(() =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     cn.CreateCommitUnitOfWork(() =>
                     {
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
 
                     db.tblKeyValue.Insert(cn,kv);
@@ -251,14 +251,14 @@ namespace Odin.Core.Storage.Tests
             {
                 cn.CreateCommitUnitOfWork(() =>
                 {
-                    db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     db.tblKeyValue.Insert(cn, kv);
 
                     cn.CreateCommitUnitOfWork(() =>
                     {
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
                 });
             });
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Tests
             cn.CreateCommitUnitOfWork(() =>
             {
                 db.tblKeyValue.Insert(cn,
-                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             });
             Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(5));
         }
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.Tests
 
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests006");
             db.CreateDatabase(true); // SEB:TODO make async variant
-            var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
+            var kv = new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
             db.tblKeyValue.Insert(cn, kv); // SEB:TODO make async variant
@@ -303,14 +303,14 @@ namespace Odin.Core.Storage.Tests
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 db.tblKeyValue.Insert(cn,
-                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                 await cn.CreateCommitUnitOfWorkAsync(() =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     return Task.CompletedTask;
                 });
@@ -327,14 +327,14 @@ namespace Odin.Core.Storage.Tests
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     await cn.CreateCommitUnitOfWorkAsync(() =>
                     {
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                         db.tblKeyValue.Insert(cn, kv);
 
@@ -355,14 +355,14 @@ namespace Odin.Core.Storage.Tests
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     await cn.CreateCommitUnitOfWorkAsync(() =>
                     {
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                         return Task.CompletedTask;
                     });
@@ -383,16 +383,16 @@ namespace Odin.Core.Storage.Tests
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     db.tblKeyValue.Insert(cn,
-                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                     db.tblKeyValue.Insert(cn, kv);
 
                     await cn.CreateCommitUnitOfWorkAsync(() =>
                     {
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                         db.tblKeyValue.Insert(cn,
-                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                            new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
                         return Task.CompletedTask;
                     });
@@ -407,7 +407,7 @@ namespace Odin.Core.Storage.Tests
             await cn.CreateCommitUnitOfWorkAsync(() =>
             {
                 db.tblKeyValue.Insert(cn,
-                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 return Task.CompletedTask;
             });
             Assert.That(await CountAsync(cn), Is.EqualTo(5));
@@ -429,7 +429,7 @@ namespace Odin.Core.Storage.Tests
                 myc.CreateCommitUnitOfWork(() =>
                 {
                     // Add some data
-                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                     Debug.Assert(myc.TransactionCount() == wasCommitCallCount);
                 });
@@ -452,7 +452,7 @@ namespace Odin.Core.Storage.Tests
                 myc.CreateCommitUnitOfWork(() =>
                 {
                     // Add some data
-                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                     Debug.Assert(myc.TransactionCount() == wasCommitCallCount);
                 });

@@ -374,6 +374,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
@@ -505,6 +508,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
@@ -636,6 +642,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
@@ -778,6 +787,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveMainIndex " +
