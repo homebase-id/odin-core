@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -94,6 +95,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.tagId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter tagId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -124,6 +133,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.tagId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter tagId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -154,6 +171,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.tagId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter tagId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -183,6 +208,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.tagId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter tagId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveTagIndex " +

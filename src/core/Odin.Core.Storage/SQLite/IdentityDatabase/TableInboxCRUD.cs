@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -153,6 +154,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, InboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.boxId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter boxId cannot be set to Empty GUID.");
+           if (item.popStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter popStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
@@ -206,6 +215,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, InboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.boxId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter boxId cannot be set to Empty GUID.");
+           if (item.popStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter popStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
@@ -259,6 +276,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, InboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.boxId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter boxId cannot be set to Empty GUID.");
+           if (item.popStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter popStamp cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created) " +
@@ -323,6 +348,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, InboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.boxId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter boxId cannot be set to Empty GUID.");
+           if (item.popStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter popStamp cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE inbox " +

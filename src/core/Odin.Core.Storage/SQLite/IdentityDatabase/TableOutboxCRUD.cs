@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -208,6 +209,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, OutboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.dependencyFileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter dependencyFileId cannot be set to Empty GUID.");
+           if (item.checkOutStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
@@ -277,6 +288,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, OutboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.dependencyFileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter dependencyFileId cannot be set to Empty GUID.");
+           if (item.checkOutStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
@@ -346,6 +367,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, OutboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.dependencyFileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter dependencyFileId cannot be set to Empty GUID.");
+           if (item.checkOutStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
@@ -426,6 +457,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, OutboxRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.dependencyFileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter dependencyFileId cannot be set to Empty GUID.");
+           if (item.checkOutStamp == Guid.Empty)
+              throw new OdinSystemException("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE outbox " +

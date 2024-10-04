@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -108,6 +109,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.odinHashId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter odinHashId cannot be set to Empty GUID.");
+           if (item.appId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter appId cannot be set to Empty GUID.");
+           if (item.circleId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -143,6 +152,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.odinHashId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter odinHashId cannot be set to Empty GUID.");
+           if (item.appId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter appId cannot be set to Empty GUID.");
+           if (item.circleId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -178,6 +195,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.odinHashId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter odinHashId cannot be set to Empty GUID.");
+           if (item.appId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter appId cannot be set to Empty GUID.");
+           if (item.circleId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter circleId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -213,6 +238,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.odinHashId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter odinHashId cannot be set to Empty GUID.");
+           if (item.appId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter appId cannot be set to Empty GUID.");
+           if (item.circleId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter circleId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE appGrants " +

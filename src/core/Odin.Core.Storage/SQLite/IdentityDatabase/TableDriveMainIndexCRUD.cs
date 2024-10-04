@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -252,6 +253,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.globalTransitId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter globalTransitId cannot be set to Empty GUID.");
+           if (item.groupId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter groupId cannot be set to Empty GUID.");
+           if (item.uniqueId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
@@ -341,6 +354,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.globalTransitId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter globalTransitId cannot be set to Empty GUID.");
+           if (item.groupId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter groupId cannot be set to Empty GUID.");
+           if (item.uniqueId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
@@ -430,6 +455,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.globalTransitId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter globalTransitId cannot be set to Empty GUID.");
+           if (item.groupId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter groupId cannot be set to Empty GUID.");
+           if (item.uniqueId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created) " +
@@ -530,6 +567,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
+           if (item.identityId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter identityId cannot be set to Empty GUID.");
+           if (item.driveId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter driveId cannot be set to Empty GUID.");
+           if (item.fileId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter fileId cannot be set to Empty GUID.");
+           if (item.globalTransitId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter globalTransitId cannot be set to Empty GUID.");
+           if (item.groupId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter groupId cannot be set to Empty GUID.");
+           if (item.uniqueId == Guid.Empty)
+              throw new OdinSystemException("Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveMainIndex " +
