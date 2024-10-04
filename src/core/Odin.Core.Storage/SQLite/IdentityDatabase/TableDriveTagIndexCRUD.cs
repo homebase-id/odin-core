@@ -95,6 +95,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -125,6 +129,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -155,6 +163,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -184,6 +196,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         internal virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveTagIndex " +

@@ -278,6 +278,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Insert(DatabaseConnection conn, JobsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
@@ -371,6 +372,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, JobsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
@@ -464,6 +466,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Upsert(DatabaseConnection conn, JobsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
@@ -568,6 +571,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Update(DatabaseConnection conn, JobsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE jobs " +

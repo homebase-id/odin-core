@@ -109,6 +109,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -144,6 +148,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -179,6 +187,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -214,6 +226,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         internal virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE appGrants " +

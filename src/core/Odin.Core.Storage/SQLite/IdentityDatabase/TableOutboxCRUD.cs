@@ -209,6 +209,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Insert(DatabaseConnection conn, OutboxRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.dependencyFileId, "Guid parameter dependencyFileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.checkOutStamp, "Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
@@ -278,6 +283,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int TryInsert(DatabaseConnection conn, OutboxRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.dependencyFileId, "Guid parameter dependencyFileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.checkOutStamp, "Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
@@ -347,6 +357,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Upsert(DatabaseConnection conn, OutboxRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.dependencyFileId, "Guid parameter dependencyFileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.checkOutStamp, "Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
@@ -427,6 +442,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int Update(DatabaseConnection conn, OutboxRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.dependencyFileId, "Guid parameter dependencyFileId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.checkOutStamp, "Guid parameter checkOutStamp cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE outbox " +
