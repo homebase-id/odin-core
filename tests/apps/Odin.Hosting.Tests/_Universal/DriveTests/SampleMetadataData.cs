@@ -13,7 +13,7 @@ public static class SampleMetadataData
             AppData = new UploadAppFileMetaData()
             {
                 FileType = fileType,
-                GroupId = groupId ?? default
+                GroupId = groupId
             },
             AllowDistribution = allowDistribution,
             AccessControlList = acl ?? AccessControlList.OwnerOnly
