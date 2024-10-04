@@ -107,9 +107,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, DriveReactionsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
@@ -144,9 +144,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, DriveReactionsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
@@ -181,9 +181,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, DriveReactionsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
@@ -217,9 +217,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, DriveReactionsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveReactions " +

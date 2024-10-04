@@ -108,10 +108,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -147,10 +147,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -186,10 +186,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
@@ -225,10 +225,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE appGrants " +

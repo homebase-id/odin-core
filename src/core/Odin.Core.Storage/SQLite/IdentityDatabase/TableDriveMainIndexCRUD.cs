@@ -252,12 +252,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
@@ -347,12 +347,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
@@ -442,12 +442,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created) " +
@@ -548,12 +548,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveMainIndex " +

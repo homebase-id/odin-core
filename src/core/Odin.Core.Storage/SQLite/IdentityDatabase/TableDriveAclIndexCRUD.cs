@@ -94,10 +94,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, DriveAclIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
@@ -128,10 +128,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, DriveAclIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
@@ -162,10 +162,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, DriveAclIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
@@ -195,10 +195,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, DriveAclIndexRecord item)
         {
-            DatabaseBase.AsserGuidtNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AsserGuidtNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
+            DatabaseBase.AsserGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveAclIndex " +
