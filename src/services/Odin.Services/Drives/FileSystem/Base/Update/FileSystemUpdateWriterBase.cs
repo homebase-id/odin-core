@@ -86,7 +86,7 @@ public abstract class FileSystemUpdateWriterBase
             InternalDriveFileId file = new InternalDriveFileId()
             {
                 DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, cn, true)).GetValueOrDefault(),
-                FileId = instructionSet.File.FileId.GetValueOrDefault()
+                FileId =  Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
             };
 
             this.Package = new FileUpdatePackage(file)
