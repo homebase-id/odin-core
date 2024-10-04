@@ -86,8 +86,8 @@ public class CollaborationChannelTests
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    // [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    // [TestCaseSource(nameof(GuestNotAllowed))]
+    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanViewAndEditCollaborativePostFromFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -102,7 +102,7 @@ public class CollaborationChannelTests
         var (response, firstFileUploadMetadata, payload1) = await AwaitPostNewEncryptedFileOverPeerDirect(member1, collabChannelDrive, collabChannel);
         Assert.IsTrue(response.IsSuccessStatusCode);
 
-        // The collab channel gets the file then will redistribute to it's followers' feeds
+        // The collab channel gets the file then will redistribute to its followers' feeds
         await collabChannel.DriveRedux.WaitForFeedOutboxDistribution(collabChannelDrive);
 
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
@@ -155,8 +155,8 @@ public class CollaborationChannelTests
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
-    // [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
-    // [TestCaseSource(nameof(GuestNotAllowed))]
+    [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
+    [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanUpdateRemoteFile_AndSeeChangesDistributedToFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -371,7 +371,10 @@ public class CollaborationChannelTests
         var (updateFileResponse, updatedEncryptedMetadataContent64) = await callerDriveClient.UpdateEncryptedFile(
             updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
 
-        await callerDriveClient.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        if (updateFileResponse.IsSuccessStatusCode)
+        {
+            await callerDriveClient.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        }
 
         return (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64);
     }
@@ -423,10 +426,15 @@ public class CollaborationChannelTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        //Pippin sends a file to the recipient
-        var (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
-            uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
-            testPayloads);
+        ApiResponse<TransitResult> response = null;
+
+        for (var i = 0; i < 100; i++)
+        {
+            //Pippin sends a file to the recipient
+            (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
+                uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
+                testPayloads);
+        }
 
         await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
