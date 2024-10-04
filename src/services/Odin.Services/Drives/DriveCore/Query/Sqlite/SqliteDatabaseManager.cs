@@ -14,6 +14,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
+using Serilog;
 using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -246,8 +247,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
                     GuidOneOrTwo(metadata.File.FileId, r.fileId),
                     Drive.Name);
-
-                throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                
+                // SEB:TODO really throw? 
+                // throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                logger.LogError(e.Message);
             }
         }
 
