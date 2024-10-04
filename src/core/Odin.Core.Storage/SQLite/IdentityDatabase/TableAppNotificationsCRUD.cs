@@ -144,6 +144,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, AppNotificationsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
@@ -194,6 +196,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
@@ -244,6 +248,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
@@ -305,6 +311,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, AppNotificationsRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE AppNotifications " +

@@ -100,6 +100,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, CircleRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
@@ -131,6 +133,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, CircleRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO circle (identityId,circleName,circleId,data) " +
@@ -162,6 +166,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, CircleRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
@@ -193,6 +199,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, CircleRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE circle " +

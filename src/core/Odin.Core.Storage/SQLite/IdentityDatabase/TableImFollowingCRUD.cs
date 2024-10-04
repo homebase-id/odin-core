@@ -107,6 +107,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, ImFollowingRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created,modified) " +
@@ -145,6 +146,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, ImFollowingRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO imFollowing (identityId,identity,driveId,created,modified) " +
@@ -183,6 +185,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, ImFollowingRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created) " +
@@ -232,6 +235,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Update(DatabaseConnection conn, ImFollowingRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE imFollowing " +
