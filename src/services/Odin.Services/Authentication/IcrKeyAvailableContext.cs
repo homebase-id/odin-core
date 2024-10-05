@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using Odin.Core.Cache;
 using Odin.Services.Base;
 
@@ -11,7 +10,7 @@ namespace Odin.Services.Authentication;
 public class IcrKeyAvailableContext
 {
     private const string CacheKey = "icr-context";
-    private readonly TimeSpan _holdTime = TimeSpan.FromSeconds(100);
+    private readonly TimeSpan _holdTime = TimeSpan.FromMilliseconds(100);
     private readonly GenericMemoryCache _cache = new("icr-context-cache");
 
     public void SetContext(OdinContext context)
