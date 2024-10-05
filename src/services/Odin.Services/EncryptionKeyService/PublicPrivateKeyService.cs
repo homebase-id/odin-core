@@ -254,9 +254,15 @@ namespace Odin.Services.EncryptionKeyService
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
 
-            _logger.LogDebug("local recipient key [{local}]", fullEccKey.PublicKeyJwk());
-
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
+            
+            _logger.LogDebug("Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
+            _logger.LogDebug("Incoming Payload Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
+            if (!ByteArrayUtil.EquiByteArrayCompare(fullEccKey.publicKey, publicKey.publicKey))
+            {
+                throw new OdinClientException("Encrypted Payload Public Key does not match");
+            }
+
             var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(key, publicKey, payload.Salt);
             return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
