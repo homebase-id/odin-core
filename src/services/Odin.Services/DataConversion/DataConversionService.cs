@@ -60,7 +60,7 @@ namespace Odin.Services.DataConversion
             //
             // Create new circles
             //
-            await circleDefinitionService.CreateSystemCircles(cn);
+            await circleDefinitionService.EnsureSystemCirclesExist(cn);
 
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             await cn.CreateCommitUnitOfWorkAsync(async () =>

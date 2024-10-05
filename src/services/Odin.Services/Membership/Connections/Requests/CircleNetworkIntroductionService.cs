@@ -113,7 +113,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.AllowIntroductions);
 
         _logger.LogDebug("Receiving introductions from {sender}", odinContext.GetCallerOdinIdOrFail());
-        
+
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
         var payloadBytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
@@ -239,19 +239,28 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 await this.SendConnectionRequests(intro, odinContext, cn);
             }
-            catch (OdinClientException)
+            catch (OdinClientException oceException)
             {
+                _logger.LogWarning(oceException, "Failed sending Introduced-connection-request to {identity}.  Deleting introduction; continuing to next.",
+                    intro.Identity);
+
                 //TODO: fow now I will delete the introduction
                 // however, this should go into the outbox so we can
                 // retry a few times before giving up
                 await DeleteIntroductionsTo(intro.Identity, cn);
             }
-            catch (OdinSecurityException)
+            catch (OdinSecurityException securityEx)
             {
+                _logger.LogWarning(securityEx, "Failed sending Introduced-connection-request to {identity}.  Deleting introduction; continuing to next.",
+                    intro.Identity);
                 //TODO: fow now I will delete the introduction
                 // however, this should go into the outbox so we can
                 // retry a few times before giving up
                 await DeleteIntroductionsTo(intro.Identity, cn);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed sending Introduced-connection-request to {identity}.  Continuing to next introduction.", intro.Identity);
             }
         }
     }

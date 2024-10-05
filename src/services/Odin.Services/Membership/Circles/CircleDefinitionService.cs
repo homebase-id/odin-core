@@ -34,37 +34,48 @@ namespace Odin.Services.Membership.Circles
             return await this.CreateCircleInternal(request, cn);
         }
 
-        public async Task CreateSystemCircles(DatabaseConnection cn)
+        public async Task EnsureSystemCirclesExist(DatabaseConnection cn)
         {
-            if (null == this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, cn))
+            var confirmedCircleDefinition = this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, cn);
+            if (null == confirmedCircleDefinition)
             {
-                await this.CreateCircleInternal(new CreateCircleRequest()
+                var def = SystemCircleConstants.ConfirmedConnectionsDefinition;
+                await this.CreateCircleInternal(new CreateCircleRequest
                 {
-                    Id = SystemCircleConstants.ConfirmedConnectionsCircleId.Value,
-                    Name = "Confirmed Connected Identities",
-                    Description =
-                        "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection",
-                    DriveGrants = SystemCircleConstants.ConfirmedConnectionsSystemCircleInitialDrives,
-                    Permissions = new PermissionSet()
-                    {
-                        Keys = [PermissionKeys.AllowIntroductions]
-                    }
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
                 }, cn, skipValidation: true);
             }
-
-            if (null == this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, cn))
+            else
             {
-                await this.CreateCircleInternal(new CreateCircleRequest()
+                if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
                 {
-                    Id = SystemCircleConstants.AutoConnectionsCircleId.Value,
-                    Name = "Auto-connected Identities",
-                    Description = "Contains all identities which were automatically connected (due to an introduction from another-connected identity)",
-                    DriveGrants = SystemCircleConstants.AutoConnectionsSystemCircleInitialDrives,
-                    Permissions = new PermissionSet()
-                    {
-                        Keys = []
-                    }
+                    await this.Update(SystemCircleConstants.ConfirmedConnectionsDefinition, cn);
+                }
+            }
+
+            var autoCircleDef = this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, cn);
+            if (null == autoCircleDef)
+            {
+                var def = SystemCircleConstants.AutoConnectionsSystemCircleDefinition;
+                await this.CreateCircleInternal(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
                 }, cn, skipValidation: true);
+            }
+            else
+            {
+                if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
+                {
+                    await this.Update(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, cn);
+                }
             }
         }
 
@@ -104,7 +115,7 @@ namespace Odin.Services.Membership.Circles
         public Task<List<CircleDefinition>> GetCircles(bool includeSystemCircle, DatabaseConnection cn)
         {
             var circles = (_circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType) ?? []).ToList();
-            
+
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));

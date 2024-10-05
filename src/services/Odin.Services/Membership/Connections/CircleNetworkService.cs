@@ -853,11 +853,25 @@ namespace Odin.Services.Membership.Connections
             var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
             foreach (var identity in allIdentities.Results)
             {
-                await UpgradeTokenEncryptionIfNeeded(identity, odinContext, cn);
+                try
+                {
+                    await UpgradeTokenEncryptionIfNeeded(identity, odinContext, cn);
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning(e, "Failed while upgrading token for {identity}", identity);
+                }
 
                 if (odinContext.Caller.HasMasterKey)
                 {
-                    await UpgradeKeyStoreKeyEncryptionIfNeeded(identity, odinContext, cn);
+                    try
+                    {
+                        await UpgradeKeyStoreKeyEncryptionIfNeeded(identity, odinContext, cn);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogWarning(e, "Failed while upgrading KSK   for {identity}", identity);
+                    }
                 }
             }
         }

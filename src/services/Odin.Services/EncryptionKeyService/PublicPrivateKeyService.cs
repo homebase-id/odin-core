@@ -74,7 +74,7 @@ namespace Odin.Services.EncryptionKeyService
             _storage.Delete(cn, cacheKey);
             await Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Gets the latest effective offline public key
         /// </summary>
@@ -192,7 +192,7 @@ namespace Odin.Services.EncryptionKeyService
 
             if (null == recipientPublicKey)
             {
-                _logger.LogDebug("Could not get public Ecc key for recipient: {recipient}", recipient);
+                _logger.LogDebug("Could not get public Ecc key (type: {kt}) for recipient: {recipient}", keyType, recipient);
                 throw new OdinSystemException("Could not get public Ecc key for recipient");
             }
 
@@ -454,7 +454,7 @@ namespace Odin.Services.EncryptionKeyService
 
             return (true, keyHeader);
         }
-        
+
         private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryption(PublicPrivateKeyType keyType, uint crc32,
             IOdinContext odinContext, DatabaseConnection cn)
         {
@@ -486,8 +486,7 @@ namespace Odin.Services.EncryptionKeyService
             var existingKeys = _storage.Get<RsaFullKeyListData>(cn, storageKey);
             if (null != existingKeys)
             {
-                // throw new OdinSecurityException($"Rsa keys with storage key {storageKey} already exist.");
-                _logger.LogInformation("Attempt to creat new RSA keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
+                _logger.LogInformation("Attempt to create new RSA keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
             }
 
             //create a new key list
@@ -534,7 +533,7 @@ namespace Odin.Services.EncryptionKeyService
             if (null != existingKeys)
             {
                 // throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
-                _logger.LogInformation("Attempt to creat new ECC keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
+                _logger.LogInformation("Attempt to create new ECC keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
             }
 
             //create a new key list

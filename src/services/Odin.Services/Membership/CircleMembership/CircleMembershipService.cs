@@ -306,7 +306,7 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.CreateSystemCircles(cn);
+        await circleDefinitionService.EnsureSystemCirclesExist(cn);
     }
 
     private bool CircleIsEnabled(GuidId circleId, out bool exists, DatabaseConnection cn)
