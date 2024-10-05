@@ -112,6 +112,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.AllowIntroductions);
 
+        _logger.LogDebug("Receiving introductions from {sender}", odinContext.GetCallerOdinIdOrFail());
+        
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
         var payloadBytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);

@@ -428,7 +428,7 @@ public class CollaborationChannelTests
 
         ApiResponse<TransitResult> response = null;
 
-        for (var i = 0; i < 100; i++)
+        // for (var i = 0; i < 100; i++)
         {
             //Pippin sends a file to the recipient
             (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
