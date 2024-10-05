@@ -102,7 +102,7 @@ namespace Odin.Services.Membership.Connections
             {
                 throw new OdinSecurityException("missing icr key");
             }
-
+            
             var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
             return cat;
         }

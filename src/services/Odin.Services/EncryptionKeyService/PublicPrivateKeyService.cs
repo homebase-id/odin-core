@@ -125,7 +125,7 @@ namespace Odin.Services.EncryptionKeyService
 
         private GuidId GetEccCacheKey(PublicPrivateKeyType keyType, string domainName)
         {
-            return GuidId.FromString($"ecc_{Enum.GetName(keyType)}_{domainName}");
+            return GuidId.FromString($"ecc1_{Enum.GetName(keyType)}_{domainName}");
         }
 
         private GuidId GetRsaCacheKey(PublicPrivateKeyType keyType, string domainName)
@@ -290,7 +290,7 @@ namespace Odin.Services.EncryptionKeyService
                     return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId, cn));
 
                 case PublicPrivateKeyType.OnlineIcrEncryptedKey:
-                    return Task.FromResult(GetCurrentIcrEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, cn));
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, cn));
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
@@ -566,22 +566,6 @@ namespace Odin.Services.EncryptionKeyService
             }
 
             return EccKeyListManagement.GetCurrentKey(keyList);
-        }
-
-        private EccFullKeyData GetCurrentIcrEccKeyFromStorage(Guid storageKey, DatabaseConnection cn)
-        {
-            var keyList = GetIcrEccKeyListFromStorage(storageKey, cn);
-            if (null == keyList)
-            {
-                return null;
-            }
-
-            return EccKeyListManagement.GetCurrentKey(keyList);
-        }
-
-        private EccFullKeyListData GetIcrEccKeyListFromStorage(Guid storageKey, DatabaseConnection cn)
-        {
-            return _storage.Get<EccFullKeyListData>(cn, storageKey);
         }
 
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey, DatabaseConnection cn)

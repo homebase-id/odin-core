@@ -1128,7 +1128,7 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        private async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext, DatabaseConnection cn)
         {
             if (identity.TemporaryWeakClientAccessToken != null)
             {

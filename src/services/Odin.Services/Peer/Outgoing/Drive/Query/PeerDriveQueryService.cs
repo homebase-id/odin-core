@@ -38,7 +38,8 @@ public class PeerDriveQueryService(
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
 {
-    public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -99,7 +100,8 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, cn);
@@ -228,7 +230,8 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -405,6 +408,14 @@ public class PeerDriveQueryService(
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await circleNetworkService.GetIcr(odinId, odinContext, cn, overrideHack: true);
+
+        // there's a chance the icr.EncryptedClientAccessToken has not yet been upgraded so try to upgrade
+        if (icr.EncryptedClientAccessToken == null)
+        {
+            await circleNetworkService.UpgradeTokenEncryptionIfNeeded(icr, odinContext, cn);
+            icr = await circleNetworkService.GetIcr(odinId, odinContext, cn, overrideHack: true);
+        }
+
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
@@ -497,7 +508,8 @@ public class PeerDriveQueryService(
             string decryptedContentType,
             UnixTimeUtc? lastModified,
             Stream thumbnail)>
-        HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response, IOdinContext odinContext, DatabaseConnection cn)
+        HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response, IOdinContext odinContext,
+            DatabaseConnection cn)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -568,7 +580,7 @@ public class PeerDriveQueryService(
         {
             ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
         }
-        
+
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
         var stream = await response.Content!.ReadAsStreamAsync();
