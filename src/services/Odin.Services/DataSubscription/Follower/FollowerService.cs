@@ -421,7 +421,7 @@ namespace Odin.Services.DataSubscription.Follower
                 : OdinContextUpgrades.PatchInSharedSecret(
                     odinContext,
                     sharedSecret: sharedSecret);
-            
+
             foreach (var results in collection.Results)
             {
                 if (results.InvalidDrive)
@@ -477,7 +477,7 @@ namespace Odin.Services.DataSubscription.Follower
 
                 IsEncrypted = fm.IsEncrypted,
                 SenderOdinId = odinId,
-
+                OriginalAuthor = fm.OriginalAuthor,
                 VersionTag = fm.VersionTag,
                 ReactionPreview = fm.ReactionPreview,
                 Created = fm.Created,

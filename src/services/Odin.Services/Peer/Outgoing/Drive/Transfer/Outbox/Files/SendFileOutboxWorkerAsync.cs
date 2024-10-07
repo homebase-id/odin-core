@@ -161,6 +161,7 @@ public class SendFileOutboxWorkerAsync(
             GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
             ReactionPreview = sourceMetadata.ReactionPreview,
             SenderOdinId = sourceMetadata.SenderOdinId,
+            OriginalAuthor = sourceMetadata.OriginalAuthor,
             ReferencedFile = sourceMetadata.ReferencedFile,
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,

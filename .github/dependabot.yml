@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directories:
+      - "/src/apps/Odin.Cli"
+      - "/src/apps/Odin.Hosting"
+      - "/src/apps/Odin.PushNotification"
+      - "/src/apps/Odin.SetupHelper"
+      - "/src/core/Odin.Core"
+      - "/src/core/Odin.Core.Cryptography"
+      - "/src/core/Odin.Core.Storage"
+      - "/src/services/Odin.Services"
+      - "/tests/apps/Odin.Hosting.Tests"
+      - "/tests/apps/Odin.PushNotification.Tests"
+      - "/tests/apps/Odin.SetupHelper.Tests"
+      - "/tests/core/Odin.Core.Cryptography.Tests"
+      - "/tests/core/Odin.Core.Storage.Tests"
+      - "/tests/core/Odin.Core.Tests"
+      - "/tests/helpers/Odin.Test.Helpers"
+      - "/tests/services/Odin.Services.Tests"
+    schedule:
+      interval: daily
+    # disable pull requests until versioning-strategy works with nugets
+    open-pull-requests-limit: 0
+    # versioning-strategy: increase
+    rebase-strategy: auto
