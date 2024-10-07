@@ -118,84 +118,84 @@ public static class Header2Database
         
         db.tblDriveMainIndex.RecreateTable();
         
-        // foreach (var driveMainIndex in driveMainIndexes)
-        // {
-        //     if (driveMainIndex.driveId == Guid.Empty)
-        //     {
-        //         Log.Error("driveId is null-guid");
-        //     }
-        //     if (driveMainIndex.fileId == Guid.Empty)
-        //     {
-        //         Log.Error("fileId is null-guid");
-        //     }
-        //     if (driveMainIndex.globalTransitId == Guid.Empty)
-        //     {
-        //         Log.Error("globalTransitId is null-guid");
-        //     }
-        //     if (driveMainIndex.uniqueId == Guid.Empty)
-        //     {
-        //         Log.Error("uniqueId is null-guid");
-        //     }
-        //     
-        //     var driveId = driveMainIndex.driveId.ToString("N"); 
-        //     var fileId = driveMainIndex.fileId.ToString("N");
-        //     
-        //     var headerPath = Path.Combine(
-        //         tenantHome, 
-        //         "headers", 
-        //         "drives",
-        //         driveId,
-        //         "files",
-        //         fileId.Substring(0, 4), 
-        //         fileId.Substring(4, 2), 
-        //         fileId.Substring(6, 2), 
-        //         fileId.Substring(8, 2), 
-        //         fileId + ".header");
-        //     
-        //     // Log.Information("Loading header {headerPath}", headerPath);
-        //     var json = File.ReadAllText(headerPath);
-        //     var header = OdinSystemSerializer.DeserializeOrThrow<ServerFileHeader>(json);
-        //     
-        //     File.Move(headerPath, headerPath + ".backup");
-        //     
-        //     var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
-        //     sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
-        //     sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
-        //     sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
-        // }
-        
-        var headerFiles = Directory.GetFiles(tenantHome, "*.header", SearchOption.AllDirectories);
-        foreach (var headerFile in headerFiles)
+        foreach (var driveMainIndex in driveMainIndexes)
         {
-            // 0323d2a3-053d-43d7-a968-c9cc0eba7bc8 / headers  / drives / 574d1ebf19e645108bd294db1670a49b / files / 3f72 / 24 / 19 / 20 / 3f72241920a2870055db058c2021ca26.header
-            // tenant id                            /  dir     / dir    / ?                                / dir   / ?    / ?  / ?  / ?  / header filename
-            Log.Information("Importing {headerFile}", headerFile);
-            var json = File.ReadAllText(headerFile);
+            if (driveMainIndex.driveId == Guid.Empty)
+            {
+                Log.Error("driveId is null-guid");
+            }
+            if (driveMainIndex.fileId == Guid.Empty)
+            {
+                Log.Error("fileId is null-guid");
+            }
+            if (driveMainIndex.globalTransitId == Guid.Empty)
+            {
+                Log.Error("globalTransitId is null-guid");
+            }
+            if (driveMainIndex.uniqueId == Guid.Empty)
+            {
+                Log.Error("uniqueId is null-guid");
+            }
+            
+            var driveId = driveMainIndex.driveId.ToString("N"); 
+            var fileId = driveMainIndex.fileId.ToString("N");
+            
+            var headerPath = Path.Combine(
+                tenantHome, 
+                "headers", 
+                "drives",
+                driveId,
+                "files",
+                fileId.Substring(0, 4), 
+                fileId.Substring(4, 2), 
+                fileId.Substring(6, 2), 
+                fileId.Substring(8, 2), 
+                fileId + ".header");
+            
+            // Log.Information("Loading header {headerPath}", headerPath);
+            var json = File.ReadAllText(headerPath);
             var header = OdinSystemSerializer.DeserializeOrThrow<ServerFileHeader>(json);
             
-            if (header.FileMetadata.File.DriveId == Guid.Empty)
-            {
-                throw new Exception("DriveId is null-guid");
-            }
-            if (header.FileMetadata.File.FileId == Guid.Empty)
-            {
-                throw new Exception("FileId is null-guid");
-            }
-            if (header.FileMetadata.GlobalTransitId == Guid.Empty)
-            {
-                throw new Exception("GlobalTransitId is null-guid");
-            }   
-            if (header.FileMetadata.AppData.UniqueId == Guid.Empty)
-            {
-                throw new Exception("AppData.UniqueId is null-guid");
-            }   
+            File.Move(headerPath, headerPath + ".backup");
             
             var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
             sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
-            
-            // SEB:TODO
-            // sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
-            // sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
-        }        
+            sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
+            sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
+        }
+        
+        // var headerFiles = Directory.GetFiles(tenantHome, "*.header", SearchOption.AllDirectories);
+        // foreach (var headerFile in headerFiles)
+        // {
+        //     // 0323d2a3-053d-43d7-a968-c9cc0eba7bc8 / headers  / drives / 574d1ebf19e645108bd294db1670a49b / files / 3f72 / 24 / 19 / 20 / 3f72241920a2870055db058c2021ca26.header
+        //     // tenant id                            /  dir     / dir    / ?                                / dir   / ?    / ?  / ?  / ?  / header filename
+        //     Log.Information("Importing {headerFile}", headerFile);
+        //     var json = File.ReadAllText(headerFile);
+        //     var header = OdinSystemSerializer.DeserializeOrThrow<ServerFileHeader>(json);
+        //     
+        //     if (header.FileMetadata.File.DriveId == Guid.Empty)
+        //     {
+        //         throw new Exception("DriveId is null-guid");
+        //     }
+        //     if (header.FileMetadata.File.FileId == Guid.Empty)
+        //     {
+        //         throw new Exception("FileId is null-guid");
+        //     }
+        //     if (header.FileMetadata.GlobalTransitId == Guid.Empty)
+        //     {
+        //         throw new Exception("GlobalTransitId is null-guid");
+        //     }   
+        //     if (header.FileMetadata.AppData.UniqueId == Guid.Empty)
+        //     {
+        //         throw new Exception("AppData.UniqueId is null-guid");
+        //     }   
+        //     
+        //     var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
+        //     sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
+        //     
+        //     // SEB:TODO
+        //     // sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
+        //     // sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
+        // }        
     }
 }
