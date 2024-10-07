@@ -161,10 +161,10 @@ namespace Odin.Services.Membership.Connections
             {
                 _storage.Delete(odinId, cn);
 
-                await mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+                await mediator.Publish(new ConnectionDeletedNotification()
                 {
-                    OdinId = odinId,
                     OdinContext = odinContext,
+                    OdinId = odinId,
                     DatabaseConnection = cn
                 });
 
@@ -592,10 +592,10 @@ namespace Odin.Services.Membership.Connections
         public async Task RevokeConnection(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
             _storage.Delete(odinId, cn);
-            await mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+            await mediator.Publish(new ConnectionDeletedNotification()
             {
-                OdinId = odinId,
                 OdinContext = odinContext,
+                OdinId = odinId,
                 DatabaseConnection = cn
             });
         }
@@ -1118,14 +1118,6 @@ namespace Odin.Services.Membership.Connections
             {
                 _storage.Upsert(icr, odinContext, cn);
             }
-
-            //notify anyone caching data for this identity, we need to reset the cache
-            mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
-            {
-                OdinId = icr.OdinId,
-                OdinContext = odinContext,
-                DatabaseConnection = cn
-            });
         }
 
         public async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext, DatabaseConnection cn)

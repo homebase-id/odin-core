@@ -35,7 +35,8 @@ namespace Odin.Services.Membership.Connections.Requests;
 /// </summary>
 public class CircleNetworkIntroductionService : PeerServiceBase,
     INotificationHandler<ConnectionFinalizedNotification>,
-    INotificationHandler<ConnectionBlockedNotification>
+    INotificationHandler<ConnectionBlockedNotification>,
+    INotificationHandler<ConnectionDeletedNotification>
 {
     private readonly byte[] _receivedIntroductionDataType = Guid.Parse("0b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
 
@@ -174,6 +175,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext, DatabaseConnection connection)
     {
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequests(PageOptions.All, odinContext, connection);
+        _logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)", incomingConnectionRequests.Results.Count);
 
         foreach (var request in incomingConnectionRequests.Results)
         {
@@ -184,6 +186,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 var introduction = await this.GetIntroductionInternal(sender, connection);
                 if (null != introduction)
                 {
+                    _logger.LogInformation("Auto-accept connection request from {sender} due to received introduction", sender);
                     await AutoAccept(sender, odinContext, connection);
                     return;
                 }
@@ -191,14 +194,21 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, connection);
                 if (null != existingSentRequest)
                 {
+                    _logger.LogInformation("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
+
                     await AutoAccept(sender, odinContext, connection);
                     return;
                 }
 
                 if (await CircleNetworkService.IsConnected(sender, odinContext, connection))
                 {
+                    _logger.LogInformation("Auto-accept connection request from {sender} since there is already an ICR", sender);
                     await AutoAccept(sender, odinContext, connection);
+                    return;
                 }
+                
+                _logger.LogInformation("Auto-accept was not executed for request from {sender}; not matching reasons to accept", sender);
+
             }
             catch (Exception ex)
             {
@@ -286,7 +296,18 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             await DeleteIntroductionsFrom(notification.OdinId, notification.DatabaseConnection);
         });
     }
+    
+    public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
+    {
+        var cn = notification.DatabaseConnection;
+        await cn.CreateCommitUnitOfWorkAsync(async () =>
+        {
+            await DeleteIntroductionsTo(notification.OdinId, notification.DatabaseConnection);
+            await DeleteIntroductionsFrom(notification.OdinId, notification.DatabaseConnection);
+        });
+    }
 
+    
     private SignatureData Sign(byte[] data, IOdinContext odinContext)
     {
         var password = Guid.NewGuid().ToByteArray().ToSensitiveByteArray();
@@ -358,6 +379,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         try
         {
+            _logger.LogInformation("Attempting to auto-accept connection request from {sender}", sender);
             await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, connection);
         }
         catch (Exception ex)
@@ -377,7 +399,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         const int minDaysSinceLastSend = 3; //TODO: config
         if (intro.LastProcessed != UnixTimeUtc.ZeroTime && intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
         {
-            _logger.LogDebug("Ignoring introduction to {recipient} from {introducer} since we last processed less than {days} days ago",
+            _logger.LogDebug("Ignoring introduction to {recipient} from {introducer} since we last processed this less than {days} days ago",
                 recipient,
                 introducer,
                 minDaysSinceLastSend);

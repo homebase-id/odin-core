@@ -69,7 +69,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
 
             cb.RegisterType<PushNotificationOutboxAdapter>()
@@ -117,7 +117,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<HomeAuthenticatorService>()
                 .AsSelf()
-                .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
+                .As<INotificationHandler<ConnectionBlockedNotification>>()
+                .As<INotificationHandler<ConnectionFinalizedNotification>>()
+                .As<INotificationHandler<ConnectionDeletedNotification>>()
                 .SingleInstance();
             cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
 
@@ -132,7 +134,7 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<IcrKeyAvailableContext>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
@@ -144,7 +146,7 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileUpdateWriter>().AsSelf().InstancePerDependency();
-            
+
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
@@ -153,7 +155,7 @@ namespace Odin.Hosting
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
-            
+
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -164,7 +166,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
             cb.RegisterType<GroupReactionService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -188,9 +190,10 @@ namespace Odin.Hosting
             cb.RegisterType<CircleNetworkIntroductionService>().AsSelf()
                 .As<INotificationHandler<ConnectionFinalizedNotification>>()
                 .As<INotificationHandler<ConnectionBlockedNotification>>()
+                .As<INotificationHandler<ConnectionDeletedNotification>>()
                 .SingleInstance();
             cb.RegisterType<CircleNetworkVerificationService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
@@ -200,7 +203,9 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitAuthenticationService>()
-                .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
+                .As<INotificationHandler<ConnectionFinalizedNotification>>()
+                .As<INotificationHandler<ConnectionBlockedNotification>>()
+                .As<INotificationHandler<ConnectionDeletedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -225,7 +230,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerIncomingReactionService>().AsSelf().SingleInstance();
             cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<PublicPrivateKeyService>()
                 .AsSelf()
                 .SingleInstance();

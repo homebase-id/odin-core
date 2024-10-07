@@ -4,13 +4,10 @@ using Odin.Services.Mediator;
 
 namespace Odin.Services.AppNotifications.SystemNotifications;
 
-/// <summary>
-/// System notification used to handle clean up when a connection is blocked
-/// </summary>
-public class ConnectionBlockedNotification : MediatorNotificationBase
+public class ConnectionDeletedNotification : MediatorNotificationBase
 {
     /// <summary>
-    /// The identity that was blocked
+    /// The identity that was deleted
     /// </summary>
     public OdinId OdinId { get; init; }
     
