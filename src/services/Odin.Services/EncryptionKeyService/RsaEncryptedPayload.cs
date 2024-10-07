@@ -52,6 +52,6 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// The crc of the public key used to encrypt this payload
         /// </summary>
-        public uint RecipientPublicKeyCrc32 { get; set; }
+        public uint EncryptionPublicKeyCrc32 { get; set; }
     }
 }

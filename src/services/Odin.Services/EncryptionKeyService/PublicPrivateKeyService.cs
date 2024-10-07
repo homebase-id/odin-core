@@ -147,7 +147,7 @@ namespace Odin.Services.EncryptionKeyService
                 Iv = iv,
                 EncryptedData = AesCbc.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
-                RecipientPublicKeyCrc32 = recipientPublicKey.crc32c
+                EncryptionPublicKeyCrc32 = recipientPublicKey.crc32c
             };
         }
 
@@ -169,6 +169,7 @@ namespace Odin.Services.EncryptionKeyService
                 Iv = iv,
                 EncryptedData = AesCbc.Encrypt(payload, ss, iv),
                 Salt = randomSalt,
+                EncryptionPublicKeyCrc32 = publicEccKey.crc32c
             };
         }
 
@@ -176,7 +177,7 @@ namespace Odin.Services.EncryptionKeyService
         {
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
 
-            if (!await IsValidEccPublicKey(keyType, payload.RecipientPublicKeyCrc32, odinContext, cn))
+            if (!await IsValidEccPublicKey(keyType, payload.EncryptionPublicKeyCrc32, odinContext, cn))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
             }
