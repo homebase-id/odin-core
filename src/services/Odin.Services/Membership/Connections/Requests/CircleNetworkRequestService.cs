@@ -221,14 +221,20 @@ namespace Odin.Services.Membership.Connections.Requests
             odinContext.Caller.AssertCallerIsAuthenticated();
 
             //TODO: check robot detection code
-
+            
+            if (!await _publicPrivateKeyService.IsValidEccPublicKey(KeyType,
+                    EccPublicKeyData.FromJwkPublicKey(payload.PublicKey),
+                    odinContext, cn))
+            {
+                throw new OdinClientException("Encrypted Payload Public Key does not match recipient");
+            }
+            
             var sender = odinContext.GetCallerOdinIdOrFail();
             var recipient = _tenantContext.HostOdinId;
 
             var existingConnection = await _cns.GetIcr(sender, odinContext, cn, true);
             if (existingConnection.Status == ConnectionStatus.Blocked)
             {
-                // throw new OdinClientException("Blocked", OdinClientErrorCode.BlockedConnection);
                 throw new OdinSecurityException("Identity is blocked");
             }
 
@@ -801,7 +807,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
             }
         }
-        
+
         private async Task CreateAndSendRequestInternal(ConnectionRequestHeader header, SensitiveByteArray masterKey, IOdinContext odinContext,
             DatabaseConnection cn)
         {
@@ -914,9 +920,10 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Remote server denied connection");
             }
 
-            if (!response.IsSuccessStatusCode && response.Content!.Success)
+            if (!response.IsSuccessStatusCode || response.Content!.Success)
             {
-                //public key might be invalid, destroy the cache item
+                // Public key might be invalid, destroy the cache item
+                _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. Invalidating public key cache and retrying", recipient);
                 await _publicPrivateKeyService.InvalidateRecipientEccPublicKey(KeyType, recipient, cn);
 
                 var response2 = await Send();

@@ -58,13 +58,6 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Destroys the cache item for the recipients public key so a new one will be retrieved
         /// </summary>
-        public async Task InvalidateRecipientRsaPublicKey(PublicPrivateKeyType keyType, OdinId recipient, DatabaseConnection cn)
-        {
-            var cacheKey = GetRsaCacheKey(keyType, recipient);
-            _storage.Delete(cn, cacheKey);
-            await Task.CompletedTask;
-        }
-
         public async Task InvalidateRecipientEccPublicKey(PublicPrivateKeyType keyType, OdinId recipient, DatabaseConnection cn)
         {
             GuidId cacheKey = GetEccCacheKey(keyType, recipient.DomainName);
@@ -124,12 +117,7 @@ namespace Odin.Services.EncryptionKeyService
         {
             return GuidId.FromString($"ecc2_{Enum.GetName(keyType)}_{domainName}");
         }
-
-        private GuidId GetRsaCacheKey(PublicPrivateKeyType keyType, string domainName)
-        {
-            return GuidId.FromString($"rsa_{Enum.GetName(keyType)}_{domainName}");
-        }
-
+        
         public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload,
             DatabaseConnection cn)
         {
@@ -185,7 +173,14 @@ namespace Odin.Services.EncryptionKeyService
 
         public async Task<byte[]> EccDecryptPayload(PublicPrivateKeyType keyType, EccEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var fullEccKey = await this.GetEccFullKey(keyType, cn);
+            var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
+
+            if (!await IsValidEccPublicKey(keyType, publicKey, odinContext, cn))
+            {
+                throw new OdinClientException("Encrypted Payload Public Key does not match");
+            }
+
+            var fullEccKey = await GetEccFullKey(keyType, cn);
 
             SensitiveByteArray key;
             switch (keyType)
@@ -202,18 +197,19 @@ namespace Odin.Services.EncryptionKeyService
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
-
-            var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
-
-            _logger.LogDebug("L Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
-            _logger.LogDebug("I Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
-            if (!ByteArrayUtil.EquiByteArrayCompare(fullEccKey.publicKey, publicKey.publicKey))
-            {
-                throw new OdinClientException("Encrypted Payload Public Key does not match");
-            }
-
+            
             var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(key, publicKey, payload.Salt);
             return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
+        }
+
+        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, EccPublicKeyData publicKey, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            var fullEccKey = await this.GetEccFullKey(keyType, cn);
+
+            _logger.LogDebug("Exp Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
+            _logger.LogDebug("Act Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
+
+            return ByteArrayUtil.EquiByteArrayCompare(fullEccKey.publicKey, publicKey.publicKey);
         }
 
         public Task<EccPublicKeyData> GetSigningPublicKey(DatabaseConnection cn)
