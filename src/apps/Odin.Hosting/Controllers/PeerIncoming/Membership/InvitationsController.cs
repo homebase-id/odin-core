@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         {
             using var cn = tenantSystemStorage.CreateConnection();
             await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, cn);
-            return new JsonResult(new NoResultResponse(true));
+            return Ok();
         }
 
 

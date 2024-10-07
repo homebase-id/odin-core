@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -223,7 +224,7 @@ namespace Odin.Services.Membership.Connections.Requests
             //TODO: check robot detection code
             
             if (!await _publicPrivateKeyService.IsValidEccPublicKey(KeyType,
-                    EccPublicKeyData.FromJwkPublicKey(payload.PublicKey),
+                    payload.RecipientPublicKeyCrc32,
                     odinContext, cn))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match recipient");
@@ -895,7 +896,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task TrySendRequestInternal(OdinId recipient, ConnectionRequest request, IOdinContext odinContext, DatabaseConnection cn)
         {
-            async Task<ApiResponse<NoResultResponse>> Send()
+            async Task<ApiResponse<HttpContent>> Send()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
 
@@ -920,7 +921,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Remote server denied connection");
             }
 
-            if (!response.IsSuccessStatusCode || response.Content!.Success)
+            if (!response.IsSuccessStatusCode)
             {
                 // Public key might be invalid, destroy the cache item
                 _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. Invalidating public key cache and retrying", recipient);
@@ -932,13 +933,12 @@ namespace Odin.Services.Membership.Connections.Requests
                     throw new OdinSecurityException("Remote server denied connection");
                 }
 
-                if (!response2.IsSuccessStatusCode && response2.Content!.Success)
+                if (!response2.IsSuccessStatusCode)
                 {
                     throw new OdinClientException("Failed to establish connection request");
                 }
             }
-
-            // return response;
+            
         }
     }
 }

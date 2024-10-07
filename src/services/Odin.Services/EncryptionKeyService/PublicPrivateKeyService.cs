@@ -9,6 +9,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -93,10 +94,13 @@ namespace Odin.Services.EncryptionKeyService
                         return null;
                     }
 
-                    cacheItem = EccPublicKeyData.FromJwkPublicKey(getPkResponse.Content.PublicKey.ToStringFromUtf8Bytes());
-                    cacheItem.expiration = getPkResponse.Content.Expiration; //use the actual expiration from the remote server
-
+                    var content = getPkResponse.Content;
+                    cacheItem = EccPublicKeyData.FromJwkPublicKey(content.PublicKeyJwk);
+                    cacheItem.expiration = new UnixTimeUtc(content.Expiration);
+                    cacheItem.crc32c = content.CRC32c;
+                    
                     _logger.LogDebug("Updating ecc public key cache record for recipient: {r} with cacheKey: {k}", recipient, cacheKey);
+                    _logger.LogDebug("Updated ecc public key: {k}", cacheItem);
                     _storage.Upsert(cn, cacheKey, cacheItem);
                 }
 
@@ -117,7 +121,7 @@ namespace Odin.Services.EncryptionKeyService
         {
             return GuidId.FromString($"ecc2_{Enum.GetName(keyType)}_{domainName}");
         }
-        
+
         public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload,
             DatabaseConnection cn)
         {
@@ -129,11 +133,7 @@ namespace Odin.Services.EncryptionKeyService
                 throw new OdinSystemException("Could not get public Ecc key for recipient");
             }
 
-            // var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey(cn);
-            // var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
-            // var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
-
-            //note: here we are throwing a way the full key intentionally
+            // Note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             EccFullKeyData senderEccFullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
 
@@ -143,10 +143,11 @@ namespace Odin.Services.EncryptionKeyService
 
             return new EccEncryptedPayload
             {
-                PublicKey = senderEccFullKey.PublicKeyJwk(),
+                PublicKey = senderEccFullKey.PublicKeyJwk(),  //reminder, this must be the sender's public key
                 Iv = iv,
                 EncryptedData = AesCbc.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
+                RecipientPublicKeyCrc32 = recipientPublicKey.crc32c
             };
         }
 
@@ -175,7 +176,7 @@ namespace Odin.Services.EncryptionKeyService
         {
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
 
-            if (!await IsValidEccPublicKey(keyType, publicKey, odinContext, cn))
+            if (!await IsValidEccPublicKey(keyType, payload.RecipientPublicKeyCrc32, odinContext, cn))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
             }
@@ -197,19 +198,15 @@ namespace Odin.Services.EncryptionKeyService
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
-            
+
             var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(key, publicKey, payload.Salt);
             return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
-        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, EccPublicKeyData publicKey, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, uint publicKeyCrc32C, IOdinContext odinContext, DatabaseConnection cn)
         {
             var fullEccKey = await this.GetEccFullKey(keyType, cn);
-
-            _logger.LogDebug("Exp Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
-            _logger.LogDebug("Act Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
-
-            return ByteArrayUtil.EquiByteArrayCompare(fullEccKey.publicKey, publicKey.publicKey);
+            return fullEccKey.crc32c == publicKeyCrc32C;
         }
 
         public Task<EccPublicKeyData> GetSigningPublicKey(DatabaseConnection cn)
@@ -226,8 +223,9 @@ namespace Odin.Services.EncryptionKeyService
 
         public Task<EccPublicKeyData> GetOnlineIcrEncryptedEccPublicKey(DatabaseConnection cn)
         {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, cn);
-            return Task.FromResult((EccPublicKeyData)keyPair);
+            var fullKey = this.GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, cn);
+            var publicKey = (EccPublicKeyData)fullKey;
+            return Task.FromResult(publicKey);
         }
 
         public Task<EccFullKeyData> GetEccFullKey(PublicPrivateKeyType keyType, DatabaseConnection cn)
