@@ -3,14 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -40,7 +38,6 @@ namespace Odin.Services.EncryptionKeyService
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ILogger<PublicPrivateKeyService> _logger;
 
-        private static readonly SemaphoreSlim RsaRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -133,58 +130,6 @@ namespace Odin.Services.EncryptionKeyService
             return GuidId.FromString($"rsa_{Enum.GetName(keyType)}_{domainName}");
         }
 
-        private async Task<RsaPublicKeyData> ResolveRecipientRsaKey(PublicPrivateKeyType keyType, OdinId recipient, DatabaseConnection cn,
-            bool failIfCannotRetrieve = true)
-        {
-            await RsaRecipientOnlinePublicKeyCacheLock.WaitAsync();
-            try
-            {
-                GuidId cacheKey = GetRsaCacheKey(keyType, recipient);
-
-                var cacheItem = _storage.Get<RsaPublicKeyData>(cn, cacheKey);
-                if ((cacheItem == null || cacheItem.IsExpired()))
-                {
-                    var svc = _odinHttpClientFactory.CreateClient<IPeerEncryptionKeyServiceHttpClient>(recipient);
-                    var tpkResponse = await svc.GetRsaPublicKey(keyType);
-
-                    if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
-                    {
-                        // SEB:NOTE this can happen in dev environments where a production peer does 
-                        // not accept certificates from letsencrypt staging CA. 
-                        var errorMessage = tpkResponse.Error?.Message ?? "unknown error";
-                        throw new OdinSystemException($"ResolveRecipientRsaKey failed for {recipient}: {errorMessage}");
-                    }
-
-                    cacheItem = new RsaPublicKeyData()
-                    {
-                        publicKey = tpkResponse.Content.PublicKey,
-                        crc32c = tpkResponse.Content.Crc32,
-                        expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
-                    };
-
-                    _storage.Upsert(cn, cacheKey, cacheItem);
-                }
-
-                if (null == cacheItem && failIfCannotRetrieve)
-                {
-                    throw new MissingDataException("Could not get recipients offline public key");
-                }
-
-                return cacheItem;
-            }
-            finally
-            {
-                RsaRecipientOnlinePublicKeyCacheLock.Release();
-            }
-        }
-
-        public async Task<RsaEncryptedPayload> RsaEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload,
-            DatabaseConnection cn)
-        {
-            RsaPublicKeyData pk = await ResolveRecipientRsaKey(keyType, recipient, cn);
-            return Encrypt(pk, payload);
-        }
-
         public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload,
             DatabaseConnection cn)
         {
@@ -195,6 +140,10 @@ namespace Odin.Services.EncryptionKeyService
                 _logger.LogDebug("Could not get public Ecc key (type: {kt}) for recipient: {recipient}", keyType, recipient);
                 throw new OdinSystemException("Could not get public Ecc key for recipient");
             }
+
+            // var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey(cn);
+            // var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
+            // var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
 
             //note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
@@ -255,9 +204,9 @@ namespace Odin.Services.EncryptionKeyService
             }
 
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
-            
-            _logger.LogDebug("Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
-            _logger.LogDebug("Incoming Payload Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
+
+            _logger.LogDebug("L Public Key was [{payloadPk}]", fullEccKey.PublicKeyJwk());
+            _logger.LogDebug("I Public Key was [{payloadPk}]", publicKey.PublicKeyJwk());
             if (!ByteArrayUtil.EquiByteArrayCompare(fullEccKey.publicKey, publicKey.publicKey))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
@@ -493,6 +442,7 @@ namespace Odin.Services.EncryptionKeyService
             if (null != existingKeys)
             {
                 _logger.LogInformation("Attempt to create new RSA keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
+                return Task.CompletedTask;
             }
 
             //create a new key list
@@ -540,6 +490,7 @@ namespace Odin.Services.EncryptionKeyService
             {
                 // throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
                 _logger.LogInformation("Attempt to create new ECC keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
+                return Task.CompletedTask;
             }
 
             //create a new key list
@@ -577,19 +528,6 @@ namespace Odin.Services.EncryptionKeyService
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey, DatabaseConnection cn)
         {
             return _storage.Get<EccFullKeyListData>(cn, storageKey);
-        }
-
-        private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)
-        {
-            var keyHeader = KeyHeader.NewRandom16();
-            return new RsaEncryptedPayload()
-            {
-                //Note: i exclude the key type here because the methods that receive
-                //this must decide the encryption they expect
-                Crc32 = pk.crc32c,
-                RsaEncryptedKeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
-                KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
-            };
         }
     }
 }

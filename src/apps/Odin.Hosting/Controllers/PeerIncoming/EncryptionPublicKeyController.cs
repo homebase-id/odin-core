@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
@@ -17,10 +18,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController(
         PublicPrivateKeyService publicPrivateKeyService,
-        TenantSystemStorage tenantSystemStorage
-        ) : ControllerBase
+        TenantSystemStorage tenantSystemStorage,
+        ILogger<EncryptionPublicKeyController> logger) : ControllerBase
     {
-
         [HttpGet("rsa_public_key")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
@@ -33,11 +33,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming
                 Expiration = key.expiration.milliseconds
             };
         }
-        
+
         [HttpGet("ecc_public_key")]
         public async Task<GetPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
         {
             using var cn = tenantSystemStorage.CreateConnection();
+
+            logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
             var key = await publicPrivateKeyService.GetPublicEccKey(keyType, cn);
             return new GetPublicKeyResponse()
             {

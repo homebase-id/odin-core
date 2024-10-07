@@ -1132,6 +1132,8 @@ namespace Odin.Services.Membership.Connections
         {
             if (identity.TemporaryWeakClientAccessToken != null)
             {
+                logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
+
                 var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
                     PublicPrivateKeyType.OnlineIcrEncryptedKey,
                     identity.TemporaryWeakClientAccessToken, odinContext, cn);
@@ -1145,17 +1147,19 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext, DatabaseConnection cn)
         {
-            if (icr.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
+            if (identity.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
             {
+                logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
+
                 var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
                     PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                    icr.TempWeakKeyStoreKey, odinContext, cn);
+                    identity.TempWeakKeyStoreKey, odinContext, cn);
 
                 var masterKey = odinContext.Caller.GetMasterKey();
-                icr.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                icr.TempWeakKeyStoreKey = null;
+                identity.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                identity.TempWeakKeyStoreKey = null;
             }
         }
     }

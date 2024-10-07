@@ -893,7 +893,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
 
-                var rsaEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipient(
+                var eccEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipient(
                     KeyType,
                     recipient,
                     payloadBytes,
@@ -904,7 +904,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     ? _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient)
                     : _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient, token.ToAuthenticationToken());
 
-                var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
+                var response = await client.DeliverConnectionRequest(eccEncryptedPayload);
                 return response;
             }
 
