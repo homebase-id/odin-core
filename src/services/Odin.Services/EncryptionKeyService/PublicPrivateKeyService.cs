@@ -122,7 +122,7 @@ namespace Odin.Services.EncryptionKeyService
 
         private GuidId GetEccCacheKey(PublicPrivateKeyType keyType, string domainName)
         {
-            return GuidId.FromString($"ecc1_{Enum.GetName(keyType)}_{domainName}");
+            return GuidId.FromString($"ecc2_{Enum.GetName(keyType)}_{domainName}");
         }
 
         private GuidId GetRsaCacheKey(PublicPrivateKeyType keyType, string domainName)
