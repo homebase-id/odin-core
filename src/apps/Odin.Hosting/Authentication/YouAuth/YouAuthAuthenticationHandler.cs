@@ -104,11 +104,10 @@ namespace Odin.Hosting.Authentication.YouAuth
             if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
             {
                 // there's an ICR key, so we can handle introductions, if any
-                var icrContext = Context.RequestServices.GetRequiredService<IcrKeyAvailableContext>();
-                icrContext.SetContext((OdinContext)ctx);
-
+                // var icrContext = Context.RequestServices.GetRequiredService<IcrKeyAvailableContext>();
+                // icrContext.SetContext((OdinContext)ctx);
                 var icrKeyBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
-                icrKeyBackgroundService.PulseBackgroundProcessor();
+                icrKeyBackgroundService.RunNow(ctx);
             }
 
             var claims = new List<Claim>

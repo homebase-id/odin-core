@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Authentication;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -24,21 +23,39 @@ public sealed class IcrKeyAvailableBackgroundService(
 {
     private readonly Odin.Services.Tenant.Tenant _tenant = tenant;
 
+    private IOdinContext _odinContext;
+    private readonly SemaphoreSlim _lock = new(1, 1);
+
+    public void RunNow(IOdinContext odinContext)
+    {
+        this._odinContext = odinContext;
+        
+        //todo: need to check if this odincontext is worth running the process
+        //i can do this by checking permissions, etc.
+        
+        this.PulseBackgroundProcessor();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         //TODO: need to throttle this
 
         var scope = tenantContainerAccessor.Container().GetTenantScope(_tenant.Name);
 
-        var accessor = scope.Resolve<IcrKeyAvailableContext>();
+        // var accessor = scope.Resolve<IcrKeyAvailableContext>();
         var circleNetworkIntroductionService = scope.Resolve<CircleNetworkIntroductionService>();
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         var tenantContext = scope.Resolve<TenantContext>();
         while (!stoppingToken.IsCancellationRequested)
         {
+            // We only want this running once.  and since it is pulsed with
+            // various http requests coming into the system
+            await _lock.WaitAsync(stoppingToken);
+
             try
             {
-                var odinContext = (IOdinContext)accessor.GetContext();
+                // var odinContext = (IOdinContext)accessor.GetContext();
+                var odinContext = this._odinContext;
                 if (odinContext != null)
                 {
                     if (!tenantContext.Settings.DisableAutoAcceptIntroductions &&
@@ -64,6 +81,10 @@ public sealed class IcrKeyAvailableBackgroundService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Unhandled exception occured");
+            }
+            finally
+            {
+                _lock.Release();
             }
 
             await SleepAsync(TimeSpan.FromSeconds(100), stoppingToken);

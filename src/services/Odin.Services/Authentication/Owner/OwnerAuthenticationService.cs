@@ -371,8 +371,10 @@ namespace Odin.Services.Authentication.Owner
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            _icrKeyAvailableContext.SetContext((OdinContext)ctx);
-            _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
+            _icrKeyAvailableBackgroundService.RunNow(ctx);
+
+            // _icrKeyAvailableContext.SetContext((OdinContext)ctx);
+            // _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
 
             return true;
         }
