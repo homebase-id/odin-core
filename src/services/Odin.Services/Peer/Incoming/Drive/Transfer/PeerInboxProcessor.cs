@@ -147,10 +147,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await HandleReaction(inboxItem, fs, odinContext, tenantSystemStorage.IdentityDatabase);
                     await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker, tenantSystemStorage.IdentityDatabase);
                 }
-
                 else if (inboxItem.InstructionType == TransferInstructionType.None)
                 {
                     throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
+                }
+                else if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
+                {
+                    logger.LogDebug("Processing Inbox -> UpdateFile instruction found, ignoring and marking as failure until code supports it.");
+                    await transitInboxBoxStorage.MarkFailure(tempFile, inboxItem.Marker, tenantSystemStorage.IdentityDatabase);
                 }
                 else
                 {

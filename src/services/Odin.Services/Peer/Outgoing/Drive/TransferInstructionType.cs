@@ -8,6 +8,7 @@ public enum TransferInstructionType
     None,
     DeleteLinkedFile,
     SaveFile,
+    UpdateFile,
     ReadReceipt,
     AddReaction,
     DeleteReaction

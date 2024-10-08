@@ -411,6 +411,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanReadOrWriteToDrive(file.DriveId, odinContext, db);
 
             var header = await GetServerFileHeaderInternal(file, odinContext, db);
+            if (header == null)
+            {
+                throw new OdinSystemException($"Failed to resolve file system type, header does not exist for file id {file}");
+            }
+            
             return header.ServerMetadata.FileSystemType;
         }
 

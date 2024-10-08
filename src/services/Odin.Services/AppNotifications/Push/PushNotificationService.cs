@@ -201,6 +201,16 @@ public class PushNotificationService(
                 return;
             }
 
+            if (exception.Message.StartsWith("Received unexpected response code: 403", true, CultureInfo.InvariantCulture))
+            {
+                await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
+                logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                    exception.Message, subscription.AccessRegistrationId);
+
+                return;
+            }
+            
+                
             logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
