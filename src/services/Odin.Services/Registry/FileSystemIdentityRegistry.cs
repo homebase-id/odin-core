@@ -432,7 +432,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     continue;
                 }
 
-                _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
+                _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
                 CacheIdentity(registration);
 
                 CacheCertificate(registration);
