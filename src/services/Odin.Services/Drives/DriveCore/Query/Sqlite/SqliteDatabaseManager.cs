@@ -14,7 +14,6 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
-using Serilog;
 using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -151,7 +150,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
         var nakedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
         nakedFileMetadata.AppData = null;
-        
+
         var driveMainIndexRecord = new DriveMainIndexRecord
         {
             identityId = default,
@@ -180,7 +179,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
             hdrFileMetaData = OdinSystemSerializer.Serialize(nakedFileMetadata),
             // hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
-            
+
             hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
             hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
 
@@ -194,6 +193,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             hdrTmpDriveAlias = this.Drive.TargetDriveInfo.Alias,
             hdrTmpDriveType = this.Drive.TargetDriveInfo.Type,
         };
+
+        if (driveMainIndexRecord.driveId == Guid.Empty || driveMainIndexRecord.fileId == Guid.Empty)
+        {
+            throw new OdinSystemException("DriveId and FileId must be a non-empty GUID");
+        }
 
         try
         {
@@ -247,10 +251,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
                     GuidOneOrTwo(metadata.File.FileId, r.fileId),
                     Drive.Name);
-                
+
                 // SEB:TODO really throw? 
                 // throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
-                logger.LogError(e.Message);
+                logger.LogWarning(e.Message);
             }
         }
 
@@ -334,13 +338,25 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db)
     {
-        _db.tblDriveReactions.Insert(db, new DriveReactionsRecord()
+        try
         {
-            driveId = Drive.Id,
-            identity = odinId,
-            postId = fileId,
-            singleReaction = reaction
-        });
+            _db.tblDriveReactions.Insert(db, new DriveReactionsRecord()
+            {
+                driveId = Drive.Id,
+                identity = odinId,
+                postId = fileId,
+                singleReaction = reaction
+            });
+        }
+        catch (SqliteException e)
+        {
+            if (e.SqliteErrorCode == 19)
+            {
+                throw new OdinClientException("Cannot add duplicate reaction");
+            }
+
+            throw;
+        }
     }
 
     public void DeleteReactions(OdinId odinId, Guid fileId, IdentityDatabase db)

@@ -368,6 +368,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (null == header)
             {
+                _logger.LogWarning($"Permission check called on non-existing file {file}");
                 return false;
             }
 
@@ -415,7 +416,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 throw new OdinSystemException($"Failed to resolve file system type, header does not exist for file id {file}");
             }
-            
+
             return header.ServerMetadata.FileSystemType;
         }
 
@@ -1015,7 +1016,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext, db);
             }
-            
         }
 
         public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext, IdentityDatabase db)
