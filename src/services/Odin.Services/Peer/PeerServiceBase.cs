@@ -5,7 +5,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -113,6 +112,8 @@ namespace Odin.Services.Peer
             if (failIfNull && fileId == null)
             {
                 throw new OdinRemoteIdentityException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
+                // logger.LogInformation($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
+                // throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}", OdinClientErrorCode.InvalidFile);
             }
 
             return fileId;
