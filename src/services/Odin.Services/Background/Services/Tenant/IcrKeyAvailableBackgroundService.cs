@@ -42,7 +42,6 @@ public sealed class IcrKeyAvailableBackgroundService(
 
         var scope = tenantContainerAccessor.Container().GetTenantScope(_tenant.Name);
 
-        // var accessor = scope.Resolve<IcrKeyAvailableContext>();
         var circleNetworkIntroductionService = scope.Resolve<CircleNetworkIntroductionService>();
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         var tenantContext = scope.Resolve<TenantContext>();

@@ -57,7 +57,6 @@ namespace Odin.Services.Authentication.Owner
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        private readonly IcrKeyAvailableContext _icrKeyAvailableContext;
         private readonly IcrKeyAvailableBackgroundService _icrKeyAvailableBackgroundService;
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
@@ -68,7 +67,7 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinConfiguration configuration, IcrKeyAvailableContext icrKeyAvailableContext, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService)
+            OdinConfiguration configuration, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService)
         {
             _logger = logger;
             _secretService = secretService;
@@ -81,7 +80,6 @@ namespace Odin.Services.Authentication.Owner
             _identityRegistry = identityRegistry;
 
             _configuration = configuration;
-            _icrKeyAvailableContext = icrKeyAvailableContext;
             _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
 
             //TODO: does this need to mwatch owner secret service?
@@ -329,7 +327,6 @@ namespace Odin.Services.Authentication.Owner
             {
                 _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
                 _cache.Reset();
-                _icrKeyAvailableContext.Reset();
             }
 
             return Task.CompletedTask;

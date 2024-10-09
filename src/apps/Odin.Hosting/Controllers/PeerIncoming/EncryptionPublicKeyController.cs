@@ -35,21 +35,28 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         }
 
         [HttpGet("ecc_public_key")]
-        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        public async Task<IActionResult> GetEccKey(PublicPrivateKeyType keyType)
         {
             using var cn = tenantSystemStorage.CreateConnection();
 
             logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
             var key = await publicPrivateKeyService.GetPublicEccKey(keyType, cn);
 
+            if (null == key)
+            {
+                logger.LogDebug("no ecc_public_key found");
+                return NotFound();
+            }
+
             logger.LogDebug("Returning ecc public key: {key}", key);
 
-            return new GetEccPublicKeyResponse()
+            var result = new GetEccPublicKeyResponse()
             {
                 PublicKeyJwk = key.PublicKeyJwk(),
                 Expiration = key.expiration.milliseconds,
                 CRC32c = key.crc32c
             };
+            return new JsonResult(result);
         }
     }
 }

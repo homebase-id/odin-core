@@ -222,14 +222,14 @@ namespace Odin.Services.Membership.Connections.Requests
             odinContext.Caller.AssertCallerIsAuthenticated();
 
             //TODO: check robot detection code
-            
+
             if (!await _publicPrivateKeyService.IsValidEccPublicKey(KeyType,
                     payload.EncryptionPublicKeyCrc32,
                     odinContext, cn))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match recipient");
             }
-            
+
             var sender = odinContext.GetCallerOdinIdOrFail();
             var recipient = _tenantContext.HostOdinId;
 
@@ -896,15 +896,23 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task TrySendRequestInternal(OdinId recipient, ConnectionRequest request, IOdinContext odinContext, DatabaseConnection cn)
         {
-            async Task<ApiResponse<HttpContent>> Send()
+            async Task<(bool encryptionSucceeded, ApiResponse<HttpContent> deliveryResponse)> Send()
             {
-                var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
-
-                var eccEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipient(
-                    KeyType,
-                    recipient,
-                    payloadBytes,
-                    cn);
+                EccEncryptedPayload eccEncryptedPayload;
+                try
+                {
+                    var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
+                    eccEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipient(
+                        KeyType,
+                        recipient,
+                        payloadBytes,
+                        cn);
+                }
+                catch (OdinRemoteIdentityException e)
+                {
+                    _logger.LogInformation(e, "Failed to encrypt payload for recipient");
+                    return (false, null);
+                }
 
                 var token = await ResolveClientAccessToken(recipient, odinContext, cn, false);
                 var client = token == null
@@ -912,33 +920,40 @@ namespace Odin.Services.Membership.Connections.Requests
                     : _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient, token.ToAuthenticationToken());
 
                 var response = await client.DeliverConnectionRequest(eccEncryptedPayload);
-                return response;
+                return (response.StatusCode != HttpStatusCode.BadRequest, response);
             }
 
-            var response = await Send();
-            if (response.StatusCode == HttpStatusCode.Forbidden)
+            var sendResult1 = await Send();
+            if (!sendResult1.encryptionSucceeded)
+            {
+                _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. Invalidating public key cache and retrying", recipient);
+                await _publicPrivateKeyService.InvalidateRecipientEccPublicKey(KeyType, recipient, cn);
+                sendResult1 = await Send();
+
+                if (!sendResult1.encryptionSucceeded)
+                {
+                    throw new OdinRemoteIdentityException("Failed to encrypt payload for recipient");
+                }
+            }
+            
+            if (sendResult1.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
             {
                 throw new OdinSecurityException("Remote server denied connection");
             }
 
-            if (!response.IsSuccessStatusCode)
+            if (!sendResult1.deliveryResponse.IsSuccessStatusCode)
             {
-                // Public key might be invalid, destroy the cache item
-                _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. Invalidating public key cache and retrying", recipient);
-                await _publicPrivateKeyService.InvalidateRecipientEccPublicKey(KeyType, recipient, cn);
-
-                var response2 = await Send();
-                if (response2.StatusCode == HttpStatusCode.Forbidden)
+                var sendResult2 = await Send();
+                if (sendResult2.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
                     throw new OdinSecurityException("Remote server denied connection");
                 }
 
-                if (!response2.IsSuccessStatusCode)
+                if (!sendResult2.deliveryResponse.IsSuccessStatusCode)
                 {
                     throw new OdinClientException("Failed to establish connection request");
                 }
             }
-            
         }
     }
 }

@@ -130,7 +130,7 @@ namespace Odin.Services.EncryptionKeyService
             if (null == recipientPublicKey)
             {
                 _logger.LogDebug("Could not get public Ecc key (type: {kt}) for recipient: {recipient}", keyType, recipient);
-                throw new OdinSystemException("Could not get public Ecc key for recipient");
+                throw new OdinRemoteIdentityException("Could not get public Ecc key for recipient");
             }
 
             // Note: here we are throwing a way the full key intentionally

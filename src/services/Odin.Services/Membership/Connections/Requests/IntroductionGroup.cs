@@ -40,4 +40,6 @@ public class IdentityIntroduction
     public OdinId IntroducerOdinId { get; init; }
     
     public UnixTimeUtc LastProcessed { get; set; }
+    
+    public int SendAttemptCount { get; set; }
 }

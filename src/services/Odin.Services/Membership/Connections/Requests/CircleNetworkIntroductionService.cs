@@ -206,9 +206,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     await AutoAccept(sender, odinContext, connection);
                     return;
                 }
-                
-                _logger.LogInformation("Auto-accept was not executed for request from {sender}; not matching reasons to accept", sender);
 
+                _logger.LogInformation("Auto-accept was not executed for request from {sender}; not matching reasons to accept", sender);
             }
             catch (Exception ex)
             {
@@ -222,6 +221,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     public async Task SendOutstandingConnectionRequests(IOdinContext odinContext, DatabaseConnection cn)
     {
+        const int maxSendAttempts = 15;
+
         //get the introductions from the list
         var introductions = await GetReceivedIntroductions(odinContext, cn);
 
@@ -247,30 +248,16 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             try
             {
-                await this.SendConnectionRequests(intro, odinContext, cn);
-            }
-            catch (OdinClientException oceException)
-            {
-                _logger.LogWarning(oceException, "Failed sending Introduced-connection-request to {identity}.  Deleting introduction; continuing to next.",
-                    intro.Identity);
-
-                //TODO: fow now I will delete the introduction
-                // however, this should go into the outbox so we can
-                // retry a few times before giving up
-                await DeleteIntroductionsTo(intro.Identity, cn);
-            }
-            catch (OdinSecurityException securityEx)
-            {
-                _logger.LogWarning(securityEx, "Failed sending Introduced-connection-request to {identity}.  Deleting introduction; continuing to next.",
-                    intro.Identity);
-                //TODO: fow now I will delete the introduction
-                // however, this should go into the outbox so we can
-                // retry a few times before giving up
-                await DeleteIntroductionsTo(intro.Identity, cn);
+                if (intro.SendAttemptCount <= maxSendAttempts)
+                {
+                    await this.TrySendConnectionRequest(intro, odinContext, cn);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed sending Introduced-connection-request to {identity}.  Continuing to next introduction.", intro.Identity);
+                _logger.LogWarning(ex,
+                    "Failed sending Introduced-connection-request to {identity}. This was attempt #:{attemptNumber} of {maxSendAttempts}.  Continuing to next introduction.",
+                    intro.Identity, intro.SendAttemptCount, maxSendAttempts);
             }
         }
     }
@@ -296,7 +283,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             await DeleteIntroductionsFrom(notification.OdinId, notification.DatabaseConnection);
         });
     }
-    
+
     public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
         var cn = notification.DatabaseConnection;
@@ -307,7 +294,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         });
     }
 
-    
+
     private SignatureData Sign(byte[] data, IOdinContext odinContext)
     {
         var password = Guid.NewGuid().ToByteArray().ToSensitiveByteArray();
@@ -391,7 +378,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <summary>
     /// Sends connection requests for pending introductions if one has not already been sent or received
     /// </summary>
-    private async Task SendConnectionRequests(IdentityIntroduction intro, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task TrySendConnectionRequest(IdentityIntroduction intro, IOdinContext odinContext, DatabaseConnection cn)
     {
         var recipient = intro.Identity;
         var introducer = intro.IntroducerOdinId;
@@ -419,10 +406,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
         };
 
-        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
-
+        intro.SendAttemptCount++;
         intro.LastProcessed = UnixTimeUtc.Now();
         UpsertIntroduction(intro, cn);
+
+        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, cn);
     }
 
     private void UpsertIntroduction(IdentityIntroduction intro, DatabaseConnection cn)
