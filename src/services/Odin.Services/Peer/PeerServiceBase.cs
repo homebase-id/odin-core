@@ -105,9 +105,16 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, IdentityDatabase db)
+        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, IdentityDatabase db,
+            bool failIfNull = false)
         {
             var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext, db);
+
+            if (failIfNull && fileId == null)
+            {
+                throw new OdinRemoteIdentityException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
+            }
+
             return fileId;
         }
     }

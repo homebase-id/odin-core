@@ -25,26 +25,16 @@ public class PeerIncomingReactionService(
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, odinContext);
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        await reactionContentService.AddReaction(fileId.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        await reactionContentService.AddReaction(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        await reactionContentService.DeleteReaction(fileId.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        await reactionContentService.DeleteReaction(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext,
@@ -52,52 +42,33 @@ public class PeerIncomingReactionService(
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        return await reactionContentService.GetReactionCountsByFile(fileId.Value, odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        return await reactionContentService.GetReactionCountsByFile(fileId!.Value, odinContext, db);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value, odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId!.Value, odinContext, db);
     }
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        await reactionContentService.DeleteAllReactions(fileId.Value, odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        await reactionContentService.DeleteAllReactions(fileId!.Value, odinContext, db);
     }
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db);
-        if (null == fileId)
-        {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
-        }
-
-        var list = await reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords, odinContext, db);
+        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        
+        var list = await reactionContentService.GetReactions(fileId!.Value, request.Cursor, request.MaxRecords, odinContext, db);
 
         return new GetReactionsPerimeterResponse()
         {
