@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -24,6 +25,7 @@ public sealed class IcrKeyAvailableBackgroundService(
     private readonly Odin.Services.Tenant.Tenant _tenant = tenant;
 
     private IOdinContext _odinContext;
+    private UnixTimeUtc _lastRun = UnixTimeUtc.ZeroTime;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public void RunNow(IOdinContext odinContext)
@@ -41,19 +43,23 @@ public sealed class IcrKeyAvailableBackgroundService(
         //TODO: need to throttle this
 
         var scope = tenantContainerAccessor.Container().GetTenantScope(_tenant.Name);
-
+        
         var circleNetworkIntroductionService = scope.Resolve<CircleNetworkIntroductionService>();
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         var tenantContext = scope.Resolve<TenantContext>();
+        const int waitTimeSeconds = 10; //TODO: config
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            // We only want this running once.  and since it is pulsed with
-            // various http requests coming into the system
+            if (_lastRun.AddSeconds(waitTimeSeconds) < UnixTimeUtc.Now())
+            {
+                continue;
+            }
+            
             await _lock.WaitAsync(stoppingToken);
 
             try
             {
-                // var odinContext = (IOdinContext)accessor.GetContext();
                 var odinContext = this._odinContext;
                 if (odinContext != null)
                 {

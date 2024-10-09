@@ -802,8 +802,6 @@ namespace Odin.Services.Membership.Connections
                 await UpgradeTokenEncryptionIfNeeded(icr, odinContext, cn);
                 await UpgradeKeyStoreKeyEncryptionIfNeeded(icr, odinContext, cn);
 
-                this.SaveIcr(icr, odinContext, cn);
-
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, cn);
                 await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, cn);
             });
@@ -1136,6 +1134,8 @@ namespace Odin.Services.Membership.Connections
 
                 identity.EncryptedClientAccessToken = encryptedCat;
                 identity.TemporaryWeakClientAccessToken = null;
+
+                SaveIcr(identity, odinContext, cn);
             }
         }
 
@@ -1152,6 +1152,8 @@ namespace Odin.Services.Membership.Connections
                 var masterKey = odinContext.Caller.GetMasterKey();
                 identity.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
                 identity.TempWeakKeyStoreKey = null;
+                
+                SaveIcr(identity, odinContext, cn);
             }
         }
     }
