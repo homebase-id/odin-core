@@ -10,20 +10,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var c1 = SequentialGuid.CreateGuid();
                 var d1 = Guid.NewGuid().ToByteArray();
                 var c2 = SequentialGuid.CreateGuid();
                 var d2 = Guid.NewGuid().ToByteArray();
 
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
 
-                var r = db.tblCircle.PagingByCircleId(myc, 100, null, out var nextCursor);
+                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
@@ -39,22 +39,22 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteCircleTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var c1 = SequentialGuid.CreateGuid();
                 var c2 = SequentialGuid.CreateGuid();
                 var d2 = Guid.NewGuid().ToByteArray();
                 var d1 = Guid.NewGuid().ToByteArray();
 
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
 
-                db.tblCircle.Delete(myc, c2);
+                db.tblCircle.Delete(c2);
 
-                var r = db.tblCircle.PagingByCircleId(myc, 100, null, out var nextCursor);
+                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
@@ -67,24 +67,24 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var c1 = SequentialGuid.CreateGuid();
                 var c2 = SequentialGuid.CreateGuid();
                 var d1 = Guid.NewGuid().ToByteArray();
                 var d2 = Guid.NewGuid().ToByteArray();
 
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
 
-                var r = db.tblCircle.Get(myc, c1);
+                var r = db.tblCircle.Get(c1);
                 Debug.Assert(ByteArrayUtil.muidcmp(r.circleId, c1) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(r.data, d1) == 0);
 
-                r = db.tblCircle.Get(myc, c2);
+                r = db.tblCircle.Get(c2);
                 Debug.Assert(ByteArrayUtil.muidcmp(r.circleId, c2) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(r.data, d2) == 0);
             }
@@ -94,12 +94,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetAllCirclesEmptyTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
-                var r = db.tblCircle.PagingByCircleId(myc, 100, null, out var nextCursor);
+                db.CreateDatabase();
+                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
                 Debug.Assert(r.Count == 0);
                 Debug.Assert(nextCursor == null);
             }
@@ -109,20 +109,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetAllCirclesTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "TableCircleTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
                 var c1 = SequentialGuid.CreateGuid();
                 var c2 = SequentialGuid.CreateGuid();
                 var d1 = Guid.NewGuid().ToByteArray();
                 var d2 = Guid.NewGuid().ToByteArray();
 
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
-                db.tblCircle.Insert(myc, new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
+                db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
 
-                var r = db.tblCircle.PagingByCircleId(myc, 100, null, out var nextCursor);
+                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 

@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -19,8 +20,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
             if (result == null)
             {
                 return NotFound();
@@ -35,8 +36,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
-            using var cn = tenantSystemStorage.CreateConnection();
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
             if (null == header)
             {
                 return NotFound();
@@ -57,7 +58,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     Key = key,
                     Chunk = chunk
                 },
-                cn);
+                db);
         }
 
         [HttpGet("thumb")]
@@ -66,8 +67,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
             if (null == header)
             {
                 return NotFound();
@@ -88,10 +89,10 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     Height = height,
                     PayloadKey = payloadKey
                 },
-                cn);
+                db);
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type, DatabaseConnection cn)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type, IdentityDatabase db)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
@@ -102,7 +103,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             });
 
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext,
-                cn: cn);
+                db: db);
             return result;
         }
     }

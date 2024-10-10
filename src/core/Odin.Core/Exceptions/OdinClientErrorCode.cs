@@ -66,6 +66,8 @@ public enum OdinClientErrorCode
     InvalidUpload = 4163,
     InvalidPayloadNameOrKey = 4164,
     FileLockedDuringWriteOperation = 4165,
+    InvalidGlobalTransitId = 4166,
+
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

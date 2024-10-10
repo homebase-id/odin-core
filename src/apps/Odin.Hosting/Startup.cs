@@ -466,7 +466,10 @@ namespace Odin.Hosting
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
                 // Start system background services
-                services.StartSystemBackgroundServices().BlockingWait();
+                if (config.Job.SystemJobsEnabled)
+                {
+                    services.StartSystemBackgroundServices().BlockingWait();                    
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>

@@ -9,6 +9,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
@@ -33,7 +34,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 ) : OutboxWorkerBase(fileItem, logger)
 
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
@@ -51,7 +52,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 
             logger.LogDebug("SendFeedItem -> Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
-            var (versionTag, globalTransitId) = await HandleFeedItem(FileItem, odinContext, cn, cancellationToken);
+            var (versionTag, globalTransitId) = await HandleFeedItem(FileItem, odinContext, db, cancellationToken);
 
             logger.LogDebug("SendFeedItem -> Successful transfer of {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
@@ -66,7 +67,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, db, e);
             }
             catch (Exception exception)
             {
@@ -83,14 +84,14 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     }
 
     private async Task<(Guid versionTag, Guid globalTransitId)> HandleFeedItem(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-        DatabaseConnection cn, CancellationToken cancellationToken)
+        IdentityDatabase db, CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
 
         var distroItem = OdinSystemSerializer.Deserialize<FeedDistributionItem>(outboxFileItem.State.Data.ToStringFromUtf8Bytes());
-        var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
-        var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
+        var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, db);
+        var header = await fs.Storage.GetServerFileHeader(file, odinContext, db);
 
         if (header == null)
         {
@@ -101,7 +102,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
         var authorized = await driveAcl.IdentityHasPermission(recipient,
-            header.ServerMetadata.AccessControlList, odinContext, cn);
+            header.ServerMetadata.AccessControlList, odinContext, db);
 
         if (!authorized)
         {
@@ -218,7 +219,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         return httpResponse;
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -227,7 +228,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         return Task.CompletedTask;
     }

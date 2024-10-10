@@ -1,4 +1,5 @@
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -16,7 +17,7 @@ namespace Odin.Services.Mediator
 
         public ExternalFileIdentifier ExternalFile { get; set; }
 
-        public DatabaseConnection DatabaseConnection { get; init; }
+        public IdentityDatabase db { get; init; }
         public bool IgnoreFeedDistribution { get; set; }
         public bool IgnoreReactionPreviewCalculation { get; set; }
     }

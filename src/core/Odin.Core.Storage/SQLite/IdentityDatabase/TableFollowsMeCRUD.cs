@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -108,7 +111,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual int Insert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
@@ -147,7 +150,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
@@ -186,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
@@ -236,7 +239,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual int Update(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
@@ -275,7 +278,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -300,7 +303,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,driveId,created,modified
-        protected FollowsMeRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal FollowsMeRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<FollowsMeRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -353,7 +356,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -382,7 +385,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected FollowsMeRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,string identity,Guid driveId)
+        internal FollowsMeRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -414,7 +417,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected FollowsMeRecord Get(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
+        internal FollowsMeRecord Get(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -456,7 +459,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected FollowsMeRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,string identity)
+        internal FollowsMeRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -497,7 +500,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<FollowsMeRecord> Get(DatabaseConnection conn, Guid identityId,string identity)
+        internal List<FollowsMeRecord> Get(DatabaseConnection conn, Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -522,7 +525,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity, null);
-                            return null;
+                            return new List<FollowsMeRecord>();
                         }
                         var result = new List<FollowsMeRecord>();
                         while (true)

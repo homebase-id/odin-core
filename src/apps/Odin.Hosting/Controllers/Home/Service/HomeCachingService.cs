@@ -14,6 +14,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
 using Odin.Services.Tenant;
@@ -49,14 +50,14 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId, DatabaseConnection cn)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId, IdentityDatabase db)
         {
             var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
             {
 #if DEBUG
                 CacheMiss++;
 #endif
-                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext, cn);
+                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext, db);
                 return collection;
             });
 
@@ -83,7 +84,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
+            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.db);
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason

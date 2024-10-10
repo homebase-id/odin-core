@@ -4,39 +4,63 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyValue : TableKeyValueCRUD
     {
+        private readonly IdentityDatabase _db;
+
         public TableKeyValue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
+            _db = db;
         }
 
         ~TableKeyValue()
         {
         }
 
-        public KeyValueRecord Get(DatabaseConnection conn, byte[] key)
+        public new int GetCountDirty(DatabaseConnection conn)
         {
-            return base.Get(conn, ((IdentityDatabase)_database)._identityId, key);
-        }
-        public new int Insert(DatabaseConnection conn, KeyValueRecord item)
-        {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-
-            return base.Insert(conn, item);
-        }
-        public int Delete(DatabaseConnection conn, byte[] key)
-        {
-            return base.Delete(conn, ((IdentityDatabase)_database)._identityId, key);
+            return base.GetCountDirty(conn);
         }
 
-        public new int Upsert(DatabaseConnection conn, KeyValueRecord item)
+        public KeyValueRecord Get(byte[] key)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Upsert(conn, item);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Get(conn, _db._identityId, key);
+            }
+        }
+        public int Insert(KeyValueRecord item)
+        {
+            item.identityId = _db._identityId;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
+        }
+        public int Delete(byte[] key)
+        {
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Delete(conn, _db._identityId, key);
+            }
         }
 
-        public new int Update(DatabaseConnection conn, KeyValueRecord item)
+        public int Upsert(KeyValueRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Update(conn, item); 
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Upsert(conn, item);
+            }
+        }
+
+        public int Update(KeyValueRecord item)
+        {
+            item.identityId = _db._identityId;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Update(conn, item);
+            }
         }
     }
 }

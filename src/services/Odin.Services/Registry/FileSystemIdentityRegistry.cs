@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -340,6 +341,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var list = _cache.Values.ToList();
         return Task.FromResult(new PagedResult<IdentityRegistration>(PageOptions.All, 1, list));
     }
+    
+    public Task<List<IdentityRegistration>> GetTenants()
+    {
+        var list = _cache.Values.ToList();
+        return Task.FromResult(list);
+    }
 
     public Task<IdentityRegistration> Get(string domain)
     {
@@ -425,11 +432,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     continue;
                 }
 
-                _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
+                _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
                 CacheIdentity(registration);
 
                 CacheCertificate(registration);
-                await StartBackgroundServices(registration);
+
+                if (_config.Job.TenantJobsEnabled)
+                {
+                    await StartBackgroundServices(registration);
+                }
             }
             catch (Exception e)
             {

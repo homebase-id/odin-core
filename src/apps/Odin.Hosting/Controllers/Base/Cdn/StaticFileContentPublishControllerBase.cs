@@ -21,8 +21,8 @@ namespace Odin.Hosting.Controllers.Base.Cdn
             OdinValidationUtils.AssertValidFileName(request.Filename, "The file name is invalid");
             OdinValidationUtils.AssertNotNull(request.Sections, nameof(request.Sections));
             OdinValidationUtils.AssertIsTrue(request.Sections.Count != 0, "At least one section is needed");
-            using var cn = tenantSystemStorage.CreateConnection();
-            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, WebOdinContext, db);
             return publishResult;
         }
     }

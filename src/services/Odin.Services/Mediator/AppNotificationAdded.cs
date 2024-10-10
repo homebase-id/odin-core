@@ -2,6 +2,7 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -16,7 +17,7 @@ public class AppNotificationAddedNotification(Guid typeId) : MediatorNotificatio
     public AppNotificationOptions AppNotificationOptions { get; set; }
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.AppNotificationAdded;
     public Guid NotificationTypeId { get; } = typeId;
-    public DatabaseConnection DatabaseConnection { get; init; }
+    public IdentityDatabase db { get; init; }
 
     public string GetClientData()
     {
