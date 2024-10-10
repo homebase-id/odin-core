@@ -44,6 +44,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
 using Odin.Services.Background.Services.Tenant;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
@@ -57,7 +58,7 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            cb.RegisterType<VersionUpgradeContext>().AsSelf().SingleInstance();
+            cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 

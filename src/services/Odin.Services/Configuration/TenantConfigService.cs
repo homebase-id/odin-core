@@ -72,6 +72,39 @@ public class TenantConfigService
         _tenantContext.UpdateSystemConfig(GetTenantSettings(cn));
     }
 
+
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public TenantVersionInfo IncrementVersion(DatabaseConnection cn)
+    {
+        TenantVersionInfo newVersion = null;
+        cn.CreateCommitUnitOfWork(() =>
+        {
+            var currentVersion = _configStorage.Get<TenantVersionInfo>(cn, TenantVersionInfo.Key);
+
+            newVersion = new TenantVersionInfo()
+            {
+                DataVersionNumber = currentVersion.DataVersionNumber++,
+                LastUpgraded = UnixTimeUtc.Now().milliseconds
+            };
+
+            _configStorage.Upsert(cn, TenantVersionInfo.Key, newVersion);
+        });
+        
+        return newVersion;
+    }
+
+    public TenantVersionInfo GetVersionInfo(DatabaseConnection cn)
+    {
+        var info = _configStorage.Get<TenantVersionInfo>(cn, TenantVersionInfo.Key);
+        return info ?? new TenantVersionInfo
+        {
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
+    }
+
     public bool IsIdentityServerConfigured(DatabaseConnection cn)
     {
         //ok for anonymous to query this as long as we're only returning a bool
@@ -376,7 +409,7 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 ],
