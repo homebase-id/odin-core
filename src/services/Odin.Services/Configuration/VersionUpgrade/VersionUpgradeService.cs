@@ -5,6 +5,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Tasks;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Tenant.Container;
 
@@ -21,6 +22,9 @@ public sealed class VersionUpgradeService(
 {
     private IOdinContext _odinContext;
     private readonly SemaphoreSlim _lock = new(1, 1);
+
+    private const int WaitTimeSeconds = 60;
+    private UnixTimeUtc LastRunTime { get; set; }
 
     private bool IsRunning { get; set; }
 
@@ -45,6 +49,7 @@ public sealed class VersionUpgradeService(
 
         await _lock.WaitAsync(stoppingToken);
         IsRunning = true;
+        LastRunTime = UnixTimeUtc.Now();
 
         var currentVersion = configService.GetVersionInfo(cn).DataVersionNumber;
 
@@ -81,6 +86,11 @@ public sealed class VersionUpgradeService(
 
     private bool ShouldRun(DatabaseConnection cn)
     {
+        if (UnixTimeUtc.Now() > LastRunTime.AddSeconds(WaitTimeSeconds))
+        {
+            return false;
+        }
+
         if (IsRunning)
         {
             return false;
@@ -94,13 +104,11 @@ public sealed class VersionUpgradeService(
         var scope = tenantContainerAccessor.Container().GetTenantScope(tenant.Name);
         var configService = scope.Resolve<TenantConfigService>();
         var currentVersion = configService.GetVersionInfo(cn).DataVersionNumber;
-
         if (currentVersion == ReleaseVersionInfo.DataVersionNumber)
         {
             return false;
         }
 
-        //TODO: add throttling?
         return true;
     }
 
