@@ -111,9 +111,9 @@ namespace Odin.Services.Peer
 
             if (failIfNull && fileId == null)
             {
-                throw new OdinRemoteIdentityException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
+                // throw new OdinRemoteIdentityException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
                 // logger.LogInformation($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
-                // throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}", OdinClientErrorCode.InvalidFile);
+                throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}", OdinClientErrorCode.InvalidGlobalTransitId);
             }
 
             return fileId;
