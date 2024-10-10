@@ -314,6 +314,8 @@ namespace Odin.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseVersionUpgrade();
+
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseCors();
             app.UseApiCors();
