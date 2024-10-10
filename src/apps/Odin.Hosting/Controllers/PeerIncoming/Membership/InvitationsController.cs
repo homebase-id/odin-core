@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Core.Fluff;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
@@ -20,21 +21,27 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
-    public class InvitationsController(CircleNetworkRequestService circleNetworkRequestService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public class InvitationsController(
+        CircleNetworkRequestService circleNetworkRequestService,
+        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("connect")]
-        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] EccEncryptedPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
             await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, cn);
-            return new JsonResult(new NoResultResponse(true));
+            return Ok();
         }
 
 
         [HttpPost("establishconnection")]
-        public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload, string authenticationToken64)
+        public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload)
         {
             using var cn = tenantSystemStorage.CreateConnection();
+            if (!HttpContext.Request.Headers.TryGetValue(OdinHeaderNames.EstablishConnectionAuthToken, out var authenticationToken64))
+            {
+                throw new OdinSecurityException("missing auth token");
+            }
             await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext, cn);
             return new JsonResult(new NoResultResponse(true));
         }

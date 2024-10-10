@@ -28,9 +28,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DriveManager _driveManager;
 
+
         /// <summary />
         public FeedDriveIncomingController(
-            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage, TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage,
+            TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
@@ -40,7 +42,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
             _driveManager = driveManager;
         }
 
-        [HttpPost("filemetadata")]
+        [HttpPost("send-feed-filemetadata")]
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();

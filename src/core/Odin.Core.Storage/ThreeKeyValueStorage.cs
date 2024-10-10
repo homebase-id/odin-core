@@ -46,10 +46,10 @@ public class ThreeKeyValueStorage
         db.TblKeyThreeValue.Upsert(cn, new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid id)
+    public int Delete(DatabaseConnection cn, Guid id)
     {
         var db = (IdentityDatabase)cn.db; // :(
-        db.TblKeyThreeValue.Delete(cn, MakeStorageKey(id));
+        return db.TblKeyThreeValue.Delete(cn, MakeStorageKey(id));
     }
 
     public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] dataType) where T : class

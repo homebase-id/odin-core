@@ -99,19 +99,21 @@ namespace Odin.Services.DataSubscription.Follower
 
             var json = OdinSystemSerializer.Serialize(perimeterFollowRequest);
 
+            var keyType = PublicPrivateKeyType.OfflineKey;
+
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.RsaEncryptPayloadForRecipient(
-                    PublicPrivateKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray(), cn);
+                var eccEncryptedPayload = await _publicPrivatePublicKeyService.EccEncryptPayloadForRecipient(
+                    keyType, identityToFollow, json.ToUtf8ByteArray(), cn);
                 var client = CreateClient(identityToFollow);
-                var response = await client.Follow(rsaEncryptedPayload);
+                var response = await client.Follow(eccEncryptedPayload);
                 return response;
             }
 
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientRsaPublicKey(identityToFollow, cn);
+                await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKey(keyType, identityToFollow, cn);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -364,7 +366,7 @@ namespace Odin.Services.DataSubscription.Follower
         public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, cn);
+            var icr = await _circleNetworkService.GetIcr(odinId, odinContext, cn);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
@@ -553,7 +555,7 @@ namespace Odin.Services.DataSubscription.Follower
                 return Task.FromResult<FollowerDefinition>(null);
             }
 
-            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => odinId != f.identity))
             {
                 throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }

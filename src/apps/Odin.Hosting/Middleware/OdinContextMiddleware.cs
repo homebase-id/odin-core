@@ -112,8 +112,8 @@ namespace Odin.Hosting.Middleware
                 {
                     if (e.IsRemoteIcrIssue)
                     {
-                        httpContext.Response.Headers.Append(HttpHeaderConstants.RemoteServerIcrIssue, bool.TrueString);
                         //tell the caller and fall back to public files only
+                        httpContext.Response.Headers.Append(HttpHeaderConstants.RemoteServerIcrIssue, bool.TrueString);
                     }
                     else
                     {

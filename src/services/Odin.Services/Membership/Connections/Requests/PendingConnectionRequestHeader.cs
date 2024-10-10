@@ -11,6 +11,8 @@ public class PendingConnectionRequestHeader
     public UnixTimeUtc ReceivedTimestampMilliseconds { get; set; }
 
     public RsaEncryptedPayload Payload { get; set; }
+    
+    public EccEncryptedPayload EccEncryptedPayload { get; set; }
 
     public PendingConnectionRequestHeader Redacted()
     {

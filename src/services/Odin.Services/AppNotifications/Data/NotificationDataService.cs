@@ -31,6 +31,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         DatabaseConnection cn)
     {
         var id = Guid.NewGuid();
+        
         var record = new AppNotificationsRecord()
         {
             notificationId = id,

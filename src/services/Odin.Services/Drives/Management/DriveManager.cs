@@ -211,6 +211,12 @@ public class DriveManager
         return await Task.FromResult(drive);
     }
 
+    public async Task<StorageDrive> GetDrive(TargetDrive targetDrive, DatabaseConnection cn, bool failIfInvalid = false)
+    {
+        var driveId =await  this.GetDriveIdByAlias(targetDrive, cn, failIfInvalid);
+        return await  this.GetDrive(driveId.GetValueOrDefault(), cn, failIfInvalid);
+    }
+    
     public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, DatabaseConnection cn, bool failIfInvalid = false)
     {
         var cachedDrive = _driveCache.SingleOrDefault(d => d.Value.TargetDriveInfo == targetDrive).Value;
@@ -277,7 +283,8 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext,
+        DatabaseConnection cn)
     {
         List<StorageDrive> allDrives;
 

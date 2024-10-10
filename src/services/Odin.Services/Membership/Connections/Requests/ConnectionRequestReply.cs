@@ -8,19 +8,18 @@ namespace Odin.Services.Membership.Connections.Requests
     /// </summary>
     public class ConnectionRequestReply
     {
-        // public string SharedSecretEncryptedCredentials { get; set; }
+        public ContactRequestData ContactData { get; init; }
 
-        public ContactRequestData ContactData { get; set; }
-
-        public string SenderOdinId { get; set; }
+        public string SenderOdinId { get; init; }
 
         /// <summary>
         /// A base64 byte array of the <see cref="ClientAccessToken"/> used by the original sending
         /// identity to authenticate to the receiving identity (to be stored in the ICR)
         /// </summary>
-        public string ClientAccessTokenReply64 { get; set; }
+        public string ClientAccessTokenReply64 { get; init; }
         
-        public byte[] TempKey { get; set; }
+        public byte[] TempKey { get; init; }
         
+        public byte[] VerificationHash { get; set; }
     }
 }

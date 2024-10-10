@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -15,6 +16,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Membership.CircleMembership;
 
@@ -68,7 +70,7 @@ public class CircleMembershipService(
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
 
-            if (circleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId)
+            if (SystemCircleConstants.IsSystemCircle(circleId))
             {
                 odinContext.Caller.AssertHasMasterKey();
             }
@@ -110,9 +112,15 @@ public class CircleMembershipService(
 
     // Grants
 
-    public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey,
+    public async Task<CircleGrant> CreateCircleGrant(SensitiveByteArray keyStoreKey, CircleDefinition def, SensitiveByteArray masterKey,
         IOdinContext odinContext, DatabaseConnection cn)
     {
+
+        if (null == def)
+        {
+            throw new OdinSystemException("Invalid circle definition");
+        }
+        
         //map the exchange grant to a structure that matches ICR
         var grant = await exchangeGrantService.CreateExchangeGrant(cn, keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey: null);
         return new CircleGrant()
@@ -123,19 +131,25 @@ public class CircleMembershipService(
         };
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
-        IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(
+        SensitiveByteArray keyStoreKey,
+        List<GuidId> circleIds,
+        ConnectionRequestOrigin origin,
+        SensitiveByteArray masterKey,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        // Always put identities in the system circle
-        var list = circleIds ?? new List<GuidId>();
-        list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-        return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, cn);
+        var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
+        return await this.CreateCircleGrantList(keyStoreKey, list, masterKey, odinContext, cn);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(
+        SensitiveByteArray keyStoreKey,
+        List<GuidId> circleIds,
+        SensitiveByteArray masterKey,
+        IOdinContext odinContext,
+        DatabaseConnection cn)
     {
-        var masterKey = odinContext.Caller.GetMasterKey();
-
         var deduplicated = circleIds.Distinct().ToList();
 
         if (deduplicated.Count() != circleIds.Count())
@@ -148,15 +162,17 @@ public class CircleMembershipService(
         foreach (var id in deduplicated)
         {
             var def = this.GetCircle(id, odinContext, cn);
-            var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey, null, cn);
 
-            if (circleGrants.ContainsKey(id.Value))
+            if (def == null)
+            {
+                throw new OdinSystemException($"Missing circle Id {id}");
+            }
+            
+            var cg = await this.CreateCircleGrant(keyStoreKey, def, masterKey, null, cn);
+
+            if (!circleGrants.TryAdd(id.Value, cg))
             {
                 logger.LogError("CreateCircleGrantList attempted to insert duplicate key [{keyValue}]", id.Value);
-            }
-            else
-            {
-                circleGrants.Add(id.Value, cg);
             }
         }
 
@@ -286,11 +302,11 @@ public class CircleMembershipService(
     /// Creates the system circle
     /// </summary>
     /// <returns></returns>
-    public async Task CreateSystemCircle(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task CreateSystemCircles(IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.CreateSystemCircle(cn);
+        await circleDefinitionService.EnsureSystemCirclesExist(cn);
     }
 
     private bool CircleIsEnabled(GuidId circleId, out bool exists, DatabaseConnection cn)

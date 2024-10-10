@@ -9,20 +9,19 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Mediator;
-using Odin.Services.Membership;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
-    public sealed class HomeAuthenticatorService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+    public sealed class HomeAuthenticatorService : INotificationHandler<ConnectionBlockedNotification>,
+        INotificationHandler<ConnectionFinalizedNotification>,
+        INotificationHandler<ConnectionDeletedNotification>
     {
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
@@ -83,14 +82,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             throw new OdinSecurityException($"Unhandled ClientTokenType [{remoteClientAuthToken.ClientTokenType}] when registering YouAuth access");
         }
-
-
-        public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
-        {
-            _cache.EnqueueIdentityForReset(notification.OdinId);
-            return Task.CompletedTask;
-        }
-
+        
 
         /// <summary>
         /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
@@ -144,7 +136,8 @@ namespace Odin.Hosting.Controllers.Home.Service
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext, cn);
+            var (grants, enabledCircles) =
+                _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext, cn);
 
             var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
             var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
@@ -303,7 +296,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClient(string odinId,
             ClientAuthenticationToken remoteClientAuthToken, DatabaseConnection cn)
         {
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken, cn);
+            var icr = await _circleNetworkService.GetIcr(new OdinId(odinId), remoteClientAuthToken, cn);
 
             if (!icr.IsConnected())
             {
@@ -318,7 +311,8 @@ namespace Odin.Hosting.Controllers.Home.Service
             return (true, browserClientAccessToken);
         }
 
-        private async Task<ClientAccessToken> StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType, DatabaseConnection cn)
+        private async Task<ClientAccessToken> StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType,
+            DatabaseConnection cn)
         {
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp);
 
@@ -346,7 +340,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(client.OdinId, odinContext, cn, true);
+            var icr = await _circleNetworkService.GetIcr(client.OdinId, odinContext, cn, true);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
@@ -378,5 +372,22 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             throw new OdinSecurityException("Invalid auth token");
         }
+
+        public Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+        {
+            _cache.EnqueueIdentityForReset(notification.OdinId);
+            return Task.CompletedTask;
+        }
+
+        public Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+        {
+            _cache.EnqueueIdentityForReset(notification.OdinId);
+            return Task.CompletedTask;
+        }
+
+        public Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
+        {
+            _cache.EnqueueIdentityForReset(notification.OdinId);
+            return Task.CompletedTask; }
     }
 }

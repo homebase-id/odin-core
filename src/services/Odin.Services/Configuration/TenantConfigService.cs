@@ -140,10 +140,8 @@ public class TenantConfigService
         odinContext.Caller.AssertHasMasterKey();
 
         await _recoverService.CreateInitialKey(odinContext, cn);
-
-        await _publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
-
         await _icrKeyService.CreateInitialKeys(odinContext, cn);
+        await _publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
     }
 
     /// <summary>
@@ -160,7 +158,7 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCircle(odinContext, cn);
+        await _circleMembershipService.CreateSystemCircles(odinContext, cn);
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext, cn);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext, cn);
@@ -249,6 +247,10 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanCommentOnAnonymousDrives:
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
+                break;
+
+            case TenantConfigFlagNames.DisableAutoAcceptIntroductions:
+                cfg.DisableAutoAcceptIntroductions = bool.Parse(request.Value);
                 break;
 
             default:
@@ -365,7 +367,8 @@ public class TenantConfigService
             Name = "Homebase - Chat",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -376,17 +379,11 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 ],
                 PermissionSet = new PermissionSet()
-
-                // PermissionSet = new PermissionSet(
-                //     PermissionKeys.ReadConnections,
-                //     PermissionKeys.SendPushNotifications,
-                //     PermissionKeys.UseTransitRead,
-                //     PermissionKeys.UseTransitWrite)
             },
             Drives =
             [
@@ -419,7 +416,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
-                // PermissionKeys.UseTransitRead,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
@@ -434,7 +431,8 @@ public class TenantConfigService
             Name = "Homebase - Mail",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -482,6 +480,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
@@ -515,7 +514,7 @@ public class TenantConfigService
 
     private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
 
         if (shouldGrantKey)
         {

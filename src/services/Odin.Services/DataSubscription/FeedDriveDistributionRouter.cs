@@ -32,11 +32,9 @@ namespace Odin.Services.DataSubscription
     /// </summary>
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
-        public const string IsCollaborativeChannel = "IsCollaborativeChannel";
-
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
-        private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+        private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
@@ -51,7 +49,7 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            IPeerOutgoingTransferService peerOutgoingTransferService,
+            PeerOutgoingTransferService peerOutgoingTransferService,
             DriveManager driveManager,
             TenantContext tenantContext,
             CircleNetworkService circleNetworkService,
@@ -78,11 +76,9 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-            var isCollabChannel = drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) &&
-                                  bool.TryParse(value, out bool collabChannelFlagValue) &&
-                                  collabChannelFlagValue;
+            var isCollaborationChannel = drive.IsCollaborationDrive();
 
-            if (await ShouldDistribute(notification, isCollabChannel))
+            if (await ShouldDistribute(notification, isCollaborationChannel))
             {
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
@@ -107,7 +103,7 @@ namespace Odin.Services.DataSubscription
                 {
                     try
                     {
-                        if (isCollabChannel)
+                        if (isCollaborationChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -130,7 +126,6 @@ namespace Odin.Services.DataSubscription
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.DatabaseConnection);
                         _peerOutboxProcessorBackgroundService.PulseBackgroundProcessor();
-                        return;
                     }
                 }
             }
@@ -156,7 +151,7 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollabChannel)
+        private async Task<bool> ShouldDistribute(IDriveNotification notification, bool isCollaborationChannel)
         {
             if (notification.IgnoreFeedDistribution)
             {
@@ -167,7 +162,7 @@ namespace Odin.Services.DataSubscription
             var serverFileHeader = notification.ServerFileHeader;
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
-            if (!uploadedByThisIdentity && !isCollabChannel)
+            if (!uploadedByThisIdentity && !isCollaborationChannel)
             {
                 return false;
             }
@@ -202,33 +197,30 @@ namespace Odin.Services.DataSubscription
 
             var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, cn);
 
-            // var author = odinContext.GetCallerOdinIdOrFail();
-            // connectedFollowers = connectedFollowers.Where(f => (OdinId)f.AsciiDomain != author).ToList();
 
             if (connectedFollowers.Any())
             {
+                // Prepare the file
+                var payload = new FeedItemPayload()
+                {
+                    DriveOriginWasCollaborative = true
+                    // CollaborationChannelAuthor = notification.OdinContext.GetCallerOdinIdOrFail(),
+                };
+
+                if (header.FileMetadata.IsEncrypted)
+                {
+                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+                    var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                    payload.KeyHeaderBytes = keyHeader.Combine().GetKey();
+                }
+
                 foreach (var recipient in connectedFollowers)
                 {
-                    // Prepare the file
-                    EccEncryptedPayload encryptedPayload = null;
-
-                    if (header.FileMetadata.IsEncrypted)
-                    {
-                        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-                        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                        var payload = new FeedItemPayload()
-                        {
-                            KeyHeaderBytes = keyHeader.Combine().GetKey()
-                        };
-
-                        //TODO: encryption - need to convert to the online key
-                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
-                            PublicPrivateKeyType.OfflineKey,
-                            recipient,
-                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                            cn);
-                    }
+                    var encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
+                        PublicPrivateKeyType.OfflineKey,
+                        recipient,
+                        OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
+                        cn);
 
                     await AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {
@@ -391,7 +383,7 @@ namespace Odin.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, cn);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,

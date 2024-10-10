@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidAppToken]
     public class AppClientTokenDriveStorageController(
         ILogger<AppClientTokenDriveStorageController> logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {

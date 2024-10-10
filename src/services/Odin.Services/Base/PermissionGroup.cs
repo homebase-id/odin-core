@@ -40,6 +40,8 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         _encryptedIcrKey = other._encryptedIcrKey?.Clone();
     }
 
+    internal int DriveGrantCount => this._driveGrants?.Count() ?? 0;
+
     public PermissionGroup Clone()
     {
         return new PermissionGroup(this);
@@ -121,7 +123,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
                 Log.Verbose(
                     "Grant for drive {permissionDrive} with permission value ({permission}) returned the storage key",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission);
-                
+
                 return storageKey;
             }
             catch

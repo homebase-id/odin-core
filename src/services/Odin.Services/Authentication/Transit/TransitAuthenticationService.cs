@@ -4,16 +4,19 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
+using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authentication.Transit;
 
-public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+public class TransitAuthenticationService :
+    INotificationHandler<ConnectionFinalizedNotification>,
+    INotificationHandler<ConnectionBlockedNotification>,
+    INotificationHandler<ConnectionDeletedNotification>
 {
     private readonly OdinContextCache _cache;
     private readonly CircleNetworkService _circleNetworkService;
@@ -61,7 +64,21 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
         return (cc, permissionContext);
     }
 
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
+    public Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+    {
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+    {
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
         // _cache.EnqueueIdentityForReset(notification.OdinId);
         _cache.Reset();
