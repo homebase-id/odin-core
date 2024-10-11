@@ -56,7 +56,7 @@ namespace Odin.Services.Membership.Connections
             IdentityDatabase db)
         {
             logger.LogDebug("Creating transit permission context for [{odinId}]", odinId);
-            
+
             var icr = await this.GetIdentityConnectionRegistration(odinId, remoteIcrToken, db);
 
             if (!icr.AccessGrant?.IsValid() ?? false)
@@ -844,17 +844,25 @@ namespace Odin.Services.Membership.Connections
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                var redacted = permissionCtx.Redacted();
                 logger.LogDebug("Final Permission Context:");
-                logger.LogDebug("Enabled Circles: [{k}]", string.Join(",", enabledCircles));
-                
-                foreach (var pg in redacted.PermissionGroups)
+
+                try
                 {
-                    logger.LogDebug("PermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys));
-                    logger.LogDebug("Drive Grants: [{dg}]", string.Join("\n", pg.DriveGrants));
+                    var redacted = permissionCtx.Redacted();
+                    logger.LogDebug("Enabled Circles: [{k}]", string.Join(",", enabledCircles));
+
+                    foreach (var pg in redacted.PermissionGroups)
+                    {
+                        logger.LogDebug("PermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys ?? []));
+                        logger.LogDebug("Drive Grants: [{dg}]", string.Join("\n", pg.DriveGrants ?? []));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogDebug(e, "Failure while logging final permission context");
                 }
             }
-            
+
             var result = (permissionCtx, enabledCircles);
             return await Task.FromResult(result);
         }

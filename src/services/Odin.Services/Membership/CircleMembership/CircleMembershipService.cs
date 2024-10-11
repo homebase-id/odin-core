@@ -209,7 +209,7 @@ public class CircleMembershipService(
             {
                 var redacted = grant.Redacted();
                 var dg = redacted.DriveGrants == null ? "none" : string.Join("\n", redacted.DriveGrants);
-                logger.LogDebug("domain name (caller) {callingIdentity} granted drives: {g}", domainName, dg);
+                logger.LogDebug("domain name (caller) {callingIdentity} granted drives: \n{g}", domainName, dg);
             }
         }
 
