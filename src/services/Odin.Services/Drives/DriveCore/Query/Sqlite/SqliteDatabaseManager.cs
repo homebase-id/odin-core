@@ -147,13 +147,17 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
-        // SEB:TODO null these guys 
-        // FileMetaData: appData, VersionTag, reactionSummary
-        // ServerMetaData: transferHistory
-        
-        // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
-        var nakedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
-        nakedFileMetadata.AppData = null;
+        // TODO: this is a hack to clean up FileMetadata before writing to db.
+        // We should have separate classes for DB model and API model
+        var strippedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
+        strippedFileMetadata.AppData = null;
+        strippedFileMetadata.ReactionPreview = null;
+        strippedFileMetadata.VersionTag = null;
+
+        // TODO: this is a hack to clean up ServerMetaData before writing to db.
+        // We should have separate classes for DB model and API model
+        var strippedServerMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.ServerMetadata);
+        strippedServerMetadata.TransferHistory = null;
 
         var driveMainIndexRecord = new DriveMainIndexRecord
         {
@@ -180,14 +184,12 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
             hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(header.EncryptedKeyHeader),
 
-            // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
-            hdrFileMetaData = OdinSystemSerializer.Serialize(nakedFileMetadata),
-            // hdrFileMetaData = OdinSystemSerializer.Serialize(header.FileMetadata),
+            hdrFileMetaData = OdinSystemSerializer.Serialize(strippedFileMetadata),
 
             hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
             hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
 
-            hdrServerData = OdinSystemSerializer.Serialize(header.ServerMetadata),
+            hdrServerData = OdinSystemSerializer.Serialize(strippedServerMetadata),
 
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
