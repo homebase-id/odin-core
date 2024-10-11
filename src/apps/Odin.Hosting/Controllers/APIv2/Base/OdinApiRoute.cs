@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Odin.Services.Authorization;
 
 namespace Odin.Hosting.Controllers.APIv2.Base;
 
@@ -17,9 +18,12 @@ public class OdinAuthorizeRouteAttribute(RootApiRoutes flags) : Attribute, IAsyn
         if (Flags.HasFlag(RootApiRoutes.Owner))
         {
             // check owner claims
+            var isOwner = context.HttpContext.User.Claims.Any(c => c.Type == OdinClaimTypes.IsIdentityOwner && bool.Parse(c.Value));
 
-            context.HttpContext.User.Claims.Any(c => c.Type == "");
-            return Task.CompletedTask;
+            if (isOwner)
+            {
+                return Task.CompletedTask;
+            }
         }
 
         if (Flags.HasFlag(RootApiRoutes.Apps))
