@@ -55,10 +55,13 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             IdentityDatabase db)
         {
+            logger.LogDebug("Creating transit permission context for [{odinId}]", odinId);
+            
             var icr = await this.GetIdentityConnectionRegistration(odinId, remoteIcrToken, db);
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
+                logger.LogDebug("Creating transit permission context for [{odinId}] - Failed due to invalid access grant", odinId);
                 throw new OdinSecurityException("Invalid token")
                 {
                     IsRemoteIcrIssue = true
@@ -67,6 +70,7 @@ namespace Odin.Services.Membership.Connections
 
             if (!icr.IsConnected())
             {
+                logger.LogDebug("Creating transit permission context for [{odinId}] - Failed due to invalid connection", odinId);
                 throw new OdinSecurityException("Invalid connection")
                 {
                     IsRemoteIcrIssue = true
@@ -747,11 +751,9 @@ namespace Odin.Services.Membership.Connections
 
             if (applyAppCircleGrants)
             {
-                foreach (var kvp in icr.AccessGrant.AppGrants)
+                logger.LogDebug("CreatePermissionContextInternal -> applying app circle grants");
+                foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant.AppGrants)
                 {
-                    // var appId = kvp.Key;
-                    var appCircleGrantDictionary = kvp.Value;
-
                     foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
@@ -762,28 +764,37 @@ namespace Odin.Services.Membership.Connections
                                 enabledCircles.Add(appCg.CircleId);
                             }
 
-                            if (grants.ContainsKey(kvp.Key))
+                            if (grants.ContainsKey(appId))
                             {
-                                //TODO: figuring out a production issue
-                                if (grants.TryGetValue(kvp.Key, out var v))
+                                //TODO: figuring out a production issue; it seems it is granted twice
+                                if (grants.TryGetValue(appId, out var v))
                                 {
                                     var existingKeyJson = OdinSystemSerializer.Serialize(v.Redacted());
-                                    var newKeyJson = OdinSystemSerializer.Serialize(appCg);
+                                    var newKeyJson = OdinSystemSerializer.Serialize(appCg.Redacted());
 
-                                    var message = $"Key with value [{kvp.Key}] already exists in grants.";
-                                    message += $"\n Existing key has [{existingKeyJson}]";
-                                    message += $"\n AppGrant Key [{newKeyJson}]";
-
-                                    logger.LogWarning(message);
+                                    if (existingKeyJson != newKeyJson)
+                                    {
+                                        var message =
+                                            $"Grantee [{icr.OdinId.AsciiDomain}] has key with appId value [{appId}] which already exists in grants.  The values are equivalent";
+                                        logger.LogInformation(message);
+                                    }
+                                    else
+                                    {
+                                        var message =
+                                            $"Grantee [{icr.OdinId.AsciiDomain}] has key with appId value [{appId}] which already exists in grants.  The values do not match";
+                                        message += $"\n Existing key has [{existingKeyJson}]";
+                                        message += $"\n AppGrant Key [{newKeyJson}]";
+                                        logger.LogError(message);
+                                    }
                                 }
                                 else
                                 {
-                                    logger.LogWarning($"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
+                                    logger.LogWarning($"Wild; so wild. grants.ContainsKey says it has {appId} but grants.TryGetValues does not???");
                                 }
                             }
                             else
                             {
-                                grants.Add(kvp.Key, new ExchangeGrant()
+                                grants.Add(appId, new ExchangeGrant()
                                 {
                                     Created = 0,
                                     Modified = 0,
@@ -831,6 +842,19 @@ namespace Odin.Services.Membership.Connections
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
 
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                var redacted = permissionCtx.Redacted();
+                logger.LogDebug("Final Permission Context:");
+                logger.LogDebug("Enabled Circles: [{k}]", string.Join(",", enabledCircles));
+                
+                foreach (var pg in redacted.PermissionGroups)
+                {
+                    logger.LogDebug("PermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys));
+                    logger.LogDebug("Drive Grants: [{dg}]", string.Join("\n", pg.DriveGrants));
+                }
+            }
+            
             var result = (permissionCtx, enabledCircles);
             return await Task.FromResult(result);
         }

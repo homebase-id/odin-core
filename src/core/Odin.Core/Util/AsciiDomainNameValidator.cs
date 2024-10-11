@@ -48,6 +48,11 @@ namespace Odin.Core.Util
             string punyCode = idnMapping.GetAscii(idnDomainName);
             return new AsciiDomainName(punyCode);
         }
+
+        public override string ToString()
+        {
+            return this.DomainName;
+        }
     }
 
 
