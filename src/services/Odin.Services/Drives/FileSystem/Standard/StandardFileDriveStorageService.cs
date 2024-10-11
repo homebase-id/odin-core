@@ -19,9 +19,9 @@ namespace Odin.Services.Drives.FileSystem.Standard
     public class StandardFileDriveStorageService : DriveStorageServiceBase
     {
         public StandardFileDriveStorageService(ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, ConcurrentFileManager concurrentFileManager,
+            IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager,
             DriveFileReaderWriter driveFileReaderWriter, DriveDatabaseHost driveDatabaseHost) :
-            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, concurrentFileManager, driveFileReaderWriter, driveDatabaseHost)
+            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, driveFileReaderWriter, driveDatabaseHost)
         {
         }
 

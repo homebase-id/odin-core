@@ -301,11 +301,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
         }
 
-        public async Task<string> GetServerFileHeaderPath(Guid fileId)
-        {
-            return await GetFilenameAndPath(fileId, FilePart.Header);
-        }
-
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, IdentityDatabase db)
         {
             var mgr = await GetDbManager(db);
@@ -391,7 +386,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private async Task<string> GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
         {
-            string path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : _drive.GetLongTermHeaderStoragePath();
+            var path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : throw new OdinSystemException($"Invalid FilePart {filePart}");
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows

@@ -32,7 +32,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
-        ConcurrentFileManager concurrentFileManager,
         DriveFileReaderWriter driveFileReaderWriter,
         DriveDatabaseHost driveDatabaseHost) : RequirePermissionsBase
     {
@@ -829,101 +828,49 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             ServerFileHeader header = null;
 
-            await PerformanceCounter.MeasureExecutionTime("UpdateTransferHistory",
-                async () =>
-                {
-                    await AssertCanReadOrWriteToDrive(file.DriveId, odinContext, db);
+            await AssertCanReadOrWriteToDrive(file.DriveId, odinContext, db);
 
-                    var mgr = await GetLongTermStorageManager(file.DriveId, db);
-                    var filePath = await mgr.GetServerFileHeaderPath(file.FileId);
+            var mgr = await GetLongTermStorageManager(file.DriveId, db);
 
-                    async Task<ServerFileHeader> TryLockAndUpdate()
-                    {
-                        ServerFileHeader header = null;
+            //
+            // Get and validate the header
+            //
+            header = await mgr.GetServerFileHeader(file.FileId, db);
+            AssertValidFileSystemType(header.ServerMetadata);
 
-                        _logger.LogDebug("UpdateTransferHistory trying to lock filePath:{filePath}", filePath);
+            //
+            // update the transfer history record
+            //
+            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
-                        await concurrentFileManager.WriteFileAsync(filePath, async _ =>
-                        {
-                            _logger.LogDebug("UpdateTransferHistory Successful Lock on:{filePath}", filePath);
+            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+            {
+                recipientItem = new RecipientTransferHistoryItem();
+                history.Recipients.Add(recipient, recipientItem);
+            }
 
-                            var stopwatch = Stopwatch.StartNew();
+            recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+            recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+            recipientItem.LastUpdated = UnixTimeUtc.Now();
+            recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+            if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
+            {
+                recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
+            }
 
-                            //
-                            // Get and validate the header
-                            //
-                            header = await mgr.GetServerFileHeader(file.FileId, db);
-                            AssertValidFileSystemType(header.ServerMetadata);
+            header.ServerMetadata.TransferHistory = history;
 
-                            if (stopwatch.ElapsedMilliseconds > 100)
-                                _logger.LogDebug("UpdateTransferHistory Read header used {ms}", stopwatch.ElapsedMilliseconds);
-                            stopwatch.Restart();
+            _logger.LogDebug(
+                "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
+                file,
+                recipient,
+                updateData.VersionTag,
+                updateData.LatestTransferStatus,
+                updateData.IsInOutbox,
+                updateData.IsReadByRecipient);
 
-                            //
-                            // update the transfer history record
-                            //
-                            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-                            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-                            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
-                            {
-                                recipientItem = new RecipientTransferHistoryItem();
-                                history.Recipients.Add(recipient, recipientItem);
-                            }
-
-                            recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-                            recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-                            recipientItem.LastUpdated = UnixTimeUtc.Now();
-                            recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-                            if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
-                            {
-                                recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-                            }
-
-                            header.ServerMetadata.TransferHistory = history;
-
-                            _logger.LogDebug(
-                                "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
-                                file,
-                                recipient,
-                                updateData.VersionTag,
-                                updateData.LatestTransferStatus,
-                                updateData.IsInOutbox,
-                                updateData.IsReadByRecipient);
-
-                            if (stopwatch.ElapsedMilliseconds > 100)
-                                _logger.LogDebug("UpdateTransferHistory manage json used {ms}", stopwatch.ElapsedMilliseconds);
-                            stopwatch.Restart();
-
-                            await mgr.SaveTransferHistory(file.FileId, history, db);
-
-                            if (stopwatch.ElapsedMilliseconds > 100)
-                                _logger.LogDebug("UpdateTransferHistory write header file internal used {ms}", stopwatch.ElapsedMilliseconds);
-                        });
-
-                        return header;
-                    }
-
-                    var attempts = 7;
-                    var delayMs = 200;
-
-                    try
-                    {
-                        await TryRetry.WithBackoffAsync(
-                            attempts: attempts,
-                            exponentialBackoff: TimeSpan.FromMilliseconds(delayMs),
-                            CancellationToken.None,
-                            async () => { header = await TryLockAndUpdate(); });
-                    }
-                    catch (TryRetryException t)
-                    {
-                        _logger.LogError(t, "Failed to Lock and Update Transfer History after {attempts} " +
-                                            "attempts with exponentialBackoff {delay}ms",
-                            attempts,
-                            delayMs);
-                        throw;
-                    }
-                });
+            await mgr.SaveTransferHistory(file.FileId, history, db);
 
             if (await ShouldRaiseDriveEvent(file, db))
             {
