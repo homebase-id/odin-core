@@ -50,7 +50,7 @@ namespace Odin.Services.DataSubscription
                     {
                         AppId = SystemAppConstants.FeedAppId,
                         TypeId = notification.NotificationTypeId,
-                        TagId = sender.ToHashId(),
+                        TagId = notification.Reaction.FileId.FileId,
                         Silent = false,
                     },
                         newContext,
