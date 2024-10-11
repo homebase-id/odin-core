@@ -14,7 +14,6 @@ namespace Odin.Services.Base
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
-
             if (fileSystemType == FileSystemType.Standard)
             {
                 return standardFileSystem;
@@ -37,16 +36,18 @@ namespace Odin.Services.Base
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
             // the type, then get a new IDriveFileSystem
-
-            var fs = this.ResolveFileSystem(FileSystemType.Standard);
-            var targetFsType = await fs.Storage.ResolveFileSystemType(file, odinContext, db);
-
-            if (targetFsType != FileSystemType.Standard)
+            
+            if (await standardFileSystem.Storage.FileExists(file, odinContext, db))
             {
-                return this.ResolveFileSystem(targetFsType);
+                return standardFileSystem;
             }
 
-            return fs;
+            if (await commentFileSystem.Storage.FileExists(file, odinContext, db))
+            {
+                return commentFileSystem;
+            }
+
+            throw new OdinSystemException($"Could not resolve file system type for file {file}");
         }
 
         public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId,

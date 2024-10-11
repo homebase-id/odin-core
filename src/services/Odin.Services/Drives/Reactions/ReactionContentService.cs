@@ -26,7 +26,7 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediat
         if (manager != null)
         {
             manager.AddReaction(senderId, file.FileId, reactionContent, db);
-
+            
             await mediator.Publish(new ReactionContentAddedNotification
             {
                 Reaction = new Reaction()

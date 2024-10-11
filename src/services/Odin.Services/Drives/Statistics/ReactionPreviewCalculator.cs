@@ -156,6 +156,9 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
+        
+        // having issues looking the file system for comments
+        
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext, notification.db);
         var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext, notification.db);
         var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();

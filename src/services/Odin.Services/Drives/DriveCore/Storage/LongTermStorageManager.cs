@@ -232,27 +232,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return true;
         }
 
-        // private async Task<bool> IsFileValid(Guid fileId)
-        // {
-        //     var header = await this.GetServerFileHeader(fileId);
-        //     if (header == null)
-        //     {
-        //         return false;
-        //     }
-        //
-        //     //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
-        //     foreach (var d in header.FileMetadata.Payloads)
-        //     {
-        //         var payloadFilePath = GetPayloadFilePath(fileId, d);
-        //         if (!await _driveFileReaderWriter.FileExists(payloadFilePath))
-        //         {
-        //             return false;
-        //         }
-        //     }
-        //
-        //     return true;
-        // }
-
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>

@@ -853,7 +853,7 @@ namespace Odin.Services.Membership.Connections
 
                     foreach (var pg in redacted.PermissionGroups)
                     {
-                        logger.LogDebug("\t\tStart Permission Group\n");
+                        logger.LogDebug("\n\t\tStart Permission Group\n");
                         logger.LogDebug("\t\tPermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys ?? []));
                         logger.LogDebug("\t\tDrive Grants: [{dg}]", string.Join("\n", pg.DriveGrants ?? []));
                         logger.LogDebug("\n\t\tEnd Permission Group");
