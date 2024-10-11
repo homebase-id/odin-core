@@ -258,9 +258,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                     GuidOneOrTwo(metadata.File.FileId, r.fileId),
                     Drive.Name);
 
-                // SEB:TODO really throw? 
-                // throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
-                logger.LogWarning(e.Message);
+                throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 
