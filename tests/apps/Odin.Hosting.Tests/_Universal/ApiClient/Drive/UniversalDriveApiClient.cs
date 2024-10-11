@@ -461,8 +461,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         var client = factory.CreateHttpClient(identity, out _, fileSystemType);
         {
-            var svc = RestService.For<IUniversalDriveV2HttpClientApi>(client);
-            var response = await svc.AppendPayload(parts.ToArray());
+            var svc = RestService.For<IUniversalDriveHttpClientApi>(client);
+            var response = await svc.UploadPayload(parts.ToArray());
             return response;
         }
     }
@@ -516,8 +516,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         var client = factory.CreateHttpClient(identity, out _, fileSystemType);
         {
-            var svc = RestService.For<IUniversalDriveV2HttpClientApi>(client);
-            var response = await svc.AppendPayload(parts.ToArray());
+            var svc = RestService.For<IUniversalDriveHttpClientApi>(client);
+            var response = await svc.UploadPayload(parts.ToArray());
             return (response, encryptedPayloads64);
         }
     }

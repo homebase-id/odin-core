@@ -8,7 +8,6 @@ using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
@@ -29,9 +28,6 @@ namespace Odin.Hosting.Tests._UniversalV2.ApiClient.Drive
         [Post(Root + ApiV2PathConstants.CreateFile)]
         Task<ApiResponse<UploadResult>> CreateFile(StreamPart[] streamdata);
 
-        [Multipart]
-        [Post(Root + ApiV2PathConstants.AppendPayload)]
-        Task<ApiResponse<UploadPayloadResult>> AppendPayload(StreamPart[] streamdata);
 
         [Delete(Root + ApiV2PathConstants.DeleteFile)]
         Task<ApiResponse<DeleteFileResult>> SoftDeleteFile([Body] DeleteFileRequest file);

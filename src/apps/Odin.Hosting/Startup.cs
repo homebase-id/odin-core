@@ -47,6 +47,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -159,14 +160,20 @@ namespace Odin.Hosting
 
             services.AddCorsPolicies();
 
-            services.AddAuthentication(o => o.DefaultScheme = UnifiedAuthConstants.SchemeName)
-                // .AddUnifiedAuthentication()
+            services.AddAuthentication(o =>
+                {
+                    // o.DefaultScheme = UnifiedAuthConstants.SchemeName;
+                    // o.DefaultAuthenticateScheme = UnifiedAuthConstants.SchemeName;
+                    o.DefaultScheme = OwnerAuthConstants.SchemeName;
+                    o.DefaultAuthenticateScheme = OwnerAuthConstants.SchemeName;
+                })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
-                .AddSystemAuthentication();
+                .AddSystemAuthentication()
+                .AddUnifiedAuthentication();
 
             services.AddAuthorization(policy =>
             {
@@ -484,8 +491,8 @@ namespace Odin.Hosting
                 //
                 // Shutdown all tenant background services
                 //
-                services.ShutdownTenantBackgroundServices().BlockingWait();                
-                
+                services.ShutdownTenantBackgroundServices().BlockingWait();
+
                 //
                 // Shutdown system background services
                 //

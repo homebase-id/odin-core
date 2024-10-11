@@ -32,15 +32,16 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
     /// <summary>
     /// Uploads a new file, unencrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
+    public async Task<ApiResponse<UploadResult>> CreateMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transitOptions = new TransitOptions();
-        return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
+        return await this.CreateMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
     }
 
-    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
+    public async Task<ApiResponse<UploadResult>> CreateMetadata(
+        TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         TransitOptions transitOptions,
         FileSystemType fileSystemType = FileSystemType.Standard)
@@ -192,7 +193,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
     /// <summary>
     /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> CreateEncryptedMetadata(
         UploadFileMetadata fileMetadata,
         StorageOptions storageOptions,
         TransitOptions transitOptions,
@@ -248,7 +249,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
         }
     }
 
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> CreateEncryptedMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         KeyHeader keyHeader = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
@@ -262,7 +263,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
 
         var t = new TransitOptions();
 
-        return await UploadNewEncryptedMetadata(fileMetadata, s, t, keyHeader, fileSystemType);
+        return await CreateEncryptedMetadata(fileMetadata, s, t, keyHeader, fileSystemType);
     }
 
     /// <summary>
@@ -270,7 +271,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
     /// </summary>
     public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult> uploadedThumbnails,
             List<EncryptedAttachmentUploadResult> uploadedPayloads)>
-        UploadNewEncryptedFile(TargetDrive targetDrive,
+        AddNewEncryptedFile(TargetDrive targetDrive,
             KeyHeader keyHeader,
             UploadFileMetadata fileMetadata,
             UploadManifest uploadManifest,
@@ -362,7 +363,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
     /// <summary>
     /// Uploads a new file, - unencrypted - with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<ApiResponse<UploadResult>> UploadNewFile(
+    public async Task<ApiResponse<UploadResult>> CreateFile(
         TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
@@ -421,106 +422,7 @@ public class UniversalDriveApiClientV2(OdinId identity, IApiClientFactory factor
             return response;
         }
     }
-
-    public async Task<ApiResponse<UploadPayloadResult>> UploadPayloads(
-        ExternalFileIdentifier targetFile,
-        Guid targetVersionTag,
-        UploadManifest uploadManifest,
-        List<TestPayloadDefinition> payloads,
-        FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var instructionSet = new UploadPayloadInstructionSet()
-        {
-            TargetFile = targetFile,
-            Manifest = uploadManifest,
-            VersionTag = targetVersionTag,
-            Recipients = default
-        };
-
-        var instructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
-
-        List<StreamPart> parts =
-        [
-            new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json",
-                Enum.GetName(MultipartUploadParts.PayloadUploadInstructions))
-        ];
-
-        foreach (var payloadDefinition in payloads)
-        {
-            parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
-
-            foreach (var thumbnail in payloadDefinition.Thumbnails)
-            {
-                var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
-                parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-            }
-        }
-
-        var client = factory.CreateHttpClient(identity, out _, fileSystemType);
-        {
-            var svc = RestService.For<IUniversalDriveV2HttpClientApi>(client);
-            var response = await svc.AppendPayload(parts.ToArray());
-            return response;
-        }
-    }
-
-    public async Task<(ApiResponse<UploadPayloadResult> response, Dictionary<string, byte[]> encryptedPayloads64)> UploadEncryptedPayloads(
-        ExternalFileIdentifier targetFile,
-        Guid targetVersionTag,
-        UploadManifest uploadManifest,
-        List<TestPayloadDefinition> payloads,
-        byte[] aesKey,
-        FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var instructionSet = new UploadPayloadInstructionSet()
-        {
-            TargetFile = targetFile,
-            Manifest = uploadManifest,
-            VersionTag = targetVersionTag,
-            Recipients = default
-        };
-
-        var instructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
-
-        List<StreamPart> parts = new();
-        parts.Add(new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json",
-            Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
-
-        var encryptedPayloads64 = new Dictionary<string, byte[]>();
-        foreach (var payloadDefinition in payloads)
-        {
-            var payloadKeyHeader = new KeyHeader()
-            {
-                Iv = payloadDefinition.Iv,
-                AesKey = aesKey.ToSensitiveByteArray()
-            };
-
-            var encryptedPayloadStream = payloadKeyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
-            var encryptedPayloadStream2 = payloadKeyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
-            encryptedPayloads64.Add(payloadDefinition.Key, encryptedPayloadStream2.ToByteArray());
-
-            parts.Add(new StreamPart(encryptedPayloadStream, payloadDefinition.Key, payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
-
-            foreach (var thumbnail in payloadDefinition.Thumbnails)
-            {
-                var encryptedThumbnailStream = payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content);
-                var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
-                parts.Add(new StreamPart(encryptedThumbnailStream, thumbnailKey, thumbnail.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-            }
-        }
-
-        var client = factory.CreateHttpClient(identity, out _, fileSystemType);
-        {
-            var svc = RestService.For<IUniversalDriveV2HttpClientApi>(client);
-            var response = await svc.AppendPayload(parts.ToArray());
-            return (response, encryptedPayloads64);
-        }
-    }
-
+    
     public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

@@ -14,13 +14,30 @@ public class OdinAuthorizeRouteAttribute(RootApiRoutes flags) : Attribute, IAsyn
     public Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
         //
-
         if (Flags.HasFlag(RootApiRoutes.Owner))
         {
             // check owner claims
-            
-            context.HttpContext.User.Claims.Any(c=>c.Type == "");
+
+            context.HttpContext.User.Claims.Any(c => c.Type == "");
+            return Task.CompletedTask;
         }
+
+        if (Flags.HasFlag(RootApiRoutes.Apps))
+        {
+            // check owner claims
+
+            context.HttpContext.User.Claims.Any(c => c.Type == "");
+            return Task.CompletedTask;
+        }
+
+        if (Flags.HasFlag(RootApiRoutes.Guest))
+        {
+            // check owner claims
+
+            context.HttpContext.User.Claims.Any(c => c.Type == "");
+            return Task.CompletedTask;
+        }
+
 
         context.Result = new ForbidResult();
         return Task.CompletedTask;

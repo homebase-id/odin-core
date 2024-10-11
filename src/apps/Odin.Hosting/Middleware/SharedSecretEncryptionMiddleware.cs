@@ -245,6 +245,11 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
+            if(context.Request.Headers.ContentType.Any(ct=>ct.Contains("multipart/form-data")))
+            {
+                return false;
+            }
+            
             if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
             {
                 return false;
@@ -285,10 +290,9 @@ namespace Odin.Hosting.Middleware
 
         private bool CallerMustHaveSharedSecret(HttpContext context)
         {
-            return false;
-            //
-            // var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
-            // return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
+            var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
+            return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
+
         }
     }
 }

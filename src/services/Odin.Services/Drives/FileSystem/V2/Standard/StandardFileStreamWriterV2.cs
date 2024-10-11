@@ -6,19 +6,21 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.FileSystem.V2.Upload.AddNew;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using UploadFileDescriptor = Odin.Services.Drives.FileSystem.Base.Upload.UploadFileDescriptor;
 
-namespace Odin.Services.Drives.FileSystem.Standard;
+namespace Odin.Services.Drives.FileSystem.V2.Standard;
 
 /// <summary />
-public class StandardFileStreamWriter : FileSystemStreamWriterBase
+public class StandardFileStreamWriterV2 : FileSystemStreamWriterBaseV2
 {
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext,
+    public StandardFileStreamWriterV2(StandardFileSystem fileSystem, TenantContext tenantContext,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
@@ -42,56 +44,24 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected override Task ValidateUnpackedData(FileUploadPackageV2 package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected override async Task ProcessNewFileUpload(FileUploadPackageV2 package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
         IOdinContext odinContext, DatabaseConnection cn)
     {
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
     }
-
-    protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
-    {
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
-        {
-            await FileSystem.Storage.OverwriteMetadata(
-                keyHeader.Iv,
-                targetFile: package.InternalFile,
-                newMetadata: metadata,
-                newServerMetadata: serverMetadata,
-                odinContext: odinContext, cn);
-
-            return;
-        }
-
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
-        {
-            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-                targetFile: package.InternalFile,
-                keyHeader: keyHeader,
-                newMetadata: metadata,
-                serverMetadata: serverMetadata,
-                ignorePayload: false,
-                odinContext: odinContext,
-                cn);
-
-            return;
-        }
-
-        throw new OdinSystemException("Unhandled Storage Intent");
-    }
-
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, DatabaseConnection cn)
+    
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackageV2 package, IOdinContext odinContext, DatabaseConnection cn)
     {
         return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackageV2 package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {

@@ -20,7 +20,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._UniversalV2.Tests.Drive;
 
-// Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
+// Covers using the drives directly on the identity (i.e. owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
 public class DirectDriveGeneralFileTestsV2
 {
@@ -91,7 +91,7 @@ public class DirectDriveGeneralFileTestsV2
 
         // Act
         var callerDriveClient = new UniversalDriveApiClientV2(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        var response = await callerDriveClient.CreateMetadata(targetDrive, uploadedFileMetadata);
 
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
@@ -125,7 +125,7 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new UniversalDriveApiClientV2(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+        var response = await callerDriveClient.CreateFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Let's test more
