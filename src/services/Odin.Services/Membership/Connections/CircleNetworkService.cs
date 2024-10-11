@@ -844,18 +844,23 @@ namespace Odin.Services.Membership.Connections
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Final Permission Context:");
-
+                logger.LogDebug("Start Final Permission Context:");
+                
                 try
                 {
                     var redacted = permissionCtx.Redacted();
-                    logger.LogDebug("Enabled Circles: [{k}]", string.Join(",", enabledCircles));
+                    logger.LogDebug("\tEnabled Circles: [{k}]", string.Join(",", enabledCircles));
 
                     foreach (var pg in redacted.PermissionGroups)
                     {
-                        logger.LogDebug("PermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys ?? []));
-                        logger.LogDebug("Drive Grants: [{dg}]", string.Join("\n", pg.DriveGrants ?? []));
+                        logger.LogDebug("\t\tStart Permission Group\n");
+                        logger.LogDebug("\t\tPermissionKeys: [{k}]", string.Join(",", pg.PermissionSet.Keys ?? []));
+                        logger.LogDebug("\t\tDrive Grants: [{dg}]", string.Join("\n", pg.DriveGrants ?? []));
+                        logger.LogDebug("\n\t\tEnd Permission Group");
                     }
+                    
+                    logger.LogDebug("End Final Permission Context:");
+
                 }
                 catch (Exception e)
                 {
