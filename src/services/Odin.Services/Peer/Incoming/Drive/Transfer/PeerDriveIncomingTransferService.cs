@@ -139,7 +139,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = odinContext,
-                        DatabaseConnection = cn
+                        DatabaseConnection = cn,
+                        GlobalTransitId = (Guid)fileMetadata.GlobalTransitId
                     });
                 }
                 else
@@ -182,10 +183,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
 
                 await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    },
+                {
+                    FileId = header.FileId,
+                    DriveId = driveId
+                },
                     odinContext,
                     cn);
 
@@ -204,7 +205,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 InstructionType = TransferInstructionType.DeleteLinkedFile,
                 DriveId = driveId,
 
-                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint 
+                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint
                 GlobalTransitId = globalTransitId,
 
                 FileSystemType = fileSystemType,

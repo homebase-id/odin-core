@@ -85,7 +85,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
 
-                    // Clearing the UID for any files that go into the feed drive because the feed drive 
+                    // Clearing the UID for any files that go into the feed drive because the feed drive
                     // comes from multiple channel drives from many different identities so there could be a clash
                     request.FileMetadata.AppData.UniqueId = null;
 
@@ -97,7 +97,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     {
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = newContext,
-                        DatabaseConnection = cn
+                        DatabaseConnection = cn,
+                        GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault()
                     });
                 }
                 else

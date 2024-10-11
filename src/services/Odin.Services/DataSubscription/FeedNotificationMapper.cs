@@ -47,12 +47,12 @@ namespace Odin.Services.DataSubscription
                     var odinContext = notification.OdinContext;
                     var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                        {
-                            AppId = SystemAppConstants.FeedAppId,
-                            TypeId = notification.NotificationTypeId,
-                            TagId = sender.ToHashId(),
-                            Silent = false,
-                        },
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = notification.NotificationTypeId,
+                        TagId = sender.ToHashId(),
+                        Silent = false,
+                    },
                         newContext,
                         notification.DatabaseConnection);
                 }
@@ -66,12 +66,12 @@ namespace Odin.Services.DataSubscription
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
             await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = typeId,
-                    TagId = notification.Sender.ToHashId(),
-                    Silent = false,
-                },
+            {
+                AppId = SystemAppConstants.FeedAppId,
+                TypeId = typeId,
+                TagId = notification.GlobalTransitId,
+                Silent = false,
+            },
                 newContext,
                 notification.DatabaseConnection);
         }
@@ -93,12 +93,12 @@ namespace Odin.Services.DataSubscription
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                 await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                    {
-                        AppId = SystemAppConstants.FeedAppId,
-                        TypeId = CommentNotificationTypeId,
-                        TagId = sender.ToHashId(),
-                        Silent = false,
-                    },
+                {
+                    AppId = SystemAppConstants.FeedAppId,
+                    TypeId = CommentNotificationTypeId,
+                    TagId = sender.ToHashId(),
+                    Silent = false,
+                },
                     newContext,
                     notification.DatabaseConnection);
             }
