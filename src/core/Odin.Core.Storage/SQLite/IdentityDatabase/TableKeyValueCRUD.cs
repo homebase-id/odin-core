@@ -89,6 +89,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
@@ -116,6 +117,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, KeyValueRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO keyValue (identityId,key,data) " +
@@ -143,6 +145,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         protected virtual int Upsert(DatabaseConnection conn, KeyValueRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
@@ -170,6 +173,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
         protected virtual int Update(DatabaseConnection conn, KeyValueRecord item)
         {
+            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE keyValue " +

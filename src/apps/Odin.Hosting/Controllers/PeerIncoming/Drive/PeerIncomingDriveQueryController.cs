@@ -106,6 +106,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.ContentLength = payloadStream.Stream.Length;
+
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
 

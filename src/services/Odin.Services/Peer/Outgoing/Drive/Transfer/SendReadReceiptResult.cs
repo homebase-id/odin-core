@@ -29,5 +29,6 @@ public enum SendReadReceiptResultStatus
     FileDoesNotExist = 8,
     FileDoesNotHaveSender = 9,
     MissingGlobalTransitId = 10,
-    Enqueued
+    Enqueued = 11,
+    CannotSendReadReceiptToSelf = 12
 }

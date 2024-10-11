@@ -71,6 +71,7 @@ jobs:
           tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
           build-args: |
             VERSION_TEXT=${{ env.NEW_VERSION_TAG }}
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id

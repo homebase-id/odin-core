@@ -25,7 +25,7 @@ public static class RegistrationEmails
         ";
     }
 
-    public static string ProvisioningCompletedHtml(string email, string domain, string link, string logoImageHref, string logoImageUrl)
+    public static string ProvisioningCompletedHtml(string domain, string link)
     {
         return @$"
             <!DOCTYPE html>
@@ -170,29 +170,6 @@ public static class RegistrationEmails
                                                 >
                                                     <tr>
                                                         <td
-                                                            style='font-size: 14px; vertical-align: top'
-                                                            valign='top'
-                                                        >
-                                                            <a
-                                                                href='{logoImageHref}'
-                                                                style='
-                                                                    color: #ff69b4;
-                                                                    text-decoration: underline;
-                                                                '
-                                                                ><img
-                                                                    src='{logoImageUrl}'
-                                                                    alt='Homebase'
-                                                                    style='
-                                                                        border: none;
-                                                                        -ms-interpolation-mode: bicubic;
-                                                                        max-width: 150px;
-                                                                    '
-                                                                    width='250'
-                                                            /></a>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td
                                                             style='
                                                                 font-size: 14px;
                                                                 vertical-align: top;
@@ -266,6 +243,7 @@ public static class RegistrationEmails
                         </tr>
                     </table>
                 </body>
-            </html>";
+            </html>"
+            ;
     }
 }

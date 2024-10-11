@@ -49,16 +49,16 @@ public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache
                 {
                     
                     result = new HttpProbeResult(true, $"Successfully probed {scheme}://{domainName}:{port}");
-                    cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+                    cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
                     return result;
 
                 }
                 result = new HttpProbeResult(false, $"Successfully probed {scheme}://{domainName}:{port}, but received unexpected response");
-                cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+                cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
                 return result;
             }
             result = new HttpProbeResult(false, $"Failed to probe {scheme}://{domainName}:{port}, {domainName} says: {response.ReasonPhrase}");
-            cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
             return result;
         }
         catch (HttpRequestException e)

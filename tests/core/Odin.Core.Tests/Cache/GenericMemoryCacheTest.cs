@@ -46,6 +46,7 @@ public class GenericMemoryCacheTest
             Assert.AreEqual("bar", value!.Name);
         }
 
+        cache.Dispose();
     }
 
     //
@@ -68,6 +69,8 @@ public class GenericMemoryCacheTest
             Assert.IsTrue(hit);
             Assert.IsNull(value);
         }
+
+        cache.Dispose();
     }
 
     //
@@ -88,9 +91,9 @@ public class GenericMemoryCacheTest
             Assert.IsFalse(hit);
             Assert.IsNull(value);
         }
+
+        cache.Dispose();
     }
-
-
 
     //
 
@@ -116,6 +119,21 @@ public class GenericMemoryCacheTest
             Assert.AreEqual("bar", value!.Name);
         }
 
+        cache.Set("zig", new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        {
+            var hit = cache.TryGet<SampleValue>("zig", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
+        var key2 = RandomNumberGenerator.GetBytes(16);
+        cache.Set(key2, new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        {
+            var hit = cache.TryGet<SampleValue>(key2, out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
         Thread.Sleep(200);
 
         {
@@ -130,6 +148,19 @@ public class GenericMemoryCacheTest
             Assert.IsNull(value);
         }
 
+        {
+            var hit = cache.TryGet<SampleValue>("zig", out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        {
+            var hit = cache.TryGet<SampleValue>(key2, out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        cache.Dispose();
     }
 #endif
 
@@ -162,6 +193,7 @@ public class GenericMemoryCacheTest
             Assert.AreEqual($"The item with key '{key.ToBase64()}' cannot be cast to type GenericMemoryCacheTest.", exception!.Message);
         }
 
+        cache.Dispose();
     }
 
     //
@@ -186,6 +218,8 @@ public class GenericMemoryCacheTest
             Assert.IsTrue(hit);
             Assert.AreEqual("Hello", value!.Value);
         }
+
+        cache.Dispose();
     }
 
     //
@@ -210,6 +244,8 @@ public class GenericMemoryCacheTest
             Assert.IsTrue(hit);
             Assert.AreEqual("Hello", value!.Value);
         }
+
+        cache.Dispose();
     }
 
     //
@@ -234,7 +270,37 @@ public class GenericMemoryCacheTest
 
         exists = cache.Contains(key);
         Assert.IsFalse(exists);
+
+        cache.Dispose();
     }
+
+    //
+
+    [Test]
+    public void ItShouldClearTheCache()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        var key = RandomNumberGenerator.GetBytes(16);
+        cache.Set(key, "bar", TimeSpan.FromSeconds(10));
+        var hit = cache.TryGet(key, out var value);
+        Assert.IsTrue(hit);
+        Assert.AreEqual("bar", value);
+
+        var exists = cache.Contains(key);
+        Assert.IsTrue(exists);
+
+        cache.Clear();
+
+        exists = cache.Contains(key);
+        Assert.IsFalse(exists);
+
+        cache.Dispose();
+    }
+
+    //
+
 
     //
 
@@ -247,6 +313,8 @@ public class GenericMemoryCacheTest
 
         var key = cache.GenerateKey("foo", strings);
         Assert.AreEqual("foo:one:two:three", key);
+
+        cache.Dispose();
     }
 
     //
@@ -266,6 +334,8 @@ public class GenericMemoryCacheTest
 
         var key = cache.GenerateKey("foo", byteArrays);
         Assert.AreEqual("foo:Zm9v:YmFy:YmF6", key);
+
+        cache.Dispose();
     }
 
     //

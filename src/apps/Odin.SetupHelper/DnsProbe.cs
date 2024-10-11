@@ -41,7 +41,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
         if (aRecord != null)
         {
             result = new ResolveIpResult(aRecord.Address.ToString(), $"Resolved {domainName} to {aRecord.Address}");
-            cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
             return result;
         }
         
@@ -57,11 +57,11 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
             resolvers = [authorityLookup.Authority];
             
             queryResponse = await lookupClient.Query(resolvers, cNameRecord.CanonicalName, QueryType.A, options);
-            aRecord = queryResponse?.Answers.ARecords().FirstOrDefault();
+            aRecord = queryResponse?.Answers.ARecords().FirstOrDefault(); // SEB:TODO handle multiple A records
             if (aRecord != null)
             {
                 result = new ResolveIpResult(aRecord.Address.ToString(), $"Resolved {domainName} to {aRecord.Address}");
-                cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+                cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
                 return result;
             }
     
@@ -69,7 +69,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
         }
         
         result = new ResolveIpResult("", $"Did not find neither A nor CNAME record for {domainName} at authoritative name servers");
-        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
         return result;
     }
     
@@ -88,19 +88,19 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
         if (authoritativeResult.Exception != null)
         {
             result = new AuthorityResult("", authoritativeResult.Exception.Message);  
-            cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
             return result;
         }
 
         if (authoritativeResult.AuthoritativeNameServer == "")
         {
             result = new AuthorityResult("", $"No authoritative name server found for {domainName}");
-            cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
             return result;
         }
     
         result = new AuthorityResult(authoritativeResult.AuthoritativeNameServer, $"Authoritative name server found for {domainName}");
-        cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
+        cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
         return result;
     }
     

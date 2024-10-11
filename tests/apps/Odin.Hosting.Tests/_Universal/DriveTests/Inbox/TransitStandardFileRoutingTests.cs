@@ -173,6 +173,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 Assert.IsTrue(receivedFile.FileState == FileState.Active);
                 Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == senderOwnerClient.Identity.OdinId,
                     $"Sender should have been ${senderOwnerClient.Identity.OdinId}");
+                Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == senderOwnerClient.Identity.OdinId,
+                    $"Original Author should have been ${senderOwnerClient.Identity.OdinId}");
                 Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted);
                 Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == fileResponse.EncryptedContent64);
                 Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == fileResponse.UploadResult.GlobalTransitId);

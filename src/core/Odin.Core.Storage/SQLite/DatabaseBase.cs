@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 
 
 /*
@@ -63,6 +64,13 @@ namespace Odin.Core.Storage.SQLite
                 Serilog.Log.Error("Was not disposed: " + _connectionString);
 #endif
         }
+
+        public static void AssertGuidNotEmpty(Guid? g, string message = "Guid is not allowed to be empty")
+        {
+            if (g == Guid.Empty)
+                throw new OdinSystemException(message);
+        }
+
 
         public virtual void ClearCache()
         {

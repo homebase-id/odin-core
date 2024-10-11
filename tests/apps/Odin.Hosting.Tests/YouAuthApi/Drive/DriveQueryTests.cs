@@ -290,7 +290,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
+                Assert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
+                Assert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?

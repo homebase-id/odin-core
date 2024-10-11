@@ -333,6 +333,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
     }

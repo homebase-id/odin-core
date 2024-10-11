@@ -74,14 +74,14 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
                 }
 
                 section = await reader.ReadNextSectionAsync();

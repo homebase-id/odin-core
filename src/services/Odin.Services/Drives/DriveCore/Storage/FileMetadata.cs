@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -67,9 +68,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool IsEncrypted { get; set; }
         
         /// <summary>
-        /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
+        /// The OdinId of the DI that sent this file.  This might vary from the <see cref="OriginalAuthor"/>
         /// </summary>
         public string SenderOdinId { get; set; }
+
+        /// <summary>
+        /// The first identity which created this file.
+        /// </summary>
+        public OdinId? OriginalAuthor { get; set; }
 
         public AppFileMetaData AppData { get; set; }
 

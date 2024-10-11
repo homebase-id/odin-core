@@ -128,6 +128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original author should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);
@@ -214,6 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);

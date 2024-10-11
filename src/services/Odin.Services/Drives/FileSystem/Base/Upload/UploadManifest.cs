@@ -66,6 +66,8 @@ public class UploadManifestPayloadDescriptor
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
     
+    public string ContentType { get; set; }
+    
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -83,4 +85,6 @@ public class UploadedManifestThumbnailDescriptor
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }
+    
+    public string ContentType { get; set; }
 }

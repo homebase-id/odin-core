@@ -15,8 +15,6 @@ public class SendProvisioningCompleteEmailJobData
     public string Domain { get; set; } = "";
     public string Email { get; set; } = "";
     public string FirstRunToken { get; set; } = "";
-    public string ProvisioningEmailLogoImage { get; set; } = "";
-    public string ProvisioningEmailLogoHref { get; set; } = "";
 }
 
 //
@@ -50,12 +48,7 @@ public class SendProvisioningCompleteEmailJob(
             To = [new NameAndEmailAddress { Email = Data.Email }],
             Subject = subject,
             TextMessage = RegistrationEmails.ProvisioningCompletedText(Data.Email, Data.Domain, firstRunlink),
-            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(
-                Data.Email, 
-                Data.Domain, 
-                firstRunlink, 
-                Data.ProvisioningEmailLogoHref,
-                Data.ProvisioningEmailLogoImage)
+            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(Data.Domain, firstRunlink)
         };
 
         await emailSender.SendAsync(envelope);
@@ -92,14 +85,6 @@ public class SendProvisioningCompleteEmailJob(
         if (string.IsNullOrEmpty(Data.FirstRunToken))
         {
             throw new OdinSystemException($"{nameof(Data.FirstRunToken)} is missing");
-        }
-        if (string.IsNullOrEmpty(Data.ProvisioningEmailLogoImage))
-        {
-            throw new OdinSystemException($"{nameof(Data.ProvisioningEmailLogoImage)} is missing");
-        }
-        if (string.IsNullOrEmpty(Data.ProvisioningEmailLogoHref))
-        {
-            throw new OdinSystemException($"{nameof(Data.ProvisioningEmailLogoHref)} is missing");
         }
     }
 }
