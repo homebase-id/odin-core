@@ -45,7 +45,7 @@ namespace Odin.Services.Membership.Connections
             INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
-        
+
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
@@ -89,6 +89,8 @@ namespace Odin.Services.Membership.Connections
         public async Task<IOdinContext> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken, AccessRegistration accessReg,
             IOdinContext odinContext, IdentityDatabase db)
         {
+            logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
+            
             var icr = await GetIdentityConnectionRegistrationInternal(odinId);
             bool isValid = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
@@ -364,7 +366,7 @@ namespace Odin.Services.Membership.Connections
         public async Task GrantCircle(GuidId circleId, OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
         {
             odinContext.Caller.AssertHasMasterKey();
-            
+
             var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
 
             if (icr == null || !icr.IsConnected())
@@ -431,7 +433,7 @@ namespace Odin.Services.Membership.Connections
 
             this.SaveIcr(icr, odinContext, db);
         }
-        
+
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey,
             IOdinContext odinContext,
@@ -442,7 +444,7 @@ namespace Odin.Services.Membership.Connections
             list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             return await this.CreateAppCircleGrantList(list, keyStoreKey, odinContext, db);
         }
-        
+
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             List<GuidId> circleIds,
@@ -739,7 +741,7 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext)
         {
             // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
-            
+
             var (grants, enabledCircles) =
                 circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
@@ -798,7 +800,8 @@ namespace Odin.Services.Membership.Connections
 
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrant(tenantSystemStorage.IdentityDatabase, keyStoreKey, new Permissions_PermissionSet(),
+            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrant(tenantSystemStorage.IdentityDatabase, keyStoreKey,
+                new Permissions_PermissionSet(),
                 new List<DriveGrantRequest>()
                 {
                     new()
@@ -897,7 +900,8 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration, IOdinContext odinContext,
+        public async Task ReconcileAuthorizedCircles(RedactedAppRegistration oldAppRegistration, RedactedAppRegistration newAppRegistration,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             var masterKey = odinContext.Caller.GetMasterKey();

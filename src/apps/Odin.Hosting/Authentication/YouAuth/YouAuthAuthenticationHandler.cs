@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;

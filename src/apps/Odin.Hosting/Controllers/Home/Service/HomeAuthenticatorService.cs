@@ -5,19 +5,15 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
-using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Mediator;
-using Odin.Services.Membership;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections;
 
@@ -30,6 +26,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly TenantContext _tenantContext;
         private readonly HomeRegistrationStorage _storage;
         private readonly CircleMembershipService _circleMembershipService;
+        private readonly ILogger<HomeAuthenticatorService> _logger;
         private readonly OdinContextCache _cache;
 
         //
@@ -39,7 +36,8 @@ namespace Odin.Hosting.Controllers.Home.Service
             ExchangeGrantService exchangeGrantService,
             TenantContext tenantContext,
             HomeRegistrationStorage storage,
-            CircleMembershipService circleMembershipService
+            CircleMembershipService circleMembershipService,
+            ILogger<HomeAuthenticatorService> logger
         )
         {
             _circleNetworkService = circleNetworkService;
@@ -47,6 +45,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             _tenantContext = tenantContext;
             _storage = storage;
             _circleMembershipService = circleMembershipService;
+            _logger = logger;
             _cache = new OdinContextCache();
         }
 
@@ -338,6 +337,8 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedPermissionContext(
             ClientAuthenticationToken authToken, IOdinContext odinContext, IdentityDatabase db)
         {
+            _logger.LogDebug("Create Connected Permission Context");
+
             var client = _storage.GetClient(authToken.Id, db);
             if (client?.AccessRegistration == null)
             {
@@ -354,6 +355,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // Only return the permissions if the identity is connected.
             if (isAuthenticated && isConnected)
             {
+                _logger.LogDebug("Create Connected Permission Context -> {icr} is connected", icr.OdinId);
                 var (permissionContext, enabledCircles) = await CreatePermissionContextCore(
                     icr: icr,
                     accessReg: client.AccessRegistration,
@@ -373,6 +375,8 @@ namespace Odin.Hosting.Controllers.Home.Service
                         AccessRegistrationId = client.AccessRegistration.Id,
                         DevicePushNotificationKey = null
                     });
+
+                _logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId, string.Join(",", enabledCircles));
 
                 return (cc, permissionContext);
             }

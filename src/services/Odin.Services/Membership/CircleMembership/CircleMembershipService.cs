@@ -37,15 +37,15 @@ public class CircleMembershipService(
 
         // TODO CONNECTIONS
         //db.CreateCommitUnitOfWork(() => {
-            foreach (var circleMemberRecord in circleMemberRecords)
+        foreach (var circleMemberRecord in circleMemberRecords)
+        {
+            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
+                .ToStringFromUtf8Bytes());
+            if (sd.DomainType == domainType)
             {
-                var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
-                    .ToStringFromUtf8Bytes());
-                if (sd.DomainType == domainType)
-                {
-                    tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
-                }
+                tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
             }
+        }
         // }); TODO CONNECTIONS
 
         //
@@ -133,7 +133,8 @@ public class CircleMembershipService(
         return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, db);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext,
+        IdentityDatabase db)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -199,6 +200,15 @@ public class CircleMembershipService(
                     logger.LogInformation("Caller [{callingIdentity}] has been granted circleId:[{circleId}], which no longer exists",
                         odinContext.Caller.OdinId, cg.CircleId);
                 }
+            }
+        }
+
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            foreach (var grant in grants.Values)
+            {
+                var redacted = grant.Redacted();
+                logger.LogDebug("Caller {callingIdentity} granted drives: {g}", odinContext.Caller.OdinId, string.Join("\n", redacted.DriveGrants));
             }
         }
 
