@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -208,7 +207,8 @@ public class CircleMembershipService(
             foreach (var grant in grants.Values)
             {
                 var redacted = grant.Redacted();
-                logger.LogDebug("Caller {callingIdentity} granted drives: {g}", odinContext.Caller.OdinId, string.Join("\n", redacted.DriveGrants));
+                var dg = redacted.DriveGrants == null ? "none" : string.Join("\n", redacted.DriveGrants);
+                logger.LogDebug("Caller {callingIdentity} granted drives: {g}", odinContext.Caller.OdinId, dg);
             }
         }
 
