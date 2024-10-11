@@ -90,7 +90,7 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext, IdentityDatabase db)
         {
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
-            
+
             var icr = await GetIdentityConnectionRegistrationInternal(odinId);
             bool isValid = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
@@ -743,7 +743,7 @@ namespace Odin.Services.Membership.Connections
             // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
 
             var (grants, enabledCircles) =
-                circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
+                circleMembershipService.MapCircleGrantsToExchangeGrants(icr.OdinId.AsciiDomain, icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
             if (applyAppCircleGrants)
             {

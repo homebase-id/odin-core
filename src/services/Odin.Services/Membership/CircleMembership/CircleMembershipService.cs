@@ -164,7 +164,8 @@ public class CircleMembershipService(
         return circleGrants;
     }
 
-    public (Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles) MapCircleGrantsToExchangeGrants(List<CircleGrant> circleGrants,
+    public (Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles) MapCircleGrantsToExchangeGrants(AsciiDomainName domainName,
+        List<CircleGrant> circleGrants,
         IOdinContext odinContext)
     {
         //TODO: this code needs to be refactored to avoid all the mapping
@@ -208,7 +209,7 @@ public class CircleMembershipService(
             {
                 var redacted = grant.Redacted();
                 var dg = redacted.DriveGrants == null ? "none" : string.Join("\n", redacted.DriveGrants);
-                logger.LogDebug("Caller {callingIdentity} granted drives: {g}", odinContext.Caller.OdinId, dg);
+                logger.LogDebug("domain name (caller) {callingIdentity} granted drives: {g}", domainName, dg);
             }
         }
 
