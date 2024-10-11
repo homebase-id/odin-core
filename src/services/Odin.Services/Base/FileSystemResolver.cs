@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
@@ -66,14 +65,10 @@ namespace Odin.Services.Base
                 //try by comment
                 fs = this.ResolveFileSystem(FileSystemType.Comment);
                 file = await fs.Query.ResolveFileId(globalTransitFileId, odinContext, db);
+                return (fs, file);
             }
 
-            if (null == file)
-            {
-                return (fs, null);
-            }
-
-            return (await this.ResolveFileSystem(file.Value, odinContext, db), file.Value);
+            return (fs, file);
         }
     }
 }
