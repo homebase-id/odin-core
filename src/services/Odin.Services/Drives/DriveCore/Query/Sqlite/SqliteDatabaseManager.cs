@@ -147,6 +147,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var tags = metadata.AppData.Tags?.ToList();
 
+        // SEB:TODO null these guys 
+        // FileMetaData: appData, VersionTag, reactionSummary
+        // ServerMetaData: transferHistory
+        
         // SEB:TODO - this is a hack to remove the AppData from the FileMetadata
         var nakedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
         nakedFileMetadata.AppData = null;
