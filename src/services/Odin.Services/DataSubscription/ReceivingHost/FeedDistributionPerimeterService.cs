@@ -98,7 +98,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = newContext,
                         DatabaseConnection = cn,
-                        GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault()
+                        GlobalTransitId = request.FileMetadata.ReferencedFile != null ? request.FileMetadata.ReferencedFile.GlobalTransitId : request.FileMetadata.GlobalTransitId.GetValueOrDefault()
                     });
                 }
                 else

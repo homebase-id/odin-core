@@ -140,7 +140,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = odinContext,
                         DatabaseConnection = cn,
-                        GlobalTransitId = (Guid)fileMetadata.GlobalTransitId
+                        GlobalTransitId = fileMetadata.ReferencedFile != null ? fileMetadata.ReferencedFile.GlobalTransitId : (Guid)fileMetadata.GlobalTransitId
                     });
                 }
                 else
