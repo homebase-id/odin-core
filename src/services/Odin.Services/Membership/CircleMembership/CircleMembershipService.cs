@@ -208,8 +208,8 @@ public class CircleMembershipService(
             foreach (var grant in grants.Values)
             {
                 var redacted = grant.Redacted();
-                var dg = redacted.DriveGrants == null ? "none" : string.Join("\n", redacted.DriveGrants);
-                logger.LogDebug("domain name (caller) {callingIdentity} granted drives: \n{g}", domainName, dg);
+                var dg = redacted.DriveGrants == null ? "none" : string.Join("|", redacted.DriveGrants);
+                logger.LogDebug("domain name (caller) {callingIdentity} granted drives: [{g}]", domainName, dg);
             }
         }
 
