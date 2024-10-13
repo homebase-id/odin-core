@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Services.Authorization;
@@ -16,7 +17,7 @@ namespace Odin.Hosting.Authentication.Unified;
 
 public static class AppAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, DatabaseConnection cn)
+    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, IdentityDatabase db)
     {
         if (!AuthUtils.TryGetClientAuthToken(context, YouAuthConstants.AppCookieName, out var authToken, true))
         {
@@ -26,7 +27,7 @@ public static class AppAuthPathHandler
         var appRegService = context.RequestServices.GetRequiredService<IAppRegistrationService>();
         odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
-        var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext, cn);
+        var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext, db);
 
         if (null == ctx)
         {
@@ -54,7 +55,7 @@ public static class AppAuthPathHandler
         return AuthUtils.CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
     }
 
-    public static Task HandleSignOut(HttpContext context, IOdinContext odinContext, DatabaseConnection cn)
+    public static Task HandleSignOut(HttpContext context, IOdinContext odinContext, IdentityDatabase cn)
     {
         return Task.CompletedTask;
     }

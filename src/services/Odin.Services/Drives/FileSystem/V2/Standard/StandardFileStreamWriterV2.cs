@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -51,12 +51,12 @@ public class StandardFileStreamWriterV2 : FileSystemStreamWriterBaseV2
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackageV2 package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase cn)
     {
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
     }
     
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackageV2 package, IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackageV2 package, IOdinContext odinContext, IdentityDatabase cn)
     {
         return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
     }

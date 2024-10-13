@@ -10,9 +10,9 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldCountJobs()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldCountJobs");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
         
         var count = await db.tblJobs.GetCountAsync(cn);
         Assert.That(count, Is.EqualTo(0));
@@ -29,9 +29,9 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldGetTheNextJob()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldGetTheNextJob");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
         
         var nextRun = await db.tblJobs.GetNextRunTime(cn);
         Assert.That(nextRun, Is.Null);
@@ -133,9 +133,9 @@ public class TableJobsTests
     [Test]
     public async Task ItShouldGetJobByHash()
     {
-        using var db = new ServerDatabase("");
+        using var db = new ServerDatabase("ItShouldGetJobByHash");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase(cn);
+        db.CreateDatabase();
 
         var record = NewJobsRecord();
         record.jobHash = "my unique hash value";

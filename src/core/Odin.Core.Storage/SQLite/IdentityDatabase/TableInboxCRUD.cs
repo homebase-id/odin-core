@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -151,7 +152,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, InboxRecord item)
+        internal virtual int Insert(DatabaseConnection conn, InboxRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
@@ -208,7 +209,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, InboxRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, InboxRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
@@ -265,7 +266,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, InboxRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, InboxRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
@@ -333,7 +334,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Update(DatabaseConnection conn, InboxRecord item)
+        internal virtual int Update(DatabaseConnection conn, InboxRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
@@ -390,7 +391,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -419,7 +420,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
-        protected InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -512,7 +513,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid fileId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
             using (var _delete0Command = _database.CreateCommand())
             {
@@ -532,7 +533,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid fileId)
+        internal InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -607,7 +608,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected InboxRecord Get(DatabaseConnection conn, Guid identityId,Guid fileId)
+        internal InboxRecord Get(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
             using (var _get0Command = _database.CreateCommand())
             {

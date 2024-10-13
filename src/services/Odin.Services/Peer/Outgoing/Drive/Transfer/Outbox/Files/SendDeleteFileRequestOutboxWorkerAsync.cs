@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -26,7 +27,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
@@ -47,7 +48,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, db, e);
             }
             catch (Exception exception)
             {
@@ -126,7 +127,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -135,7 +136,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         return Task.CompletedTask;
     }

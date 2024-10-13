@@ -11,6 +11,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// If true, the file should not be indexed
         /// </summary>
+        [Obsolete]
         public bool DoNotIndex { get; set; }
         
         /// <summary>

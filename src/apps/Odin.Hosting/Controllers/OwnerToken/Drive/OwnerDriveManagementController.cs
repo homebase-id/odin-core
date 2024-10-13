@@ -32,8 +32,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var drives = await _driveManager.GetDrives(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var drives = await _driveManager.GetDrives(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -56,35 +56,35 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var _ = await _driveManager.CreateDrive(request, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var _ = await _driveManager.CreateDrive(request, WebOdinContext, db);
             return true;
         }
 
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, cn, true);
-            await _driveManager.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            await _driveManager.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, db);
             return true;
         }
         
         [HttpPost("UpdateAttributes")]
         public async Task<bool> UpdateDriveAttributes([FromBody] UpdateDriveDefinitionRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, cn, true);
-            await _driveManager.UpdateAttributes(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            await _driveManager.UpdateAttributes(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, db);
             return true;
         }
         
         [HttpPost("setdrivereadmode")]
         public async Task<IActionResult> SetDriveReadMode([FromBody] UpdateDriveReadModeRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, cn, true);
-            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, db);
             return Ok();
         }
 
@@ -93,8 +93,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
                 {

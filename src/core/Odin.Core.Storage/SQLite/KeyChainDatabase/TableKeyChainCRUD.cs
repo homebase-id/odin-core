@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {

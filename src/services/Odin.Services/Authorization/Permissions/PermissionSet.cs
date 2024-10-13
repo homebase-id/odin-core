@@ -89,6 +89,6 @@ namespace Odin.Services.Authorization.Permissions
 
     public class RedactedPermissionSet
     {
-        public List<int> Keys { get; set; }
+        public List<int> Keys { get; set; } = new();
     }
 }

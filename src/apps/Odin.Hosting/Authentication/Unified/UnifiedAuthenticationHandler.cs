@@ -56,20 +56,17 @@ namespace Odin.Hosting.Authentication.Unified
             {
                 case RootApiRoutes.Owner:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    return await OwnerAuthPathHandler.Handle(Context, odinContext, cn);
+                    return await OwnerAuthPathHandler.Handle(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                 }
 
                 case RootApiRoutes.Apps:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    return await AppAuthPathHandler.Handle(Context, odinContext, cn);
+                    return await AppAuthPathHandler.Handle(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                 }
 
                 case RootApiRoutes.Guest:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    return await GuestAuthPathHandler.Handle(Context, odinContext, cn);
+                    return await GuestAuthPathHandler.Handle(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                 }
             }
 
@@ -83,22 +80,19 @@ namespace Odin.Hosting.Authentication.Unified
             {
                 case RootApiRoutes.Owner:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    await OwnerAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    await OwnerAuthPathHandler.HandleSignOut(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                     break;
                 }
 
                 case RootApiRoutes.Apps:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    await AppAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    await AppAuthPathHandler.HandleSignOut(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                     break;
                 }
 
                 case RootApiRoutes.Guest:
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    await GuestAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    await GuestAuthPathHandler.HandleSignOut(Context, odinContext, _tenantSystemStorage.IdentityDatabase);
                     break;
                 }
             }

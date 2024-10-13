@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Base;
@@ -16,7 +17,7 @@ namespace Odin.Hosting.Authentication.Unified;
 
 public static class OwnerAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, DatabaseConnection cn)
+    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, IdentityDatabase cn)
     {
         if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var authResult))
         {
@@ -63,7 +64,7 @@ public static class OwnerAuthPathHandler
         return AuthenticateResult.Fail("Invalid or missing token");
     }
 
-    public static Task HandleSignOut(HttpContext context, object odinContext, DatabaseConnection cn)
+    public static Task HandleSignOut(HttpContext context, object odinContext, IdentityDatabase cn)
     {
         if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var authResult))
         {

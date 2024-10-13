@@ -52,6 +52,9 @@ namespace Odin.Hosting.Middleware
                 // We need to go through them all and determine if any should map to something
                 // different than 403, in which case the code should throw a different exception.
                 var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
+
+                logger.LogDebug(e, "Security exception thrown");
+                
                 await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
             catch (Exception ex)

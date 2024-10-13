@@ -33,8 +33,8 @@ public class ConfigurationController : Controller
     [HttpPost("system/isconfigured")]
     public Task<bool> IsIdentityServerConfigured()
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        var result = _tenantConfigService.IsIdentityServerConfigured(cn);
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var result = _tenantConfigService.IsIdentityServerConfigured(db);
         return Task.FromResult(result);
     }
 

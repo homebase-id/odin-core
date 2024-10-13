@@ -12,8 +12,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableImFollowing : TableImFollowingCRUD
     {
+        private readonly IdentityDatabase _db;
+
         public TableImFollowing(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
+            _db = db;
         }
 
         ~TableImFollowing()
@@ -26,15 +29,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public new int Insert(DatabaseConnection conn, ImFollowingRecord item)
+        public int Insert(ImFollowingRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Insert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
         }
 
-        public int Delete(DatabaseConnection conn, OdinId identity, Guid driveId)
+        public int Delete(OdinId identity, Guid driveId)
         {
-            return base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, identity, driveId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Delete(conn, _db._identityId, identity, driveId);
+            }
         }
 
         /// <summary>
@@ -43,30 +52,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<ImFollowingRecord> Get(DatabaseConnection conn, OdinId identity)
+        public List<ImFollowingRecord> Get(OdinId identity)
         {
-            var r = base.Get(conn, ((IdentityDatabase)_database)._identityId, identity);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                var r = base.Get(conn, _db._identityId, identity);
 
-            if (r == null)
-                r = new List<ImFollowingRecord>();
+                if (r == null)
+                    r = new List<ImFollowingRecord>();
 
-            return r;
+                return r;
+            }
         }
 
-        public int DeleteByIdentity(DatabaseConnection conn, OdinId identity)
+        public int DeleteByIdentity(OdinId identity)
         {
-            int n = 0;
-            var r = Get(conn, identity);
-
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < r.Count; i++)
-                {
-                    n += Delete(conn, ((IdentityDatabase)conn.db)._identityId, identity, r[i].driveId);
-                }
-            });
+                int n = 0;
+                var r = base.Get(conn, _db._identityId, identity);
 
-            return n;
+                if (r == null)
+                {
+                    return 0;
+                }
+
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        n += Delete(conn, _db._identityId, identity, r[i].driveId);
+                    }
+                });
+
+                return n;
+            }
         }
 
 
@@ -77,7 +97,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetAllFollowers(DatabaseConnection conn, int count, string inCursor, out string nextCursor)
+        public List<string> GetAllFollowers(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -104,9 +124,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
-                _s3param3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _s3param3.Value = _db._identityId.ToByteArray();
 
-                lock (conn._lock)
+                using (var conn = _db.CreateDisposableConnection())
                 {
                     using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
@@ -131,12 +151,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
+
                         return result;
                     }
                 }
             }
         }
-
 
 
         /// <summary>
@@ -148,7 +168,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(DatabaseConnection conn, int count, Guid driveId, string inCursor, out string nextCursor)
+        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -178,10 +198,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
-                _s2param3.Value = count + 1;                    // +1 to check for EOD on nextCursor
-                _s2param4.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _s2param3.Value = count + 1; // +1 to check for EOD on nextCursor
+                _s2param4.Value = _db._identityId.ToByteArray();
 
-                lock (conn._lock)
+                using (var conn = _db.CreateDisposableConnection())
                 {
                     using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
@@ -209,7 +229,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                         return result;
                     }
-
                 }
             }
         }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -60,18 +61,18 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, db);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here, so we can ensure the right event is called
@@ -85,7 +86,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 metadata,
                 serverMetadata,
                 odinContext,
-                cn);
+                db);
 
             return;
         }
@@ -99,7 +100,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
                 odinContext: odinContext,
-                cn);
+                db);
 
             return;
         }
@@ -108,9 +109,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, cn);
+        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, db);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,

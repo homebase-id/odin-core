@@ -11,10 +11,10 @@ public class ThreeKeyValueStorageTests
     [Test]
     public void RequireNonEmptyContextKey()
     {
-        var finalPath = "testdb1.db";
+        var finalPath = "ThreeKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, false);
+        db.CreateDatabase(false);
 
         Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(Guid.Empty); });
     }
@@ -23,10 +23,10 @@ public class ThreeKeyValueStorageTests
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var identity = Guid.NewGuid();
-        var finalPath = ":memory:";
+        var finalPath = "ThreeKeyValueStorageTests002";
         using var db = new IdentityDatabase(identity, finalPath);
         using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(myc, true);
+        db.CreateDatabase(true);
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();
@@ -36,19 +36,19 @@ public class ThreeKeyValueStorageTests
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
         const string expectedValue1 = "some value";
-        kvp1.Upsert(myc, pk, dataTypeKey, dataCategoryKey, expectedValue1);
-        Assert.IsTrue(kvp1.Get<string>(myc, pk) == expectedValue1);
+        kvp1.Upsert(db, pk, dataTypeKey, dataCategoryKey, expectedValue1);
+        Assert.IsTrue(kvp1.Get<string>(db, pk) == expectedValue1);
 
-        kvp1.Delete(myc, pk);
-        Assert.IsTrue(kvp1.Get<string>(myc, pk) == null);
+        kvp1.Delete(db, pk);
+        Assert.IsTrue(kvp1.Get<string>(db, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
         var kvp2 = new ThreeKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
-        kvp2.Upsert(myc, pk, dataTypeKey, dataCategoryKey, expectedValue2);
-        Assert.IsTrue(kvp2.Get<string>(myc, pk) == expectedValue2);
+        kvp2.Upsert(db, pk, dataTypeKey, dataCategoryKey, expectedValue2);
+        Assert.IsTrue(kvp2.Get<string>(db, pk) == expectedValue2);
 
-        kvp2.Delete(myc, pk);
-        Assert.IsTrue(kvp2.Get<string>(myc, pk) == null);
+        kvp2.Delete(db, pk);
+        Assert.IsTrue(kvp2.Get<string>(db, pk) == null);
     }
 }

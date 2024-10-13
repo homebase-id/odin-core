@@ -2,8 +2,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 {
     public enum FilePart
     {
-        Header,
-        Payload,
+        Payload = 1,
         Thumb
     }
 }

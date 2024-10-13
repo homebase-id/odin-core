@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -16,7 +17,7 @@ public class ReactionContentDeletedNotification : MediatorNotificationBase, ICli
 
     public Guid NotificationTypeId { get; }
 
-    public DatabaseConnection DatabaseConnection { get; init; }
+    public IdentityDatabase db { get; init; }
 
     public string GetClientData()
     {

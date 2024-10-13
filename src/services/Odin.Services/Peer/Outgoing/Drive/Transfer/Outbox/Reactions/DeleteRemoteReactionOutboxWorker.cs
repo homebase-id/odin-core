@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -24,7 +25,7 @@ public class DeleteRemoteReactionOutboxWorker(
     OdinConfiguration odinConfiguration
 ) : OutboxWorkerBase(fileItem, logger)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
@@ -57,7 +58,7 @@ public class DeleteRemoteReactionOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, db, e);
             }
             catch (Exception exception)
             {
@@ -136,16 +137,19 @@ public class DeleteRemoteReactionOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(
+        IOdinContext odinContext, 
+        IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         return Task.FromResult(nextRunTime);
     }
 
-    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(
+        OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }

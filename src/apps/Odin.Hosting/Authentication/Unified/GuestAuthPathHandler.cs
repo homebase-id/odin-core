@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
@@ -27,7 +27,7 @@ namespace Odin.Hosting.Authentication.Unified;
 
 public static class GuestAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, DatabaseConnection cn)
+    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext, IdentityDatabase cn)
     {
         odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
@@ -51,7 +51,7 @@ public static class GuestAuthPathHandler
 
     private static async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(HttpContext context,
         ClientAuthenticationToken clientAuthToken,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase cn)
     {
         if (context.Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
         {
@@ -80,7 +80,7 @@ public static class GuestAuthPathHandler
 
     private static async Task<AuthenticateResult> HandleYouAuthToken(HttpContext context, ClientAuthenticationToken clientAuthToken,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase cn)
     {
         var youAuthRegService = context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
         var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext, cn);
@@ -98,7 +98,7 @@ public static class GuestAuthPathHandler
 
 
     private static async Task<AuthenticationTicket> CreateAnonYouAuthTicket(HttpContext context, IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase cn)
     {
         var driveManager = context.RequestServices.GetRequiredService<DriveManager>();
         var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All, odinContext, cn);
@@ -173,7 +173,7 @@ public static class GuestAuthPathHandler
         return claims;
     }
 
-    public static Task HandleSignOut(HttpContext context, IOdinContext odinContext, DatabaseConnection cn)
+    public static Task HandleSignOut(HttpContext context, IOdinContext odinContext, IdentityDatabase cn)
     {
         return Task.CompletedTask;
     }

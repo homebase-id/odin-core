@@ -48,6 +48,11 @@ namespace Odin.Core.Util
             string punyCode = idnMapping.GetAscii(idnDomainName);
             return new AsciiDomainName(punyCode);
         }
+
+        public override string ToString()
+        {
+            return this.DomainName;
+        }
     }
 
 
@@ -150,7 +155,7 @@ namespace Odin.Core.Util
         {
             if (TryValidateDomain(punyCodeDomain) == false)
             {
-                throw new OdinSystemException($"Illegal puny code domain name: '{punyCodeDomain}'"); // Thrown an exception
+                throw new OdinClientException($"Illegal puny code domain name: '{punyCodeDomain}'"); // Thrown an exception
             }
         }
 
