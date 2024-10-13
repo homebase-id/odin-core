@@ -25,10 +25,9 @@ public class TwoKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var record = db.tblKeyTwoValue.Get(cn, MakeStorageKey(key));
+        var record = db.tblKeyTwoValue.Get(MakeStorageKey(key));
 
         if (null == record)
         {
@@ -38,10 +37,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] key2) where T : class
+    public IEnumerable<T> GetByDataType<T>(IdentityDatabase db, byte[] key2) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.tblKeyTwoValue.GetByKeyTwo(cn, key2);
+        var list = db.tblKeyTwoValue.GetByKeyTwo(key2);
         if (null == list)
         {
             return new List<T>();
@@ -50,17 +48,15 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key1, byte[] dataTypeKey, T value)
+    public void Upsert<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyTwoValue.Upsert(cn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid id)
+    public void Delete(IdentityDatabase db, Guid id)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyTwoValue.Delete(cn, MakeStorageKey(id));
+        db.tblKeyTwoValue.Delete(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

@@ -3,14 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.SystemNotifications;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
-
 namespace Odin.Services.Authentication.Transit;
 
 public class TransitAuthenticationService :
@@ -30,12 +29,12 @@ public class TransitAuthenticationService :
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
     {
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token, odinContext, cn);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token, odinContext, db);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -52,9 +51,9 @@ public class TransitAuthenticationService :
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
-        ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+        ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext, cn);
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext, db);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

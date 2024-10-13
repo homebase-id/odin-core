@@ -31,7 +31,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimeterFollowRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        public Task AcceptFollower(PerimeterFollowRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
             //
             //TODO: where to store the request.ClientAuthToken ??
@@ -39,12 +39,17 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
+                /* TODO CONNECTIONS - FIX THIS UP!
                 cn.CreateCommitUnitOfWork(() =>
                 {
                     _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
                     _tenantStorage.Followers.Insert(cn,
                         new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
-                });
+                });*/
+
+                // Created sample DeleteAndAddFollower() - take a look
+                _tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
+                _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -71,7 +76,8 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
-                cn.CreateCommitUnitOfWork(() =>
+                // TODO CONNECTIONS - FIX THIS UP!
+                /*cn.CreateCommitUnitOfWork(() =>
                 {
                     _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
                     foreach (var channel in request.Channels)
@@ -79,7 +85,14 @@ namespace Odin.Services.DataSubscription.Follower
                         _tenantStorage.Followers.Insert(cn,
                             new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
-                });
+                });*/
+
+                // Created sample DeleteAndAddFollower() - take a look - make it a list so it works both here and above?
+                _tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
+                foreach (var channel in request.Channels)
+                {
+                    _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                }
 
                 return Task.CompletedTask;
             }
@@ -88,7 +101,7 @@ namespace Odin.Services.DataSubscription.Follower
             {
                 Sender = (OdinId)request.OdinId,
                 OdinContext = odinContext,
-                DatabaseConnection = cn
+                db = db
             });
 
             return Task.CompletedTask;
@@ -98,11 +111,11 @@ namespace Odin.Services.DataSubscription.Follower
         /// Removes the caller from the list of followers so they no longer recieve updates
         /// </summary>
         /// <returns></returns>
-        public Task AcceptUnfollowRequest(IOdinContext odinContext, DatabaseConnection cn)
+        public Task AcceptUnfollowRequest(IOdinContext odinContext, IdentityDatabase db)
         {
             var follower = odinContext.Caller.OdinId;
 
-            _tenantStorage.Followers.DeleteByIdentity(cn, follower);
+            _tenantStorage.Followers.DeleteByIdentity(new OdinId(follower));
             return Task.CompletedTask;
         }
     }

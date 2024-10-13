@@ -8,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -24,7 +25,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
     protected FileSystemResolver FileSystemResolver => fileSystemResolver;
 
 
-    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext, DatabaseConnection cn,
+    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Failed to process outbox item for recipient: {recipient} " +
@@ -42,7 +43,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
             case LatestTransferStatus.SendingServerTooManyAttempts:
                 logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
-                await HandleUnrecoverableTransferStatus(e, odinContext, cn);
+                await HandleUnrecoverableTransferStatus(e, odinContext, db);
                 return (true, UnixTimeUtc.ZeroTime);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
@@ -50,7 +51,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
-                var nextRun = await HandleRecoverableTransferStatus(odinContext, cn, e);
+                var nextRun = await HandleRecoverableTransferStatus(odinContext, db, e);
                 return (false, nextRun);
 
             default:
@@ -58,12 +59,12 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
         }
     }
 
-    protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e);
 
     protected abstract Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
-        DatabaseConnection cn);
+        IdentityDatabase db);
 
     protected LatestTransferStatus MapPeerErrorResponseHttpStatus<T>(ApiResponse<T> response)
     {

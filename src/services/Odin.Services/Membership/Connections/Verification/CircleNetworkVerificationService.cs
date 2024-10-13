@@ -7,7 +7,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -30,7 +30,7 @@ public class CircleNetworkVerificationService(
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
-    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, IdentityDatabase cn)
     {
         // so this is a curious issue - 
         // when the odinContext.Caller and the recipient param are the same
@@ -143,7 +143,7 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext, IdentityDatabase cn)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -165,7 +165,7 @@ public class CircleNetworkVerificationService(
         return false;
     }
 
-    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext, IdentityDatabase cn)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
@@ -174,7 +174,7 @@ public class CircleNetworkVerificationService(
         await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext, cn);
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext, IdentityDatabase cn)
     {
         var request = new UpdateVerificationHashRequest()
         {

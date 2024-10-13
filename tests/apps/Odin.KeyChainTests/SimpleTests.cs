@@ -15,11 +15,11 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test1()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -44,14 +44,14 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test2()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
                 var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
@@ -82,11 +82,11 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test3()
         {
-            using var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("KeyChainTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                db.CreateDatabase();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

@@ -49,13 +49,13 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase db)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, db);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -64,7 +64,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 targetFile: package.InternalFile,
                 newMetadata: metadata,
                 newServerMetadata: serverMetadata,
-                odinContext: odinContext, cn);
+                odinContext: odinContext, db);
 
             return;
         }
@@ -78,7 +78,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
                 odinContext: odinContext,
-                cn);
+                db);
 
             return;
         }
@@ -86,9 +86,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, IdentityDatabase db)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
+        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, db);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)

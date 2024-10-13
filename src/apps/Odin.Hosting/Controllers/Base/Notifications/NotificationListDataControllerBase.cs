@@ -18,28 +18,28 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
+            var db = tenantSystemStorage.IdentityDatabase;
             var sender = WebOdinContext.GetCallerOdinIdOrFail();
-            return await notificationService.AddNotification(sender, request, WebOdinContext, cn);
+            return await notificationService.AddNotification(sender, request, WebOdinContext, db);
         }
 
         [HttpGet("list")]
         public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor, [FromQuery] Guid? appId)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
+            var db = tenantSystemStorage.IdentityDatabase;
             return await notificationService.GetList(new GetNotificationListRequest()
             {
                 AppId = appId,
                 Count = count,
                 Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
-            }, WebOdinContext, cn);
+            }, WebOdinContext, db);
         }
 
         [HttpGet("list/counts-by-appid")]
         public async Task<NotificationsCountResult> GetUnreadCounts()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await notificationService.GetUnreadCounts(WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await notificationService.GetUnreadCounts(WebOdinContext, db);
         }
 
         [HttpPut("list")]
@@ -50,24 +50,24 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid request");
             }
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.UpdateNotifications(request, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            await notificationService.UpdateNotifications(request, WebOdinContext, db);
             return Ok();
         }
 
         [HttpPost("list/mark-read-by-appid")]
         public async Task<IActionResult> UpdateNotification([FromBody] Guid appId)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.MarkReadByApp(appId, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            await notificationService.MarkReadByApp(appId, WebOdinContext, db);
             return Ok();
         }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.Delete(request, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            await notificationService.Delete(request, WebOdinContext, db);
             return Ok();
         }
     }

@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Membership.CircleMembership;
@@ -19,50 +19,50 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Creates initial encryption keys
         /// </summary>
-        internal async Task CreateInitialKeys(IOdinContext odinContext, DatabaseConnection cn)
+        internal async Task CreateInitialKeys(IOdinContext odinContext, IdentityDatabase db)
         {
             odinContext.Caller.AssertHasMasterKey();
             var masterKey = odinContext.Caller.GetMasterKey();
-            _storage.CreateIcrKey(masterKey, cn);
+            _storage.CreateIcrKey(masterKey, db);
             await Task.CompletedTask;
         }
 
-        public SensitiveByteArray GetDecryptedIcrKey(IOdinContext odinContext, DatabaseConnection cn)
+        public SensitiveByteArray GetDecryptedIcrKey(IOdinContext odinContext, IdentityDatabase db)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
-            return this.GetDecryptedIcrKeyInternal(masterKey, cn);
+            return this.GetDecryptedIcrKeyInternal(masterKey, db);
         }
 
-        public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey(DatabaseConnection cn)
+        public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey(IdentityDatabase db)
         {
-            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey(cn);
+            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey(db);
             return masterKeyEncryptedIcrKey;
         }
 
-        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, SensitiveByteArray masterKey, DatabaseConnection cn)
+        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, SensitiveByteArray masterKey, IdentityDatabase db)
         {
-            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, cn);
+            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, db);
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
             rawIcrKey.Wipe();
             return encryptedIcrKey;
         }
 
-        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, IOdinContext odinContext, DatabaseConnection cn)
+        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, IOdinContext odinContext, IdentityDatabase db)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
 
-            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, cn);
+            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, db);
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
             rawIcrKey.Wipe();
             return encryptedIcrKey;
         }
 
         public EncryptedClientAccessToken EncryptClientAccessTokenUsingIrcKey(ClientAccessToken clientAccessToken, IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
 
-            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, cn);
+            var rawIcrKey = GetDecryptedIcrKeyInternal(masterKey, db);
             var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
             rawIcrKey.Wipe();
             return k;
@@ -70,9 +70,9 @@ namespace Odin.Services.Membership.Connections
 
         //
 
-        private SensitiveByteArray GetDecryptedIcrKeyInternal(SensitiveByteArray masterKey, DatabaseConnection cn)
+        private SensitiveByteArray GetDecryptedIcrKeyInternal(SensitiveByteArray masterKey, IdentityDatabase db)
         {
-            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey(cn);
+            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey(db);
             return masterKeyEncryptedIcrKey.DecryptKeyClone(masterKey);
         }
     }

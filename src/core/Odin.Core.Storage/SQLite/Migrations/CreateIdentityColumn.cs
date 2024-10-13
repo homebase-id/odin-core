@@ -92,7 +92,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblDriveMainIndex.Insert(newCn, record);
+                newDb.tblDriveMainIndex.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -129,7 +129,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblDriveAclIndex.Insert(newCn, record);
+                newDb.tblDriveAclIndex.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblDriveAclIndex._tableName}";
@@ -150,7 +150,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblDriveTagIndex.Insert(newCn, record);
+                newDb.tblDriveTagIndex.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblDriveTagIndex._tableName}";
@@ -192,7 +192,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblAppGrants.Insert(newCn, record);
+                newDb.tblAppGrants.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblAppGrants._tableName}";
@@ -213,7 +213,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblKeyValue.Insert(newCn, record);
+                newDb.tblKeyValue.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblKeyValue._tableName}";
@@ -234,7 +234,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblKeyTwoValue.Insert(newCn, record);
+                newDb.tblKeyTwoValue.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblKeyTwoValue._tableName}";
@@ -255,7 +255,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.TblKeyThreeValue.Insert(newCn, record);
+                newDb.TblKeyThreeValue.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.TblKeyThreeValue._tableName}";
@@ -279,7 +279,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblInbox.Insert(newCn, record);
+                newDb.tblInbox.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -318,7 +318,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblOutbox.Insert(newCn, record);
+                newDb.tblOutbox.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -357,7 +357,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblCircle.Insert(newCn, record);
+                newDb.tblCircle.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblCircle._tableName}";
@@ -378,7 +378,7 @@ public static class CreateIdentityColumn
             foreach (var record in records)
             {
                 record.identityId = tenantId;
-                newDb.tblCircleMember.Insert(newCn, record);
+                newDb.tblCircleMember.Insert(record);
             }
 
             var sqlCount = $"SELECT COUNT(*) FROM {newDb.tblCircleMember._tableName}";
@@ -402,7 +402,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblFollowsMe.Insert(newCn, record);
+                newDb.tblFollowsMe.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -443,7 +443,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblImFollowing.Insert(newCn, record);
+                newDb.tblImFollowing.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -484,7 +484,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblConnections.Insert(newCn, record);
+                newDb.tblConnections.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(
@@ -533,7 +533,7 @@ public static class CreateIdentityColumn
                 var modified = record.modified;
 
                 record.identityId = tenantId;
-                newDb.tblAppNotificationsTable.Insert(newCn, record);
+                newDb.tblAppNotificationsTable.Insert(record);
 
                 // Recreate values 'created' and 'modified'
                 newCn.Connection.Execute(

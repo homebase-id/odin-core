@@ -155,10 +155,6 @@ namespace Odin.Hosting
             cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<DriveDatabaseHost>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

@@ -2,6 +2,7 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
@@ -22,7 +23,7 @@ public class ConnectionFinalizedNotification : MediatorNotificationBase, IClient
     /// </summary>
     public OdinId OdinId { get; init; }
 
-    public DatabaseConnection DatabaseConnection { get; init; }
+    public IdentityDatabase db { get; init; }
 
     public string GetClientData()
     {

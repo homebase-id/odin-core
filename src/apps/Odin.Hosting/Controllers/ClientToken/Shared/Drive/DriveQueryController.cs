@@ -25,8 +25,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("modified")]
         public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryModified(request, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryModified(request, db);
         }
 
         /// <summary>
@@ -39,8 +39,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
         {
             var queryModifiedRequest = request.ToQueryModifiedRequest();
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryModified(queryModifiedRequest, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryModified(queryModifiedRequest, db);
         }
 
         /// <summary>
@@ -50,8 +50,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatch(request, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryBatch(request, db);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
@@ -59,8 +59,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.ToQueryBatchRequest();
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatch(queryBatchRequest, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryBatch(queryBatchRequest, db);
         }
 
         /// <summary>
@@ -72,8 +72,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatchCollection(request, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryBatchCollection(request, db);
         }
 
         /// <summary>
@@ -96,8 +96,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             var request = new QueryBatchCollectionRequest(){
                 Queries = sections
             };
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatchCollection(request, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.QueryBatchCollection(request, db);
         }
     }
 }

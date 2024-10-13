@@ -9,6 +9,11 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+<<<<<<< HEAD
+=======
+using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
+>>>>>>> main
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -48,16 +53,16 @@ public abstract class FileSystemStreamWriterBase
 
     public FileUploadPackage Package { get; private set; }
 
-    public virtual async Task StartUpload(Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task StartUpload(Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
-        await this.StartUpload(instructionSet, odinContext, cn);
+        await this.StartUpload(instructionSet, odinContext, db);
     }
 
-    public virtual async Task StartUpload(UploadInstructionSet instructionSet, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task StartUpload(UploadInstructionSet instructionSet, IOdinContext odinContext, IdentityDatabase db)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
@@ -78,7 +83,7 @@ public abstract class FileSystemStreamWriterBase
         if (overwriteFileId == Guid.Empty)
         {
             //get a new file id
-            file = await FileSystem.Storage.CreateInternalFileId(driveId, cn);
+            file = await FileSystem.Storage.CreateInternalFileId(driveId, db);
         }
         else
         {
@@ -97,13 +102,17 @@ public abstract class FileSystemStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         // await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, cn);
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, db);
     }
 
+<<<<<<< HEAD
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+=======
+    public virtual async Task AddPayload(string key, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+>>>>>>> main
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -118,7 +127,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext, cn);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext, db);
 
         if (bytesWritten > 0)
         {
@@ -126,7 +135,7 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -164,7 +173,7 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext, cn);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext, db);
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -179,18 +188,18 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadResult> FinalizeUpload(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<UploadResult> FinalizeUpload(IOdinContext odinContext, IdentityDatabase db)
     {
-        var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
+        var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, db);
 
-        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, cn);
+        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, db);
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
 
         if (Package.IsUpdateOperation)
         {
             // Validate the file exists by the File Id
-            if (!await FileSystem.Storage.FileExists(Package.InternalFile, odinContext, cn))
+            if (!await FileSystem.Storage.FileExists(Package.InternalFile, odinContext, db))
             {
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",
                     OdinClientErrorCode.CannotOverwriteNonExistentFile);
@@ -205,12 +214,12 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext, cn);
+                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext, db);
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext, cn);
+                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext, db);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
                         throw new OdinClientException(
@@ -220,7 +229,7 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
 
-            await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
+            await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, db);
         }
         else
         {
@@ -228,7 +237,7 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext, cn);
+                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext, db);
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
                     throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
@@ -236,17 +245,17 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
 
-            await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, cn);
+            await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext, db);
         }
 
-        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, cn);
+        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext, db);
 
         var uploadResult = new UploadResult()
         {
             NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
             File = new ExternalFileIdentifier()
             {
-                TargetDrive = _driveManager.GetDrive(Package.InternalFile.DriveId, cn).Result.TargetDriveInfo,
+                TargetDrive = _driveManager.GetDrive(Package.InternalFile.DriveId, db).Result.TargetDriveInfo,
                 FileId = Package.InternalFile.FileId
             },
             GlobalTransitId = metadata.GlobalTransitId,
@@ -270,20 +279,20 @@ public abstract class FileSystemStreamWriterBase
     /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
     /// </summary>
     protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn);
+        IOdinContext odinContext, IdentityDatabase db);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
     protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn);
+        IOdinContext odinContext, IdentityDatabase db);
 
     /// <summary>
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
     protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
-        DatabaseConnection cn);
+        IdentityDatabase db);
 
     /// <summary>
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
@@ -292,12 +301,16 @@ public abstract class FileSystemStreamWriterBase
     protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext);
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase db)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
+<<<<<<< HEAD
         // var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
         var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTemp(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
+=======
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, db);
+>>>>>>> main
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -322,7 +335,7 @@ public abstract class FileSystemStreamWriterBase
     }
 
     protected async Task<Dictionary<string, TransferStatus>> ProcessTransitBasic(FileUploadPackage package, FileSystemType fileSystemType,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase db)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
@@ -335,7 +348,7 @@ public abstract class FileSystemStreamWriterBase
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType, odinContext,
-                cn);
+                db);
         }
 
         return recipientStatus;
@@ -426,7 +439,7 @@ public abstract class FileSystemStreamWriterBase
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCore(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         if (null == serverMetadata.AccessControlList)
         {
@@ -467,7 +480,7 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, cn, true);
+        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, db, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",

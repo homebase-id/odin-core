@@ -21,14 +21,14 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 {
     private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
 
-    public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        return await AddNotificationInternal(senderId, request, odinContext, cn);
+        return await AddNotificationInternal(senderId, request, odinContext, db);
     }
 
     internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         var id = Guid.NewGuid();
         
@@ -41,7 +41,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        _storage.Insert(cn, record);
+        _storage.Insert(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -50,7 +50,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             Timestamp = request.Timestamp,
             AppNotificationOptions = request.AppNotificationOptions,
             OdinContext = odinContext,
-            DatabaseConnection = cn
+            db = db
         });
 
         return new AddNotificationResult()
@@ -59,11 +59,11 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         };
     }
 
-    public Task<NotificationsListResult> GetList(GetNotificationListRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public Task<NotificationsListResult> GetList(GetNotificationListRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var results = _storage.PagingByCreated(cn, request.Count, request.Cursor, out var cursor);
+        var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -91,14 +91,14 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         return Task.FromResult(nr);
     }
 
-    public Task<NotificationsCountResult> GetUnreadCounts(IOdinContext odinContext, DatabaseConnection cn)
+    public Task<NotificationsCountResult> GetUnreadCounts(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var results = _storage.PagingByCreated(cn, int.MaxValue, null, out _);
+        var results = _storage.PagingByCreated(int.MaxValue, null, out _);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -115,36 +115,36 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         });
     }
 
-    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var id in request.IdList)
         {
-            _storage.Delete(cn, id);
+            _storage.Delete(id);
         }
 
         return Task.CompletedTask;
     }
 
-    public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var update in request.Updates)
         {
-            var record = _storage.Get(cn, update.Id);
+            var record = _storage.Get(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                _storage.Update(cn, record);
+                _storage.Update(record);
             }
         }
 
         await Task.CompletedTask;
     }
 
-    public async Task MarkReadByApp(Guid appId, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task MarkReadByApp(Guid appId, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -152,7 +152,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         {
             AppId = appId,
             Count = int.MaxValue,
-        }, odinContext, cn);
+        }, odinContext, db);
 
         var request = new UpdateNotificationListRequest()
         {
@@ -163,7 +163,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             }).ToList()
         };
 
-        await this.UpdateNotifications(request, odinContext, cn);
+        await this.UpdateNotifications(request, odinContext, db);
 
         await Task.CompletedTask;
     }

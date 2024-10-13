@@ -38,8 +38,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         {
             // Cookie might have been set by the preauth middleware
             Response.Cookies.Delete(YouAuthConstants.AppCookieName);
-            using var cn = tenantSystemStorage.CreateConnection();
-            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext, db);
         }
     }
 }

@@ -16,18 +16,16 @@ namespace Odin.Services.Drives
     [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
-        private readonly string _longTermHeaderRootPath;
         private readonly string _tempDataRootPath;
         private readonly string _driveFolderName;
         private readonly string _longTermPayloadPath;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string longTermHeaderRootPath, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
+        public StorageDrive(string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
         {
             _inner = inner;
             _driveFolderName = this.Id.ToString("N");
-            _longTermHeaderRootPath = Path.Combine(longTermHeaderRootPath, _driveFolderName);
             _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
 
             // value = \data\tenant\payloads\p1\{driveId}\
@@ -109,11 +107,6 @@ namespace Odin.Services.Drives
             set { }
         }
 
-        public string GetLongTermHeaderStoragePath()
-        {
-            return Path.Combine(_longTermHeaderRootPath, "files");
-        }
-
         public string GetLongTermPayloadStoragePath()
         {
             return Path.Combine(_longTermPayloadPath, "files");
@@ -124,19 +117,10 @@ namespace Odin.Services.Drives
             return Path.Combine(_tempDataRootPath, "files");
         }
 
-        public string GetIndexPath()
-        {
-            return Path.Combine(this._longTermHeaderRootPath, "idx");
-        }
-
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetLongTermHeaderStoragePath());
             Directory.CreateDirectory(this.GetTempStoragePath());
-
             // Directory.CreateDirectory(this.GetPayloadStoragePath());
-
-            Directory.CreateDirectory(this.GetIndexPath());
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
