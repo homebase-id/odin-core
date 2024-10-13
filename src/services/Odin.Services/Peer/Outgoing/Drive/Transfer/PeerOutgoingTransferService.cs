@@ -8,7 +8,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -71,9 +70,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-<<<<<<< HEAD
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
-                await peerOutbox.AddItem(item, cn, useUpsert: true);
+                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
+                await peerOutbox.AddItem(item, db, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -94,7 +92,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             AppNotificationOptions notificationOptions,
             UpdateLocale updateLocale,
             IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -110,7 +108,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var priority = 100;
 
             var (outboxStatus, outboxItems) =
-                await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, cn);
+                await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, db);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -118,14 +116,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 if (!item.State.IsTransientFile)
                 {
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, cn);
+                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
                 }
 
-                await peerOutbox.AddItem(item, cn, useUpsert: true);
-=======
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
-                await peerOutbox.AddItem(item, db);
->>>>>>> main
+                await peerOutbox.AddItem(item, db, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -456,7 +450,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             int priority,
             FileSystemType fileSystemType,
             IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -465,7 +459,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     var iv = ByteArrayUtil.GetRndByteArray(16);

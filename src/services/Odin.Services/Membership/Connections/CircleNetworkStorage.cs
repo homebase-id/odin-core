@@ -8,7 +8,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
@@ -64,19 +63,14 @@ public class CircleNetworkStorage
             WeakKeyStoreKey = icr.TempWeakKeyStoreKey == null ? "" : OdinSystemSerializer.Serialize(icr.TempWeakKeyStoreKey)
         };
 
-        // TODO CONNECTIONS
-        //db.CreateCommitUnitOfWork(() =>
-        //{
+        //TODO CONNECTIONS
+        // db.CreateCommitUnitOfWork(() =>
+        {
             var odinHashId = icr.OdinId.ToHashId();
 
             //Reconcile circle grants in the table
-<<<<<<< HEAD
-            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity, cn);
-            foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
-=======
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity);
-            foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
->>>>>>> main
+            foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
             {
                 var circleMembers =
                     _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true);
@@ -87,7 +81,7 @@ public class CircleNetworkStorage
                     _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant, DomainType.Identity);
                 }
             }
-           
+
             // remove all app grants, 
             _tenantSystemStorage.AppGrants.DeleteByIdentity(odinHashId);
 
@@ -122,17 +116,20 @@ public class CircleNetworkStorage
             };
 
             _tenantSystemStorage.Connections.Upsert(record);
-        //});
+        }
+        //);
     }
 
     public void Delete(OdinId odinId, IdentityDatabase db)
     {
-        // TODO CONNECTIONS
-        //db.CreateCommitUnitOfWork(() =>  {
+        //TODO CONNECTIONS
+        // db.CreateCommitUnitOfWork(() =>
+        {
             _tenantSystemStorage.Connections.Delete(odinId);
             _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
             _circleMembershipService.DeleteMemberFromAllCircles(odinId, DomainType.Identity);
-        // });
+        }
+        //);
     }
 
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
@@ -140,20 +137,14 @@ public class CircleNetworkStorage
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
         var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
-        return records.Select(record => MapFromStorage(record));
+        return records.Select(MapFromStorage);
     }
 
 
     /// <summary>
     /// Creates a new icr key; fails if one already exists
     /// </summary>
-<<<<<<< HEAD
-    public void CreateIcrKey(SensitiveByteArray masterKey, DatabaseConnection cn)
-=======
-    /// <param name="masterKey"></param>
-    /// <exception cref="OdinClientException"></exception>
     public void CreateIcrKey(SensitiveByteArray masterKey, IdentityDatabase db)
->>>>>>> main
     {
         var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(db, _icrKeyStorageId);
         if (null != existingKey)
@@ -191,7 +182,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId( odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
         {
@@ -218,15 +209,15 @@ public class CircleNetworkStorage
             {
                 EncryptedData = data.EncryptedClientAccessToken
             },
-            
+
             TemporaryWeakClientAccessToken = string.IsNullOrEmpty(data.WeakClientAccessToken)
                 ? null
                 : OdinSystemSerializer.Deserialize<EccEncryptedPayload>(data.WeakClientAccessToken),
-            
+
             TempWeakKeyStoreKey = string.IsNullOrEmpty(data.WeakKeyStoreKey)
                 ? null
                 : OdinSystemSerializer.Deserialize<EccEncryptedPayload>(data.WeakKeyStoreKey),
-            
+
             ConnectionRequestOrigin = connectionOrigin,
             IntroducerOdinId = introducerOdinId,
             VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()

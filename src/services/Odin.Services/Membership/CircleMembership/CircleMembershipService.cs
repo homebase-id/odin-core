@@ -142,15 +142,6 @@ public class CircleMembershipService(
         return await this.CreateCircleGrantList(keyStoreKey, list, masterKey, odinContext, db);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
-        IOdinContext odinContext, IdentityDatabase db)
-    {
-        // Always put identities in the system circle
-        var list = circleIds ?? new List<GuidId>();
-        list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-        return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, db);
-    }
-
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,

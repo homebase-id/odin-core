@@ -8,7 +8,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -43,7 +43,7 @@ public abstract class FileSystemUpdateWriterBase
     internal FileUpdatePackage Package { get; private set; }
 
     public virtual async Task StartFileUpdate(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
@@ -85,7 +85,7 @@ public abstract class FileSystemUpdateWriterBase
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
-                DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, cn, true)).GetValueOrDefault(),
+                DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, db, true)).GetValueOrDefault(),
                 FileId =  Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
             };
 
@@ -102,12 +102,12 @@ public abstract class FileSystemUpdateWriterBase
         throw new NotImplementedException("Unhandled locale specified");
     }
 
-    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, cn);
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, db);
     }
 
-    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -122,14 +122,14 @@ public abstract class FileSystemUpdateWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext, cn);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext, db);
         if (bytesWritten > 0)
         {
             Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext, DatabaseConnection cn)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -167,7 +167,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext, cn);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext, db);
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -179,11 +179,11 @@ public abstract class FileSystemUpdateWriterBase
         });
     }
 
-    public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<FileUpdateResult> FinalizeFileUpdate(IOdinContext odinContext, IdentityDatabase db)
     {
-        var (keyHeaderIv, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, cn);
+        var (keyHeaderIv, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, db);
 
-        await this.ValidateUploadCore(Package, keyHeaderIv, metadata, serverMetadata, cn);
+        await this.ValidateUploadCore(Package, keyHeaderIv, metadata, serverMetadata, db);
 
         if (Package.InstructionSet.Locale == UpdateLocale.Local)
         {
@@ -192,9 +192,9 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
-            await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, cn);
+            await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, db);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, db);
 
             return new FileUpdateResult()
             {
@@ -218,14 +218,14 @@ public abstract class FileSystemUpdateWriterBase
                 AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray() // for file updates, we dont touch the key
             };
 
-            await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+            await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, db);
 
             if (!serverMetadata.AllowDistribution)
             {
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
 
-            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, cn);
+            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, db);
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -247,7 +247,7 @@ public abstract class FileSystemUpdateWriterBase
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
     protected virtual async Task ProcessExistingFileUpload(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase db)
     {
         var manifest = new BatchUpdateManifest()
         {
@@ -263,7 +263,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatch(package.TempMetadataFile, package.InternalFile, manifest, odinContext, cn);
+        await FileSystem.Storage.UpdateBatch(package.TempMetadataFile, package.InternalFile, manifest, odinContext, db);
     }
 
     /// <summary>
@@ -273,12 +273,12 @@ public abstract class FileSystemUpdateWriterBase
     protected abstract Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UpdateFileDescriptor updateDescriptor, IOdinContext odinContext);
 
     protected virtual async Task<(byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUpdatePackage package,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext, IdentityDatabase db)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         var metadataBytes =
-            await FileSystem.Storage.GetAllFileBytesFromTemp(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, cn);
+            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext, db);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -304,7 +304,7 @@ public abstract class FileSystemUpdateWriterBase
 
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package, byte[] keyHeaderIv,
         IOdinContext odinContext,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
@@ -324,7 +324,7 @@ public abstract class FileSystemUpdateWriterBase
                 package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
                 package.InstructionSet.Locale,
                 odinContext,
-                cn);
+                db);
         }
 
         return recipientStatus;
@@ -334,7 +334,7 @@ public abstract class FileSystemUpdateWriterBase
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCore(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
-        DatabaseConnection cn)
+        IdentityDatabase db)
     {
         //re-run validation in case we need to verify the instructions are good for encrypted data
         Package.InstructionSet.AssertIsValid(metadata.IsEncrypted);
@@ -378,7 +378,7 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, cn, true);
+        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, db, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",

@@ -196,8 +196,7 @@ namespace Odin.Services.DataSubscription
             var header = notification.ServerFileHeader;
 
             var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, db);
-
-
+            
             if (connectedFollowers.Any())
             {
                 // Prepare the file
@@ -216,34 +215,11 @@ namespace Odin.Services.DataSubscription
 
                 foreach (var recipient in connectedFollowers)
                 {
-<<<<<<< HEAD
                     var encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                         PublicPrivateKeyType.OfflineKey,
                         recipient,
                         OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                        cn);
-=======
-                    // Prepare the file
-                    EccEncryptedPayload encryptedPayload = null;
-
-                    if (header.FileMetadata.IsEncrypted)
-                    {
-                        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-                        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                        var payload = new FeedItemPayload()
-                        {
-                            KeyHeaderBytes = keyHeader.Combine().GetKey()
-                        };
-
-                        //TODO: encryption - need to convert to the online key
-                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
-                            PublicPrivateKeyType.OfflineKey,
-                            recipient,
-                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                            db);
-                    }
->>>>>>> main
+                        db);
 
                     await AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {
@@ -406,11 +382,7 @@ namespace Odin.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-<<<<<<< HEAD
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext, cn);
-=======
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
->>>>>>> main
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,

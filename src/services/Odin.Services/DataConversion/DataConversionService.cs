@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
@@ -25,23 +26,25 @@ namespace Odin.Services.DataConversion
         public async Task AutoFixCircleGrants(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            using var cn = tenantSystemStorage.CreateConnection();
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, db);
 
-            await cn.CreateCommitUnitOfWorkAsync(async () =>
+            //TODO CONNECTIONS
+            // await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 foreach (var identity in allIdentities.Results)
                 {
-                    await FixIdentity(identity, odinContext, cn);
+                    await FixIdentity(identity, odinContext, db);
                 }
 
-                var allApps = await appRegistrationService.GetRegisteredApps(odinContext, cn);
+                var allApps = await appRegistrationService.GetRegisteredApps(odinContext, db);
                 foreach (var app in allApps)
                 {
                     logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
-                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext, cn);
+                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext, db);
                 }
-            });
+            }
+            //);
         }
 
         /// <summary>
@@ -50,20 +53,21 @@ namespace Odin.Services.DataConversion
         public async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            using var cn = tenantSystemStorage.CreateConnection();
+            var db = tenantSystemStorage.IdentityDatabase;
 
             //
             // Generate new Online Icr Encrypted ECC Key
             //
-            await publicPrivateKeyService.CreateInitialKeys(odinContext, cn);
+            await publicPrivateKeyService.CreateInitialKeys(odinContext, db);
             
             //
             // Create new circles
             //
-            await circleDefinitionService.EnsureSystemCirclesExist(cn);
+            await circleDefinitionService.EnsureSystemCirclesExist();
 
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, cn);
-            await cn.CreateCommitUnitOfWorkAsync(async () =>
+            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext, db);
+            //TODO CONNECTIONS
+            // await db.CreateCommitUnitOfWorkAsync(async () =>
             {
                 foreach (var identity in allIdentities.Results)
                 {
@@ -72,25 +76,26 @@ namespace Odin.Services.DataConversion
                     //
                     if (identity.VerificationHash?.Length == 0)
                     {
-                        var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext, cn);
+                        var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext, db);
                         logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
                     }
                 }
-            });
+            }
+            //);
         }
 
 
-        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, IdentityDatabase db)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {
                 var circleId = circleGrant.Value.CircleId;
 
-                var def = circleDefinitionService.GetCircle(circleId, cn);
+                var def = circleDefinitionService.GetCircle(circleId);
                 logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
 
-                await circleNetworkService.RevokeCircleAccess(circleId, icr.OdinId, odinContext, cn);
-                await circleNetworkService.GrantCircle(circleId, icr.OdinId, odinContext, cn);
+                await circleNetworkService.RevokeCircleAccess(circleId, icr.OdinId, odinContext, db);
+                await circleNetworkService.GrantCircle(circleId, icr.OdinId, odinContext, db);
             }
         }
     }

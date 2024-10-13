@@ -24,8 +24,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         [HttpGet("rsa_public_key")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType, db);
+            var cn = tenantSystemStorage.IdentityDatabase;
+            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType, cn);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
@@ -37,18 +37,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         [HttpGet("ecc_public_key")]
         public async Task<IActionResult> GetEccKey(PublicPrivateKeyType keyType)
         {
-<<<<<<< HEAD
-            using var cn = tenantSystemStorage.CreateConnection();
+            var cn = tenantSystemStorage.IdentityDatabase;
 
             logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
             var key = await publicPrivateKeyService.GetPublicEccKey(keyType, cn);
 
             if (null == key)
-=======
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicPrivateKeyService.GetPublicEccKey(keyType, db);
-            return new GetPublicKeyResponse()
->>>>>>> main
             {
                 logger.LogDebug("no ecc_public_key found");
                 return NotFound();

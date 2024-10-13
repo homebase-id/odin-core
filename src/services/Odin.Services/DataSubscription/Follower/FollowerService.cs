@@ -9,7 +9,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -103,13 +102,8 @@ namespace Odin.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-<<<<<<< HEAD
                 var eccEncryptedPayload = await _publicPrivatePublicKeyService.EccEncryptPayloadForRecipient(
-                    keyType, identityToFollow, json.ToUtf8ByteArray(), cn);
-=======
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.RsaEncryptPayloadForRecipient(
-                    PublicPrivateKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray(), db);
->>>>>>> main
+                    keyType, identityToFollow, json.ToUtf8ByteArray(), db);
                 var client = CreateClient(identityToFollow);
                 var response = await client.Follow(eccEncryptedPayload);
                 return response;
@@ -118,11 +112,7 @@ namespace Odin.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-<<<<<<< HEAD
-                await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKey(keyType, identityToFollow, cn);
-=======
-                await _publicPrivatePublicKeyService.InvalidateRecipientRsaPublicKey(identityToFollow, db);
->>>>>>> main
+                await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKey(keyType, identityToFollow, db);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -132,7 +122,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             // TODO CONNECTIONS
-            //cn.CreateCommitUnitOfWork(() => {
+            //db.CreateCommitUnitOfWork(() => {
                 //delete all records and update according to the latest follow request.
                 _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
@@ -375,11 +365,7 @@ namespace Odin.Services.DataSubscription.Follower
         public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
         {
             SensitiveByteArray sharedSecret = null;
-<<<<<<< HEAD
-            var icr = await _circleNetworkService.GetIcr(odinId, odinContext, cn);
-=======
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, db);
->>>>>>> main
+            var icr = await _circleNetworkService.GetIcr(odinId, odinContext, db);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;

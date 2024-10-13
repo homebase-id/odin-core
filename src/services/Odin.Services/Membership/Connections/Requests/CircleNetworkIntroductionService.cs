@@ -276,22 +276,26 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
     {
-        var db = notification.DatabaseConnection;
-        await db.CreateCommitUnitOfWorkAsync(async () =>
+
+        //TODO CONNECTIONS
+        // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
             await DeleteIntroductionsTo(notification.OdinId, notification.db);
             await DeleteIntroductionsFrom(notification.OdinId, notification.db);
-        });
+        }
+        //);
     }
 
     public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
-        var db = notification.DatabaseConnection;
-        await db.CreateCommitUnitOfWorkAsync(async () =>
+
+        //TODO CONNECTIONS
+        // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
-            await DeleteIntroductionsTo(notification.OdinId, notification.DatabaseConnection);
-            await DeleteIntroductionsFrom(notification.OdinId, notification.DatabaseConnection);
-        });
+            await DeleteIntroductionsTo(notification.OdinId, notification.db);
+            await DeleteIntroductionsFrom(notification.OdinId, notification.db);
+        }
+        //);
     }
 
 
@@ -421,7 +425,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private async Task DeleteIntroductionsTo(OdinId identity, IdentityDatabase db)
     {
-        var deleteCount = _receivedIntroductionValueStorage.Delete(db, identity);
+        _receivedIntroductionValueStorage.Delete(db, identity);
         await Task.CompletedTask;
     }
 

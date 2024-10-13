@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
+            var cn = tenantSystemStorage.IdentityDatabase;
             var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, cn);
             return new JsonResult(code);
         }
@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("update-remote-verification-hash")]
         public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
+            var cn = tenantSystemStorage.IdentityDatabase;
             await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext, cn);
             return Ok();
         }

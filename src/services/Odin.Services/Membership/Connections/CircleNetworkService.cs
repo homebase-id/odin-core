@@ -328,7 +328,7 @@ namespace Odin.Services.Membership.Connections
             return info.Status == ConnectionStatus.Connected;
         }
 
-        public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
             //added override:true because PermissionKeys.ReadCircleMembership is present
@@ -529,7 +529,7 @@ namespace Odin.Services.Membership.Connections
         {
             await circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
 
-            var members = await GetCircleMembers(circleDef.Id, odinContext, db);
+            var members = await GetCircleMembers(circleDef.Id, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
 
             // List<OdinId> invalidMembers = new List<OdinId>();
@@ -568,7 +568,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task DeleteCircleDefinition(GuidId circleId, IOdinContext odinContext, IdentityDatabase db)
         {
-            var members = await this.GetCircleMembers(circleId, odinContext, db);
+            var members = await this.GetCircleMembers(circleId, odinContext);
 
             if (members.Any())
             {
@@ -718,7 +718,7 @@ namespace Odin.Services.Membership.Connections
                 foreach (var circleId in circlesToRevoke)
                 {
                     //get all circle members and update their grants
-                    var members = await this.GetCircleMembers(circleId, odinContext, db);
+                    var members = await this.GetCircleMembers(circleId, odinContext);
 
                     foreach (var odinId in members)
                     {
@@ -734,7 +734,7 @@ namespace Odin.Services.Membership.Connections
             foreach (var circleId in newAppRegistration.AuthorizedCircles ?? new List<Guid>())
             {
                 //get all circle members and update their grants
-                var members = await this.GetCircleMembers(circleId, odinContext, db);
+                var members = await this.GetCircleMembers(circleId, odinContext);
 
                 foreach (var odinId in members)
                 {
@@ -815,7 +815,8 @@ namespace Odin.Services.Membership.Connections
 
                 await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext, db);
                 await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext, db);
-            });
+            }
+            //);
         }
 
         public async Task<bool> UpdateVerificationHash(OdinId odinId, Guid randomCode, IOdinContext odinContext, IdentityDatabase db)

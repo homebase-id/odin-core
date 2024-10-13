@@ -35,12 +35,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             OdinId sender,
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
             IOdinContext odinContext,
-<<<<<<< HEAD
-            DatabaseConnection cn, 
+            IdentityDatabase db, 
             bool driveOriginWasCollaborative = false)
-=======
-            IdentityDatabase db)
->>>>>>> main
         {
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
@@ -78,15 +74,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-<<<<<<< HEAD
-            var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
-            var isCollaborationChannel = drive.IsCollaborationDrive();
-=======
             var drive = await driveManager.GetDrive(tempFile.DriveId, db);
-            var isCollabChannel = drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value)
-                                  && bool.TryParse(value, out bool collabChannelFlagValue)
-                                  && collabChannelFlagValue;
->>>>>>> main
+            var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
@@ -122,11 +111,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 case TransferFileType.EncryptedFileForFeed:
-<<<<<<< HEAD
-                    await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, driveOriginWasCollaborative, odinContext, cn);
-=======
-                    await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, odinContext, db);
->>>>>>> main
+                    await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, driveOriginWasCollaborative, odinContext, db);
                     break;
 
                 default:
@@ -290,7 +275,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
-            IdentityDatabase cn)
+            IdentityDatabase db)
         {
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
             var targetDriveId = tempFile.DriveId;
@@ -304,23 +289,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If we can, then the gtid is the winner and decides the matching file
             //
 
-            SharedSecretEncryptedFileHeader header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+            SharedSecretEncryptedFileHeader header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
 
             // If there is no file matching the gtid, let's check if the UID might point to one
             if (header == null && newMetadata.AppData.UniqueId.HasValue)
             {
-                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext, cn);
+                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext, db);
             }
 
             if (header == null)
             {
                 // Neither gtid not uid points to an exiting file, so it's a new file
-                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, cn);
+                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, db);
                 return;
             }
 
             header.AssertFileIsActive();
-            var drive = await driveManager.GetDrive(targetDriveId, cn);
+            var drive = await driveManager.GetDrive(targetDriveId, db);
             if (!drive.IsCollaborationDrive())
             {
                 header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);
@@ -336,16 +321,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, cn);
+            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, db);
         }
 
-
         private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-<<<<<<< HEAD
-            FileMetadata newMetadata, ServerMetadata serverMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext, DatabaseConnection cn)
-=======
-            FileMetadata newMetadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase cn)
->>>>>>> main
+            FileMetadata newMetadata, ServerMetadata serverMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext, IdentityDatabase db)
         {
             // Rules:
             // You must have a global transit id to write to the feed drive
@@ -357,11 +337,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
             }
 
-            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
 
             if (header == null)
             {
-                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, cn);
+                await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
                 return;
             }
 
@@ -382,14 +362,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
-<<<<<<< HEAD
-            await fs.Storage.UpdateReactionPreview(targetFile, newMetadata.ReactionPreview, odinContext, cn);
-=======
-            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext, cn);
-
->>>>>>> main
+            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext, db);
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, cn);
+            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, db);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,

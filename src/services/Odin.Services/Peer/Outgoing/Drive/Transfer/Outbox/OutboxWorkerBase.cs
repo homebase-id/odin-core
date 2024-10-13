@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -100,7 +99,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
-        DatabaseConnection cn,
+        IdentityDatabase db,
         Guid? overrideGlobalTransitId = null
     )
     {
@@ -145,7 +144,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
+                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, db);
                 var payloadStream = p.Stream;
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -155,7 +154,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 {
                     var (thumbStream, thumbHeader) =
                         await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
-                            odinContext, cn);
+                            odinContext, db);
 
                     var thumbnailKey =
                         $"{payloadKey}" +
@@ -173,7 +172,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
         return (metaDataStream, payloadStreams);
     }
 
-    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, DatabaseConnection cn)
+    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, IdentityDatabase db)
     {
         logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
@@ -189,9 +188,10 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, cn);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
 
         logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+        
     }
 }

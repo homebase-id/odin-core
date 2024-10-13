@@ -11,7 +11,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -38,12 +37,8 @@ public class PeerDriveQueryService(
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
 {
-<<<<<<< HEAD
     public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType, IOdinContext odinContext,
-        DatabaseConnection cn)
-=======
-    public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
+        IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -104,12 +99,8 @@ public class PeerDriveQueryService(
         }
     }
 
-<<<<<<< HEAD
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType, IOdinContext odinContext,
-        DatabaseConnection cn)
-=======
-    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
+        IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
@@ -238,12 +229,8 @@ public class PeerDriveQueryService(
         }
     }
 
-<<<<<<< HEAD
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType, IOdinContext odinContext,
-        DatabaseConnection cn)
-=======
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
+        IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -419,19 +406,15 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-<<<<<<< HEAD
-        var icr = await circleNetworkService.GetIcr(odinId, odinContext, cn, overrideHack: true);
+        var icr = await circleNetworkService.GetIcr(odinId, odinContext, db, overrideHack: true);
 
         // there's a chance the icr.EncryptedClientAccessToken has not yet been upgraded so try to upgrade
         if (icr.EncryptedClientAccessToken == null)
         {
-            await circleNetworkService.UpgradeTokenEncryptionIfNeeded(icr, odinContext, cn);
-            icr = await circleNetworkService.GetIcr(odinId, odinContext, cn, overrideHack: true);
+            await circleNetworkService.UpgradeTokenEncryptionIfNeeded(icr, odinContext, db);
+            icr = await circleNetworkService.GetIcr(odinId, odinContext, db, overrideHack: true);
         }
 
-=======
-        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, db, overrideHack: true);
->>>>>>> main
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
@@ -524,12 +507,8 @@ public class PeerDriveQueryService(
             string decryptedContentType,
             UnixTimeUtc? lastModified,
             Stream thumbnail)>
-<<<<<<< HEAD
         HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response, IOdinContext odinContext,
-            DatabaseConnection cn)
-=======
-        HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
+            IdentityDatabase db)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
         {

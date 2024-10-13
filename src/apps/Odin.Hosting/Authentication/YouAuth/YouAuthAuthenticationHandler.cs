@@ -26,12 +26,8 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-<<<<<<< HEAD
-using Odin.Services.Authentication;
 using Odin.Services.Background.Services.Tenant;
-=======
 using Odin.Core.Storage.SQLite.IdentityDatabase;
->>>>>>> main
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -150,12 +146,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-<<<<<<< HEAD
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext,
-            DatabaseConnection cn)
-=======
         private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
         {
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {

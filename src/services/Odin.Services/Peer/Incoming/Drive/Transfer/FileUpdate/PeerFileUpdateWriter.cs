@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Apps;
@@ -30,15 +31,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             var fileSystemType = instructionSet.FileSystemType;
             var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
-            var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext, cn);
+            var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext, db);
 
             // Validations
-            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, cn);
-            var (targetAcl, isCollaborationChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, cn);
+            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, db);
+            var (targetAcl, isCollaborationChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, db);
             
             if (!isCollaborationChannel)
             {
@@ -78,7 +79,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatch(tempFile, targetFile, manifest, odinContext, cn);
+                await fs.Storage.UpdateBatch(tempFile, targetFile, manifest, odinContext, db);
             });
         }
 
@@ -86,12 +87,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             InternalDriveFileId tempFile,
             IDriveFileSystem fs,
             IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, cn);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, db);
 
                 if (bytes == null)
                 {
@@ -125,7 +126,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             FileSystemType fileSystemType,
             FileMetadata metadata,
             IOdinContext odinContext,
-            DatabaseConnection cn)
+            IdentityDatabase db)
         {
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -134,13 +135,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
+            var drive = await driveManager.GetDrive(tempFile.DriveId, db);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
-                targetAcl = await ResetAclForComment(metadata, odinContext, cn);
+                targetAcl = await ResetAclForComment(metadata, odinContext, db);
             }
             else
             {
@@ -161,12 +162,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
             IDriveFileSystem fs,
-            IOdinContext odinContext, DatabaseConnection cn)
+            IOdinContext odinContext, IdentityDatabase db)
         {
             var targetDriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
 
             SharedSecretEncryptedFileHeader header =
-                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
+                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext, db);
 
             if (header == null)
             {
@@ -183,11 +184,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return (targetFile, header);
         }
 
-        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, IdentityDatabase db)
         {
             AccessControlList targetAcl;
 
-            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext, cn);
+            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext, db);
 
             if (null == referencedFs || !fileId.HasValue)
             {
@@ -200,7 +201,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //
 
             var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
-                metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true, cn: cn);
+                metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true, db: db);
 
             if (null == referencedFile)
             {

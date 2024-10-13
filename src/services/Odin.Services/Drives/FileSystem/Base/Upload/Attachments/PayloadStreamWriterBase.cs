@@ -77,12 +77,8 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-<<<<<<< HEAD
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext,
-        DatabaseConnection cn)
-=======
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
->>>>>>> main
+        IdentityDatabase db)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 

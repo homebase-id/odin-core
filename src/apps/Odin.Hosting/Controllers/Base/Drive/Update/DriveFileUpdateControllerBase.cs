@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            using var cn = tenantSystemStorage.CreateConnection();
+            var cn = tenantSystemStorage.IdentityDatabase;
 
             await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
 
