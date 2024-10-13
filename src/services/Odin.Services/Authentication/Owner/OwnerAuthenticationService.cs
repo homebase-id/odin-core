@@ -333,7 +333,10 @@ namespace Odin.Services.Authentication.Owner
         public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
         {
             var context = _httpContextAccessor.HttpContext;
-            odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
+            if (odinContext.AuthContext == null)
+            {
+                odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
+            }
 
             //HACK: fix this
             //a bit of a hack here: we have to set the context as owner
