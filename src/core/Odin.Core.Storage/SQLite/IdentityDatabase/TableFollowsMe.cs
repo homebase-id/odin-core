@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
+using Odin.Core.Identity;
+using Org.BouncyCastle.Asn1.Ocsp;
+using static Dapper.SqlMapper;
 
 //
 // FollowsMe - this class stores all the people that follow me.
@@ -10,12 +13,13 @@ using Microsoft.Data.Sqlite;
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableFollowsMe : TableFollowsMeCRUD
-    {
+    {   
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
-
+        private readonly IdentityDatabase _db;
 
         public TableFollowsMe(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
+            _db = db;
         }
 
         ~TableFollowsMe()
@@ -28,16 +32,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public int Delete(DatabaseConnection conn, string identity, Guid driveId)
+        public int Delete(OdinId identity, Guid driveId)
         {
-            return base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, identity, driveId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Delete(conn, _db._identityId, identity.DomainName, driveId);
+            }
         }
 
-        public new int Insert(DatabaseConnection conn, FollowsMeRecord item)
+        public int Insert(FollowsMeRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
+            item.identityId = _db._identityId;
 
-            return base.Insert(conn, item);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
         }
 
 
@@ -47,34 +57,62 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowsMeRecord> Get(DatabaseConnection conn, string identity)
+        public List<FollowsMeRecord> Get(OdinId identity)
         {
-            var r = base.Get(conn, ((IdentityDatabase)_database)._identityId, identity);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                var r = base.Get(conn, _db._identityId, identity.DomainName);
 
-            if (r == null)
-                r = new List<FollowsMeRecord>();
+                if (r == null)
+                    r = new List<FollowsMeRecord>();
 
-            return r;
+                return r;
+            }
         }
 
 
-        public int DeleteByIdentity(DatabaseConnection conn, string identity)
+        public int DeleteByIdentity(OdinId identity)
         {
-            if (identity == null)
-                return 0;
-
-            int n = 0;
-            var r = Get(conn, identity);
-
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < r.Count; i++)
-                {
-                    n += base.Delete(conn, ((IdentityDatabase)_database)._identityId, identity, r[i].driveId);
-                }
-            });
+                int n = 0;
+                var r = base.Get(conn, _db._identityId, identity.DomainName);
 
-            return n;
+                if (r == null)
+                {
+                    return 0;
+                }
+                
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        n += base.Delete(conn, _db._identityId, identity.DomainName, r[i].driveId);
+                    }
+                });
+
+                return n;
+            }
+        }
+
+        // Returns # records inserted (1 or 0)
+        public int DeleteAndAddFollower(FollowsMeRecord r)
+        {
+            r.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                int n = 0;
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    var followerList = base.Get(conn, _db._identityId, r.identity);
+                    for (int i = 0; i < followerList.Count; i++)
+                    {
+                        base.Delete(conn, _db._identityId, followerList[i].identity, followerList[i].driveId);
+                    }
+                    n = base.Insert(conn, r);
+                });
+                return n;
+            }
         }
 
         /// <summary>
@@ -85,7 +123,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetAllFollowers(DatabaseConnection conn, int count, string inCursor, out string nextCursor)
+        public List<string> GetAllFollowers(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -112,9 +150,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1;
-                _s3param3.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _s3param3.Value = _db._identityId.ToByteArray();
 
-                lock (conn._lock)
+                using (var conn = _db.CreateDisposableConnection())
                 {
                     using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
@@ -155,7 +193,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(DatabaseConnection conn, int count, Guid driveId, string inCursor, out string nextCursor)
+        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -186,9 +224,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;
-                _s2param4.Value = ((IdentityDatabase)conn.db)._identityId.ToByteArray();
+                _s2param4.Value = _db._identityId.ToByteArray();
 
-                lock (conn._lock)
+                using (var conn = _db.CreateDisposableConnection())
                 {
                     using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
@@ -23,19 +24,13 @@ using Odin.Hosting.Controllers.Home;
 namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
-    public class StaticFileController : Controller
+    public class StaticFileController(
+        ITenantProvider tenantProvider,
+        StaticFileContentService staticFileContentService,
+        TenantSystemStorage tenantSystemStorage)
+        : Controller
     {
-        private readonly string _currentTenant;
-        private readonly StaticFileContentService _staticFileContentService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-
-        public StaticFileController(ITenantProvider tenantProvider, StaticFileContentService staticFileContentService, TenantSystemStorage tenantSystemStorage)
-        {
-            _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
-            _staticFileContentService = staticFileContentService;
-            _tenantSystemStorage = tenantSystemStorage;
-        }
+        private readonly string _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
 
         //
 
@@ -46,8 +41,8 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("cdn/{filename}")]
         public async Task<IActionResult> GetStaticFile(string filename)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await this.SendStream(filename, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await this.SendStream(filename, db);
         }
 
         /// <summary>
@@ -56,8 +51,8 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/image")]
         public async Task<IActionResult> GetPublicImage()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await this.SendStream(StaticFileConstants.ProfileImageFileName, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await this.SendStream(StaticFileConstants.ProfileImageFileName, db);
         }
 
         /// <summary>
@@ -66,15 +61,15 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/profile")]
         public async Task<IActionResult> GetPublicProfileData()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await this.SendStream(StaticFileConstants.PublicProfileCardFileName, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await this.SendStream(StaticFileConstants.PublicProfileCardFileName, db);
         }
 
 
-        private async Task<IActionResult> SendStream(string filename, DatabaseConnection cn)
+        private async Task<IActionResult> SendStream(string filename, IdentityDatabase db)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
-            var (config, fileExists, stream) = await _staticFileContentService.GetStaticFileStream(filename, cn, GetIfModifiedSince());
+            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStream(filename, db, GetIfModifiedSince());
 
             if (fileExists && stream == Stream.Null)
             {

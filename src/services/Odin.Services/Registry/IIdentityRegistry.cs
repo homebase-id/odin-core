@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Time;
@@ -66,6 +67,7 @@ namespace Odin.Services.Registry
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null);
+        Task<List<IdentityRegistration>> GetTenants();
 
         /// <summary>
         /// Gets an <see cref="IdentityRegistration"/> by domain name

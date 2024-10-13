@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -5,33 +6,38 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
-using Serilog;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
-    using System;
-    using System.Diagnostics;
-
     public class LongTermStorageManager
     {
         private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
+        private readonly DriveDatabaseHost _driveDatabaseHost;
+        private readonly FileSystemType _fileSystemType;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter,
+            DriveDatabaseHost driveDatabaseHost, FileSystemType fileSystemType)
         {
             drive.EnsureDirectories();
 
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
+            _driveDatabaseHost = driveDatabaseHost;
+            _fileSystemType = fileSystemType;
             _drive = drive;
         }
 
@@ -50,27 +56,46 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Writes a stream for a given file and part to the configured provider.
+        /// Writes a file header to the database
         /// </summary>
-        public async Task WriteHeaderStream(Guid fileId, Stream stream, bool byPassInternalFileLocking)
+        public async Task SaveFileHeader(ServerFileHeader header, IdentityDatabase db)
         {
-            var stopwatch = Stopwatch.StartNew();
+            OdinValidationUtils.AssertNotNull(header, nameof(header));
+            var mgr = await GetDbManager(db);
+            await mgr.SaveFileHeader(header, db);
+        }
 
-            string filePath = await GetFilenameAndPath(fileId, FilePart.Header, true);
+        public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
+        {
+            OdinValidationUtils.AssertNotNull(header, nameof(header));
+            var mgr = await GetDbManager(db);
+            await mgr.SoftDeleteFileHeader(header, db);
+        }
 
-            if (stopwatch.ElapsedMilliseconds > 100)
-                _logger.LogDebug("WriteHeaderStream GetFilenameAndPath() used {ms}", stopwatch.ElapsedMilliseconds);
-            stopwatch.Restart();
+        public async Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db)
+        {
+            OdinValidationUtils.AssertNotNull(history, nameof(history));
+            var mgr = await GetDbManager(db);
+            await mgr.SaveTransferHistory(fileId, history, db);
+        }
 
-            var bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream, byPassInternalFileLocking);
+        public async Task DeleteTransferHistory(Guid fileId, IdentityDatabase db)
+        {
+            var mgr = await GetDbManager(db);
+            await mgr.SaveTransferHistory(fileId, null, db);
+        }
 
-            if (stopwatch.ElapsedMilliseconds > 100)
-                _logger.LogDebug("WriteHeaderStream WriteStream() used {ms}", stopwatch.ElapsedMilliseconds);
+        public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
+        {
+            OdinValidationUtils.AssertNotNull(summary, nameof(summary));
+            var mgr = await GetDbManager(db);
+            await mgr.SaveReactionSummary(fileId, summary, db);
+        }
 
-            if (bytesWritten != stream.Length)
-            {
-                throw new OdinSystemException($"BytesWritten mismatch for file [{filePath}]");
-            }
+        public async Task DeleteReactionSummary(Guid fileId, IdentityDatabase db)
+        {
+            var mgr = await GetDbManager(db);
+            await mgr.SaveReactionSummary(fileId, null, db);
         }
 
         public async Task DeleteThumbnailFile(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height, int width)
@@ -196,9 +221,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Checks if the header file exists on disk.  Does not check the validity of the header
         /// </summary>
-        public async Task<bool> HeaderFileExists(Guid fileId)
+        public async Task<bool> HeaderFileExists(Guid fileId, IdentityDatabase db)
         {
-            var header = await this.GetServerFileHeader(fileId);
+            var header = await this.GetServerFileHeader(fileId, db);
             if (header == null)
             {
                 return false;
@@ -207,37 +232,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return true;
         }
 
-        // private async Task<bool> IsFileValid(Guid fileId)
-        // {
-        //     var header = await this.GetServerFileHeader(fileId);
-        //     if (header == null)
-        //     {
-        //         return false;
-        //     }
-        //
-        //     //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
-        //     foreach (var d in header.FileMetadata.Payloads)
-        //     {
-        //         var payloadFilePath = GetPayloadFilePath(fileId, d);
-        //         if (!await _driveFileReaderWriter.FileExists(payloadFilePath))
-        //         {
-        //             return false;
-        //         }
-        //     }
-        //
-        //     return true;
-        // }
-
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDelete(Guid fileId)
+        public async Task HardDelete(Guid fileId, IdentityDatabase db)
         {
             await DeleteAllThumbnails(fileId);
             await DeleteAllPayloadFiles(fileId);
 
-            string metadata = await GetFilenameAndPath(fileId, FilePart.Header);
-            await _driveFileReaderWriter.DeleteFile(metadata);
+            var mgr = await GetDbManager(db);
+            await mgr.HardDeleteFileHeader(GetInternalFile(fileId), db);
         }
 
         /// <summary>
@@ -276,21 +280,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
         }
 
-        public async Task<string> GetServerFileHeaderPath(Guid fileId)
+        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, IdentityDatabase db)
         {
-            return await GetFilenameAndPath(fileId, FilePart.Header);
-        }
-
-        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, bool byPassInternalFileLocking = false)
-        {
-            string headerFilepath = await GetFilenameAndPath(fileId, FilePart.Header);
-            var bytes = await _driveFileReaderWriter.GetAllFileBytes(headerFilepath, byPassInternalFileLocking);
-            if (bytes == null)
-            {
-                return null;
-            }
-
-            var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(bytes.ToStringFromUtf8Bytes());
+            var mgr = await GetDbManager(db);
+            var header = await mgr.GetFileHeader(fileId, _fileSystemType);
             return header;
         }
 
@@ -372,7 +365,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private async Task<string> GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
         {
-            string path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : _drive.GetLongTermHeaderStoragePath();
+            var path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : throw new OdinSystemException($"Invalid FilePart {filePart}");
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows
@@ -427,6 +420,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var searchPattern = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
             string dir = await GetFilePath(fileId, FilePart.Thumb);
             await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+        }
+
+        private async Task<IDriveDatabaseManager> GetDbManager(IdentityDatabase db)
+        {
+            var mgr = await _driveDatabaseHost.TryGetOrLoadQueryManager(this.Drive.Id, db);
+            return mgr;
+        }
+
+        private InternalDriveFileId GetInternalFile(Guid fileId)
+        {
+            return new InternalDriveFileId()
+            {
+                FileId = fileId,
+                DriveId = this.Drive.Id
+            };
         }
     }
 }

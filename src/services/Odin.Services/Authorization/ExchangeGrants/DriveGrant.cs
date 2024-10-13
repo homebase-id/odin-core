@@ -37,5 +37,10 @@ namespace Odin.Services.Authorization.ExchangeGrants
     {
         public PermissionedDrive PermissionedDrive { get; set; }
         public bool HasStorageKey { get; set; }
+
+        public override string ToString()
+        {
+            return $"Drive:{PermissionedDrive.Drive} is granted [{PermissionedDrive.Permission}] and HasStorageKey:{HasStorageKey}";
+        }
     }
 }
