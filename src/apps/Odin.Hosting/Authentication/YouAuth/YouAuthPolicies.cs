@@ -13,7 +13,7 @@ public static class YouAuthPolicies
     {
         policy.AddPolicy(IsIdentified, pb =>
         {
-            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString);
             // pb.RequireRole()
             pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
 
@@ -21,8 +21,8 @@ public static class YouAuthPolicies
             
         policy.AddPolicy(IsAuthorizedApp, pb =>
         {
-            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
-            pb.RequireClaim(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString);
+            pb.RequireClaim(OdinClaimTypes.IsAuthorizedApp, bool.TrueString);
             pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
         });
     }

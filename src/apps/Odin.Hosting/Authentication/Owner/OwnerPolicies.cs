@@ -12,7 +12,7 @@ namespace Odin.Hosting.Authentication.Owner
         {
             policy.AddPolicy(IsDigitalIdentityOwner, pb =>
             {
-                pb.RequireClaim(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsIdentityOwner, bool.TrueString);
                 pb.AuthenticationSchemes.Add(OwnerAuthConstants.SchemeName);
             });
             

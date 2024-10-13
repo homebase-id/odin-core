@@ -17,9 +17,7 @@ namespace Odin.Hosting.Controllers.APIv2.Drive.Files
         [HttpPost(ApiV2PathConstants.SendReadReceipts)]
         public Task<UploadResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            return Task.FromResult(new UploadResult()
-            {
-            });
+            return Task.FromResult(new UploadResult());
         }
     }
 }

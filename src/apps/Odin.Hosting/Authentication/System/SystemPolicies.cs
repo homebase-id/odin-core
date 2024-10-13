@@ -11,7 +11,7 @@ namespace Odin.Hosting.Authentication.System
         {
             policy.AddPolicy(IsSystemProcess, pb =>
             {
-                pb.RequireClaim(OdinClaimTypes.IsSystemProcess, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsSystemProcess, bool.TrueString);
                 pb.AuthenticationSchemes.Add(SystemAuthConstants.SchemeName);
             });
         }

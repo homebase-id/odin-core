@@ -1,49 +1,72 @@
 using System;
-using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Odin.Services.Authorization;
+using Microsoft.Extensions.DependencyInjection;
+using Odin.Hosting.Authentication.Unified;
 
 namespace Odin.Hosting.Controllers.APIv2.Base;
 
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
-public class OdinAuthorizeRouteAttribute(RootApiRoutes flags) : Attribute, IAsyncAuthorizationFilter
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+public class OdinAuthorizeRouteAttribute : AuthorizeAttribute, IAsyncAuthorizationFilter
 {
-    public RootApiRoutes Flags { get; } = flags;
+    public RootApiRoutes Flags { get; }
 
-    public Task OnAuthorizationAsync(AuthorizationFilterContext context)
+    public OdinAuthorizeRouteAttribute(RootApiRoutes flags)
     {
+        this.Flags = flags;
+        AuthenticationSchemes = UnifiedAuthConstants.SchemeName;
+    }
+
+    public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
+    {
+        var user = context.HttpContext.User;
+        var authorizationService = context.HttpContext.RequestServices.GetRequiredService<IAuthorizationService>();
+
         //
-        if (Flags.HasFlag(RootApiRoutes.Owner))
-        {
-            // check owner claims
-            var isOwner = context.HttpContext.User.Claims.Any(c => c.Type == OdinClaimTypes.IsIdentityOwner && bool.Parse(c.Value));
-
-            if (isOwner)
-            {
-                return Task.CompletedTask;
-            }
-        }
-
-        if (Flags.HasFlag(RootApiRoutes.Apps))
-        {
-            // check owner claims
-
-            context.HttpContext.User.Claims.Any(c => c.Type == "");
-            return Task.CompletedTask;
-        }
+        // Important!
+        // You must check from lowest required auth to most secure
+        //
 
         if (Flags.HasFlag(RootApiRoutes.Guest))
         {
-            // check owner claims
-
-            context.HttpContext.User.Claims.Any(c => c.Type == "");
-            return Task.CompletedTask;
+            if (await HasPolicy(authorizationService, user, UnifiedPolicies.Guest))
+            {
+                return;
+            }
         }
 
 
+        if (Flags.HasFlag(RootApiRoutes.Apps))
+        {
+            if (await HasPolicy(authorizationService, user, UnifiedPolicies.App))
+            {
+                return;
+            }
+        }
+
+        //
+        if (Flags.HasFlag(RootApiRoutes.Owner))
+        {
+            if (await HasPolicy(authorizationService, user, UnifiedPolicies.Owner))
+            {
+                return;
+            }
+        }
+
         context.Result = new ForbidResult();
-        return Task.CompletedTask;
+    }
+
+    private static async Task<bool> HasPolicy(IAuthorizationService authorizationService, ClaimsPrincipal user, string policyName)
+    {
+        var authorizationResult = await authorizationService.AuthorizeAsync(user, policyName);
+        if (authorizationResult.Succeeded)
+        {
+            return true;
+        }
+
+        return false;
     }
 }

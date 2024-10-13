@@ -48,10 +48,10 @@ namespace Odin.Hosting.Authentication.System
                     string domain = "system.domain";
                     var claims = new List<Claim>()
                     {
-                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                        new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                        new Claim(OdinClaimTypes.IsSystemProcess, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, OdinClaimTypes.Issuer),
+                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, OdinClaimTypes.Issuer),
+                        new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                        new Claim(OdinClaimTypes.IsSystemProcess, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
                     };
 
                     var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();

@@ -7,7 +7,7 @@ namespace Odin.Services.Authorization
     /// </summary>
     public static class OdinClaimTypes
     {
-        public static string YouFoundationIssuer = "Odin";
+        public static string Issuer = "Odin";
 
         /// <summary>
         /// Indicates the current <see cref="ClaimsPrincipal"/> is a backend system process
@@ -26,5 +26,7 @@ namespace Odin.Services.Authorization
 
 
         public static string IsAuthorizedApp = "https://schemas.odin.earth/2021/3/identity/IsAuthorizedApp";
+        
+        public static string IsAuthorizedGuest = "https://schemas.odin.earth/2021/3/identity/IsAuthorizedGuest";
     }
 }

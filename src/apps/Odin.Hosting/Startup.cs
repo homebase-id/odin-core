@@ -177,6 +177,7 @@ namespace Odin.Hosting
 
             services.AddAuthorization(policy =>
             {
+                UnifiedPolicies.AddPolicies(policy);
                 OwnerPolicies.AddPolicies(policy);
                 SystemPolicies.AddPolicies(policy);
                 YouAuthPolicies.AddPolicies(policy);

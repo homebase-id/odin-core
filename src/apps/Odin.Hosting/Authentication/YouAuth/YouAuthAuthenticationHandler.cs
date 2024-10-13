@@ -43,14 +43,18 @@ namespace Odin.Hosting.Authentication.YouAuth
         {
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-            bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isAppPath = Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1,
+                StringComparison.InvariantCultureIgnoreCase);
+
             if (isAppPath)
             {
                 using var cn = tenantSystemStorage.CreateConnection();
                 return await HandleAppAuth(dotYouContext, cn);
             }
 
-            bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isYouAuthPath = Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1,
+                StringComparison.InvariantCultureIgnoreCase);
+            
             if (isYouAuthPath)
             {
                 using var cn = tenantSystemStorage.CreateConnection();
@@ -102,9 +106,10 @@ namespace Odin.Hosting.Authentication.YouAuth
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
-                new(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new(OdinClaimTypes.IsAuthorizedApp, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthenticated, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
 
             // Steal this path from the http controller because here we have the client auth token
@@ -135,10 +140,11 @@ namespace Odin.Hosting.Authentication.YouAuth
                 return await HandleYouAuthToken(clientAuthToken, odinContext, cn);
             }
 
-            throw new OdinClientException("Unhandled youauth token type");
+            throw new OdinClientException("Unhandled YouAuth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken,
+            IOdinContext odinContext, DatabaseConnection cn)
         {
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {
@@ -165,7 +171,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext, cn);
@@ -201,7 +208,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new OdinClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                throw new OdinClientException(
+                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
                     OdinClientErrorCode.NotInitialized);
             }
 
@@ -247,8 +255,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             var claims = new[]
             {
-                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
@@ -260,8 +268,10 @@ namespace Odin.Hosting.Authentication.YouAuth
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
-                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthorizedGuest, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
             return claims;
         }

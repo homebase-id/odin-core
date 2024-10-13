@@ -11,7 +11,7 @@ namespace Odin.Hosting.Authentication.Peer
         {
             policy.AddPolicy(IsInOdinNetwork, pb =>
             {
-                pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString);
                 pb.AuthenticationSchemes.Add(scheme);
             });
             

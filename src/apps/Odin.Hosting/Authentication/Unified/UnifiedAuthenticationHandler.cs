@@ -1,6 +1,5 @@
 ﻿#nullable enable
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
@@ -11,11 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Hosting.Controllers.APIv2;
+using Odin.Hosting.Controllers.APIv2.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.Authorization;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Authentication.Unified
@@ -53,97 +51,58 @@ namespace Odin.Hosting.Authentication.Unified
         /// <summary/>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (GetToken(out var authResult))
+            var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+            switch (GetRoute())
             {
-                if (authResult == null)
-                {
-                    return AuthenticateResult.Fail("Empty authResult");
-                }
-
-                var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
-
-                try
+                case RootApiRoutes.Owner:
                 {
                     using var cn = _tenantSystemStorage.CreateConnection();
-                    if (!await UpdateOdinContext(authResult, dotYouContext, cn))
-                    {
-                        return AuthenticateResult.Fail("Invalid Owner Token");
-                    }
-                }
-                catch (OdinSecurityException e)
-                {
-                    return AuthenticateResult.Fail(e.Message);
+                    return await OwnerAuthPathHandler.Handle(Context, odinContext, cn);
                 }
 
-                if (dotYouContext.Caller.OdinId == null)
+                case RootApiRoutes.Apps:
                 {
-                    return AuthenticateResult.Fail("Missing OdinId");
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    return await AppAuthPathHandler.Handle(Context, odinContext, cn);
                 }
 
-                var claims = new List<Claim>()
+                case RootApiRoutes.Guest:
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                };
-
-                var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
-                ClaimsPrincipal principal = new ClaimsPrincipal(identity);
-
-                AuthenticationProperties authProperties = new AuthenticationProperties();
-                authProperties.IssuedUtc = DateTime.UtcNow;
-                authProperties.ExpiresUtc = DateTime.UtcNow.AddDays(1);
-                authProperties.AllowRefresh = true;
-                authProperties.IsPersistent = true;
-
-                var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.SchemeName);
-                ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);
-                return AuthenticateResult.Success(ticket);
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    return await GuestAuthPathHandler.Handle(Context, odinContext, cn);
+                }
             }
 
-            else
-            {
-                
-                var claims = new List<Claim>()
-                {
-                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                };
-
-                var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
-                
-                ClaimsPrincipal principal = new ClaimsPrincipal(identity);
-
-                AuthenticationProperties authProperties = new AuthenticationProperties
-                {
-                    IssuedUtc = DateTime.UtcNow,
-                    ExpiresUtc = DateTime.UtcNow.AddDays(1),
-                    AllowRefresh = true,
-                    IsPersistent = true
-                };
-                var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.SchemeName);
-                return AuthenticateResult.Success(ticket);
-            }
-
-            return AuthenticateResult.Fail("Invalid or missing token");
+            return AuthenticateResult.Fail("Invalid Path");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task SignOutAsync(AuthenticationProperties? properties)
         {
-            var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext, cn);
-        }
-
-        public Task SignOutAsync(AuthenticationProperties? properties)
-        {
-            if (GetToken(out var result) && result != null)
+            var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+            switch (GetRoute())
             {
-                var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                using var cn = _tenantSystemStorage.CreateConnection();
-                authService.ExpireToken(result.Id, cn);
-            }
+                case RootApiRoutes.Owner:
+                {
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    await OwnerAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    break;
+                }
 
-            return Task.CompletedTask;
+                case RootApiRoutes.Apps:
+                {
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    await AppAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    break;
+                }
+
+                case RootApiRoutes.Guest:
+                {
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    await GuestAuthPathHandler.HandleSignOut(Context, odinContext, cn);
+                    break;
+                }
+            }
+            
         }
 
         public Task SignInAsync(ClaimsPrincipal user, AuthenticationProperties? properties)
@@ -151,18 +110,29 @@ namespace Odin.Hosting.Authentication.Unified
             return Task.CompletedTask;
         }
 
-        private bool GetToken(out ClientAuthenticationToken? authenticationResult)
+        private bool IsPathRoot(string root)
         {
-            //TODO: can we remove some of the sensitive cookie values from memory
-            var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];
-            if (ClientAuthenticationToken.TryParse(value, out var result))
+            return Context.Request.Path.StartsWithSegments(root, StringComparison.InvariantCultureIgnoreCase);
+        }
+        
+        private RootApiRoutes GetRoute()
+        {
+            if (IsPathRoot(ApiV2PathConstants.OwnerRoot))
             {
-                authenticationResult = result;
-                return true;
+                return RootApiRoutes.Owner;
             }
 
-            authenticationResult = null;
-            return false;
+            if (IsPathRoot(ApiV2PathConstants.AppsRoot))
+            {
+                return RootApiRoutes.Apps;
+            }
+
+            if (IsPathRoot(ApiV2PathConstants.GuestRoot))
+            {
+                return RootApiRoutes.Guest;
+            }
+
+            throw new OdinSecurityException("Invalid route");
         }
     }
 }
