@@ -71,19 +71,16 @@ public sealed class IcrKeyAvailableBackgroundService(
                 if (!tenantContext.Settings.DisableAutoAcceptIntroductions &&
                     odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
                 {
-                    var db = tenantSystemStorage.IdentityDatabase;
-                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, db);
+                    await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext);
                 }
 
                 if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
                 {
-                    var db = tenantSystemStorage.IdentityDatabase;
-                    await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, db);
+                    await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext);
                 }
 
                 if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
                 {
-                    var db = tenantSystemStorage.IdentityDatabase;
                     await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext);
                 }
             }

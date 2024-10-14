@@ -155,9 +155,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, IOdinContext odinContext,
-            IdentityDatabase db)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, IOdinContext odinContext)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByCategory<PendingConnectionRequestHeader>(db, _pendingRequestsDataType);
             return await Task.FromResult(

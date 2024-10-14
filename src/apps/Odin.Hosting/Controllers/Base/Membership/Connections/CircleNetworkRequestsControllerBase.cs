@@ -17,19 +17,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         CircleNetworkIntroductionService introductionService)
         : OdinControllerBase
     {
-<<<<<<< HEAD
-=======
-        private readonly CircleNetworkRequestService _requestService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-
-        public CircleNetworkRequestsControllerBase(CircleNetworkRequestService db, TenantSystemStorage tenantSystemStorage)
-        {
-            _requestService = db;
-            _tenantSystemStorage = tenantSystemStorage;
-        }
-
->>>>>>> main
         /// <summary>
         /// Gets a list of connection requests that are awaiting a response
         /// </summary>
@@ -39,8 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("pending/list")]
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
+            var result = await circleNetworkRequestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), WebOdinContext);
             return result;
             // var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             // return new PagedResult<PendingConnectionRequestHeader>(result.Request, result.TotalPages, resp);
@@ -56,8 +42,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetPendingRequest(id, WebOdinContext, db);
+            var result = await circleNetworkRequestService.GetPendingRequest(id, WebOdinContext);
 
             if (result == null)
             {
@@ -79,8 +64,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.AcceptConnectionRequest(header, WebOdinContext, db);
+            await circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: false, WebOdinContext);
             return true;
         }
 
@@ -94,8 +78,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.DeletePendingRequest(id, WebOdinContext, db);
+            await circleNetworkRequestService.DeletePendingRequest(id, WebOdinContext);
             return true;
         }
 
@@ -109,9 +92,9 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("sent/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
-            var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing)).ToList();
+            var result = await circleNetworkRequestService.GetSentRequests(new PageOptions(pageNumber, pageSize), WebOdinContext);
+            var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing))
+                .ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
@@ -125,8 +108,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetSentRequest(id, WebOdinContext, db);
+            
+            var result = await circleNetworkRequestService.GetSentRequest(id, WebOdinContext);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -146,8 +129,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.DeleteSentRequest(id, WebOdinContext, db);
+            
+            await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext);
             return true;
         }
 
@@ -164,8 +147,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.SendConnectionRequest(requestHeader, WebOdinContext, db);
+            
+            await circleNetworkRequestService.SendConnectionRequest(requestHeader, WebOdinContext);
             return true;
         }
 
@@ -176,7 +159,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertValidRecipientList(group.Recipients);
 
             var db = tenantSystemStorage.IdentityDatabase;
-            var result = await introductionService.SendIntroductions(group, WebOdinContext, db);
+            var result = await introductionService.SendIntroductions(group, WebOdinContext);
             return new JsonResult(result);
         }
 
@@ -184,7 +167,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.SendOutstandingConnectionRequests(WebOdinContext, db);
+            await introductionService.SendOutstandingConnectionRequests(WebOdinContext);
             return new OkResult();
         }
 
@@ -192,7 +175,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext, db);
+            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext);
             return new OkResult();
         }
 
@@ -201,7 +184,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> GetReceivedIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            var list = await introductionService.GetReceivedIntroductions(WebOdinContext, db);
+            var list = await introductionService.GetReceivedIntroductions(WebOdinContext);
             return new JsonResult(list);
         }
 
@@ -209,7 +192,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> DeleteAllIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.DeleteIntroductions(WebOdinContext, db);
+            await introductionService.DeleteIntroductions(WebOdinContext);
             return Ok();
         }
     }

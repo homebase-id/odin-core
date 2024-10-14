@@ -10,6 +10,6 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
     [AuthorizeValidAppToken]
-    public class AppCircleNetworkController(CircleNetworkService cn, CircleNetworkVerificationService verificationService, TenantSystemStorage tenantSystemStorage)
-        : CircleNetworkControllerBase(cn, tenantSystemStorage, verificationService);
+    public class AppCircleNetworkController(CircleNetworkService cn, CircleNetworkVerificationService verificationService)
+        : CircleNetworkControllerBase(cn, verificationService);
 }

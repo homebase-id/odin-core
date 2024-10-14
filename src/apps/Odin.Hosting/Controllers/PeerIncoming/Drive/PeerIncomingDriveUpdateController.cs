@@ -180,7 +180,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var json = await new StreamReader(section.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _fileUpdateService.AcceptMetadata("metadata", metadataStream, WebOdinContext, cn);
+            await _fileUpdateService.AcceptMetadata("metadata", metadataStream, WebOdinContext, db);
             return metadata;
         }
 
@@ -197,7 +197,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
             await _fileUpdateService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext,
-                cn);
+                db);
         }
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, IdentityDatabase db)
@@ -224,7 +224,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
             await _fileUpdateService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
                 fileSection.FileStream,
-                WebOdinContext, cn);
+                WebOdinContext, db);
         }
 
         private void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection, out string payloadKey)

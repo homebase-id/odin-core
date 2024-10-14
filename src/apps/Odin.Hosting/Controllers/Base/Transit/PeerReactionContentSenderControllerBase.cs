@@ -47,8 +47,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] PeerDeleteReactionRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 
@@ -61,7 +60,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] PeerDeleteReactionRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 

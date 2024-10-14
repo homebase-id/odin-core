@@ -16,22 +16,19 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class ConnectionsController(
         CircleNetworkService circleNetwork,
-        CircleNetworkVerificationService verificationService,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+        CircleNetworkVerificationService verificationService) : OdinControllerBase
     {
         [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, db);
+            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext);
             return new JsonResult(code);
         }
 
         [HttpPost("update-remote-verification-hash")]
         public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext, db);
+            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext);
             return Ok();
         }
     }

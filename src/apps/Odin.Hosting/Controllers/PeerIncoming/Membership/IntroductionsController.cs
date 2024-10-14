@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.ReceiveIntroductions(payload, WebOdinContext, db);
+            await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
         }
     }
