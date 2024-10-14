@@ -29,15 +29,15 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-
+            
             var env = new Dictionary<string, string>
             {
                 { "Job__BackgroundJobStartDelaySeconds", "0" },
                 { "Job__CronProcessingInterval", "1" },
-                { "Job__EnableJobBackgroundService", "true" },
-                { "Job__Enabled", "true" },
+                {"Job__EnableJobBackgroundService", "true"},
+                {"Job__Enabled", "true"},
             };
-
+        
             _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
             var pippin = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
 
-            List<OwnerApiClientRedux> recipients = [pippin, sam];
+            List<OwnerApiClientRedux> recipients = [sam, pippin];
 
             const DrivePermission drivePermissions = DrivePermission.Write;
 
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 transitOptions
             );
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromMinutes(30));
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromMinutes(1));
 
             foreach (var recipient in recipients)
             {
@@ -110,17 +110,16 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 var uploadedFile1 = uploadedFileResponse1.Content;
 
                 Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId,
-                        out var recipientStatus));
+                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId, out var recipientStatus));
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsFalse(recipientStatus.IsInOutbox, $"isInOutbox should be false for {recipient.Identity.OdinId}");
+                Assert.IsFalse(recipientStatus.IsInOutbox);
                 Assert.IsFalse(recipientStatus.IsReadByRecipient);
                 Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
             }
 
             await this.DeleteScenario(senderOwnerClient, recipients);
         }
-
+        
         [Test]
         public async Task GetModifiedOfSenderFilesIncludesFilesWithUpdatedPeerTransferStatusAndCanExcludeRecipientTransferHistory()
         {
@@ -204,8 +203,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             await this.DeleteScenario(senderOwnerClient, recipients);
         }
 
-        private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, List<OwnerApiClientRedux> recipients,
-            TargetDrive targetDrive,
+        private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, List<OwnerApiClientRedux> recipients, TargetDrive targetDrive,
             DrivePermission drivePermissions)
         {
             //
@@ -257,17 +255,16 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             };
 
             var circleId = Guid.NewGuid();
-            var createCircleResponse = await recipient.Network.CreateCircle(circleId, "Circle with drive access",
-                new PermissionSetGrantRequest()
+            var createCircleResponse = await recipient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
                 {
-                    Drives = new List<DriveGrantRequest>()
+                    new()
                     {
-                        new()
-                        {
-                            PermissionedDrive = expectedPermissionedDrive
-                        }
+                        PermissionedDrive = expectedPermissionedDrive
                     }
-                });
+                }
+            });
 
             Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
