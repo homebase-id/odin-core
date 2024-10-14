@@ -193,7 +193,7 @@ namespace Odin.Services.Authentication.Owner
             }
 
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-            _recoveryService.AssertValidKey(recoveryKey, out var masterKey, db);
+            _recoveryService.AssertValidKey(recoveryKey, out var masterKey);
             await SavePassword(request.PasswordReply, db, masterKey);
         }
 

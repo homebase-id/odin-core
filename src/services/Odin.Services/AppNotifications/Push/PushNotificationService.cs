@@ -340,8 +340,7 @@ public class PushNotificationService(
                 Timestamp = timestamp,
                 AppNotificationOptions = options,
             },
-            odinContext,
-            db
+            odinContext
         );
 
         // var pushNotificationsRedactedOptions = options.Redacted();

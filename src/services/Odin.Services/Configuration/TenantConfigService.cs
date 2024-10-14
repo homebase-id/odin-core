@@ -72,15 +72,19 @@ public class TenantConfigService
         _tenantContext.UpdateSystemConfig(GetTenantSettings(db));
     }
 
-    public bool IsIdentityServerConfigured(IdentityDatabase db)
+    public bool IsIdentityServerConfigured()
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = _configStorage.Get<FirstRunInfo>(db, FirstRunInfo.Key);
         return firstRunInfo != null;
     }
 
-    public bool IsEulaSignatureRequired(IOdinContext odinContext, IdentityDatabase db)
+    public bool IsEulaSignatureRequired(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
 
         var info = _configStorage.Get<List<EulaSignature>>(db, EulaSystemInfo.StorageKey);
@@ -102,8 +106,10 @@ public class TenantConfigService
         };
     }
 
-    public List<EulaSignature> GetEulaSignatureHistory(IOdinContext odinContext, IdentityDatabase db)
+    public List<EulaSignature> GetEulaSignatureHistory(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
 
         var signatures = _configStorage.Get<List<EulaSignature>>(db, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
@@ -111,8 +117,10 @@ public class TenantConfigService
         return signatures;
     }
 
-    public void MarkEulaSigned(MarkEulaSignedRequest request, IOdinContext odinContext, IdentityDatabase db)
+    public void MarkEulaSigned(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
@@ -135,8 +143,9 @@ public class TenantConfigService
         _configStorage.Upsert(db, Eula.EulaSystemInfo.StorageKey, signatures);
     }
 
-    public async Task CreateInitialKeys(IOdinContext odinContext, IdentityDatabase db)
+    public async Task CreateInitialKeys(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.Caller.AssertHasMasterKey();
         await _recoverService.CreateInitialKey(odinContext, db);
         await _icrKeyService.CreateInitialKeys(odinContext, db);
@@ -159,9 +168,9 @@ public class TenantConfigService
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCircles(odinContext);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest, odinContext, db);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext, db);
         await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext, db);
 
@@ -354,11 +363,11 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
 
-    private async Task RegisterChatApp(IOdinContext odinContext, IdentityDatabase db)
+    private async Task RegisterChatApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -419,10 +428,10 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
-    private async Task RegisterMailApp(IOdinContext odinContext, IdentityDatabase db)
+    private async Task RegisterMailApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -483,10 +492,10 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
-    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext)
     {
         var existingCircleDef = _circleMembershipService.GetCircle(request.Id, odinContext);
         if (null == existingCircleDef)
@@ -498,8 +507,10 @@ public class TenantConfigService
         return false;
     }
 
-    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         var drive = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, false);
 
         if (null == drive)
@@ -511,7 +522,7 @@ public class TenantConfigService
         return false;
     }
 
-    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext, IdentityDatabase db)
+    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
         var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
 
@@ -530,6 +541,6 @@ public class TenantConfigService
             }
         }
 
-        await _dbs.UpdateCircleDefinition(systemCircle, odinContext, db);
+        await _dbs.UpdateCircleDefinition(systemCircle, odinContext);
     }
 }

@@ -69,8 +69,10 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
-        public async Task Follow(FollowRequest request, IOdinContext odinContext, IdentityDatabase db)
+        public async Task Follow(FollowRequest request, IOdinContext odinContext)
         {
+            var db = _tenantStorage.IdentityDatabase;
+
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var identityToFollow = (OdinId)request.OdinId;
@@ -150,7 +152,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.SynchronizeFeedHistoryNow)
             {
-                await SynchronizeChannelFiles(identityToFollow, odinContext, db);
+                await SynchronizeChannelFiles(identityToFollow, odinContext);
             }
         }
 
@@ -264,8 +266,10 @@ namespace Odin.Services.DataSubscription.Follower
             return await Task.FromResult(result);
         }
 
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor, IOdinContext odinContext)
         {
+            var db = _tenantStorage.IdentityDatabase;
+
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
             var drive = await _driveManager.GetDrive(driveAlias, db, true);
@@ -362,20 +366,24 @@ namespace Odin.Services.DataSubscription.Follower
             }
         }
 
-        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
+        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext)
         {
+            var db = _tenantStorage.IdentityDatabase;
+
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIcr(odinId, odinContext, db);
+            var icr = await _circleNetworkService.GetIcr(odinId, odinContext);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            await this.SynchronizeChannelFiles(odinId, odinContext, db, sharedSecret: sharedSecret);
+            await this.SynchronizeChannelFiles(odinId, odinContext, sharedSecret: sharedSecret);
         }
 
-        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, IdentityDatabase db, SensitiveByteArray sharedSecret)
+        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, SensitiveByteArray sharedSecret)
         {
+            var db = _tenantStorage.IdentityDatabase;
+
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var definition = await this.GetIdentityIFollowInternal(odinId);
@@ -435,7 +443,7 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     try
                     {
-                        await TryWriteFeedFile(odinId, patchedContext, db, dsr, feedDriveId);
+                        await TryWriteFeedFile(odinId, patchedContext, dsr, feedDriveId);
                     }
                     catch (Exception e)
                     {
@@ -448,9 +456,11 @@ namespace Odin.Services.DataSubscription.Follower
         }
 
         ///
-        private async Task TryWriteFeedFile(OdinId odinId, IOdinContext odinContext, IdentityDatabase db, SharedSecretEncryptedFileHeader dsr,
+        private async Task TryWriteFeedFile(OdinId odinId, IOdinContext odinContext, SharedSecretEncryptedFileHeader dsr,
             Guid feedDriveId)
         {
+            var db = _tenantStorage.IdentityDatabase;
+
             if (dsr.FileMetadata.GlobalTransitId == null)
             {
                 throw new OdinSystemException("File is missing a global transit id");

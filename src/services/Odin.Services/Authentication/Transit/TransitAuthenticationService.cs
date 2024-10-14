@@ -53,7 +53,7 @@ public class TransitAuthenticationService :
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
         ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext, db);
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
