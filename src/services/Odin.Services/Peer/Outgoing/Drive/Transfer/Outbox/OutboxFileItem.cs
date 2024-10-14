@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
+    [DebuggerDisplay("{Type} to {Recipient}")]
     public class OutboxFileItem
     {
         public OdinId Recipient { get; set; }
