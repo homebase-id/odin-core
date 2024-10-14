@@ -144,7 +144,7 @@ public class TenantConfigService
 
         await _publicPrivateKeyService.CreateInitialKeys(odinContext, db);
 
-        await _icrKeyService.CreateInitialKeys(odinContext, db);
+        await _icrKeyService.CreateInitialKeys(odinContext);
     }
 
     /// <summary>

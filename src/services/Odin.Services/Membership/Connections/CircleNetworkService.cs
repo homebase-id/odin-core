@@ -147,7 +147,7 @@ namespace Odin.Services.Membership.Connections
             var info = await this.GetIdentityConnectionRegistration(odinId, odinContext);
             if (info is { Status: ConnectionStatus.Connected })
             {
-                _storage.Delete(odinId, db);
+                _storage.Delete(odinId);
 
                 await mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
                 {
@@ -561,7 +561,7 @@ namespace Odin.Services.Membership.Connections
         {
             var db = tenantSystemStorage.IdentityDatabase;
 
-            _storage.Delete(odinId, db);
+            _storage.Delete(odinId);
             await mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
             {
                 OdinId = odinId,
@@ -881,7 +881,7 @@ namespace Odin.Services.Membership.Connections
 
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
-            var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status, db);
+            var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status);
             return new CursoredResult<long, IdentityConnectionRegistration>()
             {
                 Cursor = nextCursor.GetValueOrDefault().uniqueTime,
@@ -926,11 +926,11 @@ namespace Odin.Services.Membership.Connections
             //TODO: this is a critical change; need to audit this
             if (icr.Status == ConnectionStatus.None)
             {
-                _storage.Delete(icr.OdinId, db);
+                _storage.Delete(icr.OdinId);
             }
             else
             {
-                _storage.Upsert(icr, odinContext, db);
+                _storage.Upsert(icr, odinContext);
             }
 
             //notify anyone caching data for this identity, we need to reset the cache

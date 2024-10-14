@@ -225,7 +225,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
             var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
 
-            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, odinContext, db);
+            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, odinContext);
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
@@ -368,7 +368,7 @@ namespace Odin.Services.Membership.Connections.Requests
             };
             keyStoreKey.Wipe();
 
-            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, db);
+            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext);
             await _dbs.Connect(senderOdinId, accessGrant, encryptedCat, pendingRequest.ContactData, odinContext);
 
             // Now tell the remote to establish the connection

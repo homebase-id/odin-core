@@ -70,7 +70,7 @@ namespace Odin.Services.Authorization.Apps
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey(odinContext, db) : null;
+            var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey(odinContext) : null;
 
             var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
 
@@ -125,7 +125,7 @@ namespace Odin.Services.Authorization.Apps
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey(odinContext, db) : null;
+            var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey(odinContext) : null;
 
             var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
 
