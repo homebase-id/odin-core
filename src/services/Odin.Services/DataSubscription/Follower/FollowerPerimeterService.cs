@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
@@ -88,11 +89,20 @@ namespace Odin.Services.DataSubscription.Follower
                 });*/
 
                 // Created sample DeleteAndAddFollower() - take a look - make it a list so it works both here and above?
-                _tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
+                //_tenantStorage.Followers.DeleteByIdentity(new OdinId(request.OdinId));
+                //foreach (var channel in request.Channels)
+                //{
+                //    _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                //}
+
+                var followsMeRecords = new List<FollowsMeRecord>();
+
                 foreach (var channel in request.Channels)
                 {
-                    _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                    followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                 }
+
+                _tenantStorage.Followers.DeleteAndInsertMany(new OdinId(request.OdinId), followsMeRecords);
 
                 return Task.CompletedTask;
             }
