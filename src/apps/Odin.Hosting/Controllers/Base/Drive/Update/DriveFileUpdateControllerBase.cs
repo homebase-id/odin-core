@@ -37,9 +37,9 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            var cn = tenantSystemStorage.IdentityDatabase;
+            var db = tenantSystemStorage.IdentityDatabase;
 
-            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, cn);
+            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, db);
 
             //
             // Firstly, collect everything and store in the temp drive
@@ -49,25 +49,25 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             {
                 if (IsMetadataPart(section))
                 {
-                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, cn);
+                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, db);
                 }
 
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, cn);
+            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, db);
             return result;
         }
     }

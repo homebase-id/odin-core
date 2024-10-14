@@ -68,7 +68,7 @@ namespace Odin.Hosting.Authentication.Owner
                 try
                 {
                     var db = _tenantSystemStorage.IdentityDatabase;
-                    if (!await UpdateOdinContext(authResult, dotYouContext, db))
+                    if (!await UpdateOdinContext(authResult, dotYouContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
@@ -107,10 +107,11 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext, db);
+            return await authService.UpdateOdinContext(token, odinContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)
@@ -119,7 +120,7 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
                 var db = _tenantSystemStorage.IdentityDatabase;
-                authService.ExpireToken(result.Id, db);
+                authService.ExpireToken(result.Id);
             }
 
             return Task.CompletedTask;

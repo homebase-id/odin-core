@@ -19,24 +19,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext, db);
+            var result = await circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("block")]
         public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.Block((OdinId)request.OdinId, WebOdinContext, db);
+            var result = await circleNetwork.Block((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext, db);
+            var result = await circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
@@ -59,16 +56,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext, db);
+            var result = await circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext);
             return new JsonResult(result);
         }
 
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.GetIcr((OdinId)request.OdinId, WebOdinContext, db);
+            var result = await circleNetwork.GetIcr((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 
@@ -76,8 +71,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext, db);
+            var result = await circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -89,8 +83,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
             bool omitContactData = false)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext, db);
+            var result = await circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -108,16 +101,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext, db);
+            await circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext, db);
+            await circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
     }

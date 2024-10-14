@@ -30,7 +30,7 @@ public class CircleNetworkVerificationService(
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
-    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, IdentityDatabase cn)
+    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, IdentityDatabase db)
     {
         // so this is a curious issue - 
         // when the odinContext.Caller and the recipient param are the same
@@ -38,7 +38,7 @@ public class CircleNetworkVerificationService(
         // because the ICR is invalid but the ICR's status will show as connected
         // 
         
-        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, cn, overrideHack: true);
+        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, db, overrideHack: true);
 
         if (odinContext.Caller.SecurityLevel == SecurityGroupType.Authenticated)
         {
@@ -74,7 +74,7 @@ public class CircleNetworkVerificationService(
         try
         {
             var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
-            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, cn, failIfNotConnected: false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, db, failIfNotConnected: false);
 
             if (null == clientAuthToken)
             {
@@ -143,38 +143,38 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext, IdentityDatabase cn)
+    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var icr = await CircleNetworkService.GetIcr(odinId, odinContext, cn);
+        var icr = await CircleNetworkService.GetIcr(odinId, odinContext, db);
 
         if (icr.Status == ConnectionStatus.Connected)
         {
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var success = await UpdateRemoteIdentityVerificationCode(targetIdentity, randomCode, odinContext, cn);
+            var success = await UpdateRemoteIdentityVerificationCode(targetIdentity, randomCode, odinContext, db);
 
             if (success)
             {
-                return await CircleNetworkService.UpdateVerificationHash(targetIdentity, randomCode, odinContext, cn);
+                return await CircleNetworkService.UpdateVerificationHash(targetIdentity, randomCode, odinContext, db);
             }
         }
 
         return false;
     }
 
-    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext, IdentityDatabase cn)
+    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext, cn);
+        await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext, db);
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext, IdentityDatabase cn)
+    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext, IdentityDatabase db)
     {
         var request = new UpdateVerificationHashRequest()
         {
@@ -184,7 +184,7 @@ public class CircleNetworkVerificationService(
         bool success = false;
         try
         {
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, cn, false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
 
             ApiResponse<HttpContent> response;
             await TryRetry.WithDelayAsync(

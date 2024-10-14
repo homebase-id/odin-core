@@ -84,16 +84,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             //S1000, S2000 - can the sender write the content to the target drive?
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(updateInstructionSet.Request.File.TargetDrive);
-            var cn = _tenantSystemStorage.IdentityDatabase;
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, db);
             //End Optimizations
 
             _fileUpdateService = GetPerimeterService(_fileSystem);
-            await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, WebOdinContext, cn);
+            await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, WebOdinContext, db);
 
             //
 
-            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync(), cn);
+            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync(), db);
 
             //
 
@@ -102,18 +102,18 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             {
                 if (IsPayloadPart(section))
                 {
-                    await ProcessPayloadSection(section, metadata, cn);
+                    await ProcessPayloadSection(section, metadata, db);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    await ProcessThumbnailSection(section, metadata, cn);
+                    await ProcessThumbnailSection(section, metadata, db);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext, cn);
+            return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext, db);
         }
 
         private Task AssertIsValidCaller()
@@ -172,7 +172,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return transferInstructionSet;
         }
 
-        private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section, IdentityDatabase cn)
+        private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section, IdentityDatabase db)
         {
             AssertIsPart(section, MultipartHostTransferParts.Metadata);
 
@@ -184,7 +184,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return metadata;
         }
 
-        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata, IdentityDatabase cn)
+        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata, IdentityDatabase db)
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
@@ -200,7 +200,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 cn);
         }
 
-        private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, IdentityDatabase cn)
+        private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata, IdentityDatabase db)
         {
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
 

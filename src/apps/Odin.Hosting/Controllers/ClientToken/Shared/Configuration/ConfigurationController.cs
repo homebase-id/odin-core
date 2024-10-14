@@ -34,7 +34,7 @@ public class ConfigurationController : Controller
     public Task<bool> IsIdentityServerConfigured()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsIdentityServerConfigured(db);
+        var result = _tenantConfigService.IsIdentityServerConfigured();
         return Task.FromResult(result);
     }
 

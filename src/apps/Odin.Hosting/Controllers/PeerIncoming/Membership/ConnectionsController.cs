@@ -22,16 +22,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection()
         {
-            var cn = tenantSystemStorage.IdentityDatabase;
-            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext, db);
             return new JsonResult(code);
         }
 
         [HttpPost("update-remote-verification-hash")]
         public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
         {
-            var cn = tenantSystemStorage.IdentityDatabase;
-            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext, cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext, db);
             return Ok();
         }
     }

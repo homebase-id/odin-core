@@ -24,8 +24,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary />
-        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService,
-            TenantSystemStorage tenantSystemStorage)
+        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService, TenantSystemStorage tenantSystemStorage)
         {
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _followerPerimeterService = followerPerimeterService;
@@ -38,14 +37,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         {
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
-            var cn = _tenantSystemStorage.IdentityDatabase;
-            var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, db);
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
 
-            await _followerPerimeterService.AcceptFollower(request, WebOdinContext, cn);
+            await _followerPerimeterService.AcceptFollower(request, WebOdinContext, db);
 
             return Ok();
         }
@@ -54,8 +53,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
-            var cn = _tenantSystemStorage.IdentityDatabase;
-            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext, db);
             return Ok();
         }
     }

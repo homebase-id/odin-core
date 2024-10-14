@@ -63,7 +63,7 @@ public class SendPushNotificationOutboxWorker(
             Payloads = new List<PushNotificationPayload>()
         };
 
-        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext, db);
+        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext);
 
         if (validAppName)
         {
@@ -96,7 +96,7 @@ public class SendPushNotificationOutboxWorker(
         }
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
     {
         if (appId == SystemAppConstants.OwnerAppId)
         {
@@ -108,7 +108,7 @@ public class SendPushNotificationOutboxWorker(
             return (true, "Homebase Feed");
         }
 
-        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext, db);
+        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
         return (appReg != null, appReg?.Name);
     }
 }

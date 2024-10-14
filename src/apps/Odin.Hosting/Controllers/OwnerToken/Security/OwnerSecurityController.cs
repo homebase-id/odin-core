@@ -44,7 +44,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        return await _recoveryService.GetKey(WebOdinContext, db);
+        return await _recoveryService.GetKey(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
@@ -65,8 +65,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext, db);
+        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 
@@ -74,8 +73,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> UndeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext, db);
+        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 }
