@@ -153,8 +153,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("header_byglobaltransitid")]
         public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromBody] GlobalTransitIdFileIdentifier file)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await LookupFileHeaderByGlobalTransitId(file, db);
+            var result = await LookupFileHeaderByGlobalTransitId(file);
             if (result == null)
             {
                 return NotFound();
@@ -166,8 +165,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("header_byuniqueid")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromBody] GetFileHeaderByUniqueIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive, db);
+            var result = await LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
             if (result == null)
             {
                 return NotFound();
@@ -179,8 +177,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("payload_byglobaltransitid")]
         public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromBody] GetPayloadByGlobalTransitIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.LookupFileHeaderByGlobalTransitId(request.File, db);
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
             if (null == header)
             {
                 return NotFound();
@@ -202,8 +199,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("payload_byuniqueid")]
         public async Task<IActionResult> GetPayloadStreamByUniqueId([FromBody] GetPayloadByUniqueIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive, db);
+            var header = await this.LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
             if (null == header)
             {
                 return NotFound();
@@ -225,8 +221,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("thumb_byglobaltransitid")]
         public async Task<IActionResult> GetThumbnailStreamByGlobalTransitId([FromBody] GetThumbnailByGlobalTransitIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.LookupFileHeaderByGlobalTransitId(request.File, db);
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
             if (null == header)
             {
                 return NotFound();
@@ -248,8 +243,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("thumb_byuniqueid")]
         public async Task<IActionResult> GetThumbnailStreamByUniqueId(GetThumbnailByUniqueIdRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.LookupHeaderByUniqueId(request.ClientUniqueId, request.TargetDrive, db);
+            var header = await this.LookupHeaderByUniqueId(request.ClientUniqueId, request.TargetDrive);
             if (null == header)
             {
                 return NotFound();
@@ -268,8 +262,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             });
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file, IdentityDatabase db)
+        private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {
                 Alias = file.TargetDrive.Alias,
@@ -283,8 +278,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return result;
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive, IdentityDatabase db)
+        private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(targetDrive);
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, WebOdinContext, excludePreviewThumbnail: false, db: db);

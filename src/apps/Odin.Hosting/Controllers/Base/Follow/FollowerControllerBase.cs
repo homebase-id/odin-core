@@ -39,9 +39,9 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor, IdentityDatabase db)
+        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor)
         {
-            var result = await _followerService.GetIdentitiesIFollow(driveAlias, max, cursor, WebOdinContext, db);
+            var result = await _followerService.GetIdentitiesIFollow(driveAlias, max, cursor, WebOdinContext);
             return result;
         }
 
@@ -90,7 +90,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         {
             AssertIsValidOdinId(request.OdinId, out var _);
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _followerService.Follow(request, WebOdinContext, db);
+            await _followerService.Follow(request, WebOdinContext);
             return NoContent();
         }
 
@@ -110,7 +110,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _followerService.SynchronizeChannelFiles(id, WebOdinContext, db);
+            await _followerService.SynchronizeChannelFiles(id, WebOdinContext);
         }
     }
 }

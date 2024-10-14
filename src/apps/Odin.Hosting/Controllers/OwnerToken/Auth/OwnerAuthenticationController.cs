@@ -47,7 +47,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                var isValid = await _authService.IsValidToken(result.Id, db);
+                var isValid = await _authService.IsValidToken(result.Id);
                 return new JsonResult(isValid);
             }
 
@@ -61,7 +61,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             // {
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            var (result, sharedSecret) = await _authService.Authenticate(package, db);
+            var (result, sharedSecret) = await _authService.Authenticate(package);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
@@ -82,7 +82,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                _authService.ExpireToken(result.Id, db);
+                _authService.ExpireToken(result.Id);
             }
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
@@ -93,7 +93,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NoResultResponse> Extend(Guid token)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _authService.ExtendTokenLife(token, 100, db);
+            await _authService.ExtendTokenLife(token, 100);
             return new NoResultResponse(true);
         }
 
@@ -101,7 +101,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public NoResultResponse Expire(Guid token)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            _authService.ExpireToken(token, db);
+            _authService.ExpireToken(token);
             return new NoResultResponse(true);
         }
 
@@ -109,7 +109,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<bool> IsValid(Guid token)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var isValid = await _authService.IsValidToken(token, db);
+            var isValid = await _authService.IsValidToken(token);
             return isValid;
         }
 
@@ -117,7 +117,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _authService.GenerateAuthenticationNonce(db);
+            var result = await _authService.GenerateAuthenticationNonce();
             return result;
         }
 

@@ -63,8 +63,10 @@ public class StaticFileContentService
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
-        List<QueryParamSection> sections, IOdinContext odinContext, IdentityDatabase db)
+        List<QueryParamSection> sections, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
         //
@@ -181,8 +183,10 @@ public class StaticFileContentService
         return result;
     }
 
-    public async Task PublishProfileImage(string image64, string contentType, IdentityDatabase db)
+    public async Task PublishProfileImage(string image64, string contentType)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         string filename = StaticFileConstants.ProfileImageFileName;
         string targetFolder = await EnsurePath();
 
@@ -202,8 +206,10 @@ public class StaticFileContentService
         await Task.CompletedTask;
     }
 
-    public async Task PublishProfileCard(string json, IdentityDatabase db)
+    public async Task PublishProfileCard(string json)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         string filename = StaticFileConstants.PublicProfileCardFileName;
         string targetFolder = await EnsurePath();
 
@@ -229,9 +235,9 @@ public class StaticFileContentService
     }
 
     public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename,
-        IdentityDatabase db,
         UnixTimeUtc? ifModifiedSince = null)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(db, GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 

@@ -14,9 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
     [Route(AppApiPathConstants.AuthV1)]
     [AuthorizeValidAppToken]
     public class AppAuthController(
-        IAppRegistrationService appRegistrationService,
-        TenantSystemStorage tenantSystemStorage
-        ) : OdinControllerBase
+        IAppRegistrationService appRegistrationService) : OdinControllerBase
     {
         /// <summary>
         /// Verifies the ClientAuthToken (provided as a cookie) is Valid.
@@ -38,8 +36,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         {
             // Cookie might have been set by the preauth middleware
             Response.Cookies.Delete(YouAuthConstants.AppCookieName);
-            var db = tenantSystemStorage.IdentityDatabase;
-            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext, db);
+            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext);
         }
     }
 }

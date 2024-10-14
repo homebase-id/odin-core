@@ -140,7 +140,7 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await _recoverService.CreateInitialKey(odinContext, db);
+        await _recoverService.CreateInitialKey(odinContext);
 
         await _publicPrivateKeyService.CreateInitialKeys(odinContext, db);
 
@@ -354,7 +354,7 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
 
@@ -424,7 +424,7 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
     private async Task RegisterMailApp(IOdinContext odinContext, IdentityDatabase db)
@@ -486,7 +486,7 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request, odinContext, db);
+        await _appRegistrationService.RegisterApp(request, odinContext);
     }
 
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext, IdentityDatabase db)
@@ -533,6 +533,6 @@ public class TenantConfigService
             }
         }
 
-        await _dbs.UpdateCircleDefinition(systemCircle, odinContext, db);
+        await _dbs.UpdateCircleDefinition(systemCircle, odinContext);
     }
 }

@@ -124,7 +124,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
                 if (null != ctx)
                 {
-                    _storage.DeleteClient(ctx.AccessRegistrationId, db);
+                    _storage.DeleteClient(ctx.AccessRegistrationId);
                 }
             }
             catch
@@ -272,7 +272,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 return false;
             }
 
-            client = _storage.GetClient(authToken.Id, db);
+            client = _storage.GetClient(authToken.Id);
 
             if (client == null)
             {
@@ -304,7 +304,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClient(string odinId,
             ClientAuthenticationToken remoteClientAuthToken, IdentityDatabase db)
         {
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken, db);
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken);
 
             if (!icr.IsConnected())
             {
@@ -326,7 +326,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             grantKeyStoreKey.Wipe();
 
             var homeAppClient = new HomeAppClient(odinId, accessRegistration, clientType);
-            _storage.SaveClient(homeAppClient, db);
+            _storage.SaveClient(homeAppClient);
 
             return cat;
         }
@@ -340,7 +340,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         {
             _logger.LogDebug("Create Connected Permission Context");
 
-            var client = _storage.GetClient(authToken.Id, db);
+            var client = _storage.GetClient(authToken.Id);
             if (client?.AccessRegistration == null)
             {
                 throw new OdinSecurityException("Invalid auth token or invalid client access registration");
@@ -349,7 +349,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(client.OdinId, odinContext, db, true);
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(client.OdinId, odinContext, true);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 

@@ -404,7 +404,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, db, overrideHack: true);
+        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, overrideHack: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
@@ -473,7 +473,7 @@ public class PeerDriveQueryService(
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    await circleNetworkService.RevokeConnection(odinId, odinContext, db);
+                    await circleNetworkService.RevokeConnection(odinId, odinContext);
                 }
             }
 

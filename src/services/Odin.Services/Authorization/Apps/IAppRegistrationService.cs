@@ -15,44 +15,44 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, IOdinContext odinContext, IdentityDatabase db);
+        Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, IOdinContext odinContext);
 
-        Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext, IdentityDatabase db);
+        Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
 
-        Task<IOdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db);
+        Task<IOdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, IOdinContext odinContext);
 
         /// <summary>
         /// Updates the permissions granted to the app
         /// </summary>
-        Task UpdateAppPermissions(UpdateAppPermissionsRequest request, IOdinContext odinContext, IdentityDatabase db);
+        Task UpdateAppPermissions(UpdateAppPermissionsRequest request, IOdinContext odinContext);
 
         /// <summary>
         /// Updates the authorized circles and the permissions granted to them
         /// </summary>
         /// <returns></returns>
-        Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext, IdentityDatabase db);
+        Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
 
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
-            IOdinContext odinContext, IdentityDatabase db);
+            IOdinContext odinContext);
 
         /// <summary>
         /// Gets all registered apps
         /// </summary>
         /// <returns></returns>
-        Task<List<RedactedAppRegistration>> GetRegisteredApps(IOdinContext odinContext, IdentityDatabase db);
+        Task<List<RedactedAppRegistration>> GetRegisteredApps(IOdinContext odinContext);
 
         /// <summary>
         /// Removes access for a given application across all devices
         /// </summary>
-        Task RevokeApp(GuidId appId, IOdinContext odinContext, IdentityDatabase db);
+        Task RevokeApp(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Allows an app that has been revoked
         /// </summary>
-        Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext, IdentityDatabase db);
+        Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext);
 
         Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
-            string friendlyName, IOdinContext odinContext, IdentityDatabase db);
+            string friendlyName, IOdinContext odinContext);
 
 
         /// <summary>
@@ -63,24 +63,24 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="odinContext"></param>
         /// <param name="cn"></param>
         /// <returns></returns>
-        Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, IOdinContext odinContext, IdentityDatabase db);
+        Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, IOdinContext odinContext);
 
-        Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, IOdinContext odinContext, IdentityDatabase db);
+        Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Revokes a client from using the app
         /// </summary>
-        Task RevokeClient(GuidId accessRegistrationId, IOdinContext odinContext, IdentityDatabase db);
+        Task RevokeClient(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext, IdentityDatabase db);
+        Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task AllowClient(GuidId accessRegistrationId, IOdinContext odinContext, IdentityDatabase db);
+        Task AllowClient(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task DeleteApp(GuidId appId, IOdinContext odinContext, IdentityDatabase db);
+        Task DeleteApp(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
-        Task DeleteCurrentAppClient(IOdinContext odinContext, IdentityDatabase db);
+        Task DeleteCurrentAppClient(IOdinContext odinContext);
     }
 }
