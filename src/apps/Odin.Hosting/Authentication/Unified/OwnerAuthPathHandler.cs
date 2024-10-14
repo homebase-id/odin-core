@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
@@ -42,19 +41,22 @@ public static class OwnerAuthPathHandler
             var claims = new List<Claim>()
             {
                 new(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
+                new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+
+                new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
 
             var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
             ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 
-            AuthenticationProperties authProperties = new AuthenticationProperties();
-            authProperties.IssuedUtc = DateTime.UtcNow;
-            authProperties.ExpiresUtc = DateTime.UtcNow.AddDays(1);
-            authProperties.AllowRefresh = true;
-            authProperties.IsPersistent = true;
+            AuthenticationProperties authProperties = new AuthenticationProperties
+            {
+                IssuedUtc = DateTime.UtcNow,
+                ExpiresUtc = DateTime.UtcNow.AddDays(1),
+                AllowRefresh = true,
+                IsPersistent = true
+            };
 
             var ticket = new AuthenticationTicket(principal, authProperties, UnifiedAuthConstants.SchemeName);
             ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);

@@ -41,7 +41,6 @@ public static class AppAuthPathHandler
         {
             new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
             new(OdinClaimTypes.IsAuthorizedApp, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsAuthenticated, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
             new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
             new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
         };

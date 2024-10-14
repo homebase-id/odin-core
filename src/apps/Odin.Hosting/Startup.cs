@@ -47,7 +47,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -63,7 +62,10 @@ namespace Odin.Hosting
             services.AddSingleton(config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-            services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
+            services.Configure<HostOptions>(options =>
+            {
+                options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
+            });
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
@@ -160,13 +162,7 @@ namespace Odin.Hosting
 
             services.AddCorsPolicies();
 
-            services.AddAuthentication(o =>
-                {
-                    // o.DefaultScheme = UnifiedAuthConstants.SchemeName;
-                    // o.DefaultAuthenticateScheme = UnifiedAuthConstants.SchemeName;
-                    o.DefaultScheme = OwnerAuthConstants.SchemeName;
-                    o.DefaultAuthenticateScheme = OwnerAuthConstants.SchemeName;
-                })
+            services.AddAuthentication()
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
@@ -478,7 +474,7 @@ namespace Odin.Hosting
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
                 {
-                    services.StartSystemBackgroundServices().BlockingWait();                    
+                    services.StartSystemBackgroundServices().BlockingWait();
                 }
             });
 

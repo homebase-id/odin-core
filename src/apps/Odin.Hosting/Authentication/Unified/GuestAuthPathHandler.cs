@@ -167,8 +167,7 @@ public static class GuestAuthPathHandler
             new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
             new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
             new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsAuthorizedGuest, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
+            new(OdinClaimTypes.IsAuthorizedGuest, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
         };
         return claims;
     }
