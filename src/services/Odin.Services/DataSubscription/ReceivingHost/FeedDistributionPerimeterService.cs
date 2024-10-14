@@ -295,7 +295,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 EncryptedFeedPayload = request.EncryptedPayload
             };
 
-            await inboxBoxStorage.Add(item, db);
+            await inboxBoxStorage.Add(item);
 
             await mediator.Publish(new InboxItemReceivedNotification()
             {

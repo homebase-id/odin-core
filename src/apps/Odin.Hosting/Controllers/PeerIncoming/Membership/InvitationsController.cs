@@ -30,7 +30,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         {
             var db = tenantSystemStorage.IdentityDatabase;
             await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, db);
+<<<<<<< HEAD
             return Ok();
+=======
+            return new JsonResult(new NoResultResponse(true));
+>>>>>>> main
         }
 
 
@@ -38,10 +42,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload)
         {
             var db = tenantSystemStorage.IdentityDatabase;
+<<<<<<< HEAD
             if (!HttpContext.Request.Headers.TryGetValue(OdinHeaderNames.EstablishConnectionAuthToken, out var authenticationToken64))
             {
                 throw new OdinSecurityException("missing auth token");
             }
+=======
+>>>>>>> main
             await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext, db);
             return new JsonResult(new NoResultResponse(true));
         }

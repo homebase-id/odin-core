@@ -185,7 +185,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
-            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext, db);
+            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext);
 
             if (!isValidPublicKey)
             {

@@ -143,6 +143,7 @@ public class CircleMembershipService(
         return await this.CreateCircleGrantList(keyStoreKey, list, masterKey, odinContext);
     }
 
+    
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,

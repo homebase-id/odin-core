@@ -18,7 +18,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// </summary>
     public class TransitInboxBoxStorage(TenantSystemStorage tenantSystemStorage)
     {
-        public Task Add(TransferInboxItem item, IdentityDatabase db)
+        public Task Add(TransferInboxItem item)
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
@@ -30,7 +30,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
-        public async Task<InboxStatus> GetStatus(Guid driveId, IdentityDatabase db)
+        public async Task<InboxStatus> GetStatus(Guid driveId)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
 
@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         }
 
 
-        public InboxStatus GetPendingCount(Guid driveId, IdentityDatabase db)
+        public InboxStatus GetPendingCount(Guid driveId)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
             return new InboxStatus()
@@ -54,7 +54,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             };
         }
 
-        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize, IdentityDatabase db)
+        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
             var records = tenantSystemStorage.Inbox.PopSpecificBox(driveId, batchSize == 0 ? 1 : batchSize);
@@ -82,7 +82,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return await Task.FromResult(items);
         }
 
-        public Task MarkComplete(InternalDriveFileId file, Guid marker, IdentityDatabase db)
+        public Task MarkComplete(InternalDriveFileId file, Guid marker)
         {
             tenantSystemStorage.Inbox.PopCommitList(marker, file.DriveId, [file.FileId]);
             
@@ -91,7 +91,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
-        public Task MarkFailure(InternalDriveFileId file, Guid marker, IdentityDatabase db)
+        public Task MarkFailure(InternalDriveFileId file, Guid marker)
         {
             tenantSystemStorage.Inbox.PopCancelList(marker, file.DriveId, [file.FileId]);
             
@@ -100,7 +100,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
-        public Task<int> RecoverDead(UnixTimeUtc time, IdentityDatabase db)
+        public Task<int> RecoverDead(UnixTimeUtc time)
         {
             var recovered = tenantSystemStorage.Inbox.PopRecoverDead(time);
             

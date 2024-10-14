@@ -59,7 +59,9 @@ public class CircleNetworkStorage
             VerificationHash64 = icr.VerificationHash?.ToBase64(),
             ConnectionOrigin = Enum.GetName(icr.ConnectionRequestOrigin),
             EncryptedClientAccessToken = icr.EncryptedClientAccessToken?.EncryptedData,
-            WeakClientAccessToken = icr.TemporaryWeakClientAccessToken == null ? "" : OdinSystemSerializer.Serialize(icr.TemporaryWeakClientAccessToken),
+            WeakClientAccessToken = icr.TemporaryWeakClientAccessToken == null
+                ? ""
+                : OdinSystemSerializer.Serialize(icr.TemporaryWeakClientAccessToken),
             WeakKeyStoreKey = icr.TempWeakKeyStoreKey == null ? "" : OdinSystemSerializer.Serialize(icr.TempWeakKeyStoreKey)
         };
 
@@ -144,6 +146,8 @@ public class CircleNetworkStorage
     /// <summary>
     /// Creates a new icr key; fails if one already exists
     /// </summary>
+    /// <param name="masterKey"></param>
+    /// <exception cref="OdinClientException"></exception>
     public void CreateIcrKey(SensitiveByteArray masterKey)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
@@ -184,7 +188,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId( odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
         {

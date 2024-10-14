@@ -69,7 +69,7 @@ public class TenantConfigService
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
         var db = _tenantSystemStorage.IdentityDatabase;
-        _tenantContext.UpdateSystemConfig(GetTenantSettings(db));
+        _tenantContext.UpdateSystemConfig(GetTenantSettings());
     }
 
     public bool IsIdentityServerConfigured()
@@ -145,17 +145,16 @@ public class TenantConfigService
 
     public async Task CreateInitialKeys(IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.Caller.AssertHasMasterKey();
         await _recoverService.CreateInitialKey(odinContext);
         await _icrKeyService.CreateInitialKeys(odinContext);
-        await _publicPrivateKeyService.CreateInitialKeys(odinContext, db);
+        await _publicPrivateKeyService.CreateInitialKeys(odinContext);
     }
 
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
     /// </summary>
-    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -190,20 +189,23 @@ public class TenantConfigService
             await CreateCircleIfNotExists(rc, odinContext);
         }
 
-        await this.RegisterBuiltInApps(odinContext, db);
+        await this.RegisterBuiltInApps(odinContext);
+        var db = _tenantSystemStorage.IdentityDatabase;
 
         // TODO CONNECTIONS
         // db.CreateCommitUnitOfWork(() => {
-            _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
-            _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
-            {
-                FirstRunDate = UnixTimeUtc.Now().milliseconds
-            });
+        _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
+        _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
+        {
+            FirstRunDate = UnixTimeUtc.Now().milliseconds
+        });
         // });
     }
 
-    public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
@@ -238,7 +240,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -272,19 +275,26 @@ public class TenantConfigService
         _tenantContext.UpdateSystemConfig(cfg);
     }
 
-    public TenantSettings GetTenantSettings(IdentityDatabase db)
+
+    public TenantSettings GetTenantSettings()
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         return _configStorage.Get<TenantSettings>(db, TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
-    public OwnerAppSettings GetOwnerAppSettings(IOdinContext odinContext, IdentityDatabase db)
+    public OwnerAppSettings GetOwnerAppSettings(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
         return _configStorage.Get<OwnerAppSettings>(db, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
-    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, IOdinContext odinContext, IdentityDatabase db)
+    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
         _configStorage.Upsert(db, OwnerAppSettings.ConfigKey, newSettings);
     }

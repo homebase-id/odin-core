@@ -196,7 +196,6 @@ namespace Odin.Services.DataSubscription
             var header = notification.ServerFileHeader;
 
             var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, db);
-            
             if (connectedFollowers.Any())
             {
                 // Prepare the file
@@ -218,8 +217,7 @@ namespace Odin.Services.DataSubscription
                     var encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                         PublicPrivateKeyType.OfflineKey,
                         recipient,
-                        OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                        db);
+                        OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray());
 
                     await AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {

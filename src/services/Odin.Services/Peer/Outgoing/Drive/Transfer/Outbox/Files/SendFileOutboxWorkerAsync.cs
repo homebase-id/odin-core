@@ -172,7 +172,6 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-
     protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {

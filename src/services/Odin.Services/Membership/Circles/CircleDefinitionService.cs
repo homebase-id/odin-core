@@ -80,7 +80,6 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-
         public async Task Update(CircleDefinition newCircleDefinition)
         {
             await AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
@@ -112,8 +111,7 @@ namespace Odin.Services.Membership.Circles
             var def = _circleValueStorage.Get<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, circleId);
             return def;
         }
-
-
+        
         public Task<List<CircleDefinition>> GetCircles(bool includeSystemCircle)
         {
             var circles = (_circleValueStorage.GetByCategory<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType) ?? []).ToList();

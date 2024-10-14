@@ -7,7 +7,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -30,15 +29,15 @@ public class CircleNetworkVerificationService(
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
-    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext)
     {
         // so this is a curious issue - 
         // when the odinContext.Caller and the recipient param are the same
         // there's a chance the odinContext.Caller will be only authenticated
         // because the ICR is invalid but the ICR's status will show as connected
         // 
-        
-        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, db, overrideHack: true);
+
+        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, overrideHack: true);
 
         if (odinContext.Caller.SecurityLevel == SecurityGroupType.Authenticated)
         {
@@ -50,10 +49,11 @@ public class CircleNetworkVerificationService(
                     RemoteIdentityWasConnected = icr.IsConnected()
                 };
             }
+
             //if the caller is only authenticated, there will be no ICR so verification will fail
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
-        
+
 
         if (!icr.IsConnected())
         {
@@ -74,7 +74,7 @@ public class CircleNetworkVerificationService(
         try
         {
             var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
-            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, db, failIfNotConnected: false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, failIfNotConnected: false);
 
             if (null == clientAuthToken)
             {
@@ -104,7 +104,8 @@ public class CircleNetworkVerificationService(
                     // an ICR because the remote server is not responding
                     if (response.IsSuccessStatusCode)
                     {
-                        if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) && bool.Parse(values.Single()))
+                        if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
+                            bool.Parse(values.Single()))
                         {
                             //the remote ICR is dead
                             result.RemoteIdentityWasConnected = false;
@@ -143,38 +144,38 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var icr = await CircleNetworkService.GetIcr(odinId, odinContext, db);
+        var icr = await CircleNetworkService.GetIcr(odinId, odinContext);
 
         if (icr.Status == ConnectionStatus.Connected)
         {
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var success = await UpdateRemoteIdentityVerificationCode(targetIdentity, randomCode, odinContext, db);
+            var success = await UpdateRemoteIdentityVerificationCode(targetIdentity, randomCode, odinContext);
 
             if (success)
             {
-                return await CircleNetworkService.UpdateVerificationHash(targetIdentity, randomCode, odinContext, db);
+                return await CircleNetworkService.UpdateVerificationHash(targetIdentity, randomCode, odinContext);
             }
         }
 
         return false;
     }
 
-    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext, IdentityDatabase db)
+    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext, db);
+        await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext)
     {
         var request = new UpdateVerificationHashRequest()
         {
@@ -184,7 +185,7 @@ public class CircleNetworkVerificationService(
         bool success = false;
         try
         {
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
 
             ApiResponse<HttpContent> response;
             await TryRetry.WithDelayAsync(

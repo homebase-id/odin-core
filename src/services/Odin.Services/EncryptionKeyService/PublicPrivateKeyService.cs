@@ -38,6 +38,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly IcrKeyService _icrKeyService;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ILogger<PublicPrivateKeyService> _logger;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
@@ -48,6 +49,7 @@ namespace Odin.Services.EncryptionKeyService
         public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, IcrKeyService icrKeyService, IOdinHttpClientFactory odinHttpClientFactory,
             ILogger<PublicPrivateKeyService> logger)
         {
+            _tenantSystemStorage = tenantSystemStorage;
             _icrKeyService = icrKeyService;
             _odinHttpClientFactory = odinHttpClientFactory;
             _logger = logger;
@@ -59,8 +61,9 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Destroys the cache item for the recipients public key so a new one will be retrieved
         /// </summary>
-        public async Task InvalidateRecipientEccPublicKey(PublicPrivateKeyType keyType, OdinId recipient, IdentityDatabase db)
+        public async Task InvalidateRecipientEccPublicKey(PublicPrivateKeyType keyType, OdinId recipient)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             GuidId cacheKey = GetEccCacheKey(keyType, recipient.DomainName);
             _storage.Delete(db, cacheKey);
             await Task.CompletedTask;
@@ -69,9 +72,9 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Gets the latest effective offline public key
         /// </summary>
-        public Task<RsaPublicKeyData> GetOfflineRsaPublicKey(IdentityDatabase db)
+        public Task<RsaPublicKeyData> GetOfflineRsaPublicKey()
         {
-            var k = this.GetCurrentRsaKeyFromStorage(_offlineKeyStorageId, db);
+            var k = this.GetCurrentRsaKeyFromStorage(_offlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
@@ -122,9 +125,9 @@ namespace Odin.Services.EncryptionKeyService
             return GuidId.FromString($"ecc2_{Enum.GetName(keyType)}_{domainName}");
         }
 
-        public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload,
-            IdentityDatabase db)
+        public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             EccPublicKeyData recipientPublicKey = await ResolveRecipientEccPublicKey(db, keyType, recipient);
 
             if (null == recipientPublicKey)
@@ -151,9 +154,9 @@ namespace Odin.Services.EncryptionKeyService
             };
         }
 
-        public async Task<EccEncryptedPayload> EccEncryptPayload(PublicPrivateKeyType keyType, byte[] payload, IdentityDatabase db)
+        public async Task<EccEncryptedPayload> EccEncryptPayload(PublicPrivateKeyType keyType, byte[] payload)
         {
-            EccPublicKeyData publicEccKey = await this.GetPublicEccKey(keyType, db);
+            EccPublicKeyData publicEccKey = await this.GetPublicEccKey(keyType);
 
             //note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
@@ -173,16 +176,17 @@ namespace Odin.Services.EncryptionKeyService
             };
         }
 
-        public async Task<byte[]> EccDecryptPayload(PublicPrivateKeyType keyType, EccEncryptedPayload payload, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<byte[]> EccDecryptPayload(PublicPrivateKeyType keyType, EccEncryptedPayload payload, IOdinContext odinContext)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
 
-            if (!await IsValidEccPublicKey(keyType, payload.EncryptionPublicKeyCrc32, odinContext, db))
+            if (!await IsValidEccPublicKey(keyType, payload.EncryptionPublicKeyCrc32, odinContext))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
             }
 
-            var fullEccKey = await GetEccFullKey(keyType, db);
+            var fullEccKey = await GetEccFullKey(keyType);
 
             SensitiveByteArray key;
             switch (keyType)
@@ -204,76 +208,78 @@ namespace Odin.Services.EncryptionKeyService
             return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
-        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, uint publicKeyCrc32C, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, uint publicKeyCrc32C, IOdinContext odinContext)
         {
-            var fullEccKey = await this.GetEccFullKey(keyType, db);
+            var fullEccKey = await this.GetEccFullKey(keyType);
             return fullEccKey.crc32c == publicKeyCrc32C;
         }
 
-        public Task<EccPublicKeyData> GetSigningPublicKey(IdentityDatabase db)
+        public Task<EccPublicKeyData> GetSigningPublicKey()
         {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId, db);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var keyPair = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
             return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
-        public Task<EccPublicKeyData> GetOnlineEccPublicKey(IdentityDatabase db)
+        public Task<EccPublicKeyData> GetOnlineEccPublicKey()
         {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId, db);
+            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
             return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
-        public Task<EccPublicKeyData> GetOnlineIcrEncryptedEccPublicKey(IdentityDatabase db)
+        public Task<EccPublicKeyData> GetOnlineIcrEncryptedEccPublicKey()
         {
-            var fullKey = this.GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, db);
+            var fullKey = this.GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId);
             var publicKey = (EccPublicKeyData)fullKey;
             return Task.FromResult(publicKey);
         }
 
-        public Task<EccFullKeyData> GetEccFullKey(PublicPrivateKeyType keyType, IdentityDatabase db)
+        public Task<EccFullKeyData> GetEccFullKey(PublicPrivateKeyType keyType)
         {
             switch (keyType)
             {
                 case PublicPrivateKeyType.OfflineKey:
-                    return Task.FromResult(GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId, db));
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId));
 
                 case PublicPrivateKeyType.OnlineKey:
-                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId, db));
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId));
 
                 case PublicPrivateKeyType.OnlineIcrEncryptedKey:
-                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId, db));
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineIcrEncryptedEccKeyStorageId));
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
         }
 
-        public Task<EccPublicKeyData> GetOfflineEccPublicKey(IdentityDatabase db)
+        public Task<EccPublicKeyData> GetOfflineEccPublicKey()
         {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId, db);
+            var keyPair = this.GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId);
             return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
-        public Task<string> GetNotificationsEccPublicKey(IdentityDatabase db)
+        public Task<string> GetNotificationsEccPublicKey()
         {
-            return Task.FromResult(this.GetEccNotificationsKeys(db).PublicKey64);
+            return Task.FromResult(this.GetEccNotificationsKeys().PublicKey64);
         }
 
-        public NotificationEccKeys GetEccNotificationsKeys(IdentityDatabase db)
+        public NotificationEccKeys GetEccNotificationsKeys()
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var keys = _storage.Get<NotificationEccKeys>(db, _offlineNotificationsKeyStorageId);
             return keys;
         }
 
-        public Task<RsaPublicKeyData> GetOnlineRsaPublicKey(IdentityDatabase db)
+        public Task<RsaPublicKeyData> GetOnlineRsaPublicKey()
         {
-            var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId, db);
+            var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(keyPair.publicKey));
         }
 
         public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(PublicPrivateKeyType keyType, RsaEncryptedPayload payload,
-            IOdinContext odinContext, IdentityDatabase db)
+            IOdinContext odinContext)
         {
-            var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext, db);
+            var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext);
 
             if (!isValidPublicKey)
             {
@@ -289,18 +295,18 @@ namespace Odin.Services.EncryptionKeyService
             return (true, bytes);
         }
 
-        public async Task<EccPublicKeyData> GetPublicEccKey(PublicPrivateKeyType keyType, IdentityDatabase db)
+        public async Task<EccPublicKeyData> GetPublicEccKey(PublicPrivateKeyType keyType)
         {
             switch (keyType)
             {
                 case PublicPrivateKeyType.OfflineKey:
-                    return await this.GetOfflineEccPublicKey(db);
+                    return await this.GetOfflineEccPublicKey();
 
                 case PublicPrivateKeyType.OnlineKey:
-                    return await this.GetOnlineEccPublicKey(db);
+                    return await this.GetOnlineEccPublicKey();
 
                 case PublicPrivateKeyType.OnlineIcrEncryptedKey:
-                    return await this.GetOnlineIcrEncryptedEccPublicKey(db);
+                    return await this.GetOnlineIcrEncryptedEccPublicKey();
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
@@ -308,14 +314,14 @@ namespace Odin.Services.EncryptionKeyService
         }
 
 
-        public async Task<RsaPublicKeyData> GetPublicRsaKey(PublicPrivateKeyType keyType, IdentityDatabase db)
+        public async Task<RsaPublicKeyData> GetPublicRsaKey(PublicPrivateKeyType keyType)
         {
             switch (keyType)
             {
                 case PublicPrivateKeyType.OfflineKey:
-                    return await this.GetOfflineRsaPublicKey(db);
+                    return await this.GetOfflineRsaPublicKey();
                 case PublicPrivateKeyType.OnlineKey:
-                    return await this.GetOnlineRsaPublicKey(db);
+                    return await this.GetOnlineRsaPublicKey();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
@@ -325,15 +331,14 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Gets the Ecc key from the storage based on the CRC
         /// </summary>
-        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32, IOdinContext odinContext,
-            IdentityDatabase db)
+        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
             EccFullKeyListData keyList;
             SensitiveByteArray decryptionKey;
 
-            keyList = this.GetEccKeyListFromStorage(_onlineEccKeyStorageId, db);
+            keyList = this.GetEccKeyListFromStorage(_onlineEccKeyStorageId);
             decryptionKey = odinContext.Caller.GetMasterKey();
 
             var pk = EccKeyListManagement.FindKey(keyList, crc32);
@@ -343,9 +348,9 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Returns the latest Offline Ecc key
         /// </summary>
-        public Task<(EccFullKeyData fullKey, SensitiveByteArray privateKey)> GetCurrentOfflineEccKey(IdentityDatabase db)
+        public Task<(EccFullKeyData fullKey, SensitiveByteArray privateKey)> GetCurrentOfflineEccKey()
         {
-            var keyList = this.GetEccKeyListFromStorage(_offlineEccKeyStorageId, db);
+            var keyList = this.GetEccKeyListFromStorage(_offlineEccKeyStorageId);
             var pk = EccKeyListManagement.GetCurrentKey(keyList);
             return Task.FromResult((pk, OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray()));
         }
@@ -353,7 +358,7 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Creates the initial set of RSA keys required by an identity
         /// </summary>
-        internal async Task CreateInitialKeys(IOdinContext odinContext, IdentityDatabase db)
+        internal async Task CreateInitialKeys(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -362,20 +367,20 @@ namespace Odin.Services.EncryptionKeyService
                 await KeyCreationLock.WaitAsync();
                 var mk = odinContext.Caller.GetMasterKey();
 
-                await this.CreateNewRsaKeys(mk, _onlineKeyStorageId, db);
+                await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
 
-                await this.CreateNewEccKeys(mk, _signingKeyStorageId, db);
-                await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId, db);
-                await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId, db);
+                await this.CreateNewEccKeys(mk, _signingKeyStorageId);
+                await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId);
+                await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
 
                 // Note: we use the service since OdinContext might not have the ICR key
                 // yet as it was just created during identity-init
                 var icrKey = _icrKeyService.GetDecryptedIcrKey(odinContext);
-                await this.CreateNewEccKeys(icrKey, _onlineIcrEncryptedEccKeyStorageId, db);
+                await this.CreateNewEccKeys(icrKey, _onlineIcrEncryptedEccKeyStorageId);
 
-                await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId, db);
+                await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
 
-                await this.CreateNotificationEccKeys(db);
+                await this.CreateNotificationEccKeys();
             }
             finally
             {
@@ -384,10 +389,10 @@ namespace Odin.Services.EncryptionKeyService
         }
 
         private async Task<(bool, KeyHeader)> RsaDecryptKeyHeader(PublicPrivateKeyType keyType, byte[] encryptedData, uint publicKeyCrc32,
-            IOdinContext odinContext, IdentityDatabase db,
+            IOdinContext odinContext,
             bool failIfNoMatchingPublicKey = true)
         {
-            var (rsaKey, decryptionKey) = await ResolveRsaKeyForDecryption(keyType, publicKeyCrc32, odinContext, db);
+            var (rsaKey, decryptionKey) = await ResolveRsaKeyForDecryption(keyType, publicKeyCrc32, odinContext);
 
             if (null == rsaKey)
             {
@@ -406,7 +411,7 @@ namespace Odin.Services.EncryptionKeyService
         }
 
         private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryption(PublicPrivateKeyType keyType, uint crc32,
-            IOdinContext odinContext, IdentityDatabase db)
+            IOdinContext odinContext)
         {
             RsaFullKeyListData keyList;
             SensitiveByteArray decryptionKey;
@@ -414,12 +419,12 @@ namespace Odin.Services.EncryptionKeyService
             switch (keyType)
             {
                 case PublicPrivateKeyType.OfflineKey:
-                    keyList = this.GetRsaKeyListFromStorage(_offlineKeyStorageId, db);
+                    keyList = this.GetRsaKeyListFromStorage(_offlineKeyStorageId);
                     decryptionKey = OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray();
                     break;
 
                 case PublicPrivateKeyType.OnlineKey:
-                    keyList = this.GetRsaKeyListFromStorage(_onlineKeyStorageId, db);
+                    keyList = this.GetRsaKeyListFromStorage(_onlineKeyStorageId);
                     decryptionKey = odinContext.Caller.GetMasterKey();
                     break;
 
@@ -431,8 +436,9 @@ namespace Odin.Services.EncryptionKeyService
             return Task.FromResult((pk, decryptionKey));
         }
 
-        private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey, IdentityDatabase db)
+        private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var existingKeys = _storage.Get<RsaFullKeyListData>(db, storageKey);
             if (null != existingKeys)
             {
@@ -450,7 +456,7 @@ namespace Odin.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private Task CreateNotificationEccKeys(IdentityDatabase db)
+        private Task CreateNotificationEccKeys()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
             // var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
@@ -466,7 +472,7 @@ namespace Odin.Services.EncryptionKeyService
             //     EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
 
             // _storage.Upsert(storageKey, eccKeyList);
-
+            var db = _tenantSystemStorage.IdentityDatabase;
             VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
             _storage.Upsert(db, storageKey, new NotificationEccKeys
             {
@@ -477,8 +483,9 @@ namespace Odin.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey, IdentityDatabase db)
+        private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var existingKeys = _storage.Get<EccFullKeyListData>(db, storageKey);
 
             if (null != existingKeys)
@@ -498,20 +505,21 @@ namespace Odin.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private RsaFullKeyData GetCurrentRsaKeyFromStorage(Guid storageKey, IdentityDatabase db)
+        private RsaFullKeyData GetCurrentRsaKeyFromStorage(Guid storageKey)
         {
-            var keyList = GetRsaKeyListFromStorage(storageKey, db);
+            var keyList = GetRsaKeyListFromStorage(storageKey);
             return RsaKeyListManagement.GetCurrentKey(keyList);
         }
 
-        private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey, IdentityDatabase db)
+        private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             return _storage.Get<RsaFullKeyListData>(db, storageKey);
         }
 
-        private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey, IdentityDatabase db)
+        private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey)
         {
-            var keyList = GetEccKeyListFromStorage(storageKey, db);
+            var keyList = GetEccKeyListFromStorage(storageKey);
             if (null == keyList)
             {
                 return null;
@@ -520,8 +528,9 @@ namespace Odin.Services.EncryptionKeyService
             return EccKeyListManagement.GetCurrentKey(keyList);
         }
 
-        private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey, IdentityDatabase db)
+        private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             return _storage.Get<EccFullKeyListData>(db, storageKey);
         }
     }

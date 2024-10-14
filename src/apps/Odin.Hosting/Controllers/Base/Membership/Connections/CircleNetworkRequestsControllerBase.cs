@@ -17,6 +17,19 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         CircleNetworkIntroductionService introductionService)
         : OdinControllerBase
     {
+<<<<<<< HEAD
+=======
+        private readonly CircleNetworkRequestService _requestService;
+        private readonly TenantSystemStorage _tenantSystemStorage;
+
+
+        public CircleNetworkRequestsControllerBase(CircleNetworkRequestService db, TenantSystemStorage tenantSystemStorage)
+        {
+            _requestService = db;
+            _tenantSystemStorage = tenantSystemStorage;
+        }
+
+>>>>>>> main
         /// <summary>
         /// Gets a list of connection requests that are awaiting a response
         /// </summary>

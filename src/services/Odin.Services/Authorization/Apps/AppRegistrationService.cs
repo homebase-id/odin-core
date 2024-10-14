@@ -9,7 +9,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -182,15 +181,13 @@ namespace Odin.Services.Authorization.Apps
         public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-
             var (cat, corsHostName) = await this.RegisterClient(appId, friendlyName, odinContext);
 
             var data = cat.ToPortableBytes();
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
 
-            data.WriteZeros();
+            data.Wipe();
 
             var response = new AppClientRegistrationResponse()
             {
@@ -220,7 +217,7 @@ namespace Odin.Services.Authorization.Apps
             return (cat, appReg.CorsHostName);
         }
 
-        public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext)
+        public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext )
         {
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
@@ -229,6 +226,7 @@ namespace Odin.Services.Authorization.Apps
         public async Task<IOdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
+
             async Task<IOdinContext> Creator()
             {
                 var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token, odinContext);
@@ -245,7 +243,6 @@ namespace Odin.Services.Authorization.Apps
                 }
 
                 var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
-
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
                 var permissionContext =
                     await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, odinContext, db, includeAnonymousDrives: true);
@@ -301,8 +298,6 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task RevokeApp(GuidId appId, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
             {
@@ -311,6 +306,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             //TODO: revoke all clients? or is the one flag enough?
+            var db = _tenantSystemStorage.IdentityDatabase;
             _appRegistrationValueStorage.Upsert(db, appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetAppPermissionContextCache();
@@ -399,6 +395,7 @@ namespace Odin.Services.Authorization.Apps
         public async Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
+
             odinContext.Caller.AssertHasMasterKey();
 
             var client = _appClientValueStorage.Get<AppClient>(db, accessRegistrationId);

@@ -105,7 +105,7 @@ namespace Odin.Services.DataSubscription.Follower
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
                 var eccEncryptedPayload = await _publicPrivatePublicKeyService.EccEncryptPayloadForRecipient(
-                    keyType, identityToFollow, json.ToUtf8ByteArray(), db);
+                    keyType, identityToFollow, json.ToUtf8ByteArray());
                 var client = CreateClient(identityToFollow);
                 var response = await client.Follow(eccEncryptedPayload);
                 return response;
@@ -114,7 +114,7 @@ namespace Odin.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKey(keyType, identityToFollow, db);
+                await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKey(keyType, identityToFollow);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -124,7 +124,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             // TODO CONNECTIONS
-            //db.CreateCommitUnitOfWork(() => {
+            //cn.CreateCommitUnitOfWork(() => {
                 //delete all records and update according to the latest follow request.
                 _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)

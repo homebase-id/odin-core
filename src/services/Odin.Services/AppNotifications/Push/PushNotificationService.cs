@@ -154,7 +154,7 @@ public class PushNotificationService(
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var subscriptions = await GetAllSubscriptions(odinContext, db);
-        var keys = keyService.GetEccNotificationsKeys(db);
+        var keys = keyService.GetEccNotificationsKeys();
 
         var tasks = new List<Task>();
         foreach (var subscription in subscriptions)

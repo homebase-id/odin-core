@@ -12,10 +12,8 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
-using Odin.Services.Certificate;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.Drives.Management;

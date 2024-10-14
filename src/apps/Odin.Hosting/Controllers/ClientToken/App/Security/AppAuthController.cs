@@ -14,9 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
     [Route(AppApiPathConstants.AuthV1)]
     [AuthorizeValidAppToken]
     public class AppAuthController(
-        IAppRegistrationService appRegistrationService,
-        TenantSystemStorage tenantSystemStorage
-        ) : OdinControllerBase
+        IAppRegistrationService appRegistrationService) : OdinControllerBase
     {
         /// <summary>
         /// Verifies the ClientAuthToken (provided as a cookie) is Valid.

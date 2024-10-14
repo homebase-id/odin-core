@@ -38,7 +38,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
             var db = _tenantSystemStorage.IdentityDatabase;
+<<<<<<< HEAD
             var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, db);
+=======
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, db);
+            if (isValidPublicKey == false)
+            {
+                //TODO: extend with error code indicated a bad public key 
+                return BadRequest("Invalid Public Key");
+            }
+>>>>>>> main
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             OdinValidationUtils.AssertNotNull(request, nameof(request));

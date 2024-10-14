@@ -194,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.Add(item);
 
             return new PeerTransferResponse()
             {
@@ -222,7 +222,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.Add(item);
 
             await mediator.Publish(new InboxItemReceivedNotification
             {
@@ -248,7 +248,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext, db);
 
             odinContext.Caller.AssertCallerIsConnected();
-            
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext, db);
 
             if (directWriteSuccess)
@@ -337,7 +336,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.Add(item);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
                 TargetDrive = driveManager.GetDrive(item.DriveId, db).Result.TargetDriveInfo,

@@ -310,11 +310,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-
         public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid targetVersionTag, IOdinContext odinContext, IdentityDatabase db)
         {
-            await AssertCanWriteToDrive(file.DriveId, odinContext, db);
-
             //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext, db);
             DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
@@ -326,6 +323,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return Guid.Empty;
             }
 
+            var lts = await GetLongTermStorageManager(file.DriveId, db);
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
             await DeletePayloadFromDiskInternal(file, descriptor, db);

@@ -223,7 +223,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 SharedSecretEncryptedKeyHeader = null
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.Add(item);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
                 TargetDrive = driveManager.GetDrive(item.DriveId, db).Result.TargetDriveInfo,

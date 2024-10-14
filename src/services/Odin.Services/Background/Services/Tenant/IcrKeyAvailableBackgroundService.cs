@@ -84,7 +84,7 @@ public sealed class IcrKeyAvailableBackgroundService(
                 if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
                 {
                     var db = tenantSystemStorage.IdentityDatabase;
-                    await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, db);
+                    await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext);
                 }
             }
         }

@@ -258,7 +258,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 };
             }
 
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
             if (null == clientAuthToken)
             {
                 return new SendReadReceiptResultRecipientStatusItem()
@@ -318,7 +318,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var recipient = (OdinId)r;
 
                 //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db);
+                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
                 var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                 var item = new OutboxFileItem()
@@ -403,7 +403,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     //TODO: apply encryption before storing in the outbox
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new OutboxFileItem()
@@ -459,7 +459,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     var iv = ByteArrayUtil.GetRndByteArray(16);

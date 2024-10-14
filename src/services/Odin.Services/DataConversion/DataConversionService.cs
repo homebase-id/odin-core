@@ -41,7 +41,7 @@ namespace Odin.Services.DataConversion
                 foreach (var app in allApps)
                 {
                     logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
-                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext, db);
+                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
                 }
             }
             //);
@@ -58,7 +58,7 @@ namespace Odin.Services.DataConversion
             //
             // Generate new Online Icr Encrypted ECC Key
             //
-            await publicPrivateKeyService.CreateInitialKeys(odinContext, db);
+            await publicPrivateKeyService.CreateInitialKeys(odinContext);
             
             //
             // Create new circles
@@ -76,7 +76,7 @@ namespace Odin.Services.DataConversion
                     //
                     if (identity.VerificationHash?.Length == 0)
                     {
-                        var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext, db);
+                        var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext);
                         logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
                     }
                 }

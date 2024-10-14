@@ -23,7 +23,6 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
     protected OutboxFileItem FileItem => fileItem;
     protected FileSystemResolver FileSystemResolver => fileSystemResolver;
 
-
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {

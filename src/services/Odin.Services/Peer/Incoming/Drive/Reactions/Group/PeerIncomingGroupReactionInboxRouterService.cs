@@ -76,7 +76,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
             Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
         };
 
-        await transitInboxBoxStorage.Add(item, db);
+        await transitInboxBoxStorage.Add(item);
 
         await mediator.Publish(new InboxItemReceivedNotification()
         {

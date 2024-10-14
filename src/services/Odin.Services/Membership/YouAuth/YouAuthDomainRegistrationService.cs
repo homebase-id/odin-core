@@ -8,8 +8,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
@@ -63,7 +61,6 @@ namespace Odin.Services.Membership.YouAuth
         /// </summary>
         public async Task<RedactedYouAuthDomainRegistration> RegisterDomain(YouAuthDomainRegistrationRequest request, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
 
@@ -109,7 +106,6 @@ namespace Odin.Services.Membership.YouAuth
             YouAuthDomainRegistrationRequest? request,
             IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             OdinValidationUtils.AssertNotNullOrEmpty(friendlyName, nameof(friendlyName));
             odinContext.Caller.AssertHasMasterKey();
 
@@ -147,7 +143,6 @@ namespace Odin.Services.Membership.YouAuth
         /// </summary>
         public async Task<bool> IsConsentRequired(AsciiDomainName domain, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
             if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName, odinContext))
@@ -316,7 +311,6 @@ namespace Odin.Services.Membership.YouAuth
         /// </summary>
         public async Task GrantCircle(GuidId circleId, AsciiDomainName domainName, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
             var registration = await this.GetDomainRegistrationInternal(domainName);
@@ -376,8 +370,6 @@ namespace Odin.Services.Membership.YouAuth
 
         public async Task<IOdinContext?> GetDotYouContext(ClientAuthenticationToken token, IOdinContext currentOdinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-
             async Task<IOdinContext> Creator()
             {
                 var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token);

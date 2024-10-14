@@ -9,11 +9,9 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -175,7 +173,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext, IdentityDatabase db)
     {
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequests(PageOptions.All, odinContext, db);
-        _logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)", incomingConnectionRequests.Results.Count);
+        _logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)",
+            incomingConnectionRequests.Results.Count);
 
         foreach (var request in incomingConnectionRequests.Results)
         {
@@ -191,7 +190,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     return;
                 }
 
-                var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext, db);
+                var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext);
                 if (null != existingSentRequest)
                 {
                     _logger.LogInformation("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
@@ -200,7 +199,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     return;
                 }
 
-                if (await CircleNetworkService.IsConnected(sender, odinContext, db))
+                if (await CircleNetworkService.IsConnected(sender, odinContext))
                 {
                     _logger.LogInformation("Auto-accept connection request from {sender} since there is already an ICR", sender);
                     await AutoAccept(sender, odinContext, db);
@@ -232,14 +231,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         {
             var recipient = intro.Identity;
 
-            var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext, db);
+            var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);
             if (hasOutstandingRequest)
             {
                 _logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
                 continue;
             }
 
-            var alreadyConnected = await CircleNetworkService.IsConnected(recipient, odinContext, db);
+            var alreadyConnected = await CircleNetworkService.IsConnected(recipient, odinContext);
             if (alreadyConnected)
             {
                 _logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
@@ -276,7 +275,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
     {
-
         //TODO CONNECTIONS
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
@@ -288,7 +286,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
-
         //TODO CONNECTIONS
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
@@ -327,7 +324,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         bool success = false;
         try
         {
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
 
             ApiResponse<HttpContent> response;
             await TryRetry.WithDelayAsync(
@@ -371,7 +368,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         try
         {
             _logger.LogInformation("Attempting to auto-accept connection request from {sender}", sender);
-            await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext, db);
+            await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext);
         }
         catch (Exception ex)
         {
@@ -390,7 +387,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         const int minDaysSinceLastSend = 3; //TODO: config
         if (intro.LastProcessed != UnixTimeUtc.ZeroTime && intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
         {
-            _logger.LogDebug("Ignoring introduction to {recipient} from {introducer} since we last processed this less than {days} days ago",
+            _logger.LogDebug(
+                "Ignoring introduction to {recipient} from {introducer} since we last processed this less than {days} days ago",
                 recipient,
                 introducer,
                 minDaysSinceLastSend);
@@ -414,7 +412,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         intro.LastProcessed = UnixTimeUtc.Now();
         UpsertIntroduction(intro, db);
 
-        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext, db);
+        await _circleNetworkRequestService.SendConnectionRequest(requestHeader, odinContext);
     }
 
     private void UpsertIntroduction(IdentityIntroduction intro, IdentityDatabase db)
@@ -431,7 +429,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private async Task DeleteIntroductionsFrom(OdinId introducer, IdentityDatabase db)
     {
-        var introductionsFromIdentity = _receivedIntroductionValueStorage.GetByDataType<IdentityIntroduction>(db, introducer.ToHashId().ToByteArray());
+        var introductionsFromIdentity =
+            _receivedIntroductionValueStorage.GetByDataType<IdentityIntroduction>(db, introducer.ToHashId().ToByteArray());
 
         foreach (var introduction in introductionsFromIdentity)
         {

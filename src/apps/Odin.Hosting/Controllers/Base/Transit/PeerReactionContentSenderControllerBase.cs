@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> AddReactionContent([FromBody] PeerAddReactionRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.AddReaction((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.AddReaction((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 
