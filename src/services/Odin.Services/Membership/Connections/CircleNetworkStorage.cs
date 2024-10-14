@@ -49,7 +49,7 @@ public class CircleNetworkStorage
     }
 
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext, IdentityDatabase db)
+    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         var icrAccessRecord = new IcrAccessRecord()
         {
@@ -114,7 +114,7 @@ public class CircleNetworkStorage
         //});
     }
 
-    public void Delete(OdinId odinId, IdentityDatabase db)
+    public void Delete(OdinId odinId)
     {
         // TODO CONNECTIONS
         //db.CreateCommitUnitOfWork(() =>  {
@@ -125,7 +125,7 @@ public class CircleNetworkStorage
     }
 
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
-        ConnectionStatus connectionStatus, IdentityDatabase db)
+        ConnectionStatus connectionStatus)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
         var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
@@ -138,8 +138,9 @@ public class CircleNetworkStorage
     /// </summary>
     /// <param name="masterKey"></param>
     /// <exception cref="OdinClientException"></exception>
-    public void CreateIcrKey(SensitiveByteArray masterKey, IdentityDatabase db)
+    public void CreateIcrKey(SensitiveByteArray masterKey)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(db, _icrKeyStorageId);
         if (null != existingKey)
         {
@@ -157,8 +158,9 @@ public class CircleNetworkStorage
         _icrKeyStorage.Upsert(db, _icrKeyStorageId, record);
     }
 
-    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey(IdentityDatabase db)
+    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var key = _icrKeyStorage.Get<IcrKeyRecord>(db, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }

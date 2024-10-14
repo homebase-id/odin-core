@@ -69,7 +69,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (clientType == ClientType.domain)
         {
-            return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain), odinContext, db);
+            return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain), odinContext);
         }
 
         // Apps on /owner doesn't need consent
@@ -101,7 +101,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientIdOrDomain);
 
-            var existingDomain = await _domainRegistrationService.GetRegistration(domain, odinContext, db);
+            var existingDomain = await _domainRegistrationService.GetRegistration(domain, odinContext);
             if (null == existingDomain)
             {
                 var request = new YouAuthDomainRegistrationRequest()
@@ -113,11 +113,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                await _domainRegistrationService.RegisterDomain(request, odinContext, db);
+                await _domainRegistrationService.RegisterDomain(request, odinContext);
             }
             else
             {
-                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext, db);
+                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext);
             }
 
             //so for now i'll just use this dictionary
@@ -147,13 +147,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
 
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await _appRegistrationService.RegisterClient(appId, clientInfo, odinContext, db);
+            (token, _) = await _appRegistrationService.RegisterClient(appId, clientInfo, odinContext);
         }
         else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)domain, odinContext, db);
+            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)domain, odinContext);
             if (info.IsConnected())
             {
                 var icrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -169,7 +169,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request, odinContext, db);
+                (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request, odinContext);
             }
         }
         else
@@ -227,7 +227,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
         }
 
-        var appReg = await _appRegistrationService.GetAppRegistration(appId, odinContext, db);
+        var appReg = await _appRegistrationService.GetAppRegistration(appId, odinContext);
         if (appReg == null)
         {
             return true;

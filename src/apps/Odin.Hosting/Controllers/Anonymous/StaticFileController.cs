@@ -26,8 +26,7 @@ namespace Odin.Hosting.Controllers.Anonymous
     [ApiController]
     public class StaticFileController(
         ITenantProvider tenantProvider,
-        StaticFileContentService staticFileContentService,
-        TenantSystemStorage tenantSystemStorage)
+        StaticFileContentService staticFileContentService)
         : Controller
     {
         private readonly string _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
@@ -41,8 +40,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("cdn/{filename}")]
         public async Task<IActionResult> GetStaticFile(string filename)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await this.SendStream(filename, db);
+            return await this.SendStream(filename);
         }
 
         /// <summary>
@@ -51,8 +49,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/image")]
         public async Task<IActionResult> GetPublicImage()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await this.SendStream(StaticFileConstants.ProfileImageFileName, db);
+            return await this.SendStream(StaticFileConstants.ProfileImageFileName);
         }
 
         /// <summary>
@@ -61,15 +58,14 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/profile")]
         public async Task<IActionResult> GetPublicProfileData()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await this.SendStream(StaticFileConstants.PublicProfileCardFileName, db);
+            return await this.SendStream(StaticFileConstants.PublicProfileCardFileName);
         }
 
 
-        private async Task<IActionResult> SendStream(string filename, IdentityDatabase db)
+        private async Task<IActionResult> SendStream(string filename)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
-            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStream(filename, db, GetIfModifiedSince());
+            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStream(filename, GetIfModifiedSince());
 
             if (fileExists && stream == Stream.Null)
             {

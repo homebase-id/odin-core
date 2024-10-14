@@ -111,8 +111,10 @@ public class CircleMembershipService(
     // Grants
 
     public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey,
-        IOdinContext odinContext, IdentityDatabase db)
+        IOdinContext odinContext)
     {
+        var db = tenantSystemStorage.IdentityDatabase;
+
         //map the exchange grant to a structure that matches ICR
         var grant = await exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey: null);
         return new CircleGrant()
@@ -124,16 +126,15 @@ public class CircleMembershipService(
     }
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
-        IOdinContext odinContext, IdentityDatabase db)
+        IOdinContext odinContext)
     {
         // Always put identities in the system circle
         var list = circleIds ?? new List<GuidId>();
         list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-        return await this.CreateCircleGrantList(list, keyStoreKey, odinContext, db);
+        return await this.CreateCircleGrantList(list, keyStoreKey, odinContext);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext,
-        IdentityDatabase db)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -149,7 +150,7 @@ public class CircleMembershipService(
         foreach (var id in deduplicated)
         {
             var def = this.GetCircle(id, odinContext);
-            var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey, null, db);
+            var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey, null);
 
             if (circleGrants.ContainsKey(id.Value))
             {
@@ -178,7 +179,7 @@ public class CircleMembershipService(
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
-            if (this.CircleIsEnabled(cg.CircleId, out var circleExists, tenantSystemStorage.IdentityDatabase))
+            if (this.CircleIsEnabled(cg.CircleId, out var circleExists))
             {
                 enabledCircles.Add(cg.CircleId);
                 grants.Add(cg.CircleId, new ExchangeGrant()
@@ -254,14 +255,14 @@ public class CircleMembershipService(
         await circleDefinitionService.AssertValidDriveGrants(driveGrants);
     }
 
-    public async Task Update(CircleDefinition circleDef, IOdinContext odinContext, IdentityDatabase db)
+    public async Task Update(CircleDefinition circleDef, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
         await circleDefinitionService.Update(circleDef);
     }
 
-    public async Task Delete(GuidId circleId, IOdinContext odinContext, IdentityDatabase db)
+    public async Task Delete(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -271,7 +272,7 @@ public class CircleMembershipService(
     /// <summary>
     /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
     /// </summary>
-    public async Task DisableCircle(GuidId circleId, IOdinContext odinContext, IdentityDatabase db)
+    public async Task DisableCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -284,7 +285,7 @@ public class CircleMembershipService(
     /// <summary>
     /// Enables a circle
     /// </summary>
-    public async Task EnableCircle(GuidId circleId, IOdinContext odinContext, IdentityDatabase db)
+    public async Task EnableCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -305,7 +306,7 @@ public class CircleMembershipService(
         await circleDefinitionService.CreateSystemCircle();
     }
 
-    private bool CircleIsEnabled(GuidId circleId, out bool exists, IdentityDatabase db)
+    private bool CircleIsEnabled(GuidId circleId, out bool exists)
     {
         var circle = circleDefinitionService.GetCircle(circleId);
         exists = circle != null;

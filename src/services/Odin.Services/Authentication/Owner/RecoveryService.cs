@@ -34,9 +34,9 @@ public class RecoveryService
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
     /// </summary>
-    public void AssertValidKey(string text, out SensitiveByteArray masterKey, IdentityDatabase db)
+    public void AssertValidKey(string text, out SensitiveByteArray masterKey)
     {
-        var existingKey = GetKeyInternal(db);
+        var existingKey = GetKeyInternal();
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
         {
             throw new OdinSystemException("Recovery key not configured");
@@ -46,8 +46,9 @@ public class RecoveryService
         masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
-    public async Task CreateInitialKey(IOdinContext odinContext, IdentityDatabase db)
+    public async Task CreateInitialKey(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.Caller.AssertHasMasterKey();
         var keyRecord = _storage.Get<RecoveryKeyRecord>(db, _recordStorageId);
         if (null != keyRecord)
@@ -56,13 +57,14 @@ public class RecoveryService
         }
 
         var keyBytes = ByteArrayUtil.GetRndByteArray(16);
-        SaveKey(keyBytes.ToSensitiveByteArray(), odinContext, db);
+        SaveKey(keyBytes.ToSensitiveByteArray(), odinContext);
 
         await Task.CompletedTask;
     }
 
-    public Task<DecryptedRecoveryKey> GetKey(IOdinContext odinContext, IdentityDatabase db)
+    public Task<DecryptedRecoveryKey> GetKey(IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
 
@@ -82,7 +84,7 @@ public class RecoveryService
             throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
         }
 
-        var keyRecord = GetKeyInternal(db);
+        var keyRecord = GetKeyInternal();
         var masterKey = odinContext.Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
@@ -98,14 +100,16 @@ public class RecoveryService
         return Task.FromResult(rk);
     }
 
-    private RecoveryKeyRecord GetKeyInternal(IdentityDatabase db)
+    private RecoveryKeyRecord GetKeyInternal()
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var existingKey = _storage.Get<RecoveryKeyRecord>(db, _recordStorageId);
         return existingKey;
     }
 
-    private void SaveKey(SensitiveByteArray recoveryKey, IOdinContext odinContext, IdentityDatabase db)
+    private void SaveKey(SensitiveByteArray recoveryKey, IOdinContext odinContext)
     {
+        var db = _tenantSystemStorage.IdentityDatabase;
         var masterKey = odinContext.Caller.GetMasterKey();
 
         //TODO: what validations are needed here?

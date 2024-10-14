@@ -55,32 +55,28 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _dbs.UpdateCircleDefinition(circleDefinition, WebOdinContext, db);
+            await _dbs.UpdateCircleDefinition(circleDefinition, WebOdinContext);
             return true;
         }
 
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _dbs.DeleteCircleDefinition(new GuidId(id), WebOdinContext, db);
+            await _dbs.DeleteCircleDefinition(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _circleMembershipService.EnableCircle(new GuidId(id), WebOdinContext, db);
+            await _circleMembershipService.EnableCircle(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _circleMembershipService.DisableCircle(new GuidId(id), WebOdinContext, db);
+            await _circleMembershipService.DisableCircle(new GuidId(id), WebOdinContext);
             return true;
         }
     }

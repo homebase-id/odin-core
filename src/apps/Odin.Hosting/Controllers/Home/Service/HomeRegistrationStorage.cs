@@ -22,14 +22,16 @@ namespace Odin.Hosting.Controllers.Home.Service
             _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
-        public HomeAppClient? GetClient(Guid id, IdentityDatabase db)
+        public HomeAppClient? GetClient(Guid id)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var client = _clientStorage.Get<HomeAppClient>(db, id);
             return client;
         }
 
-        public void SaveClient(HomeAppClient client, IdentityDatabase db)
+        public void SaveClient(HomeAppClient client)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             if (null == client?.AccessRegistration?.Id)
             {
                 throw new OdinClientException("Invalid client id");
@@ -38,8 +40,9 @@ namespace Odin.Hosting.Controllers.Home.Service
             _clientStorage.Upsert(db, client.AccessRegistration.Id, client);
         }
 
-        public void DeleteClient(GuidId accessRegistrationId, IdentityDatabase db)
+        public void DeleteClient(GuidId accessRegistrationId)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             _clientStorage.Delete(db, accessRegistrationId);
         }
     }

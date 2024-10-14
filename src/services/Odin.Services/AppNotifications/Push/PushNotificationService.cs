@@ -340,8 +340,7 @@ public class PushNotificationService(
                 Timestamp = timestamp,
                 AppNotificationOptions = options,
             },
-            odinContext,
-            db
+            odinContext
         );
 
         // serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,

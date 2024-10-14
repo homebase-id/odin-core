@@ -225,7 +225,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
             var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
 
-            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, odinContext, db);
+            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey, odinContext);
             outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
@@ -234,8 +234,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
                     header.CircleIds?.ToList() ?? new List<GuidId>(),
-                    keyStoreKey, odinContext, db),
-                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, db),
+                    keyStoreKey, odinContext),
+                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
                 AccessRegistration = accessRegistration
             };
 
@@ -362,14 +362,14 @@ namespace Odin.Services.Membership.Connections.Requests
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
-                    keyStoreKey, odinContext, db),
-                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext, db),
+                    keyStoreKey, odinContext),
+                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
 
-            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext, db);
-            await _dbs.Connect(senderOdinId, accessGrant, encryptedCat, pendingRequest.ContactData, odinContext, db);
+            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken, odinContext);
+            await _dbs.Connect(senderOdinId, accessGrant, encryptedCat, pendingRequest.ContactData, odinContext);
 
             // Now tell the remote to establish the connection
 
@@ -411,7 +411,7 @@ namespace Odin.Services.Membership.Connections.Requests
             try
             {
                 _logger.LogDebug("AcceptConnectionRequest - Running SynchronizeChannelFiles");
-                await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, db, remoteClientAccessToken.SharedSecret);
+                await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext, remoteClientAccessToken.SharedSecret);
             }
             catch (Exception e)
             {
@@ -456,7 +456,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
 
-            await _dbs.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData, odinContext, db);
+            await _dbs.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData, odinContext);
 
             try
             {
@@ -468,7 +468,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     originalRequest.TempEncryptedIcrKey);
                 
                 _logger.LogDebug("EstablishConnection - Running SynchronizeChannelFiles");
-                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, db, sharedSecret);
+                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, sharedSecret);
             }
             catch (Exception e)
             {

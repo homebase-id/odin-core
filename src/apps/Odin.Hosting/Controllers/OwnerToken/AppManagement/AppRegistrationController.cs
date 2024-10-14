@@ -32,8 +32,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpGet("list")]
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var apps = await _appRegistrationService.GetRegisteredApps(WebOdinContext, db);
+            var apps = await _appRegistrationService.GetRegisteredApps(WebOdinContext);
             return apps;
         }
 
@@ -44,7 +43,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<RedactedAppRegistration> GetRegisteredApp([FromBody] GetAppRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var reg = await _appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext, db);
+            var reg = await _appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
             return reg;
         }
 
@@ -59,8 +58,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             OdinValidationUtils.AssertNotNull(appRegistration, nameof(appRegistration));
             OdinValidationUtils.AssertIsTrue(appRegistration.IsValid(), "The app registration is invalid");
 
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var reg = await _appRegistrationService.RegisterApp(appRegistration, WebOdinContext, db);
+            var reg = await _appRegistrationService.RegisterApp(appRegistration, WebOdinContext);
             return reg;
         }
 
@@ -72,7 +70,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task UpdateAppPermissions([FromBody] UpdateAppPermissionsRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.UpdateAppPermissions(request, WebOdinContext, db);
+            await _appRegistrationService.UpdateAppPermissions(request, WebOdinContext);
         }
 
         /// <summary>
@@ -82,7 +80,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.UpdateAuthorizedCircles(request, WebOdinContext, db);
+            await _appRegistrationService.UpdateAuthorizedCircles(request, WebOdinContext);
         }
 
         /// <summary>
@@ -93,8 +91,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeApp([FromBody] GetAppRequest request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.RevokeApp(request.AppId, WebOdinContext, db);
+            await _appRegistrationService.RevokeApp(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -107,7 +104,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<NoResultResponse> AllowApp([FromBody] GetAppRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.RemoveAppRevocation(request.AppId, WebOdinContext, db);
+            await _appRegistrationService.RemoveAppRevocation(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -120,7 +117,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.DeleteApp(request.AppId, WebOdinContext, db);
+            await _appRegistrationService.DeleteApp(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -132,8 +129,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("clients")]
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients([FromBody] GetAppRequest request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _appRegistrationService.GetRegisteredClients(request.AppId, WebOdinContext, db);
+            var result = await _appRegistrationService.GetRegisteredClients(request.AppId, WebOdinContext);
             return result;
         }
 
@@ -144,7 +140,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task RevokeClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.RevokeClient(request.AccessRegistrationId, WebOdinContext, db);
+            await _appRegistrationService.RevokeClient(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -154,7 +150,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task EnableClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.AllowClient(request.AccessRegistrationId, WebOdinContext, db);
+            await _appRegistrationService.AllowClient(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -164,7 +160,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task DeleteClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.DeleteClient(request.AccessRegistrationId, WebOdinContext, db);
+            await _appRegistrationService.DeleteClient(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -193,7 +189,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            var (reg, _) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName, WebOdinContext, db);
+            var (reg, _) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName, WebOdinContext);
             return reg;
         }
     }
