@@ -400,7 +400,7 @@ namespace Odin.Services.Authentication.Owner
             var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(db, FirstOwnerLoginInfo.Key);
             if (fli == null)
             {
-                await _tenantConfigService.CreateInitialKeys(odinContext, db);
+                await _tenantConfigService.CreateInitialKeys(odinContext);
 
                 _firstRunInfoStorage.Upsert(db, FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
                 {

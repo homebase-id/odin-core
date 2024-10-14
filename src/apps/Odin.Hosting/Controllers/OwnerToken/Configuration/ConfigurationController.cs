@@ -38,7 +38,7 @@ public class ConfigurationController : OdinControllerBase
     public Task<bool> IsIdentityServerConfigured()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsIdentityServerConfigured(db);
+        var result = _tenantConfigService.IsIdentityServerConfigured();
         return Task.FromResult(result);
     }
 
@@ -47,7 +47,7 @@ public class ConfigurationController : OdinControllerBase
     public Task<bool> IsEulaSignatureRequired()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsEulaSignatureRequired(WebOdinContext, db);
+        var result = _tenantConfigService.IsEulaSignatureRequired(WebOdinContext);
         return Task.FromResult(result);
     }
 
@@ -62,7 +62,7 @@ public class ConfigurationController : OdinControllerBase
     public Task<List<EulaSignature>> GetEulaSignatureHistory()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.GetEulaSignatureHistory(WebOdinContext, db);
+        var result = _tenantConfigService.GetEulaSignatureHistory(WebOdinContext);
         return Task.FromResult(result);
     }
 
@@ -71,7 +71,7 @@ public class ConfigurationController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var db = _tenantSystemStorage.IdentityDatabase;
-        _tenantConfigService.MarkEulaSigned(request, WebOdinContext, db);
+        _tenantConfigService.MarkEulaSigned(request, WebOdinContext);
         return Ok();
     }
 
@@ -83,7 +83,7 @@ public class ConfigurationController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext, db);
+        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext);
         return true;
     }
 
@@ -98,7 +98,7 @@ public class ConfigurationController : OdinControllerBase
         OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _tenantConfigService.UpdateSystemFlag(request, WebOdinContext, db);
+        await _tenantConfigService.UpdateSystemFlag(request, WebOdinContext);
 
         //todo: map to all the various flags
         return await Task.FromResult(false);
@@ -111,7 +111,7 @@ public class ConfigurationController : OdinControllerBase
     public TenantSettings GetTenantSettings()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var settings = _tenantConfigService.GetTenantSettings(db);
+        var settings = _tenantConfigService.GetTenantSettings();
         return settings;
     }
 
@@ -141,7 +141,7 @@ public class ConfigurationController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(settings?.Settings, nameof(settings.Settings));
         var db = _tenantSystemStorage.IdentityDatabase;
-        _tenantConfigService.UpdateOwnerAppSettings(settings, WebOdinContext, db);
+        _tenantConfigService.UpdateOwnerAppSettings(settings, WebOdinContext);
         return await Task.FromResult(true);
     }
 
@@ -152,7 +152,7 @@ public class ConfigurationController : OdinControllerBase
     public OwnerAppSettings GetOwnerSettings()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var settings = _tenantConfigService.GetOwnerAppSettings(WebOdinContext, db);
+        var settings = _tenantConfigService.GetOwnerAppSettings(WebOdinContext);
         return settings;
     }
 
