@@ -172,6 +172,8 @@ namespace Odin.Services.Configuration
 
             public int ShutdownTimeoutSeconds { get; init; }
             public Guid SystemProcessApiKey { get; set; }
+            
+            public int IpRateLimitRequestsPerSecond { get; init; }
 
             public HostSection()
             {
@@ -214,6 +216,9 @@ namespace Odin.Services.Configuration
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
 
                 InboxOutboxRecoveryAgeSeconds = config.GetOrDefault("Host:InboxOutboxRecoveryAgeSeconds", 24 * 60 * 60);
+
+                // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
+                IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
             }
 
             public string ReportContentUrl { get; set; }
