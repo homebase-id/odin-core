@@ -370,7 +370,7 @@ namespace Odin.Services.EncryptionKeyService
 
                 // Note: we use the service since OdinContext might not have the ICR key
                 // yet as it was just created during identity-init
-                var icrKey = _icrKeyService.GetDecryptedIcrKey(odinContext, db);
+                var icrKey = _icrKeyService.GetDecryptedIcrKey(odinContext);
                 await this.CreateNewEccKeys(icrKey, _onlineIcrEncryptedEccKeyStorageId, db);
 
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId, db);

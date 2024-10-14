@@ -147,8 +147,8 @@ public class TenantConfigService
     {
         var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.Caller.AssertHasMasterKey();
-        await _recoverService.CreateInitialKey(odinContext, db);
-        await _icrKeyService.CreateInitialKeys(odinContext, db);
+        await _recoverService.CreateInitialKey(odinContext);
+        await _icrKeyService.CreateInitialKeys(odinContext);
         await _publicPrivateKeyService.CreateInitialKeys(odinContext, db);
     }
 
@@ -171,23 +171,23 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext, db);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest, odinContext, db);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext, db);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
-            await CreateDriveIfNotExists(rd, odinContext, db);
+            await CreateDriveIfNotExists(rd, odinContext);
         }
 
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await CreateCircleIfNotExists(rc, odinContext, db);
+            await CreateCircleIfNotExists(rc, odinContext);
         }
 
         await this.RegisterBuiltInApps(odinContext, db);
@@ -225,7 +225,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow, odinContext, db);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow, odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -238,7 +238,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext, db);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -291,15 +291,15 @@ public class TenantConfigService
 
     //
 
-    private async Task RegisterBuiltInApps(IOdinContext odinContext, IdentityDatabase db)
+    private async Task RegisterBuiltInApps(IOdinContext odinContext)
     {
-        await RegisterChatApp(odinContext, db);
-        await RegisterMailApp(odinContext, db);
-        await RegisterFeedApp(odinContext, db);
+        await RegisterChatApp(odinContext);
+        await RegisterMailApp(odinContext);
+        await RegisterFeedApp(odinContext);
         // await RegisterPhotosApp();
     }
 
-    private async Task RegisterFeedApp(IOdinContext odinContext, IdentityDatabase db)
+    private async Task RegisterFeedApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
