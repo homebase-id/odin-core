@@ -840,14 +840,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
         }
-        
+
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext,
             IdentityDatabase db)
         {
             var mutex = _transferHistoryLocks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
-            
+
             try
             {
                 ServerFileHeader header = null;
@@ -911,7 +911,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                mutex.Release();
+                if (_transferHistoryLocks.TryRemove(file, out var m))
+                {
+                    m!.Release();
+                    // Let the GC handle it
+                    // m.Dispose();
+                }
             }
         }
 
