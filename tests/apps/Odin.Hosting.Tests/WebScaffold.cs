@@ -143,8 +143,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", HttpPort);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpsPort", HttpsPort);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__Ip", "*");
-
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
+            Environment.SetEnvironmentVariable("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
