@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -34,6 +35,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveDatabaseHost driveDatabaseHost) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly ConcurrentDictionary<InternalDriveFileId, SemaphoreSlim> _transferHistoryLocks = new();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -759,68 +761,78 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext,
             IdentityDatabase db)
         {
-            ServerFileHeader header = null;
+          var mutex = _transferHistoryLocks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
+            await mutex.WaitAsync();
 
-            await AssertCanReadOrWriteToDrive(file.DriveId, odinContext, db);
-
-            var mgr = await GetLongTermStorageManager(file.DriveId, db);
-
-            //
-            // Get and validate the header
-            //
-            header = await mgr.GetServerFileHeader(file.FileId, db);
-            AssertValidFileSystemType(header.ServerMetadata);
-
-            //
-            // update the transfer history record
-            //
-            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+            try
             {
-                recipientItem = new RecipientTransferHistoryItem();
-                history.Recipients.Add(recipient, recipientItem);
-            }
+                ServerFileHeader header = null;
 
-            recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-            recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-            recipientItem.LastUpdated = UnixTimeUtc.Now();
-            recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-            if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
-            {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-            }
+                await AssertCanReadOrWriteToDrive(file.DriveId, odinContext, db);
 
-            header.ServerMetadata.TransferHistory = history;
+                var mgr = await GetLongTermStorageManager(file.DriveId, db);
 
-            _logger.LogDebug(
-                "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
-                file,
-                recipient,
-                updateData.VersionTag,
-                updateData.LatestTransferStatus,
-                updateData.IsInOutbox,
-                updateData.IsReadByRecipient);
+                //
+                // Get and validate the header
+                //
+                header = await mgr.GetServerFileHeader(file.FileId, db);
+                AssertValidFileSystemType(header.ServerMetadata);
 
-            await mgr.SaveTransferHistory(file.FileId, history, db);
+                //
+                // update the transfer history record
+                //
+                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
-            if (await ShouldRaiseDriveEvent(file, db))
-            {
-                await mediator.Publish(new DriveFileChangedNotification
+                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
                 {
-                    File = file,
-                    ServerFileHeader = header,
-                    OdinContext = odinContext,
-                    db = db,
-                    IgnoreFeedDistribution = true,
-                    IgnoreReactionPreviewCalculation = true
-                });
+                    recipientItem = new RecipientTransferHistoryItem();
+                    history.Recipients.Add(recipient, recipientItem);
+                }
+
+                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
+                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
+                recipientItem.LastUpdated = UnixTimeUtc.Now();
+                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
+                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
+                {
+                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
+                }
+
+                header.ServerMetadata.TransferHistory = history;
+
+                _logger.LogDebug(
+                    "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
+                    file,
+                    recipient,
+                    updateData.VersionTag,
+                    updateData.LatestTransferStatus,
+                    updateData.IsInOutbox,
+                    updateData.IsReadByRecipient);
+
+                await mgr.SaveTransferHistory(file.FileId, history, db);
+
+                if (await ShouldRaiseDriveEvent(file, db))
+                {
+                    await mediator.Publish(new DriveFileChangedNotification
+                    {
+                        File = file,
+                        ServerFileHeader = header,
+                        OdinContext = odinContext,
+                        db = db,
+                        IgnoreFeedDistribution = true,
+                        IgnoreReactionPreviewCalculation = true
+                    });
+                }
+            }
+            finally
+            {
+                _transferHistoryLocks.TryRemove(file, out _);
+                mutex.Release();
             }
         }
 
