@@ -152,11 +152,11 @@ public static class CommandLine
         //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --header2database
         //
         //
-        if (args.Length == 1 && args[0] == "--header2database")
-        {
-            Header2Database.Execute(args);
-            return (true, 0);
-        }
+        // if (args.Length == 1 && args[0] == "--header2database")
+        // {
+        //     Header2Database.Execute(args);
+        //     return (true, 0);
+        // }
 
         return (false, 0);
     }
