@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -14,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -36,7 +35,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveDatabaseHost driveDatabaseHost) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
-        private readonly ConcurrentDictionary<InternalDriveFileId, SemaphoreSlim> _transferHistoryLocks = new();
+        private readonly KeyedAsyncLock _keyedAsyncLock = new();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -784,10 +783,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             IdentityDatabase db)
         {
-            var mutex = _transferHistoryLocks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
-            await mutex.WaitAsync();
-
-            try
+            // SEB:TODO this kind of locking won't help us when we scale out horizontally
+            using (await _keyedAsyncLock.LockAsync(file.FileId.ToString()))
             {
                 ServerFileHeader header = null;
 
@@ -847,12 +844,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                         IgnoreReactionPreviewCalculation = true
                     });
                 }
-            }
-            finally
-            {
-                // commented per @seb
-                // _transferHistoryLocks.TryRemove(file, out _);
-                mutex.Release();
             }
         }
 
