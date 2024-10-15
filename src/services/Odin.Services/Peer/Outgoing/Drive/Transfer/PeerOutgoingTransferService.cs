@@ -492,7 +492,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             Recipient = null,
                             IsTransientFile = true,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
-                            TransferInstructionSet = null,
+                            TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
+                            {
+                                FileSystemType = fileSystemType
+                            },
                             OriginalTransitOptions = null,
 
                             Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
