@@ -182,6 +182,11 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns></returns>
         public async Task SendConnectionRequest(ConnectionRequestHeader header, IOdinContext odinContext)
         {
+            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                odinContext.AssertCanManageConnections();
+            }
+
             var recipient = (OdinId)header.Recipient;
             if (recipient == odinContext.Caller.OdinId)
             {
@@ -585,15 +590,22 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
-                var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, db);
-                var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
-                    feedDriveId.GetValueOrDefault(),
-                    tempKey,
-                    originalRequest.TempEncryptedFeedDriveStorageKey,
-                    originalRequest.TempEncryptedIcrKey);
+                if (originalRequest.TempEncryptedFeedDriveStorageKey != null)
+                {
+                    var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, db);
+                    var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
+                        feedDriveId.GetValueOrDefault(),
+                        tempKey,
+                        originalRequest.TempEncryptedFeedDriveStorageKey,
+                        originalRequest.TempEncryptedIcrKey);
 
-                _logger.LogDebug("EstablishConnection - Running SynchronizeChannelFiles");
-                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, sharedSecret);
+                    _logger.LogDebug("EstablishConnection - Running SynchronizeChannelFiles");
+                    await _followerService.SynchronizeChannelFiles(recipient, patchedContext, sharedSecret);
+                }
+                else
+                {
+                    _logger.LogDebug("skipping Feed drive sync since no temp feed drive storage key was available");
+                }
             }
             catch (Exception e)
             {
@@ -867,14 +879,14 @@ namespace Odin.Services.Membership.Connections.Requests
             outgoingRequest.ClientAccessToken64 = "";
             outgoingRequest.PendingAccessExchangeGrant = grant;
 
-            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-            var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
-            outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
-
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
+
+                var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
+                outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             }
 
             keyStoreKey.Wipe();

@@ -79,8 +79,6 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");

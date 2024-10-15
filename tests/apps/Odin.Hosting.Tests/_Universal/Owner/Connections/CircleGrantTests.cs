@@ -78,6 +78,9 @@ public class CircleGrantTests
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
+        await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
@@ -130,6 +133,9 @@ public class CircleGrantTests
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
+        await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);

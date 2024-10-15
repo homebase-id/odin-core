@@ -10,6 +10,9 @@ namespace Odin.Services.Drives;
 /// </summary>
 public static class SystemDriveConstants
 {
+    //
+    // DO NOT CHANGE ANY VALUES
+    //
 
     public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
 

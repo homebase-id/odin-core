@@ -67,7 +67,12 @@ public class AutoAcceptTests
         var merry = TestIdentities.Merry.OdinId;
 
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        
         await Prepare();
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
@@ -84,14 +89,17 @@ public class AutoAcceptTests
 
         // Assert: Sam should have a connection request from Merry and visa/versa
 
-        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-
         await callerContext.Initialize(samOwnerClient);
         var samClient = new UniversalCircleNetworkRequestsApiClient(sam, callerContext.GetFactory());
         var samProcessResponse = await samClient.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
 
+        // var outgoingRequestToSamResponse = await merryOwnerClient.Connections.GetOutgoingSentRequestTo(sam);
+        // var outgoingRequestToSam = outgoingRequestToSamResponse.Content;
+        // Assert.IsNotNull(outgoingRequestToSam);
+        // Assert.IsTrue(outgoingRequestToSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
+        // Assert.IsTrue(outgoingRequestToSam.IntroducerOdinId == frodo);
+        
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(merry);
         var outgoingRequestToMerry = outgoingRequestToMerryResponse.Content;
         Assert.IsNotNull(outgoingRequestToMerry);

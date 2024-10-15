@@ -488,12 +488,11 @@ namespace Odin.Services.Membership.Connections
             SensitiveByteArray masterKey,
             IOdinContext odinContext)
         {
-            var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
             var appGrants = new Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>();
 
             foreach (var circleId in circleIds)
             {
-                var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
+                var appsThatGrantThisCircle = await appRegistrationService.GetAppsGrantingCircle(circleId, odinContext);
 
                 foreach (var app in appsThatGrantThisCircle)
                 {
@@ -1158,6 +1157,7 @@ namespace Odin.Services.Membership.Connections
                 identity.AccessGrant.MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
                 identity.TempWeakKeyStoreKey = null;
 
+                
                 SaveIcr(identity, odinContext);
             }
         }
