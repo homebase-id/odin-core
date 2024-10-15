@@ -843,6 +843,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             IdentityDatabase db)
         {
+            // SEB:TODO this is bad:
+            // - mutex objects are never destroyed
+            // - this kind of locking won't help us when we scale out horizontally
             var mutex = _transferHistoryLocks.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
 
