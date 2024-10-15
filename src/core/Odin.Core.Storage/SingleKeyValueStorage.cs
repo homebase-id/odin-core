@@ -26,10 +26,9 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var item = db.tblKeyValue.Get(cn, MakeStorageKey(key));
+        var item = db.tblKeyValue.Get(MakeStorageKey(key));
 
         if (null == item)
         {
@@ -44,17 +43,15 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key, T value)
+    public void Upsert<T>(IdentityDatabase db, Guid key, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyValue.Upsert(cn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        db.tblKeyValue.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid key)
+    public void Delete(IdentityDatabase db, Guid key)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyValue.Delete(cn, MakeStorageKey(key));
+        db.tblKeyValue.Delete(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

@@ -58,6 +58,7 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
+            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
@@ -150,10 +151,6 @@ namespace Odin.Hosting
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<DriveDatabaseHost>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

@@ -1,18 +1,22 @@
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Odin.Hosting.ApiExceptions.Server;
-using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Middleware
 {
-    public class VersionUpgradeMiddleware(RequestDelegate next, VersionUpgradeService versionUpgradeService)
+    public class VersionUpgradeMiddleware(RequestDelegate next, VersionUpgradeScheduler scheduler)
     {
         public Task Invoke(HttpContext context, IOdinContext odinContext)
         {
-            versionUpgradeService.BlockIfRunning();
+            if (scheduler.RequiresUpgrade())
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                return Task.CompletedTask;
+            }
+            
             return next.Invoke(context);
         }
     }

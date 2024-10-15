@@ -27,7 +27,7 @@ public class AccessExchangeGrant
     public Dictionary<Guid, CircleGrant> CircleGrants { get; set; }
 
     /// <summary>
-    /// The permissions granted from being with-in a circle that has been authorized by an App.  The main key is the AppId
+    /// The permissions granted from being with-in a circle that has been authorized by an App.  The main key is the AppId.  The second key is the CircleId
     /// </summary>
     public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; }
 

@@ -234,6 +234,8 @@ namespace Odin.Hosting
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+            services.AddIpRateLimiter(config.Host.IpRateLimitRequestsPerSecond); 
         }
 
         // ConfigureContainer is where you can register things directly
@@ -280,6 +282,7 @@ namespace Odin.Hosting
             });
 
             app.UseLoggingMiddleware();
+            app.UseRateLimiter();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
@@ -468,7 +471,10 @@ namespace Odin.Hosting
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
                 // Start system background services
-                services.StartSystemBackgroundServices().BlockingWait();
+                if (config.Job.SystemJobsEnabled)
+                {
+                    services.StartSystemBackgroundServices().BlockingWait();                    
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>

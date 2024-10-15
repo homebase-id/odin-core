@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
@@ -27,6 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -46,15 +46,13 @@ namespace Odin.Hosting.Authentication.YouAuth
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
-                using var cn = tenantSystemStorage.CreateConnection();
-                return await HandleAppAuth(dotYouContext, cn);
+                return await HandleAppAuth(dotYouContext);
             }
 
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
-                using var cn = tenantSystemStorage.CreateConnection();
-                return await HandleYouAuth(dotYouContext, cn);
+                return await HandleYouAuth(dotYouContext);
             }
 
             return AuthenticateResult.Fail("Invalid Path");
@@ -79,8 +77,10 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         //
 
-        private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
+
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
@@ -89,7 +89,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
-            var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext, cn);
+            var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext);
 
             if (null == ctx)
             {
@@ -116,48 +116,50 @@ namespace Odin.Hosting.Authentication.YouAuth
             return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuth(IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleYouAuth(IOdinContext odinContext)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
             odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
             {
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext, cn));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
-                return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext, cn);
+                return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext);
             }
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                return await HandleYouAuthToken(clientAuthToken, odinContext, cn);
+                return await HandleYouAuthToken(clientAuthToken, odinContext);
             }
 
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {
                 if (Boolean.TryParse(values.FirstOrDefault(), out var shouldIgnoreAuth))
                 {
                     if (shouldIgnoreAuth)
                     {
-                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext, cn));
+                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
                     }
                 }
             }
 
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
-            var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken, odinContext, cn);
+            var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken, odinContext, db);
 
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext, cn));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
             odinContext.Caller = ctx.Caller;
@@ -165,14 +167,14 @@ namespace Odin.Hosting.Authentication.YouAuth
             return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
         {
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
-            var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext, cn);
+            var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext);
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext, cn));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
             odinContext.Caller = ctx.Caller;
@@ -194,10 +196,11 @@ namespace Odin.Hosting.Authentication.YouAuth
             return AuthenticateResult.Success(ticket);
         }
 
-        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(IOdinContext odinContext)
         {
+            var db = tenantSystemStorage.IdentityDatabase;
             var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
-            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All, odinContext, cn);
+            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All, odinContext, db);
 
             if (!anonymousDrives.Results.Any())
             {

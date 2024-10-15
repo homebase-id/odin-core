@@ -16,6 +16,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
@@ -72,8 +73,8 @@ namespace Odin.Hosting.Authentication.Owner
 
                 try
                 {
-                    using var cn = _tenantSystemStorage.CreateConnection();
-                    if (!await UpdateOdinContext(authResult, dotYouContext, cn))
+                    var db = _tenantSystemStorage.IdentityDatabase;
+                    if (!await UpdateOdinContext(authResult, dotYouContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
@@ -112,10 +113,11 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
+            var db = _tenantSystemStorage.IdentityDatabase;
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext, cn);
+            return await authService.UpdateOdinContext(token, odinContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)
@@ -123,8 +125,8 @@ namespace Odin.Hosting.Authentication.Owner
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                using var cn = _tenantSystemStorage.CreateConnection();
-                authService.ExpireToken(result.Id, cn);
+                var db = _tenantSystemStorage.IdentityDatabase;
+                authService.ExpireToken(result.Id);
             }
 
             return Task.CompletedTask;

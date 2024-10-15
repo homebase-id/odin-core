@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
 
         public OwnerStaticFileContentController(
             StaticFileContentService staticFileContentService,
-            TenantSystemStorage tenantSystemStorage) : base(staticFileContentService, tenantSystemStorage)
+            TenantSystemStorage tenantSystemStorage) : base(staticFileContentService)
         {
             _staticFileContentService = staticFileContentService;
             _tenantSystemStorage = tenantSystemStorage;
@@ -28,8 +28,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("profileimage")]
         public async Task<IActionResult> PublishPublicProfileImage([FromBody] PublishPublicProfileImageRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _staticFileContentService.PublishProfileImage(request.Image64, request.ContentType, cn);
+            await _staticFileContentService.PublishProfileImage(request.Image64, request.ContentType);
             return NoContent();
         }
 
@@ -37,8 +36,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("profilecard")]
         public async Task<IActionResult> PublishPublicProfileCard([FromBody] PublishPublicProfileCardRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _staticFileContentService.PublishProfileCard(request.ProfileCardJson, cn);
+            await _staticFileContentService.PublishProfileCard(request.ProfileCardJson);
             return NoContent();
         }
     }

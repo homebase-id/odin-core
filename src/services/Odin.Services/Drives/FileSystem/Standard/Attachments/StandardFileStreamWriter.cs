@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -20,7 +21,7 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header,IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header,IOdinContext odinContext, IdentityDatabase db)
     {
         return await FileSystem.Storage.UpdatePayloads(
             // package.InternalFile,
@@ -28,6 +29,6 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors(),
             odinContext,
-            cn);
+            db);
     }
 }

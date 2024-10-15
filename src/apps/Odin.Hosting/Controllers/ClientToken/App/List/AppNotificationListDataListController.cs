@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.List
     {
         public AppNotificationListDataListController(
             NotificationListService notificationService,
-            TenantSystemStorage tenantSystemStorage) : base(notificationService, tenantSystemStorage)
+            TenantSystemStorage tenantSystemStorage) : base(notificationService)
         {
         }
     }

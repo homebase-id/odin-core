@@ -1,9 +1,13 @@
+using System;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
+using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
@@ -11,23 +15,31 @@ namespace Odin.Services.Configuration.VersionUpgrade;
 
 //
 
-public class VersionUpgradeJob(
-    ILogger<VersionUpgradeJob> logger) : AbstractJob
+public class VersionUpgradeJob(VersionUpgradeService versionUpgradeService, ILogger<VersionUpgradeJob> logger) : AbstractJob
 {
     public VersionUpgradeJobData Data { get; set; } = new();
-
+    
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        ValidateJobData();
-
+        try
+        {
+            await versionUpgradeService.Upgrade(Data);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Version Upgrade Job railed to run");
+            return JobExecutionResult.Fail();
+        }
+        
+        // JobExecutionResult.Reschedule()
         // do the thing
-        await Task.CompletedTask;
         return JobExecutionResult.Success();
     }
 
     public override string? CreateJobHash()
     {
-        return base.CreateJobHash();
+        var text = JobType + Data.Tenant;
+        return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 
     //
@@ -46,21 +58,4 @@ public class VersionUpgradeJob(
 
     //
 
-    private void ValidateJobData()
-    {
-        if (string.IsNullOrEmpty(Data.Domain))
-        {
-            throw new OdinSystemException($"{nameof(Data.Domain)} is missing");
-        }
-
-        if (string.IsNullOrEmpty(Data.Email))
-        {
-            throw new OdinSystemException($"{nameof(Data.Email)} is missing");
-        }
-
-        if (string.IsNullOrEmpty(Data.FirstRunToken))
-        {
-            throw new OdinSystemException($"{nameof(Data.FirstRunToken)} is missing");
-        }
-    }
 }
