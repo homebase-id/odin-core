@@ -97,7 +97,7 @@ namespace Odin.Services.DataSubscription
                 {
                     AppId = SystemAppConstants.FeedAppId,
                     TypeId = CommentNotificationTypeId,
-                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.Value,
+                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     Silent = false,
                 },
                     newContext,

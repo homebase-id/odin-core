@@ -9,7 +9,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
@@ -140,7 +139,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = odinContext,
-                        GlobalTransitId = fileMetadata.ReferencedFile != null ? fileMetadata.ReferencedFile.GlobalTransitId : (Guid)fileMetadata.GlobalTransitId,
+                        GlobalTransitId = fileMetadata.ReferencedFile != null ? fileMetadata.ReferencedFile.GlobalTransitId : fileMetadata.GlobalTransitId.GetValueOrDefault(),
                         db = db
                     });
                 }
