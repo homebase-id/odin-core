@@ -14,46 +14,53 @@ public class KeyedAsyncMutex
 
     public async Task<IDisposable> LockedExecuteAsync(string key)
     {
-        (AsyncLock asyncLock, int refCount) mutex;
+        (AsyncLock asyncLock, int refCount) asyncLock;
         lock (_mutex)
         {
             if (_mutexes.TryGetValue(key, out var value))
             {
                 // Increment the reference count if the mutex already exists
-                mutex = (value.asyncLock, value.refCount + 1);
-                _mutexes[key] = mutex;
+                asyncLock = (value.asyncLock, value.refCount + 1);
+                _mutexes[key] = asyncLock;
             }
             else
             {
                 // Add a new mutex with reference count of 1
-                mutex = (new AsyncLock(), 1);
-                _mutexes[key] = mutex;
+                asyncLock = (new AsyncLock(), 1);
+                _mutexes[key] = asyncLock;
             }
         }
 
-        await mutex.asyncLock.LockAsync();
-        return new Releaser(this, key);
+        var disposer = await asyncLock.asyncLock.LockAsync();
+        return new Releaser(this, key, disposer);
     }
     
     //
 
-    private class Releaser(KeyedAsyncMutex parent, string key) : IDisposable
+    private class Releaser(KeyedAsyncMutex parent, string key, IDisposable asyncLockDisposer) : IDisposable
     {
         public void Dispose()
         {
-            lock (parent._mutex)
+            try
             {
-                if (parent._mutexes.TryGetValue(key, out var value))
+                asyncLockDisposer.Dispose();
+            }
+            finally
+            {
+                lock (parent._mutex)
                 {
-                    if (value.refCount == 1)
+                    if (parent._mutexes.TryGetValue(key, out var asyncLock))
                     {
-                        // Last reference, remove the mutex
-                        parent._mutexes.Remove(key);
-                    }
-                    else
-                    {
-                        // Decrement the reference count
-                        parent._mutexes[key] = (value.asyncLock, value.refCount - 1);
+                        if (asyncLock.refCount == 1)
+                        {
+                            // Last reference, remove the mutex
+                            parent._mutexes.Remove(key);
+                        }
+                        else
+                        {
+                            // Decrement the reference count
+                            parent._mutexes[key] = (asyncLock.asyncLock, asyncLock.refCount - 1);
+                        }
                     }
                 }
             }
