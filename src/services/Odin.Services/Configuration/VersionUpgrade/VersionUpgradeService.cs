@@ -3,10 +3,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.JobManagement;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -18,7 +22,7 @@ public sealed class VersionUpgradeService(
     ILogger<VersionUpgradeService> logger,
     IMultiTenantContainerAccessor tenantContainerAccessor,
     Odin.Services.Tenant.Tenant tenant,
-    IForgottenTasks forgottenTasks)
+    IJobManager jobManager)
 {
     private IOdinContext _odinContext;
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -28,17 +32,34 @@ public sealed class VersionUpgradeService(
 
     private bool IsRunning { get; set; }
 
-    public void TryRunNow(IOdinContext odinContext)
+    public async Task TryRunNow(IOdinContext odinContext)
     {
-        this._odinContext = odinContext;
         var scope = tenantContainerAccessor.Container().GetTenantScope(tenant.Name);
         var tenantSystemStorage = scope.Resolve<TenantSystemStorage>();
         using var cn = tenantSystemStorage.CreateConnection();
 
         if (ShouldRun(cn))
         {
-            var t = this.ExecuteAsync(cn, CancellationToken.None);
-            forgottenTasks.Add(t);
+            var job = jobManager.NewJob<VersionUpgradeJob>();
+
+            //TODO save key in memory
+            var key = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var json = OdinSystemSerializer.Serialize(odinContext);
+            var (iv, encryptedContext) = AesCbc.Encrypt(json.ToUtf8ByteArray(), key);
+            job.Data = new VersionUpgradeJobData()
+            {
+                Iv = iv,
+                OdinContextData = encryptedContext.ToBase64()
+            };
+
+            await jobManager.ScheduleJobAsync(job, new JobSchedule
+            {
+                RunAt = DateTimeOffset.Now,
+                MaxAttempts = 20,
+                RetryDelay = TimeSpan.FromMinutes(1),
+                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+            });
         }
     }
 
