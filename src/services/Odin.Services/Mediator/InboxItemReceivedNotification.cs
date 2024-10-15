@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
@@ -14,6 +15,6 @@ public class InboxItemReceivedNotification : MediatorNotificationBase
     public TargetDrive TargetDrive { get; init; }
     public FileSystemType FileSystemType { get; init; }
     public TransferFileType TransferFileType { get; init; }
-    public DatabaseConnection  DatabaseConnection { get; init; }
+    public IdentityDatabase db { get; init; }
     
 }

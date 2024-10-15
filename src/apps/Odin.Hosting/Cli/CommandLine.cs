@@ -141,6 +141,22 @@ public static class CommandLine
             Console.WriteLine("Connection timed out");
             return (true, 1);
         }
+        
+        //
+        // Command line: convert header files to database
+        //
+        // examples:
+        //
+        //   dotnet run -- --header2database
+        //
+        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --header2database
+        //
+        //
+        // if (args.Length == 1 && args[0] == "--header2database")
+        // {
+        //     Header2Database.Execute(args);
+        //     return (true, 0);
+        // }
 
         return (false, 0);
     }

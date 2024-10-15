@@ -166,12 +166,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
 public class RedactedPermissionGroup
 {
-    public RedactedPermissionGroup()
-    {
-        this.DriveGrants = new List<RedactedDriveGrant>();
-        this.PermissionSet = new RedactedPermissionSet();
-    }
-
-    public IEnumerable<RedactedDriveGrant> DriveGrants { get; set; }
-    public RedactedPermissionSet PermissionSet { get; set; }
+    public IEnumerable<RedactedDriveGrant> DriveGrants { get; set; } = new List<RedactedDriveGrant>();
+    public RedactedPermissionSet PermissionSet { get; set; } = new();
 }

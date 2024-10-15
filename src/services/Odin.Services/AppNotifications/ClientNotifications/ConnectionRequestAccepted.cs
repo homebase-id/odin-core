@@ -2,6 +2,7 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
 
@@ -13,7 +14,7 @@ namespace Odin.Services.AppNotifications.ClientNotifications
         public Guid NotificationTypeId { get; } = Guid.Parse("79f0932a-056e-490b-8208-3a820ad7c321");
         public OdinId Sender { get; init; }
         public OdinId Recipient { get; init; }
-        public DatabaseConnection DatabaseConnection { get; init; }
+        public IdentityDatabase db { get; init; }
 
         public string GetClientData()
         {

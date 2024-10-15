@@ -106,7 +106,7 @@ namespace Odin.Core.Storage.SQLite
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public virtual void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
+        public virtual void CreateDatabase(bool dropExistingTables = true)
         {
             throw new Exception("Not implemented");
         }

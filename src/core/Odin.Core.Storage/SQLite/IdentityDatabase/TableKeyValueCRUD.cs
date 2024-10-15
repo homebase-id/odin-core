@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("DatabaseCommitTest")]
+[assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -87,7 +91,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
@@ -115,7 +119,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _insertCommand = _database.CreateCommand())
@@ -143,7 +147,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _upsertCommand = _database.CreateCommand())
@@ -171,7 +175,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual int Update(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             using (var _updateCommand = _database.CreateCommand())
@@ -200,7 +204,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
             using (var _getCountCommand = _database.CreateCommand())
             {
@@ -223,7 +227,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,key,data
-        protected KeyValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal KeyValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -271,7 +275,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal int Delete(DatabaseConnection conn, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -296,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected KeyValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key)
+        internal KeyValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -326,7 +330,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected KeyValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal KeyValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");

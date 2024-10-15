@@ -36,10 +36,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
+            var db = _tenantSystemStorage.IdentityDatabase;
 
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, cn);
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()
