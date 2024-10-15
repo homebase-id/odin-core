@@ -50,6 +50,41 @@ namespace Odin.Hosting.Controllers.Base.Drive
         }
 
         /// <summary>
+        /// Returns the file header
+        /// </summary>
+        protected async Task<IActionResult> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier request, DatabaseConnection cn)
+        {
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
+            {
+                Alias = request.TargetDrive.Alias,
+                Type = request.TargetDrive.Type
+            });
+
+            WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
+
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var fileIdResult = await queryService.ResolveFileId(request, WebOdinContext, cn);
+
+            if (fileIdResult == null)
+            {
+                return NotFound();
+            }
+
+            var result = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage
+                .GetSharedSecretEncryptedHeader((InternalDriveFileId)fileIdResult, WebOdinContext, cn);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            // No caching on header
+            // AddGuestApiCacheHeader();
+
+            return new JsonResult(result);
+        }
+
+        /// <summary>
         /// Returns the payload for a given file
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request, DatabaseConnection cn)

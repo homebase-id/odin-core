@@ -59,6 +59,27 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
+        /// Retrieves a file's header and metadata by globalTransitId
+        /// </summary>
+        [HttpGet("files/header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            using var cn = tenantSystemStorage.CreateConnection();
+
+            return await base.GetFileHeaderByGlobalTransitId(
+                new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = globalTransitId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                }, cn);
+        }
+
+        /// <summary>
         /// Retrieves a file's payload
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -122,20 +143,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             using var cn = tenantSystemStorage.CreateConnection();
             return await base.GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
                 {
-                    File = new ExternalFileIdentifier()
+                    FileId = fileId,
+                    TargetDrive = new()
                     {
-                        FileId = fileId,
-                        TargetDrive = new()
-                        {
-                            Alias = alias,
-                            Type = type
-                        }
-                    },
-                    Width = width,
-                    Height = height,
-                    PayloadKey = payloadKey,
+                        Alias = alias,
+                        Type = type
+                    }
                 },
+                Width = width,
+                Height = height,
+                PayloadKey = payloadKey,
+            },
                 cn);
         }
 
