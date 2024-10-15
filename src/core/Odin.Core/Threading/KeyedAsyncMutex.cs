@@ -11,7 +11,7 @@ public class KeyedAsyncMutex
     // are not thread safe, so we need explicit locking instead.
     private readonly Dictionary<string, (AsyncLock asyncLock, int refCount)> _mutexes = new ();
 
-    public async Task ExecuteAsync(string key, Func<Task> action)
+    public async Task LockedExecuteAsync(string key, Func<Task> action)
     {
         (AsyncLock asyncLock, int refCount) mutex;
         lock (_mutexes)

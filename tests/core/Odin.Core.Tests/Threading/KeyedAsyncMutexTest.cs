@@ -15,7 +15,7 @@ public class KeyedAsyncMutexTests
         var keyedMutex = new KeyedAsyncMutex();
         var executed = false;
 
-        await keyedMutex.ExecuteAsync("test-key", async () =>
+        await keyedMutex.LockedExecuteAsync("test-key", async () =>
         {
             Assert.AreEqual(1, keyedMutex.Count);
             executed = true;
@@ -40,8 +40,8 @@ public class KeyedAsyncMutexTests
             counter = current + 1;
         }
 
-        var task1 = keyedMutex.ExecuteAsync("test-key", Action);
-        var task2 = keyedMutex.ExecuteAsync("test-key", Action);
+        var task1 = keyedMutex.LockedExecuteAsync("test-key", Action);
+        var task2 = keyedMutex.LockedExecuteAsync("test-key", Action);
 
         await Task.WhenAll(task1, task2);
 
@@ -61,7 +61,7 @@ public class KeyedAsyncMutexTests
         for (int i = 0; i < 10; i++)
         {
             var key = $"key-{i}";
-            runningTasks.Add(keyedMutex.ExecuteAsync(key, async () =>
+            runningTasks.Add(keyedMutex.LockedExecuteAsync(key, async () =>
             {
                 Interlocked.Increment(ref counter);
                 Assert.That(keyedMutex.Count, Is.EqualTo(counter));
@@ -91,11 +91,11 @@ public class KeyedAsyncMutexTests
         }
 
         // Execute twice with the same key to increment the reference count
-        await keyedMutex.ExecuteAsync("test-key", Action);
-        await keyedMutex.ExecuteAsync("test-key", Action);
+        await keyedMutex.LockedExecuteAsync("test-key", Action);
+        await keyedMutex.LockedExecuteAsync("test-key", Action);
 
         // Execute again to see if the key is correctly removed afterward
-        await keyedMutex.ExecuteAsync("test-key", Action);
+        await keyedMutex.LockedExecuteAsync("test-key", Action);
 
         Assert.AreEqual(3, executionCount, "The action should have been executed three times.");
         Assert.AreEqual(0, keyedMutex.Count, "The mutex for 'test-key' should have been removed after the final execution.");
