@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
@@ -70,6 +68,43 @@ public class TenantConfigService
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
         _tenantContext.UpdateSystemConfig(GetTenantSettings());
+    }
+
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public TenantVersionInfo IncrementVersion()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = null;
+        //TODO CONNECTIONS
+        // cn.CreateCommitUnitOfWork(() =>
+        {
+            var currentVersion = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+
+            newVersion = new TenantVersionInfo()
+            {
+                DataVersionNumber = currentVersion.DataVersionNumber++,
+                LastUpgraded = UnixTimeUtc.Now().milliseconds
+            };
+
+            _configStorage.Upsert(db, TenantVersionInfo.Key, newVersion);
+        }
+        //);
+
+        return newVersion;
+    }
+
+    public TenantVersionInfo GetVersionInfo()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var info = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+        return info ?? new TenantVersionInfo
+        {
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
     }
 
     public bool IsIdentityServerConfigured()
@@ -201,10 +236,10 @@ public class TenantConfigService
         // TODO CONNECTIONS
         // db.CreateCommitUnitOfWork(() => {
         _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
-            _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
-            {
-                FirstRunDate = UnixTimeUtc.Now().milliseconds
-            });
+        _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
+        {
+            FirstRunDate = UnixTimeUtc.Now().milliseconds
+        });
         // });
     }
 
@@ -246,7 +281,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -396,7 +432,7 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 ],
