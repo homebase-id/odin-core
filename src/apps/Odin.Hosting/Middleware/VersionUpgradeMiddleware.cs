@@ -7,9 +7,9 @@ using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Middleware
 {
-    public class VersionUpgradeMiddleware(RequestDelegate next, VersionUpgradeScheduler scheduler)
+    public class VersionUpgradeMiddleware(RequestDelegate next)
     {
-        public Task Invoke(HttpContext context, IOdinContext odinContext)
+        public Task Invoke(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
         {
             if (scheduler.RequiresUpgrade())
             {

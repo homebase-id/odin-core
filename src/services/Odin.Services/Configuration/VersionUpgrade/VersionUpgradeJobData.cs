@@ -1,10 +1,12 @@
 #nullable enable
 
+using Odin.Core.Identity;
+
 namespace Odin.Services.Configuration.VersionUpgrade;
 
 public class VersionUpgradeJobData
 {
-    public string? Tenant { get; init; }
+    public OdinId? Tenant { get; init; }
 
     public byte[]? Iv { get; init; }
 

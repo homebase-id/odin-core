@@ -58,9 +58,7 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
-            cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
-            
+           
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
@@ -222,6 +220,9 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
+            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
 
             // Background services
             cb.AddTenantBackgroundServices(tenant);

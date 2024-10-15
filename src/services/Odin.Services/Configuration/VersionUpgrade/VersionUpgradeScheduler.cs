@@ -12,7 +12,6 @@ namespace Odin.Services.Configuration.VersionUpgrade;
 /// Used to handle upgrades to data for each tenant based on the version number
 /// </summary>
 public sealed class VersionUpgradeScheduler(
-    Odin.Services.Tenant.Tenant tenant,
     TenantConfigService configService,
     VersionUpgradeService versionUpgradeService,
     IJobManager jobManager)
@@ -31,7 +30,7 @@ public sealed class VersionUpgradeScheduler(
         job.Data = new VersionUpgradeJobData()
         {
             Iv = iv,
-            Tenant = tenant.Name,
+            Tenant = odinContext.Tenant,
             EncryptedOdinContextData = encryptedContext
         };
 
