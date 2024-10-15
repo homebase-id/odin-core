@@ -91,9 +91,9 @@ namespace Odin.Hosting.Authentication.Owner
 
                 var claims = new List<Claim>()
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.Issuer),
+                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
                 };
 
                 var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
@@ -27,7 +26,7 @@ public static class AppAuthPathHandler
         var appRegService = context.RequestServices.GetRequiredService<IAppRegistrationService>();
         odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
-        var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext, db);
+        var ctx = await appRegService.GetAppPermissionContext(authToken, odinContext);
 
         if (null == ctx)
         {

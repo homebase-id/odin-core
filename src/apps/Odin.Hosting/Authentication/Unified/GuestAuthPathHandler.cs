@@ -83,7 +83,7 @@ public static class GuestAuthPathHandler
         IdentityDatabase cn)
     {
         var youAuthRegService = context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
-        var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext, cn);
+        var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken, odinContext);
         if (null == ctx)
         {
             //if still no context, fall back to anonymous

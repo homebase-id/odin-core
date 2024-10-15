@@ -102,9 +102,9 @@ namespace Odin.Hosting.Authentication.YouAuth
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
-                new(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
 
             // Steal this path from the http controller because here we have the client auth token
@@ -250,8 +250,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             var claims = new[]
             {
-                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
@@ -263,8 +263,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
-                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+                new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
             };
             return claims;
         }

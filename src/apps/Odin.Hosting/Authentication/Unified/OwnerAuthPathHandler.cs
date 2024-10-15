@@ -23,7 +23,7 @@ public static class OwnerAuthPathHandler
             try
             {
                 var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                if (!await authService.UpdateOdinContext(authResult, odinContext, cn))
+                if (!await authService.UpdateOdinContext(authResult, odinContext))
                 {
                     return AuthenticateResult.Fail("Invalid Owner Token");
                 }
@@ -71,7 +71,7 @@ public static class OwnerAuthPathHandler
         if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var authResult))
         {
             var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            authService.ExpireToken(authResult.Id, cn);
+            authService.ExpireToken(authResult.Id);
         }
 
         return Task.CompletedTask;
