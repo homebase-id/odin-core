@@ -770,7 +770,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
-
+            newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
+            newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+            
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             //only change the IV if the file was encrypted
