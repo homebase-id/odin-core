@@ -34,7 +34,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveDatabaseHost driveDatabaseHost) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
-        private readonly KeyedAsyncMutex _keyedAsyncMutex = new();
+        private readonly KeyedAsyncLock _keyedAsyncLock = new();
 
         protected override DriveManager DriveManager { get; } = driveManager;
 
@@ -843,7 +843,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IdentityDatabase db)
         {
             // SEB:TODO this kind of locking won't help us when we scale out horizontally
-            using (await _keyedAsyncMutex.LockedExecuteAsync(file.FileId.ToString()))
+            using (await _keyedAsyncLock.LockAsync(file.FileId.ToString()))
             {
                 ServerFileHeader header = null;
 
