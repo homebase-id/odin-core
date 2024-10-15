@@ -7,12 +7,12 @@ using Odin.Core.Threading;
 
 namespace Odin.Core.Tests.Threading;
 
-public class KeyedAsyncMutexTests
+public class KeyedAsyncLockTests
 {
     [Test]
     public async Task LockedExecuteAsync_SingleKey_AllowsOnlyOneAtATime()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key = "testKey";
         var executionOrder = new List<int>();
         var task1Started = new TaskCompletionSource<bool>();
@@ -20,7 +20,7 @@ public class KeyedAsyncMutexTests
 
         var task1 = Task.Run(async () =>
         {
-            using (await keyedMutex.LockedExecuteAsync(key))
+            using (await keyedMutex.LockAsync(key))
             {
                 executionOrder.Add(1);
                 task1Started.SetResult(true);
@@ -32,7 +32,7 @@ public class KeyedAsyncMutexTests
         var task2 = Task.Run(async () =>
         {
             await task1Started.Task;
-            using (await keyedMutex.LockedExecuteAsync(key))
+            using (await keyedMutex.LockAsync(key))
             {
                 executionOrder.Add(2);
                 task2Started.SetResult(true);
@@ -47,14 +47,14 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_DifferentKeys_DoNotBlockEachOther()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key1 = "key1";
         var key2 = "key2";
         var tasksCompleted = 0;
 
         var task1 = Task.Run(async () =>
         {
-            using (await keyedMutex.LockedExecuteAsync(key1))
+            using (await keyedMutex.LockAsync(key1))
             {
                 // Simulate work
                 await Task.Delay(100);
@@ -64,7 +64,7 @@ public class KeyedAsyncMutexTests
 
         var task2 = Task.Run(async () =>
         {
-            using (await keyedMutex.LockedExecuteAsync(key2))
+            using (await keyedMutex.LockAsync(key2))
             {
                 // Simulate work
                 await Task.Delay(100);
@@ -80,12 +80,12 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_LockReleased_MutexCountDecreases()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key = "testKey";
 
         Assert.That(keyedMutex.Count, Is.EqualTo(0));
 
-        var disposer = await keyedMutex.LockedExecuteAsync(key);
+        var disposer = await keyedMutex.LockAsync(key);
 
         Assert.That(keyedMutex.Count, Is.EqualTo(1));
 
@@ -97,12 +97,12 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_ExceptionWithinLock_LockIsReleased()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key = "testKey";
 
         try
         {
-            using (await keyedMutex.LockedExecuteAsync(key))
+            using (await keyedMutex.LockAsync(key))
             {
                 throw new InvalidOperationException("Test exception");
             }
@@ -116,7 +116,7 @@ public class KeyedAsyncMutexTests
 
         // Ensure another task can acquire the lock
         var wasAcquired = false;
-        using (await keyedMutex.LockedExecuteAsync(key))
+        using (await keyedMutex.LockAsync(key))
         {
             wasAcquired = true;
         }
@@ -127,7 +127,7 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_MultipleTasksSameKey_TasksAreSynchronized()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key = "sharedKey";
         var runningTasks = 0;
         var maxConcurrentTasks = 0;
@@ -138,7 +138,7 @@ public class KeyedAsyncMutexTests
         {
             tasks.Add(Task.Run(async () =>
             {
-                using (await keyedMutex.LockedExecuteAsync(key))
+                using (await keyedMutex.LockAsync(key))
                 {
                     Interlocked.Increment(ref runningTasks);
                     maxConcurrentTasks = Math.Max(maxConcurrentTasks, runningTasks);
@@ -157,7 +157,7 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_MultipleTasksDifferentKeys_TasksRunConcurrently()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var runningTasks = 0;
         var maxConcurrentTasks = 0;
 
@@ -168,7 +168,7 @@ public class KeyedAsyncMutexTests
             var key = $"key{i}";
             tasks.Add(Task.Run(async () =>
             {
-                using (await keyedMutex.LockedExecuteAsync(key))
+                using (await keyedMutex.LockAsync(key))
                 {
                     Interlocked.Increment(ref runningTasks);
                     maxConcurrentTasks = Math.Max(maxConcurrentTasks, runningTasks);
@@ -187,12 +187,12 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_ReentrantLocking_ThrowsException()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key = "testKey";
-        using (await keyedMutex.LockedExecuteAsync(key))
+        using (await keyedMutex.LockAsync(key))
         {
             // Attempt to acquire the same lock again on the same thread
-            var lockTask = keyedMutex.LockedExecuteAsync(key);
+            var lockTask = keyedMutex.LockAsync(key);
             var isCompleted = lockTask.IsCompleted;
 
             Assert.IsFalse(isCompleted, "Lock task should not be completed because the lock is already held.");
@@ -216,15 +216,15 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_MultipleLocks_CountIsAccurate()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var key1 = "key1";
         var key2 = "key2";
         var key3 = "key3";
 
         Assert.That(keyedMutex.Count, Is.EqualTo(0));
 
-        var disposer1 = await keyedMutex.LockedExecuteAsync(key1);
-        var disposer2 = await keyedMutex.LockedExecuteAsync(key2);
+        var disposer1 = await keyedMutex.LockAsync(key1);
+        var disposer2 = await keyedMutex.LockAsync(key2);
 
         Assert.That(keyedMutex.Count, Is.EqualTo(2));
 
@@ -232,7 +232,7 @@ public class KeyedAsyncMutexTests
 
         Assert.That(keyedMutex.Count, Is.EqualTo(1));
 
-        var disposer3 = await keyedMutex.LockedExecuteAsync(key3);
+        var disposer3 = await keyedMutex.LockAsync(key3);
 
         Assert.That(keyedMutex.Count, Is.EqualTo(2));
 
@@ -246,10 +246,10 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_SingleExecution_CompletesSuccessfully()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var executed = false;
 
-        using (await keyedMutex.LockedExecuteAsync("test-key"))
+        using (await keyedMutex.LockAsync("test-key"))
         {
             Assert.AreEqual(1, keyedMutex.Count);
             executed = true;
@@ -263,12 +263,12 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_ConcurrentSameKey_ExecutesSerially()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var counter = 0;
 
         async Task Action()
         {
-            using (await keyedMutex.LockedExecuteAsync("test-key"))
+            using (await keyedMutex.LockAsync("test-key"))
             {
                 await Task.Delay(100);
                 counter++;
@@ -288,7 +288,7 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_ParallelSameKey_ExecutesSequentially()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var runningTasks = new List<Task>();
         var counter = 0;
         
@@ -296,7 +296,7 @@ public class KeyedAsyncMutexTests
         {
             runningTasks.Add(Task.Run(async () =>
             {
-                using (await keyedMutex.LockedExecuteAsync("somekey"))
+                using (await keyedMutex.LockAsync("somekey"))
                 {
                     Assert.AreEqual(1, keyedMutex.Count);
                     counter++;
@@ -314,7 +314,7 @@ public class KeyedAsyncMutexTests
     [Test]
     public async Task LockedExecuteAsync_ConcurrentDifferentKeys_ExecutesConcurrently()
     {
-        var keyedMutex = new KeyedAsyncMutex();
+        var keyedMutex = new KeyedAsyncLock();
         var runningTasks = new List<Task>();
         var counter = 0;
 
@@ -324,7 +324,7 @@ public class KeyedAsyncMutexTests
             var key = $"key-{i}";
             runningTasks.Add(Task.Run(async () =>
             {
-                using (await keyedMutex.LockedExecuteAsync(key))
+                using (await keyedMutex.LockAsync(key))
                 {
                     Interlocked.Increment(ref counter);
                     await Task.Delay(100);
