@@ -77,7 +77,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task ProcessInboxItem(TransferInboxItem inboxItem, IOdinContext odinContext)
         {
-            using var db = tenantSystemStorage.IdentityDatabase;
+            var db = tenantSystemStorage.IdentityDatabase;
             PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
 
             // await db.CreateCommitUnitOfWorkAsync(async () =>
