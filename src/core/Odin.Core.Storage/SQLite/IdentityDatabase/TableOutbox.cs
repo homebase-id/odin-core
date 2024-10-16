@@ -9,7 +9,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private readonly IdentityDatabase _db;
 
-        public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
             _db = db;
         }
@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <returns></returns>
         public OutboxRecord CheckOutItem()
         {
-            using (var _popAllCommand = _database.CreateCommand())
+            using (var _popAllCommand = _db.CreateCommand())
             {
                 _popAllCommand.CommandText = """
                         UPDATE outbox
@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public UnixTimeUtc? NextScheduledItem()
         {
-            using (var _nextScheduleCommand = _database.CreateCommand())
+            using (var _nextScheduleCommand = _db.CreateCommand())
             {
                 _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox WHERE identityId=$identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
@@ -185,7 +185,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="checkOutStamp"></param>
         public int CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
-            using (var _popCancelCommand = _database.CreateCommand())
+            using (var _popCancelCommand = _db.CreateCommand())
             {
                 _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE identityId=$identityId AND checkOutStamp=$checkOutStamp";
 
@@ -220,7 +220,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="checkOutStamp"></param>
         public int CompleteAndRemove(Guid checkOutStamp)
         {
-            using (var _popCommitCommand = _database.CreateCommand())
+            using (var _popCommitCommand = _db.CreateCommand())
             {
                 _popCommitCommand.CommandText = "DELETE FROM outbox WHERE identityId=$identityId AND checkOutStamp=$checkOutStamp";
 
@@ -252,7 +252,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         public int RecoverCheckedOutDeadItems(UnixTimeUtc pastThreshold)
         {
-            using (var _popRecoverCommand = _database.CreateCommand())
+            using (var _popRecoverCommand = _db.CreateCommand())
             {
                 _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE identityId=$identityId AND checkOutStamp < $checkOutStamp";
 
@@ -288,7 +288,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus()
         {
-            using (var _popStatusCommand = _database.CreateCommand())
+            using (var _popStatusCommand = _db.CreateCommand())
             {
                 _popStatusCommand.CommandText =
                     "SELECT count(*) FROM outbox WHERE identityId=$identityId;" +
@@ -351,7 +351,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int, int, UnixTimeUtc) OutboxStatusDrive(Guid driveId)
         {
-            using (var _popStatusSpecificBoxCommand = _database.CreateCommand())
+            using (var _popStatusSpecificBoxCommand = _db.CreateCommand())
             {
                 _popStatusSpecificBoxCommand.CommandText =
                     "SELECT count(*) FROM outbox WHERE identityId=$identityId AND driveId=$driveId;" +

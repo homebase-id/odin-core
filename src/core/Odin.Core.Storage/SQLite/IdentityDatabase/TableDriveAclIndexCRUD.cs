@@ -55,7 +55,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private bool _disposed = false;
 
-        public TableDriveAclIndexCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "driveAclIndex")
+        public TableDriveAclIndexCRUD(CacheHelper cache) : base("driveAclIndex")
         {
         }
 
@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -99,7 +99,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)";
@@ -133,7 +133,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)";
@@ -167,7 +167,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.aclMemberId, "Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveAclIndex " +
                                              "SET  "+
@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -254,7 +254,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
-            using (var _getCountDriveCommand = _database.CreateCommand())
+            using (var _getCountDriveCommand = conn.db.CreateCommand())
             {
                 _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
                 var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId";
@@ -352,7 +352,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _delete1Command = _database.CreateCommand())
+            using (var _delete1Command = conn.db.CreateCommand())
             {
                 _delete1Command.CommandText = "DELETE FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
@@ -392,7 +392,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal DriveAclIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT identityId,driveId,fileId,aclMemberId FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;";
@@ -430,7 +430,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal List<Guid> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT aclMemberId FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";

@@ -71,7 +71,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableFollowsMeCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "followsMe")
+        public TableFollowsMeCRUD(CacheHelper cache) : base("followsMe")
         {
             _cache = cache;
         }
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -114,7 +114,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Insert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified)";
@@ -153,7 +153,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int TryInsert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO followsMe (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified)";
@@ -192,7 +192,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Upsert(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created) " +
                                              "VALUES (@identityId,@identity,@driveId,@created)"+
@@ -242,7 +242,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Update(DatabaseConnection conn, FollowsMeRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE followsMe " +
                                              "SET modified = @modified "+
@@ -280,7 +280,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM followsMe; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -361,7 +361,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId";
@@ -425,7 +425,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
             if (hit)
                 return (FollowsMeRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT created,modified FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
@@ -505,7 +505,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT driveId,created,modified FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity;";

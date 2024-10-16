@@ -2,7 +2,7 @@
 {
     public class TableKeyUniqueThreeValue : TableKeyUniqueThreeValueCRUD
     {
-        public TableKeyUniqueThreeValue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableKeyUniqueThreeValue(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
         }
 

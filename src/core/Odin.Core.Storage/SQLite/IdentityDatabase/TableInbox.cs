@@ -9,7 +9,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private readonly IdentityDatabase _db;
 
-        public TableInbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableInbox(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
             _db = db;
         }
@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <returns>List of records</returns>
         public List<InboxRecord> PopSpecificBox(Guid boxId, int count)
         {
-            using (var _popCommand = _database.CreateCommand())
+            using (var _popCommand = _db.CreateCommand())
             {
                 _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=$identityId AND boxId=$boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
                                           "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = $identityId AND popstamp=$popstamp";
@@ -123,7 +123,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int, int, UnixTimeUtc) PopStatus()
         {
-            using (var _popStatusCommand = _database.CreateCommand())
+            using (var _popStatusCommand = _db.CreateCommand())
             {
                 _popStatusCommand.CommandText =
                     "SELECT count(*) FROM inbox WHERE identityId=$identityId;" +
@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int totalCount, int poppedCount, UnixTimeUtc oldestItemTime) PopStatusSpecificBox(Guid boxId)
         {
-            using (var _popStatusSpecificBoxCommand = _database.CreateCommand())
+            using (var _popStatusSpecificBoxCommand = _db.CreateCommand())
             {
                 _popStatusSpecificBoxCommand.CommandText =
                     "SELECT count(*) FROM inbox WHERE identityId=$identityId AND boxId=$boxId;" +
@@ -262,7 +262,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public int PopCancelAll(Guid popstamp)
         {
-            using (var _popCancelCommand = _database.CreateCommand())
+            using (var _popCancelCommand = _db.CreateCommand())
             {
                 _popCancelCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp=$popstamp";
 
@@ -287,7 +287,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public void PopCancelList(Guid popstamp, Guid driveId, List<Guid> listFileId)
         {
-            using (var _popCancelListCommand = _database.CreateCommand())
+            using (var _popCancelListCommand = _db.CreateCommand())
             {
                 _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
 
@@ -327,7 +327,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public int PopCommitAll(Guid popstamp)
         {
-            using (var _popCommitCommand = _database.CreateCommand())
+            using (var _popCommitCommand = _db.CreateCommand())
             {
                 _popCommitCommand.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND popstamp=$popstamp";
 
@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public void PopCommitList(Guid popstamp, Guid driveId, List<Guid> listFileId)
         {
-            using (var _popCommitListCommand = _database.CreateCommand())
+            using (var _popCommitListCommand = _db.CreateCommand())
             {
                 _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
 
@@ -399,7 +399,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         public int PopRecoverDead(UnixTimeUtc ut)
         {
-            using (var _popRecoverCommand = _database.CreateCommand())
+            using (var _popRecoverCommand = _db.CreateCommand())
             {
                 _popRecoverCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp < $popstamp";
 

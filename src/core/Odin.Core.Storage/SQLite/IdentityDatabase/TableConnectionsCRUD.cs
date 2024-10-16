@@ -101,7 +101,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableConnectionsCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "connections")
+        public TableConnectionsCRUD(CacheHelper cache) : base("connections")
         {
             _cache = cache;
         }
@@ -119,7 +119,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Insert(DatabaseConnection conn, ConnectionsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified)";
@@ -198,7 +198,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int TryInsert(DatabaseConnection conn, ConnectionsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified)";
@@ -249,7 +249,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Upsert(DatabaseConnection conn, ConnectionsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO connections (identityId,identity,displayName,status,accessIsRevoked,data,created) " +
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created)"+
@@ -311,7 +311,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal virtual int Update(DatabaseConnection conn, ConnectionsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE connections " +
                                              "SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = @modified "+
@@ -361,7 +361,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM connections; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -466,7 +466,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int Delete(DatabaseConnection conn, Guid identityId,OdinId identity)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM connections " +
                                              "WHERE identityId = @identityId AND identity = @identity";
@@ -553,7 +553,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
             if (hit)
                 return (ConnectionsRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                              "WHERE identityId = @identityId AND identity = @identity LIMIT 1;";
@@ -590,7 +590,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _getPaging2Command = _database.CreateCommand())
+            using (var _getPaging2Command = conn.db.CreateCommand())
             {
                 _getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                             "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
@@ -640,7 +640,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _getPaging2Command = _database.CreateCommand())
+            using (var _getPaging2Command = conn.db.CreateCommand())
             {
                 _getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
@@ -694,7 +694,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
-            using (var _getPaging7Command = _database.CreateCommand())
+            using (var _getPaging7Command = conn.db.CreateCommand())
             {
                 _getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT $_count;";
@@ -748,7 +748,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
-            using (var _getPaging7Command = _database.CreateCommand())
+            using (var _getPaging7Command = conn.db.CreateCommand())
             {
                 _getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                             "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";

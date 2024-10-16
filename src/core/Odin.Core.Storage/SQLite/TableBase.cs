@@ -5,11 +5,9 @@ namespace Odin.Core.Storage.SQLite
 {
     public class TableBase : IDisposable
     {
-        protected readonly DatabaseBase _database = null;
         public readonly string _tableName;
-        public TableBase(DatabaseBase db, string tableName)
+        public TableBase(string tableName)
         {
-            _database = db;
             _tableName = tableName;
         }
 

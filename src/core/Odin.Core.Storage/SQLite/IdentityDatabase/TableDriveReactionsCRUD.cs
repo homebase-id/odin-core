@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private bool _disposed = false;
 
-        public TableDriveReactionsCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "driveReactions")
+        public TableDriveReactionsCRUD(CacheHelper cache) : base("driveReactions")
         {
         }
 
@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -111,7 +111,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
                                              "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)";
@@ -148,7 +148,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
                                              "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)";
@@ -185,7 +185,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
                                              "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)"+
@@ -221,7 +221,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.postId, "Guid parameter postId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveReactions " +
                                              "SET  "+
@@ -256,7 +256,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveReactions; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -280,7 +280,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
-            using (var _getCountDriveCommand = _database.CreateCommand())
+            using (var _getCountDriveCommand = conn.db.CreateCommand())
             {
                 _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveReactions WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
                 var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
             if (singleReaction?.Length > 80) throw new Exception("Too long");
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM driveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction";
@@ -389,7 +389,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int DeleteAllReactions(DatabaseConnection conn, Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
-            using (var _delete1Command = _database.CreateCommand())
+            using (var _delete1Command = conn.db.CreateCommand())
             {
                 _delete1Command.CommandText = "DELETE FROM driveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
@@ -440,7 +440,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
             if (singleReaction?.Length > 80) throw new Exception("Too long");
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM driveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction LIMIT 1;";
