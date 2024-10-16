@@ -6,7 +6,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableCircle : TableCircleCRUD
     {
         private readonly IdentityDatabase _db;
-        public TableCircle(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableCircle(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
             _db = db;
         }

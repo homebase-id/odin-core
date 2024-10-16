@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableKeyChainCRUD(KeyChainDatabase db, CacheHelper cache) : base(db, "keyChain")
+        public TableKeyChainCRUD(CacheHelper cache) : base("keyChain")
         {
             _cache = cache;
         }
@@ -122,7 +122,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual int Insert(DatabaseConnection conn, KeyChainRecord item)
         {
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
@@ -190,7 +190,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, KeyChainRecord item)
         {
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
@@ -233,7 +233,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual int Upsert(DatabaseConnection conn, KeyChainRecord item)
         {
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
@@ -276,7 +276,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
         public virtual int Update(DatabaseConnection conn, KeyChainRecord item)
         {
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE keyChain " +
                                              "SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
@@ -320,7 +320,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyChain; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -432,7 +432,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null");
             if (publicKeyJwkBase64Url?.Length < 16) throw new Exception("Too short");
             if (publicKeyJwkBase64Url?.Length > 600) throw new Exception("Too long");
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM keyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url";
@@ -536,7 +536,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
             if (hit)
                 return (KeyChainRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;";
