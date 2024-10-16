@@ -18,6 +18,11 @@ public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, Lis
 {
     private GuestApiClientFactory _factory;
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        throw new NotImplementedException();
+    }
+    
     public TargetDrive TargetDrive { get; } = default;
 
     public DrivePermission DrivePermission => throw new NotImplementedException();

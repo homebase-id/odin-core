@@ -16,6 +16,11 @@ public class GuestSpecifyAccessToDrive(TargetDrive targetDrive, DrivePermission 
     private readonly TestPermissionKeyList _keys = keys;
     private GuestApiClientFactory _factory;
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        throw new NotImplementedException();
+    }
+    
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = drivePermission;
 

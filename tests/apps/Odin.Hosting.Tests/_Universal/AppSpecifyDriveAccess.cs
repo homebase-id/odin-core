@@ -16,6 +16,11 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
 {
     private AppApiClientFactory _factory;
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        throw new NotImplementedException();
+    }
+
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = permission;
 

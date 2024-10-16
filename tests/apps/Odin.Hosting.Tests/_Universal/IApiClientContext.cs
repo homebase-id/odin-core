@@ -14,6 +14,8 @@ public interface IApiClientContext
     // Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
     Task Initialize(OwnerApiClientRedux ownerApiClient);
     
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext);
+
     TargetDrive TargetDrive { get; }
     
     DrivePermission DrivePermission { get; }

@@ -14,6 +14,11 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
 {
     private AppApiClientFactory _factory;
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        throw new NotImplementedException();
+    }
+    
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = DrivePermission.ReadWrite;
 

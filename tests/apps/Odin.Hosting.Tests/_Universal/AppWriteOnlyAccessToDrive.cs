@@ -16,6 +16,11 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
     private readonly TestPermissionKeyList _keys;
     private AppApiClientFactory _factory;
 
+    public Task InitializeV2(OwnerAuthTokenContext tokenContext)
+    {
+        throw new NotImplementedException();
+    }
+    
     public AppWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null)
     {
         TargetDrive = targetDrive;
