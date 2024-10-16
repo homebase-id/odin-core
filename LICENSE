@@ -1,5 +1,5 @@
                            HOMEBASE.ID LICENSE
-                        Version 0.2, 16 OOctober 2024
+                        Version 0.2, 16 October 2024
 
 Homebase.id is a decentralized personal communication, personal storage, 
 social network and self-sovereign identity management system. It serves as a
@@ -38,11 +38,7 @@ serves to promote coherence, transparency and collaboration in software
 development, and to ensure that improvements to Homebase software are shared
 back with the community, enhancing collective progress.
 
-The notes on the AGPL v3 above are only for explanatory purposes. The legally
-binding license agreement for your use of the Homebase software is the text of
-the AGPL v3 with the restriction on use for commercial hosting services as 
-defined here.
-
+The notes on the AGPL v3 above are only for explanatory purposes.
 
 2. CRYPTOGRAPHIC NOTICE
 
