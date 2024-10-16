@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
@@ -14,8 +15,11 @@ namespace Odin.Services.Configuration.VersionUpgrade;
 public sealed class VersionUpgradeScheduler(
     TenantConfigService configService,
     VersionUpgradeService versionUpgradeService,
+    ILogger<VersionUpgradeScheduler> logger,
     IJobManager jobManager)
 {
+    private readonly IJobManager _jobManager = jobManager;
+
     public async Task ScheduleUpgradeJobIfNeeded(IOdinContext odinContext)
     {
         if (!odinContext.Caller.HasMasterKey || !RequiresUpgrade())
@@ -23,7 +27,7 @@ public sealed class VersionUpgradeScheduler(
             return;
         }
 
-        var job = jobManager.NewJob<VersionUpgradeJob>();
+        var job = _jobManager.NewJob<VersionUpgradeJob>();
 
         var json = OdinSystemSerializer.Serialize(odinContext);
         var (iv, encryptedContext) = AesCbc.Encrypt(json.ToUtf8ByteArray(), versionUpgradeService.TemporalEncryptionKey);
@@ -34,7 +38,8 @@ public sealed class VersionUpgradeScheduler(
             EncryptedOdinContextData = encryptedContext
         };
 
-        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        logger.LogInformation("Scheduling version upgrade job");
+        await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.Now,
             MaxAttempts = 20,

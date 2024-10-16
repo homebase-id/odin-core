@@ -2,6 +2,8 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Odin.Hosting.Controllers.OwnerToken.Configuration;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 
@@ -11,12 +13,18 @@ namespace Odin.Hosting.Middleware
     {
         public Task Invoke(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
         {
-            if (scheduler.RequiresUpgrade())
+            var path = context.Request.Path.Value;
+            if (path != null && 
+                !path.Contains(OwnerConfigurationController.InitialSetupEndpoint) &&
+                !path.StartsWith(OwnerApiPathConstants.AuthV1))
             {
-                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                return Task.CompletedTask;
+                if (scheduler.RequiresUpgrade())
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                    return Task.CompletedTask;
+                }
             }
-            
+
             return next.Invoke(context);
         }
     }

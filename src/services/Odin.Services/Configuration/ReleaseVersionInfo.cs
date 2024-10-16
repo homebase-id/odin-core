@@ -5,5 +5,5 @@ namespace Odin.Services.Configuration;
 /// </summary>
 public static class ReleaseVersionInfo
 {
-    public const int DataVersionNumber = 0;
+    public const int DataVersionNumber = 1;
 }

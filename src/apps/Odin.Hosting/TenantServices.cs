@@ -42,10 +42,10 @@ using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
-using Odin.Services.DataConversion;
 using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Membership.Connections.Verification;
@@ -236,11 +236,10 @@ namespace Odin.Hosting
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<DataConversionService>().AsSelf().SingleInstance();
-
+            cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().As<IVersionMigrationService>().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
-
+            
             // Background services
             cb.AddTenantBackgroundServices(tenant);
         }

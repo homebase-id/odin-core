@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -9,20 +8,27 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Verification;
 
-namespace Odin.Services.DataConversion
+namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 {
     /// <summary>
     /// Service to handle converting data between releases
     /// </summary>
-    public class DataConversionService(
-        ILogger<DataConversionService> logger,
+    public class V0ToV1VersionMigrationService(
+        ILogger<V0ToV1VersionMigrationService> logger,
         IAppRegistrationService appRegistrationService,
         TenantSystemStorage tenantSystemStorage,
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
         CircleNetworkVerificationService verificationService,
-        PublicPrivateKeyService publicPrivateKeyService)
+        PublicPrivateKeyService publicPrivateKeyService) : IVersionMigrationService
     {
+        public async Task Upgrade(IOdinContext odinContext)
+        {
+            await AutoFixCircleGrants(odinContext);
+
+            await PrepareIntroductionsRelease(odinContext);
+        }
+
         public async Task AutoFixCircleGrants(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -53,13 +59,12 @@ namespace Odin.Services.DataConversion
         public async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var db = tenantSystemStorage.IdentityDatabase;
 
             //
             // Generate new Online Icr Encrypted ECC Key
             //
             await publicPrivateKeyService.CreateInitialKeys(odinContext);
-            
+
             //
             // Create new circles
             //
@@ -83,7 +88,6 @@ namespace Odin.Services.DataConversion
             }
             //);
         }
-
 
         private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, IdentityDatabase db)
         {

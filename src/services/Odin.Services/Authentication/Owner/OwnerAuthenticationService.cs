@@ -407,6 +407,8 @@ namespace Odin.Services.Authentication.Owner
                 {
                     FirstLoginDate = UnixTimeUtc.Now()
                 });
+
+                _tenantConfigService.IncrementVersion();
             }
         }
 

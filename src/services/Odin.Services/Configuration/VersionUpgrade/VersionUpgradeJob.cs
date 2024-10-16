@@ -2,12 +2,10 @@ using System;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
-using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 

@@ -82,11 +82,15 @@ public class TenantConfigService
         //TODO CONNECTIONS
         // cn.CreateCommitUnitOfWork(() =>
         {
-            var currentVersion = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+            var currentVersion = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key) ?? new TenantVersionInfo()
+            {
+                DataVersionNumber = 0,
+                LastUpgraded = 0
+            };
 
             newVersion = new TenantVersionInfo()
             {
-                DataVersionNumber = currentVersion.DataVersionNumber++,
+                DataVersionNumber = ++currentVersion.DataVersionNumber,
                 LastUpgraded = UnixTimeUtc.Now().milliseconds
             };
 
