@@ -175,7 +175,7 @@ public class GroupReactionService(
             }
         };
 
-        await peerOutbox.AddItem(outboxItem, db, useUpsert: true);
+        await peerOutbox.AddItem(outboxItem, useUpsert: true);
         return TransferStatus.Enqueued;
     }
 }

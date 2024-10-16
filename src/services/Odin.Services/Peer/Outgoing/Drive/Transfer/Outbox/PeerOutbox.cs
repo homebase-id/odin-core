@@ -1,27 +1,28 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Mediator;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(TenantSystemStorage tenantSystemStorage)
+    public class PeerOutbox(TenantSystemStorage tenantSystemStorage, IMediator mediator)
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task AddItem(OutboxFileItem fileItem, IdentityDatabase db, bool useUpsert = false)
+        public async Task AddItem(OutboxFileItem fileItem, bool useUpsert = false)
         {
             var record = new OutboxRecord()
             {
@@ -42,10 +43,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 tenantSystemStorage.Outbox.Insert(record);
             }
-            
+
+            await mediator.Publish(new OutboxItemAddedNotification());
             PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
             
-            return Task.CompletedTask;
         }
 
         public Task MarkComplete(Guid marker, IdentityDatabase db)

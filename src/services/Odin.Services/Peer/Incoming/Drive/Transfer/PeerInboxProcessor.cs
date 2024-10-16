@@ -37,7 +37,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
-        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, IdentityDatabase db, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
         {
             int actualBatchSize = batchSize == 0 ? 1 : batchSize;
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
@@ -46,7 +46,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 batchSize, actualBatchSize);
 
             var status = transitInboxBoxStorage.GetPendingCount(driveId);
-            logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+            logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}",
+                targetDrive.ToString(),
                 status.PoppedCount, status.TotalItems,
                 status.OldestItemTimestamp.milliseconds);
 
@@ -114,7 +115,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
-                        var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
+                        var decryptedKeyHeader =
+                            await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
                         var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                         {
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
@@ -122,7 +124,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                 odinContext, db);
                         });
 
-                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId, handleFileMs);
+                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
+                            handleFileMs);
                     }
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
@@ -257,7 +260,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = inboxItem.DriveId
             };
 
-            var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
+            var updateInstructionSet =
+                OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
             var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
             await writer.UpdateFile(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, db);
         }
@@ -305,7 +309,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
         }
 
-        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer, InternalDriveFileId tempFile,
+        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer,
+            InternalDriveFileId tempFile,
             IDriveFileSystem fs)
         {
             try
@@ -322,7 +327,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     var db = tenantSystemStorage.IdentityDatabase;
                     await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
-                        odinContext, db,feedPayload.DriveOriginWasCollaborative);
+                        odinContext, db, feedPayload.DriveOriginWasCollaborative);
                 });
 
                 logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);
@@ -337,7 +342,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private InboxStatus GetPendingCount(TargetDrive targetDrive, Guid driveId)
         {
             var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId);
-            logger.LogDebug("Returning: Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+            logger.LogDebug("Returning: Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}",
+                targetDrive.ToString(),
                 pendingCount.PoppedCount, pendingCount.TotalItems,
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;

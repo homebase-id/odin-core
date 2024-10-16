@@ -60,6 +60,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 
+                // var theDrive = await driveManager.GetDrive(tempFile.DriveId, db);
                 if (null == metadata)
                 {
                     logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId,

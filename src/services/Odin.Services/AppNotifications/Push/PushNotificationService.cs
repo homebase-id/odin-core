@@ -60,7 +60,8 @@ public class PushNotificationService(
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
+        IdentityDatabase db)
     {
         //validate the calling app on the recipient server have access to send notifications
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
@@ -147,7 +148,8 @@ public class PushNotificationService(
             notification.db);
     }
 
-    public async Task Push(PushNotificationContent content, IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task Push(PushNotificationContent content, IOdinContext odinContext, IdentityDatabase db,
+        CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting push notification");
 
@@ -175,7 +177,8 @@ public class PushNotificationService(
         await Task.WhenAll(tasks);
     }
 
-    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext,
+    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content,
+        IOdinContext odinContext,
         IdentityDatabase db, CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
@@ -195,7 +198,8 @@ public class PushNotificationService(
             if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
             {
                 await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
-                logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                logger.LogInformation(
+                    "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
 
                 return;
@@ -204,14 +208,16 @@ public class PushNotificationService(
             if (exception.Message.StartsWith("Received unexpected response code: 403", true, CultureInfo.InvariantCulture))
             {
                 await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
-                logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                logger.LogInformation(
+                    "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
 
                 return;
             }
-            
-                
-            logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
+
+
+            logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}",
+                exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
 
@@ -226,7 +232,8 @@ public class PushNotificationService(
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
-    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext, IdentityDatabase db)
+    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext,
+        IdentityDatabase db)
     {
         logger.LogDebug("Attempting DevicePush Notification");
 
@@ -330,7 +337,8 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private async Task<bool> EnqueueNotificationInternal(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<bool> EnqueueNotificationInternal(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
+        IdentityDatabase db)
     {
         var timestamp = UnixTimeUtc.Now().milliseconds;
 
@@ -352,7 +360,7 @@ public class PushNotificationService(
             File = new InternalDriveFileId()
             {
                 DriveId = Guid.NewGuid(),
-                FileId = options.TagId
+                FileId = options.TagId == Guid.Empty ? SequentialGuid.CreateGuid() : options.TagId
             },
             Recipient = odinContext.Tenant,
             DependencyFileId = default,
@@ -366,10 +374,10 @@ public class PushNotificationService(
                 }).ToUtf8ByteArray()
             }
         };
-        
+
         logger.LogDebug("Enqueuing notification. Sender: {senderId}, Recipient: {recipient}", senderId, odinContext.Tenant);
 
-        await peerOutbox.AddItem(item, db);
+        await peerOutbox.AddItem(item);
         await mediator.Publish(new PushNotificationEnqueuedNotification()
         {
             OdinContext = odinContext,

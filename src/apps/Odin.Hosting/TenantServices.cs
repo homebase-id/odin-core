@@ -1,5 +1,6 @@
 using Autofac;
 using MediatR;
+using Microsoft.VisualBasic;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -214,7 +215,11 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingTransferService>().As<PeerOutgoingTransferService>().SingleInstance();
+            cb.RegisterType<PeerOutgoingTransferService>().SingleInstance();
+            
+            cb.RegisterType<PeerOutboxProcessorMediatorAdapter>()
+                .As<INotificationHandler<OutboxItemAddedNotification>>()
+                .AsSelf();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
