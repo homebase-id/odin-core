@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
@@ -43,7 +44,7 @@ namespace Odin.Core.Storage.SQLite
             _connectionString = builder.ToString();
             _databaseSource = dataSource;
 
-            using (var cn = new SqliteConnection(_connectionString))
+            using (DbConnection cn = new SqliteConnection(_connectionString))
             {
                 cn.Open();
                 InitSqliteJournalModeWal(cn);
@@ -99,8 +100,8 @@ namespace Odin.Core.Storage.SQLite
             // Needed on Windows to avoid file locking issues.
             // When we get here, it is assumed that all connections are closed.
             // This last bit makes sure that the connection pool is cleared and all file handles are closed.
-            using var cn = new SqliteConnection(_connectionString);
-            SqliteConnection.ClearPool(cn);
+            using DbConnection cn = new SqliteConnection(_connectionString);
+            SqliteConnection.ClearPool((SqliteConnection) cn);
         }
 
         /// <summary>
@@ -118,7 +119,7 @@ namespace Odin.Core.Storage.SQLite
             return cmd;
         }
 
-        private static void InitSqliteJournalModeWal(SqliteConnection cn)
+        private static void InitSqliteJournalModeWal(DbConnection cn)
         {
             using var command = cn.CreateCommand();
             command.CommandText = "PRAGMA journal_mode=WAL;";
