@@ -586,7 +586,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
-
+            newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
+            newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
 
             //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
@@ -770,7 +771,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
-
+            newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
+            newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+            
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             //only change the IV if the file was encrypted
