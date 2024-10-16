@@ -1,7 +1,6 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
