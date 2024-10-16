@@ -13,5 +13,6 @@ public class NewFeedItemReceived : MediatorNotificationBase
 {
     public OdinId Sender { get; init; }
     public FileSystemType FileSystemType { get; init; }
+    public Guid GlobalTransitId { get; init; }
     public IdentityDatabase db { get; init; }
 }

@@ -20,7 +20,7 @@ public class TableJobs : TableJobsCRUD
 {
     private readonly ServerDatabase _db;
 
-    public TableJobs(ServerDatabase db, CacheHelper? cache) : base(db, cache)
+    public TableJobs(ServerDatabase db, CacheHelper? cache) : base(cache)
     {
         _db = db;
     }

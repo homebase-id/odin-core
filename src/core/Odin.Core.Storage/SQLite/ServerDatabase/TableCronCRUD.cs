@@ -107,7 +107,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
     {
         private bool _disposed = false;
 
-        public TableCronCRUD(ServerDatabase db, CacheHelper cache) : base(db, "cron")
+        public TableCronCRUD(ServerDatabase db, CacheHelper cache) : base("cron")
         {
         }
 
@@ -124,7 +124,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -152,7 +152,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Insert(DatabaseConnection conn, CronRecord item)
         {
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
                                              "VALUES (@identityId,@type,@data,@runCount,@nextRun,@lastRun,@popStamp,@created,@modified)";
@@ -205,7 +205,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int TryInsert(DatabaseConnection conn, CronRecord item)
         {
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
                                              "VALUES (@identityId,@type,@data,@runCount,@nextRun,@lastRun,@popStamp,@created,@modified)";
@@ -258,7 +258,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Upsert(DatabaseConnection conn, CronRecord item)
         {
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created) " +
                                              "VALUES (@identityId,@type,@data,@runCount,@nextRun,@lastRun,@popStamp,@created)"+
@@ -322,7 +322,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int Update(DatabaseConnection conn, CronRecord item)
         {
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE cron " +
                                              "SET data = @data,runCount = @runCount,nextRun = @nextRun,lastRun = @lastRun,popStamp = @popStamp,modified = @modified "+
@@ -375,7 +375,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM cron; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -491,7 +491,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public int Delete(DatabaseConnection conn, Guid identityId,Int32 type)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM cron " +
                                              "WHERE identityId = @identityId AND type = @type";
@@ -583,7 +583,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public CronRecord Get(DatabaseConnection conn, Guid identityId,Int32 type)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron " +
                                              "WHERE identityId = @identityId AND type = @type LIMIT 1;";

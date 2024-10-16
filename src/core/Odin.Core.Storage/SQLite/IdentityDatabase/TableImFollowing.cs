@@ -14,9 +14,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private readonly IdentityDatabase _db;
 
-        public TableImFollowing(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableImFollowing(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
-            _db = db;
+            this._db = db;
         }
 
         ~TableImFollowing()
@@ -105,7 +105,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _select3Command = _database.CreateCommand())
+            using (var _select3Command = _db.CreateCommand())
             {
                 _select3Command.CommandText =
                     $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = $identityId AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
@@ -176,7 +176,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _select2Command = _database.CreateCommand())
+            using (var _select2Command = _db.CreateCommand())
             {
                 _select2Command.CommandText =
                     $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = $identityId AND (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";

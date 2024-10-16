@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableCircleCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "circle")
+        public TableCircleCRUD(CacheHelper cache) : base("circle")
         {
             _cache = cache;
         }
@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -103,7 +103,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)";
@@ -136,7 +136,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)";
@@ -169,7 +169,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)"+
@@ -202,7 +202,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE circle " +
                                              "SET circleName = @circleName,data = @data "+
@@ -234,7 +234,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circle; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -310,7 +310,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int Delete(DatabaseConnection conn, Guid identityId,Guid circleId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId";
@@ -369,7 +369,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
                 return (CircleRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT circleName,data FROM circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1;";
@@ -406,7 +406,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = Guid.Empty;
 
-            using (var _getPaging3Command = _database.CreateCommand())
+            using (var _getPaging3Command = conn.db.CreateCommand())
             {
                 _getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT $_count;";

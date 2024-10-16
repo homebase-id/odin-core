@@ -57,6 +57,27 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         }
 
         /// <summary>
+        /// Retrieves a file's header and metadata by globalTransitId
+        /// </summary>
+        [HttpGet("files/header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            var db = tenantSystemStorage.IdentityDatabase;
+
+            return await base.GetFileHeaderByGlobalTransitId(
+                new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = globalTransitId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                }, db);
+        }
+
+        /// <summary>
         /// Returns the payload for a given file
         /// </summary>
         /// <param name="request"></param>

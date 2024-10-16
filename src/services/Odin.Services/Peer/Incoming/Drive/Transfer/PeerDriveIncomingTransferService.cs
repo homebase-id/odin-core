@@ -39,7 +39,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage = new(tenantSystemStorage);
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
-        public async Task InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext,
+        public async Task InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
@@ -50,7 +51,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream, odinContext, db);
+            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream,
+                odinContext, db);
         }
 
         public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext,
@@ -66,7 +68,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, db);
         }
 
-        public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data, IOdinContext odinContext,
+        public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             if (!_uploadedKeys.TryGetValue(payloadKey, out var thumbnailKeys))
@@ -123,6 +126,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
                         OdinContext = odinContext,
+                        GlobalTransitId = fileMetadata.ReferencedFile != null
+                            ? fileMetadata.ReferencedFile.GlobalTransitId
+                            : fileMetadata.GlobalTransitId.GetValueOrDefault(),
                         db = db
                     });
                 }
@@ -143,7 +149,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             throw new OdinSystemException("Unhandled Routing");
         }
 
-        public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
+        public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId,
+            FileSystemType fileSystemType,
             IOdinContext odinContext, IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
@@ -188,7 +195,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 InstructionType = TransferInstructionType.DeleteLinkedFile,
                 DriveId = driveId,
 
-                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint 
+                FileId = Guid.NewGuid(), //HACK: use random guid for the fileId UID constraint
                 GlobalTransitId = globalTransitId,
 
                 FileSystemType = fileSystemType,
@@ -241,7 +248,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         //
 
-        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata, IOdinContext odinContext,
+        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
@@ -259,7 +267,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await RouteToInbox(stateItem, odinContext, db);
         }
 
-        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             await fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext, db);
 
@@ -273,12 +282,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
+            var decryptedKeyHeader =
+                DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext, db);
+                await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
+                    odinContext, db);
 
                 return true;
             }
@@ -293,7 +304,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (hasStorageKey)
                 {
                     //S1205
-                    await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext, db);
+                    await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
+                        odinContext, db);
                     return true;
                 }
 
@@ -317,7 +329,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var item = new TransferInboxItem()
             {
