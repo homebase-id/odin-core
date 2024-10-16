@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Data.Common;
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
@@ -302,7 +303,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
                 _upsertParam9.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (var rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -509,7 +510,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public CronRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Int32 type)
+        public CronRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Int32 type)
         {
             var result = new List<CronRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -598,7 +599,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _get0Param2.Value = type;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

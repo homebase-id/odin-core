@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -316,7 +317,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
                 _upsertParam9.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -420,7 +421,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
-        internal InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -533,7 +534,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid fileId)
+        internal InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -625,7 +626,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

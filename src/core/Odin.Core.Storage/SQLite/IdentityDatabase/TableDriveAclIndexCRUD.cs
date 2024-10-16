@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -270,7 +271,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,fileId,aclMemberId
-        internal DriveAclIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveAclIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveAclIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -374,7 +375,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal DriveAclIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        internal DriveAclIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
             var result = new List<DriveAclIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -415,7 +416,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param4.Value = aclMemberId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -449,7 +450,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();

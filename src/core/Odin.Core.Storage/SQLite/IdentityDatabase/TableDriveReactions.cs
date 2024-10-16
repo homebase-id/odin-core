@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 
@@ -76,7 +77,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         int totalCount = 0;
@@ -140,7 +141,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                             return rdr.GetInt32(0);
@@ -188,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var rs = new List<string>();
 
@@ -230,7 +231,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         var iresult = new List<int>();
@@ -294,7 +295,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<DriveReactionsRecord>();
                         int n = 0;

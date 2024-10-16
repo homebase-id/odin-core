@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -296,7 +297,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,identity,postId,singleReaction
-        internal DriveReactionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -415,7 +416,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal DriveReactionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        internal DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -467,7 +468,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param5.Value = singleReaction;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -345,7 +346,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
 
         // SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash
-        public KeyChainRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public KeyChainRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyChainRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -452,7 +453,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             } // Using
         }
 
-        public KeyChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,string publicKeyJwkBase64Url)
+        public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -551,7 +552,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _get0Param2.Value = publicKeyJwkBase64Url;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

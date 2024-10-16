@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -227,7 +228,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,key,data
-        internal KeyValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -300,7 +301,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal KeyValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key)
+        internal KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -353,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = key;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

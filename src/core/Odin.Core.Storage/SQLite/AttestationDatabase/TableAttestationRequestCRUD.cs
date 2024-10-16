@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -221,7 +222,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
 
         // SELECT attestationId,requestEnvelope,timestamp
-        public AttestationRequestRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public AttestationRequestRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AttestationRequestRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -275,7 +276,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // Using
         }
 
-        public AttestationRequestRecord ReadRecordFromReader0(SqliteDataReader rdr, string attestationId)
+        public AttestationRequestRecord ReadRecordFromReader0(DbDataReader rdr, string attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
@@ -324,7 +325,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _get0Param1.Value = attestationId;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -362,7 +363,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AttestationRequestRecord>();
                         int n = 0;

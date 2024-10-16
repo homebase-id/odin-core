@@ -126,7 +126,7 @@ namespace Odin.KeyChain
 
                     lock (conn._lock)
                     {
-                        using (SqliteDataReader rdr = conn.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
+                        using (var rdr = conn.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
                         {
                             NotaryChainRecord? previousRecord = null;
 

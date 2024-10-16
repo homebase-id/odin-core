@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -256,7 +257,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,circleName,circleId,data
-        internal CircleRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -330,7 +331,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal CircleRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid circleId)
+        internal CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -384,7 +385,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = circleId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -426,7 +427,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging3Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging3Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
                         int n = 0;

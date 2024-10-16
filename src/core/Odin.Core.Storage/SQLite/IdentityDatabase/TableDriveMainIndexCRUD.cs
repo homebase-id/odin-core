@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -761,7 +762,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -977,7 +978,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
-        internal DriveMainIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] _tmpbuf = new byte[65536+1];
@@ -1229,7 +1230,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal DriveMainIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
+        internal DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] _tmpbuf = new byte[65536+1];
@@ -1451,7 +1452,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -1464,7 +1465,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal DriveMainIndexRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
+        internal DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] _tmpbuf = new byte[65536+1];
@@ -1686,7 +1687,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -1699,7 +1700,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal DriveMainIndexRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        internal DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] _tmpbuf = new byte[65536+1];
@@ -1921,7 +1922,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get2Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

@@ -112,9 +112,9 @@ namespace Odin.Core.Storage.SQLite
             throw new Exception("Not implemented");
         }
 
-        public SqliteCommand CreateCommand()
+        public DbCommand CreateCommand()
         {
-            var cmd = new SqliteCommand();
+            DbCommand cmd = new SqliteCommand();
 
             return cmd;
         }

@@ -283,7 +283,7 @@ namespace Odin.Core.Storage.Tests
             {
                 using var cmd = cn.db.CreateCommand();
                 cmd.CommandText = "SELECT COUNT(*) FROM keyValue;";
-                cmd.Connection = (SqliteConnection) cn.Connection;
+                cmd.Connection = cn.Connection;
                 return Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
 

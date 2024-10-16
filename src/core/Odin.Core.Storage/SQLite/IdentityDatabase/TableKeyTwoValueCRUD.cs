@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -255,7 +256,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,key1,key2,data
-        internal KeyTwoValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal KeyTwoValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyTwoValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -341,7 +342,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal KeyTwoValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,byte[] key2)
+        internal KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
@@ -402,7 +403,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = key2 ?? (object)DBNull.Value;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
@@ -422,7 +423,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,byte[] key1)
+        internal KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -488,7 +489,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param2.Value = key1;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

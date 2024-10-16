@@ -184,11 +184,11 @@ namespace Odin.Core.Storage.SQLite
         }
 
 
-        public int ExecuteNonQuery(SqliteCommand command)
+        public int ExecuteNonQuery(DbCommand command)
         {
             lock (_lock) // SEB:TODO lock review
             {
-                command.Connection = ((SqliteConnection)_connection);
+                command.Connection = _connection;
                 command.Transaction = _transaction;
                 var r = command.ExecuteNonQuery();
                 command.Transaction = null;
@@ -196,11 +196,11 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
-        public object ExecuteScalar(SqliteCommand command)
+        public object ExecuteScalar(DbCommand command)
         {
             lock (_lock) // SEB:TODO lock review
             {
-                command.Connection = ((SqliteConnection)_connection);
+                command.Connection = _connection;
                 command.Transaction = _transaction;
                 var r = command.ExecuteScalar();
                 command.Transaction = null;
@@ -216,11 +216,11 @@ namespace Odin.Core.Storage.SQLite
         /// <param name="behavior"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
+        public DbDataReader ExecuteReader(DbCommand command, CommandBehavior behavior)
         {
             lock (_lock) // SEB:TODO lock review
             {
-                command.Connection = (SqliteConnection) _connection;
+                command.Connection = _connection;
                 command.Transaction = _transaction;
                 var r = command.ExecuteReader();
                 command.Transaction = null;

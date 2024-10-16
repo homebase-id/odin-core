@@ -1,4 +1,5 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
@@ -289,7 +290,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
                 _upsertParam8.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -387,7 +388,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified
-        internal ConnectionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -486,7 +487,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal ConnectionsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity)
+        internal ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -568,7 +569,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = identity.DomainName;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -610,7 +611,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging2Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;
@@ -664,7 +665,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging2Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;
@@ -718,7 +719,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;
@@ -768,7 +769,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;
