@@ -1,5 +1,5 @@
                            HOMEBASE.ID LICENSE
-                        Version 0.1, 28 August 2024
+                        Version 0.2, 16 OOctober 2024
 
 Homebase.id is a decentralized personal communication, personal storage, 
 social network and self-sovereign identity management system. It serves as a
@@ -12,48 +12,16 @@ integrations that users find valuable. We also encourage both non-profit and
 commercial service providers to build apps and solutions that complement the
 Homebase platform.
 
+
                               LICENSE TERMS
 
-0. Non-Commercial Hosting
+0. LICENSE
 
-For non-commercial hosting providers, the Homebase software and its packages
-of files (“Homebase software”) are accordingly made available to users under 
-free and open-source software license terms, specifically under the GNU Affero
-General Public License v3 (AGPL v3) and Apache 2.0 (only source files marked
-clearly with Apache 2.0 are released under that license).
+The Homebase software and its packages of files (“Homebase software”) are 
+accordingly made available to users under free and open-source software 
+license terms, specifically under the GNU Affero General Public 
+License v3 (AGPL v3).
 
-Non-commercial hosting is defined as hosting the Homebase software for 
-yourself, your friends, family, educational purposes, academic research, or 
-non-academic organizations with fewer than 50 employees.
-
-Hosting the Homebase software under any other circumstances, including for 
-larger organizations or for profit, is considered commercial.
-
-As a non-commercial hosting provider, you as a user and licensee of the 
-Homebase software, receive the four freedoms that all open-source licenses
-provide to users. These freedoms are:
-
-  1. The freedom to run the program as you wish, for any purpose: You can use
-     the Homebase software without restrictions on how or for what purpose it
-     is used, except that you cannot use it for commercial hosting services.
-
-  2. The freedom to study how the program works and change it so it does your
-     computing as you wish: This freedom requires access to the source code,
-     enabling you to understand and modify the Homebase software to suit your
-     needs.
-
-  3. The freedom to redistribute copies so you can help others: You can share 
-     the original Homebase software with others, promoting collaboration and 
-     community support, except with commercial hosting providers.
-
-  4. The freedom to distribute copies of your modified versions to others, 
-     except to commercial hosting providers: This allows you to share your
-     improvements or modifications, ensuring that the entire community can 
-     benefit from enhancements made to the software.
-
-     These freedoms emphasize the importance of user control, collaboration, 
-     and the communal nature of software development, distinguishing 
-     open-source software from proprietary alternatives.
 
 1. AGPL v3 Specifics
 
@@ -75,25 +43,8 @@ binding license agreement for your use of the Homebase software is the text of
 the AGPL v3 with the restriction on use for commercial hosting services as 
 defined here.
 
-2. Commercial Hosting
 
-A commercial hosting provider is defined as a provider of the technologies and
-services needed for the Homebase software to be installed and run on the 
-Internet or private networks. Commercial hosting services are paid - 
-directly or indirectly - services provided to end users or their organizations
-and these include server space rental where the provider allocates space on a
-server for an end user's files, database support that allows an end user to 
-store and retrieve data on Homebase, security including tools to protect 
-against malware, perform regular backups, and secure data transmissions to
-the extent these are not already secured by the Homebase software, and 
-technical support to manage the server and resolve issues related to the 
-hosted services.
-
-If you are a commercial hosting provider and you want to use the Homebase 
-software, you must obtain a commercial hosting license agreement from us. 
-Without this agreement, you are not allowed to use the Homebase software.
-
-3. CRYPTOGRAPHIC NOTICE
+2. CRYPTOGRAPHIC NOTICE
 
 This distribution includes cryptographic software. The country in which you 
 currently reside may have restrictions on the import, possession, use, and/or
@@ -105,18 +56,11 @@ re-export of encryption software, to see if this is permitted.
 
 See http://www.wassenaar.org/ for more information.
 
-4. Compliance with Open-Source Definition
 
-The added restriction on use for commercial hosting services means that our 
-license terms for the Homebase software do not comply fully with the 
-open-source license terms as these are defined by the Open-Source 
-Initiative. (https://opensource.org/osd)
-
-5. Copyright Notice 
+3. Copyright Notice 
 
 We are the copyright owners of the version of the Homebase software that we
-release under the AGPL v3 and Apache 2.0 with the restriction on use for 
-commercial hosting services. You will always be able to use this version as
+release under the AGPL v3. You will always be able to use this version as
 long as you comply fully with the license. We may, however, choose to release
 the same version or future versions of the Homebase software under other
 licenses.
