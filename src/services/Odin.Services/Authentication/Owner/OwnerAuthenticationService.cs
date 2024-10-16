@@ -22,6 +22,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
@@ -46,6 +47,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly OwnerSecretService _secretService;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinConfiguration _configuration;
+        private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -66,7 +68,8 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinConfiguration configuration, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService)
+            OdinConfiguration configuration, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService,
+            VersionUpgradeScheduler versionUpgradeScheduler)
         {
             _logger = logger;
             _secretService = secretService;
@@ -80,6 +83,7 @@ namespace Odin.Services.Authentication.Owner
 
             _configuration = configuration;
             _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
+            _versionUpgradeScheduler = versionUpgradeScheduler;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -206,7 +210,8 @@ namespace Odin.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token,
+        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(
+            ClientAuthenticationToken token,
             IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
@@ -382,11 +387,9 @@ namespace Odin.Services.Authentication.Owner
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
+            _ = _versionUpgradeScheduler.ScheduleUpgradeJobIfNeeded(odinContext);
             _icrKeyAvailableBackgroundService.RunNow(ctx);
-
-            // _icrKeyAvailableContext.SetContext((OdinContext)ctx);
-            // _icrKeyAvailableBackgroundService.PulseBackgroundProcessor();
-
+            
             return true;
         }
 

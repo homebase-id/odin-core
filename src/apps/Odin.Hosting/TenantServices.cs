@@ -1,6 +1,5 @@
 using Autofac;
 using MediatR;
-using Microsoft.VisualBasic;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -42,11 +41,11 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Services.Authentication;
 using Odin.Services.Background;
 using Odin.Services.DataConversion;
 using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Membership.Connections.Verification;
@@ -61,6 +60,7 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
+           
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
@@ -237,6 +237,9 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<DataConversionService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
+            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
 
             // Background services
             cb.AddTenantBackgroundServices(tenant);

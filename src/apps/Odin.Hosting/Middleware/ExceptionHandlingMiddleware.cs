@@ -15,6 +15,7 @@ using Odin.Core.Serialization;
 using Odin.Hosting.ApiExceptions;
 using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.ApiExceptions.Server;
+using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Middleware
 {
@@ -44,6 +45,11 @@ namespace Odin.Hosting.Middleware
             catch (OdinRemoteIdentityException e) // => HTTP 503
             {
                 var message = $"Remote identity host failed: {e.Message}";
+                await HandleExceptionAsync(context, new ServiceUnavailableException(message, e));
+            }
+            catch (VersionUpgradeRunningException e) // => HTTP 503
+            {
+                var message = $"Version Upgrade is in progress";
                 await HandleExceptionAsync(context, new ServiceUnavailableException(message, e));
             }
             catch (OdinSecurityException e) // => HTTP 403

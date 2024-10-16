@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
@@ -70,6 +69,43 @@ public class TenantConfigService
 
         var db = _tenantSystemStorage.IdentityDatabase;
         _tenantContext.UpdateSystemConfig(GetTenantSettings());
+    }
+
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public TenantVersionInfo IncrementVersion()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = null;
+        //TODO CONNECTIONS
+        // cn.CreateCommitUnitOfWork(() =>
+        {
+            var currentVersion = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+
+            newVersion = new TenantVersionInfo()
+            {
+                DataVersionNumber = currentVersion.DataVersionNumber++,
+                LastUpgraded = UnixTimeUtc.Now().milliseconds
+            };
+
+            _configStorage.Upsert(db, TenantVersionInfo.Key, newVersion);
+        }
+        //);
+
+        return newVersion;
+    }
+
+    public TenantVersionInfo GetVersionInfo()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var info = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+        return info ?? new TenantVersionInfo
+        {
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
     }
 
     public bool IsIdentityServerConfigured()
