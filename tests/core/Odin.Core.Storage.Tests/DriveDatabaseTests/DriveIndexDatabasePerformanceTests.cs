@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -439,7 +440,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 {
                     for (int i = 1; i < _performanceIterations; i++)
                     {
-                        var _connection = new SqliteConnection("Data Source=mydatabase.db; Mode=ReadWriteCreate; Cache=Shared; Pooling=true");
+                        DbConnection _connection = new SqliteConnection("Data Source=mydatabase.db; Mode=ReadWriteCreate; Cache=Shared; Pooling=true");
                         _connection.Open();
 
                         using (var pragmaJournalModeCommand = _connection.CreateCommand())

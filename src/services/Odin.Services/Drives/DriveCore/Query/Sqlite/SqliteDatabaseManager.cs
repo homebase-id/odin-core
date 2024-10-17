@@ -344,7 +344,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
     {
         try
         {
-            _db.tblDriveReactions.Insert(db, new DriveReactionsRecord()
+            _db.tblDriveReactions.Insert(new DriveReactionsRecord()
             {
                 driveId = Drive.Id,
                 identity = odinId,
@@ -365,22 +365,22 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public void DeleteReactions(OdinId odinId, Guid fileId, IdentityDatabase db)
     {
-        _db.tblDriveReactions.DeleteAllReactions(db, Drive.Id, odinId, fileId);
+        _db.tblDriveReactions.DeleteAllReactions(Drive.Id, odinId, fileId);
     }
 
     public void DeleteReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db)
     {
-        _db.tblDriveReactions.Delete(db, Drive.Id, odinId, fileId, reaction);
+        _db.tblDriveReactions.Delete(Drive.Id, odinId, fileId, reaction);
     }
 
     public (List<string>, int) GetReactions(Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetPostReactions(db, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetPostReactions(Drive.Id, fileId);
     }
 
     public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, IdentityDatabase db)
     {
-        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(db, Drive.Id, fileId);
+        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(Drive.Id, fileId);
 
         var results = new List<ReactionCount>();
 
@@ -398,12 +398,12 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactionDetails(db, identity, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactionDetails(identity, Drive.Id, fileId);
     }
 
     public int GetReactionCountByIdentity(OdinId odinId, Guid fileId, IdentityDatabase db)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactions(db, odinId, Drive.Id, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactions(odinId, Drive.Id, fileId);
     }
 
     public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, IdentityDatabase db)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 
@@ -7,8 +8,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableDriveReactions : TableDriveReactionsCRUD
     {
-        public TableDriveReactions(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        private readonly IdentityDatabase _db;
+
+        public TableDriveReactions(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
+            _db = db;
         }
 
         ~TableDriveReactions()
@@ -22,35 +26,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int Delete(IdentityDatabase db, Guid driveId, OdinId identity, Guid postId, string singleReaction)
+        public int Delete(Guid driveId, OdinId identity, Guid postId, string singleReaction)
         {
-            using (var conn = db.CreateDisposableConnection())
+            using (var conn = _db.CreateDisposableConnection())
             {
-                return base.Delete(conn, db._identityId, driveId, identity, postId, singleReaction);
+                return base.Delete(conn, _db._identityId, driveId, identity, postId, singleReaction);
             }
         }
 
-        public int DeleteAllReactions(IdentityDatabase db, Guid driveId, OdinId identity, Guid postId)
+        public int DeleteAllReactions(Guid driveId, OdinId identity, Guid postId)
         {
-            using (var conn = db.CreateDisposableConnection())
+            using (var conn = _db.CreateDisposableConnection())
             {
-                return base.DeleteAllReactions(conn, db._identityId, driveId, identity, postId);
+                return base.DeleteAllReactions(conn, _db._identityId, driveId, identity, postId);
             }
         }
 
-        public int Insert(IdentityDatabase db, DriveReactionsRecord item)
+        public int Insert(DriveReactionsRecord item)
         {
-            item.identityId = db._identityId;
+            item.identityId = _db._identityId;
 
-            using (var conn = db.CreateDisposableConnection())
+            using (var conn = _db.CreateDisposableConnection())
             {
                 return base.Insert(conn, item);
             }
         }
 
-        public (List<string>, int) GetPostReactions(IdentityDatabase db, Guid driveId, Guid postId)
+        public (List<string>, int) GetPostReactions(Guid driveId, Guid postId)
         {
-            using (var _selectCommand = _database.CreateCommand())
+            using (var _selectCommand = _db.CreateCommand())
             {
                 _selectCommand.CommandText =
                     $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
@@ -69,11 +73,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _sparam1.Value = postId.ToByteArray();
                 _sparam2.Value = driveId.ToByteArray();
-                _sparam3.Value = db._identityId.ToByteArray();
+                _sparam3.Value = _db._identityId.ToByteArray();
 
-                using (var conn = db.CreateDisposableConnection())
+                using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         int totalCount = 0;
@@ -108,9 +112,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public int GetIdentityPostReactions(IdentityDatabase db, OdinId identity, Guid driveId, Guid postId)
+        public int GetIdentityPostReactions(OdinId identity, Guid driveId, Guid postId)
         {
-            using (var _select2Command = _database.CreateCommand())
+            using (var _select2Command = _db.CreateCommand())
             {
                 _select2Command.CommandText =
                     $"SELECT COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
@@ -133,11 +137,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _s2param1.Value = postId.ToByteArray();
                 _s2param2.Value = identity.DomainName;
                 _s2param3.Value = driveId.ToByteArray();
-                _s2param4.Value = db._identityId.ToByteArray();
+                _s2param4.Value = _db._identityId.ToByteArray();
 
-                using (var conn = db.CreateDisposableConnection())
+                using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                             return rdr.GetInt32(0);
@@ -156,9 +160,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public List<string> GetIdentityPostReactionDetails(IdentityDatabase db, OdinId identity, Guid driveId, Guid postId)
+        public List<string> GetIdentityPostReactionDetails(OdinId identity, Guid driveId, Guid postId)
         {
-            using (var _select3Command = _database.CreateCommand())
+            using (var _select3Command = _db.CreateCommand())
             {
                 _select3Command.CommandText =
                     $"SELECT singleReaction as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
@@ -181,11 +185,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _s3param1.Value = postId.ToByteArray();
                 _s3param2.Value = identity.DomainName;
                 _s3param3.Value = driveId.ToByteArray();
-                _s3param4.Value = db._identityId.ToByteArray();
+                _s3param4.Value = _db._identityId.ToByteArray();
 
-                using (var conn = db.CreateDisposableConnection())
+                using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var rs = new List<string>();
 
@@ -202,9 +206,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public (List<string>, List<int>, int) GetPostReactionsWithDetails(IdentityDatabase db, Guid driveId, Guid postId)
+        public (List<string>, List<int>, int) GetPostReactionsWithDetails(Guid driveId, Guid postId)
         {
-            using (var _select4Command = _database.CreateCommand())
+            using (var _select4Command = _db.CreateCommand())
             {
                 _select4Command.CommandText =
                     $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
@@ -223,11 +227,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _s4param1.Value = postId.ToByteArray();
                 _s4param2.Value = driveId.ToByteArray();
-                _s4param3.Value = db._identityId.ToByteArray();
+                _s4param3.Value = _db._identityId.ToByteArray();
 
-                using (var conn = db.CreateDisposableConnection())
+                using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         var iresult = new List<int>();
@@ -260,7 +264,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = 0;
 
-            using (var _getPaging0Command = _database.CreateCommand())
+            using (var _getPaging0Command = db.CreateCommand())
             {
                 _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM driveReactions " +
                                              "WHERE identityId=$identityId AND driveId = $driveId AND postId = $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
@@ -291,7 +295,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<DriveReactionsRecord>();
                         int n = 0;

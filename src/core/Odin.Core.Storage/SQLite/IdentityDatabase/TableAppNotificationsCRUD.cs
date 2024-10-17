@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -100,7 +100,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableAppNotificationsCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "AppNotifications")
+        public TableAppNotificationsCRUD(CacheHelper cache) : base("AppNotifications")
         {
             _cache = cache;
         }
@@ -118,7 +118,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
@@ -251,7 +251,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created)"+
@@ -291,7 +291,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
                 _upsertParam8.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -314,7 +314,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE AppNotifications " +
                                              "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
@@ -364,7 +364,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified
-        internal AppNotificationsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -472,7 +472,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int Delete(DatabaseConnection conn, Guid identityId,Guid notificationId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId";
@@ -492,7 +492,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal AppNotificationsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid notificationId)
+        internal AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -559,7 +559,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
                 return (AppNotificationsRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
@@ -574,7 +574,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = notificationId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -596,7 +596,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
-            using (var _getPaging7Command = _database.CreateCommand())
+            using (var _getPaging7Command = conn.db.CreateCommand())
             {
                 _getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                             "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
@@ -616,7 +616,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AppNotificationsRecord>();
                         int n = 0;

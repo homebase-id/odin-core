@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -107,7 +107,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private bool _disposed = false;
 
-        public TableInboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "inbox")
+        public TableInboxCRUD(CacheHelper cache) : base("inbox")
         {
         }
 
@@ -124,7 +124,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -158,7 +158,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.boxId, "Guid parameter boxId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.popStamp, "Guid parameter popStamp cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
@@ -215,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.boxId, "Guid parameter boxId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.popStamp, "Guid parameter popStamp cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
@@ -272,7 +272,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.boxId, "Guid parameter boxId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.popStamp, "Guid parameter popStamp cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created)"+
@@ -316,7 +316,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
                 _upsertParam9.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -340,7 +340,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.boxId, "Guid parameter boxId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.popStamp, "Guid parameter popStamp cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE inbox " +
                                              "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,modified = @modified "+
@@ -393,7 +393,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -420,7 +420,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
-        internal InboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -515,7 +515,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal int Delete(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId";
@@ -533,7 +533,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid fileId)
+        internal InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -610,7 +610,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         internal InboxRecord Get(DatabaseConnection conn, Guid identityId,Guid fileId)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
@@ -625,7 +625,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

@@ -6,7 +6,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
     public class TableKeyChain : TableKeyChainCRUD
     {
-        public TableKeyChain(KeyChainDatabase db, CacheHelper cache) : base(db, cache)
+        public TableKeyChain(KeyChainDatabase db, CacheHelper cache) : base(cache)
         {
         }
 
@@ -23,13 +23,13 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// <exception cref="Exception"></exception>
         public KeyChainRecord GetLastLink(DatabaseConnection conn)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid DESC LIMIT 1;";
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -49,7 +49,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (identity?.Length < 0) throw new Exception("Too short");
             if (identity?.Length > 65535) throw new Exception("Too long");
 
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                                 "WHERE identity = $identity ORDER BY rowid ASC LIMIT 1;";
@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -80,7 +80,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (identity?.Length < 0) throw new Exception("Too short");
             if (identity?.Length > 65535) throw new Exception("Too long");
 
-            using (var _get2Command = _database.CreateCommand())
+            using (var _get2Command = conn.db.CreateCommand())
             {
                 _get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                              "WHERE identity = $identity ORDER BY rowid;";
@@ -92,7 +92,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
