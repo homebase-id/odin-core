@@ -57,22 +57,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost]
         public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
-            // try
-            // {
-
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var (result, sharedSecret) = await _authService.Authenticate(package);
+            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
+            var (result, sharedSecret) = await _authService.Authenticate(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
             //TODO: need to encrypt shared secret using client public key
             return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
-
-            // }
-            // catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
-            // {
-            //     return null;
-            // }
         }
 
         [HttpGet("logout")]

@@ -1,26 +1,47 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Serialization;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
-public class VersionUpgradeService(TenantConfigService tenantConfigService,
+public class VersionUpgradeService(
+    TenantConfigService tenantConfigService,
     V0ToV1VersionMigrationService v0ToV1VersionMigrationService,
+    OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
-    public SensitiveByteArray TemporalEncryptionKey { get; } = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
     public async Task Upgrade(VersionUpgradeJobData data)
     {
         logger.LogInformation("Running Version Upgrade Process");
 
-        var odinContextBytes = AesCbc.Decrypt(data.EncryptedOdinContextData, TemporalEncryptionKey, data.Iv);
-        var odinContext = OdinSystemSerializer.DeserializeOrThrow<OdinContext>(odinContextBytes.ToStringFromUtf8Bytes());
+        // var odinContextBytes = AesCbc.Decrypt(data.EncryptedOdinContextData, TemporalEncryptionKey, data.Iv);
+        // var odinContext = OdinSystemSerializer.DeserializeOrThrow<OdinContext>(odinContextBytes.ToStringFromUtf8Bytes());
+
+        var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, authService.TemporalEncryptionKey, data.Iv);
+        var token = ClientAuthenticationToken.FromPortableBytes(tokenBytes);
+
+        var odinContext = new OdinContext
+        {
+            Tenant = default,
+            AuthTokenCreated = null,
+            Caller = null
+        };
+
+        var clientContext = new OdinClientContext
+        {
+            CorsHostName = null,
+            AccessRegistrationId = null,
+            DevicePushNotificationKey = null,
+            ClientIdOrDomain = null
+        };
+        
+        await authService.UpdateOdinContext(token, clientContext, odinContext);
 
         var currentVersion = tenantConfigService.GetVersionInfo().DataVersionNumber;
 
@@ -29,10 +50,10 @@ public class VersionUpgradeService(TenantConfigService tenantConfigService,
             if (currentVersion == 0)
             {
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
-                
+
                 await v0ToV1VersionMigrationService.Upgrade(odinContext);
                 currentVersion = tenantConfigService.IncrementVersion().DataVersionNumber;
-                
+
                 logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
             }
 

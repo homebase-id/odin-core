@@ -10,5 +10,5 @@ public class VersionUpgradeJobData
 
     public byte[]? Iv { get; init; }
 
-    public byte[]? EncryptedOdinContextData { get; init; }
+    public byte[]? EncryptedToken { get; init; }
 }

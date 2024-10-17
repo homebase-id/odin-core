@@ -11,8 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -50,6 +48,7 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             }
+
             return Task.CompletedTask;
         }
 
@@ -67,8 +66,8 @@ namespace Odin.Hosting.Authentication.Owner
 
                 try
                 {
-                    var db = _tenantSystemStorage.IdentityDatabase;
-                    if (!await UpdateOdinContext(authResult, dotYouContext))
+                    var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+                    if (!await authService.UpdateOdinContext(authResult, clientContext: null, dotYouContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
@@ -86,8 +85,10 @@ namespace Odin.Hosting.Authentication.Owner
                 var claims = new List<Claim>()
                 {
                     new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,
+                        OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,
+                        OdinClaimTypes.YouFoundationIssuer),
                 };
 
                 var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
@@ -107,19 +108,11 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
-        {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext);
-        }
-
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                var db = _tenantSystemStorage.IdentityDatabase;
                 authService.ExpireToken(result.Id);
             }
 
