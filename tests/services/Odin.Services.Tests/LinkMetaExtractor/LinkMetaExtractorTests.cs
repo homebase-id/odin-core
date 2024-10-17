@@ -58,7 +58,8 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.ImageUrl);
     }
 #endif
-
+    
+#if !NOISY_NEIGHBOUR
     [Test]
     public async Task TestLinkedInUrl()
     {
@@ -70,6 +71,7 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Description);
         Assert.NotNull(ogp.ImageUrl);
     }
+#endif
 
 #if !NOISY_NEIGHBOUR
     // !NOISY_NEIGHBOUR because it sometimes instagram blocks the request and does not send a static website
