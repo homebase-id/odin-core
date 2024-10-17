@@ -101,7 +101,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     conn.CreateCommitUnitOfWork(() =>
                     {
-                        using (SqliteDataReader rdr = conn.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
+                        using (var rdr = conn.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                         {
                             while (rdr.Read())
                             {
@@ -137,7 +137,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())
@@ -209,7 +209,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())

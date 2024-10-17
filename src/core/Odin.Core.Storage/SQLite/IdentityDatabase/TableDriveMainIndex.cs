@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -223,7 +224,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                     if (rdr.Read())
                     {
@@ -339,7 +340,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                         {

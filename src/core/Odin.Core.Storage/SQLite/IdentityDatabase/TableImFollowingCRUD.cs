@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -215,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam3.Value = item.driveId.ToByteArray();
                 _upsertParam4.Value = now.uniqueTime;
                 _upsertParam5.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -298,7 +298,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,driveId,created,modified
-        internal ImFollowingRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal ImFollowingRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -377,7 +377,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal ImFollowingRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
+        internal ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -430,7 +430,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = driveId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -445,7 +445,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal ImFollowingRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,OdinId identity)
+        internal ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ImFollowingRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -500,7 +500,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param2.Value = identity.DomainName;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {

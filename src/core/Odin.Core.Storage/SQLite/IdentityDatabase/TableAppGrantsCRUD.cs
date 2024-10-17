@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,odinHashId,appId,circleId,data
-        internal AppGrantsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -384,7 +384,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal AppGrantsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid odinHashId)
+        internal AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -448,7 +448,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = odinHashId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
@@ -468,7 +468,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal AppGrantsRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -525,7 +525,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param4.Value = circleId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

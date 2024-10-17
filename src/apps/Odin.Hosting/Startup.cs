@@ -280,7 +280,12 @@ namespace Odin.Hosting
             });
 
             app.UseLoggingMiddleware();
-            app.UseRateLimiter();
+
+            if (env.IsProduction())
+            {
+                app.UseRateLimiter();
+            }
+
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();

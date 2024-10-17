@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -551,7 +551,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 _upsertParam18.Value = now.uniqueTime;
                 _upsertParam19.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -702,7 +702,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         }
 
         // SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
-        public JobsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public JobsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<JobsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -866,7 +866,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public JobsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid id)
+        public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
         {
             var result = new List<JobsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -1018,7 +1018,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _get0Param1.Value = id.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

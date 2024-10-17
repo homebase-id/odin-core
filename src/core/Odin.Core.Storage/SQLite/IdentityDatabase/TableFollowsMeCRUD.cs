@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -220,7 +220,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam3.Value = item.driveId.ToByteArray();
                 _upsertParam4.Value = now.uniqueTime;
                 _upsertParam5.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -303,7 +303,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,identity,driveId,created,modified
-        internal FollowsMeRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal FollowsMeRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<FollowsMeRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -385,7 +385,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal FollowsMeRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,string identity,Guid driveId)
+        internal FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -444,7 +444,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = driveId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -459,7 +459,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal FollowsMeRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,string identity)
+        internal FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -520,7 +520,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param2.Value = identity;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {

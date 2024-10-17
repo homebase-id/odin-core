@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -422,7 +422,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam12.Value = now.uniqueTime;
                 _upsertParam13.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -548,7 +548,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
-        internal OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal OutboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<OutboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -710,7 +710,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        internal OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -828,7 +828,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
@@ -847,7 +847,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -969,7 +969,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param4.Value = recipient;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
