@@ -234,8 +234,7 @@ namespace Odin.Services.Membership.Connections.Requests
             //TODO: check robot detection code
 
             if (!await _publicPrivateKeyService.IsValidEccPublicKey(KeyType,
-                    payload.EncryptionPublicKeyCrc32,
-                    odinContext))
+                    payload.EncryptionPublicKeyCrc32))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match recipient");
             }

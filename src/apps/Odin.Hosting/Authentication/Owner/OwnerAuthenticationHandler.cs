@@ -16,6 +16,8 @@ using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Services.Background.Services.Tenant;
+using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -24,14 +26,11 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, TenantSystemStorage tenantSystemStorage)
-            : base(options, logger, encoder)
+            UrlEncoder encoder) : base(options, logger, encoder)
         {
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary/>
@@ -62,29 +61,35 @@ namespace Odin.Hosting.Authentication.Owner
                     return AuthenticateResult.Fail("Empty authResult");
                 }
 
-                var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+                var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
                 try
                 {
                     var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                    if (!await authService.UpdateOdinContext(authResult, clientContext: null, dotYouContext))
+                    if (!await authService.UpdateOdinContext(authResult, clientContext: null, odinContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
+                    
+                    var versionUpgradeScheduler = Context.RequestServices.GetRequiredService<VersionUpgradeScheduler>();
+                    await versionUpgradeScheduler.ScheduleUpgradeJobIfNeeded(authResult, authService.TemporalEncryptionKey, odinContext);
+                
+                    var icrKeyAvailableBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
+                    icrKeyAvailableBackgroundService.RunNow(odinContext);
                 }
                 catch (OdinSecurityException e)
                 {
                     return AuthenticateResult.Fail(e.Message);
                 }
 
-                if (dotYouContext.Caller.OdinId == null)
+                if (odinContext.Caller.OdinId == null)
                 {
                     return AuthenticateResult.Fail("Missing OdinId");
                 }
 
                 var claims = new List<Claim>()
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
                     new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,
                         OdinClaimTypes.YouFoundationIssuer),
                     new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,

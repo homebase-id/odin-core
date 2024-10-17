@@ -20,9 +20,6 @@ public class VersionUpgradeService(
     {
         logger.LogInformation("Running Version Upgrade Process");
 
-        // var odinContextBytes = AesCbc.Decrypt(data.EncryptedOdinContextData, TemporalEncryptionKey, data.Iv);
-        // var odinContext = OdinSystemSerializer.DeserializeOrThrow<OdinContext>(odinContextBytes.ToStringFromUtf8Bytes());
-
         var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, authService.TemporalEncryptionKey, data.Iv);
         var token = ClientAuthenticationToken.FromPortableBytes(tokenBytes);
 

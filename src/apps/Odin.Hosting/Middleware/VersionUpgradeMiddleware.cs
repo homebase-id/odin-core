@@ -14,15 +14,31 @@ namespace Odin.Hosting.Middleware
         public Task Invoke(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
         {
             var path = context.Request.Path.Value;
-            if (path != null && 
-                !path.Contains(OwnerConfigurationController.InitialSetupEndpoint) &&
-                !path.StartsWith(OwnerApiPathConstants.AuthV1))
+
+            if (path == null)
             {
-                if (scheduler.RequiresUpgrade())
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                    return Task.CompletedTask;
-                }
+                return next.Invoke(context);
+            }
+
+            if (!path.StartsWith("/api"))
+            {
+                return next.Invoke(context);
+            }
+
+            if (path.Contains(OwnerConfigurationController.InitialSetupEndpoint))
+            {
+                return next.Invoke(context);
+            }
+
+            if (path.StartsWith(OwnerApiPathConstants.AuthV1))
+            {
+                return next.Invoke(context);
+            }
+
+            if (scheduler.RequiresUpgrade())
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                return Task.CompletedTask;
             }
 
             return next.Invoke(context);

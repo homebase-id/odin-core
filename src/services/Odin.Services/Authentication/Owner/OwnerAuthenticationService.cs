@@ -151,10 +151,6 @@ namespace Odin.Services.Authentication.Owner
             await this.UpdateOdinContext(token, clientContext, odinContext);
             await EnsureFirstRunOperations(odinContext);
 
-            _ = _versionUpgradeScheduler.ScheduleUpgradeJobIfNeeded(token, TemporalEncryptionKey, odinContext);
-            _icrKeyAvailableBackgroundService.RunNow(odinContext);
-
-
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 

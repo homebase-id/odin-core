@@ -181,7 +181,7 @@ namespace Odin.Services.EncryptionKeyService
             var db = _tenantSystemStorage.IdentityDatabase;
             var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
 
-            if (!await IsValidEccPublicKey(keyType, payload.EncryptionPublicKeyCrc32, odinContext))
+            if (!await IsValidEccPublicKey(keyType, payload.EncryptionPublicKeyCrc32))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
             }
@@ -208,7 +208,7 @@ namespace Odin.Services.EncryptionKeyService
             return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
-        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, uint publicKeyCrc32C, IOdinContext odinContext)
+        public async Task<bool> IsValidEccPublicKey(PublicPrivateKeyType keyType, uint publicKeyCrc32C)
         {
             var fullEccKey = await this.GetEccFullKey(keyType);
             return fullEccKey.crc32c == publicKeyCrc32C;
