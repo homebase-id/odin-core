@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -376,7 +376,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         }
 
         // SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash
-        public NotaryChainRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public NotaryChainRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<NotaryChainRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -489,7 +489,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             } // Using
         }
 
-        public NotaryChainRecord ReadRecordFromReader0(SqliteDataReader rdr, byte[] notarySignature)
+        public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -591,7 +591,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _get0Param1.Value = notarySignature;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

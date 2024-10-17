@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,key1,key2,key3,data
-        internal KeyUniqueThreeValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal KeyUniqueThreeValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyUniqueThreeValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
@@ -408,7 +408,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = key2;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
@@ -465,7 +465,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param2.Value = key3;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
@@ -502,7 +502,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal KeyUniqueThreeValueRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
+        internal KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new Exception("Cannot be null");
             if (key2?.Length < 0) throw new Exception("Too short");
@@ -576,7 +576,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get2Param3.Value = key3;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
@@ -596,7 +596,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal KeyUniqueThreeValueRecord ReadRecordFromReader3(SqliteDataReader rdr, Guid identityId,byte[] key1)
+        internal KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -675,7 +675,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get3Param2.Value = key1;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -291,7 +291,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
                 _upsertParam8.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified
-        internal AppNotificationsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -492,7 +492,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal AppNotificationsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid notificationId)
+        internal AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -574,7 +574,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = notificationId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -616,7 +616,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AppNotificationsRecord>();
                         int n = 0;

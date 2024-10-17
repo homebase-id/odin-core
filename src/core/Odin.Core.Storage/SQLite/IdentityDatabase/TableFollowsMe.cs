@@ -176,7 +176,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
 
@@ -250,7 +250,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
 

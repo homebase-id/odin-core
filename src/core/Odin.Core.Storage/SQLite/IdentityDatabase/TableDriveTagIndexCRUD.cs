@@ -1,6 +1,6 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using System.Runtime.CompilerServices;
@@ -270,7 +270,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,fileId,tagId
-        internal DriveTagIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -374,7 +374,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal DriveTagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -415,7 +415,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param4.Value = tagId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -449,7 +449,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
