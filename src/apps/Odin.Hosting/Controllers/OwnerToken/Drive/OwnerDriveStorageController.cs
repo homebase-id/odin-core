@@ -61,7 +61,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary>
         /// Retrieves a file's header and metadata by globalTransitId
         /// </summary>
-        [HttpGet("files/header_byglobaltransitid")]
+        [HttpGet("header_byglobaltransitid")]
         public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
