@@ -18,7 +18,7 @@ public class VersionUpgradeService(
 {
     public async Task Upgrade(VersionUpgradeJobData data)
     {
-        logger.LogInformation("Running Version Upgrade Process");
+        logger.LogInformation($"Running Version Upgrade Process for {data.Tenant}");
 
         var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, tenantContext.TemporalEncryptionKey, data.Iv);
         var token = ClientAuthenticationToken.FromPortableBytes(tokenBytes);

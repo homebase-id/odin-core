@@ -26,7 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Services.Membership.Connections.IcrKeyUpgrade;
+using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -35,7 +35,7 @@ namespace Odin.Hosting.Authentication.YouAuth
         ILoggerFactory logger,
         UrlEncoder encoder,
         TenantSystemStorage tenantSystemStorage,
-        IcrKeyUpgradeScheduler icrKeyUpgradeScheduler)
+        IcrKeyAvailableScheduler icrKeyAvailableScheduler)
         : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
         //
@@ -100,7 +100,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            await icrKeyUpgradeScheduler.EnsureScheduled(authToken, ctx, IcrKeyUpgradeJobData.JobTokenType.App);
+            await icrKeyAvailableScheduler.EnsureScheduled(authToken, ctx, IcrKeyAvailableJobData.JobTokenType.App);
 
             var claims = new List<Claim>
             {

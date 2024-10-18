@@ -248,14 +248,22 @@ namespace Odin.Services.Authorization.Apps
                 }
 
                 var grantDictionary = new Dictionary<Guid, ExchangeGrant>
-                    { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
+                {
+                    { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant }
+                };
+                
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
-                var permissionContext =
-                    await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, odinContext, db,
-                        includeAnonymousDrives: true);
+                var permissionContext = await _exchangeGrantService.CreatePermissionContext(
+                    token,
+                    grantDictionary,
+                    accessReg,
+                    odinContext,
+                    db,
+                    includeAnonymousDrives: true);
 
                 var dotYouContext = new OdinContext()
                 {
+                    Tenant = _tenantContext.HostOdinId,
                     Caller = new CallerContext(
                         odinId: _tenantContext.HostOdinId,
                         masterKey: null,

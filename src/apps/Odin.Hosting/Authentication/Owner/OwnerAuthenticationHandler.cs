@@ -18,7 +18,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.Configuration.VersionUpgrade;
-using Odin.Services.Membership.Connections.IcrKeyUpgrade;
+using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.Owner
@@ -29,19 +29,19 @@ namespace Odin.Hosting.Authentication.Owner
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
-        private readonly IcrKeyUpgradeScheduler _icrKeyUpgradeScheduler;
+        private readonly IcrKeyAvailableScheduler _icrKeyAvailableScheduler;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
             VersionUpgradeScheduler versionUpgradeScheduler,
-            IcrKeyUpgradeScheduler icrKeyUpgradeScheduler,
+            IcrKeyAvailableScheduler icrKeyAvailableScheduler,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
             _versionUpgradeScheduler = versionUpgradeScheduler;
-            _icrKeyUpgradeScheduler = icrKeyUpgradeScheduler;
+            _icrKeyAvailableScheduler = icrKeyAvailableScheduler;
             _tenantProvider = tenantProvider;
         }
 
@@ -86,7 +86,7 @@ namespace Odin.Hosting.Authentication.Owner
                     }
 
                     await _versionUpgradeScheduler.EnsureScheduled(authResult, odinContext);
-                    await _icrKeyUpgradeScheduler.EnsureScheduled(authResult, odinContext, IcrKeyUpgradeJobData.JobTokenType.Owner);
+                    await _icrKeyAvailableScheduler.EnsureScheduled(authResult, odinContext, IcrKeyAvailableJobData.JobTokenType.Owner);
                 }
                 catch (OdinSecurityException e)
                 {

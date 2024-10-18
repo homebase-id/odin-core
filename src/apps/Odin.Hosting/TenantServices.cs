@@ -48,7 +48,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
-using Odin.Services.Membership.Connections.IcrKeyUpgrade;
+using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
@@ -240,8 +240,8 @@ namespace Odin.Hosting
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
 
-            cb.RegisterType<IcrKeyUpgradeService>().AsSelf().SingleInstance();
-            cb.RegisterType<IcrKeyUpgradeScheduler>().AsSelf().SingleInstance();
+            cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
+            cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
             
             // Background services
             cb.AddTenantBackgroundServices(tenant);

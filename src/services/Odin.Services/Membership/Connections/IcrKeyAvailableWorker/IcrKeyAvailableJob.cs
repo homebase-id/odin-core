@@ -10,17 +10,17 @@ using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.Tenant.Container;
 
-namespace Odin.Services.Membership.Connections.IcrKeyUpgrade;
+namespace Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 
 #nullable enable
 
 //
 
-public class IcrKeyUpgradeJob(
+public class IcrKeyAvailableJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
-    ILogger<IcrKeyUpgradeJob> logger) : AbstractJob
+    ILogger<IcrKeyAvailableJob> logger) : AbstractJob
 {
-    public IcrKeyUpgradeJobData Data { get; set; } = new();
+    public IcrKeyAvailableJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
@@ -33,8 +33,8 @@ public class IcrKeyUpgradeJob(
             }
 
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
-            var service = scope.Resolve<IcrKeyUpgradeService>();
-            await service.Upgrade(Data);
+            var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
+            await service.Run(Data);
         }
         catch (Exception e)
         {
@@ -63,7 +63,7 @@ public class IcrKeyUpgradeJob(
 
     public override void DeserializeJobData(string json)
     {
-        Data = OdinSystemSerializer.DeserializeOrThrow<IcrKeyUpgradeJobData>(json);
+        Data = OdinSystemSerializer.DeserializeOrThrow<IcrKeyAvailableJobData>(json);
     }
 
     //

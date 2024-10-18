@@ -2,9 +2,9 @@
 
 using Odin.Core.Identity;
 
-namespace Odin.Services.Membership.Connections.IcrKeyUpgrade;
+namespace Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 
-public class IcrKeyUpgradeJobData
+public class IcrKeyAvailableJobData
 {
     public JobTokenType TokenType { get; init; }
     

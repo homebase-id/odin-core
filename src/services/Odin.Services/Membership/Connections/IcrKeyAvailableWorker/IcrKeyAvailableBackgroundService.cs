@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -12,27 +13,28 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections.Requests;
 
-namespace Odin.Services.Membership.Connections.IcrKeyUpgrade;
+namespace Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 
-public class IcrKeyUpgradeService(
+public class IcrKeyAvailableBackgroundService(
     TenantConfigService tenantConfigService,
     OwnerAuthenticationService authService,
     IAppRegistrationService appRegService,
     CircleNetworkIntroductionService circleNetworkIntroductionService,
     TenantContext tenantContext,
     CircleNetworkService circleNetworkService,
-    ILogger<IcrKeyUpgradeService> logger)
+    ILogger<IcrKeyAvailableBackgroundService> logger)
 {
-    public async Task Upgrade(IcrKeyUpgradeJobData data)
+
+    public async Task Run(IcrKeyAvailableJobData data)
     {
-        logger.LogInformation("Running Version Upgrade Process");
+        logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process for {data.Tenant}; token type: {data.TokenType}");
 
         var odinContext = await GetOdinContext(data);
         var currentVersion = tenantConfigService.GetVersionInfo().DataVersionNumber;
 
         try
         {
-            await Run(odinContext);
+            await RunInternal(odinContext);
         }
         catch (Exception ex)
         {
@@ -42,7 +44,7 @@ public class IcrKeyUpgradeService(
         await Task.CompletedTask;
     }
 
-    private async Task<IOdinContext> GetOdinContext(IcrKeyUpgradeJobData data)
+    private async Task<IOdinContext> GetOdinContext(IcrKeyAvailableJobData data)
     {
         if (string.IsNullOrEmpty(data.Tenant))
         {
@@ -54,10 +56,10 @@ public class IcrKeyUpgradeService(
 
         switch (data.TokenType)
         {
-            case IcrKeyUpgradeJobData.JobTokenType.App:
+            case IcrKeyAvailableJobData.JobTokenType.App:
                 return await LoadFromApp(token, data.Tenant.Value);
 
-            case IcrKeyUpgradeJobData.JobTokenType.Owner:
+            case IcrKeyAvailableJobData.JobTokenType.Owner:
                 return await LoadFromOwner(token, data.Tenant.Value);
         }
 
@@ -98,7 +100,7 @@ public class IcrKeyUpgradeService(
         return odinContext;
     }
 
-    private async Task Run(IOdinContext odinContext)
+    private async Task RunInternal(IOdinContext odinContext)
     {
         try
         {
