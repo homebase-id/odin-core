@@ -29,17 +29,22 @@ public sealed class VersionUpgradeScheduler(
             return;
         }
 
+        if (string.IsNullOrEmpty(odinContext.Tenant.DomainName))
+        {
+            return;
+        }
+        
         var job = _jobManager.NewJob<VersionUpgradeJob>();
-
+        
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), temporalEncryptionKey);
-
+        
         job.Data = new VersionUpgradeJobData()
         {
             Iv = iv,
             Tenant = odinContext.Tenant,
             EncryptedToken = encryptedToken
         };
-
+        
         logger.LogInformation("Scheduling version upgrade job");
         await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {

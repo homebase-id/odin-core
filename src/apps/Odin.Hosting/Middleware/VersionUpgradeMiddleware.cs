@@ -37,6 +37,7 @@ namespace Odin.Hosting.Middleware
 
             if (scheduler.RequiresUpgrade())
             {
+                context.Response.Headers.Append(OdinHeaderNames.RequiresUpgrade, bool.TrueString);
                 context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
                 return Task.CompletedTask;
             }

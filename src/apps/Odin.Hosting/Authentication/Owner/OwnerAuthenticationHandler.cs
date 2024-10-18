@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -18,6 +19,7 @@ using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -26,11 +28,14 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder) : base(options, logger, encoder)
+            UrlEncoder encoder,
+            ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
+            _tenantProvider = tenantProvider;
         }
 
         /// <summary/>
@@ -62,6 +67,8 @@ namespace Odin.Hosting.Authentication.Owner
                 }
 
                 var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+
+                odinContext.Tenant = (OdinId)_tenantProvider.GetCurrentTenant()?.Name;
 
                 try
                 {
