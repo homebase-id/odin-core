@@ -72,6 +72,12 @@ public static class BackgroundServiceExtensions
             .AsSelf()
             .SingleInstance();
        
+        cb.RegisterType<IcrKeyAvailableBackgroundService>()
+            .WithParameter(new TypedParameter(typeof(Tenant.Tenant), tenant))
+            .AsSelf()
+            .SingleInstance();
+        
+        
         // Add more tenant services here
         // ...
         // ...
@@ -87,6 +93,7 @@ public static class BackgroundServiceExtensions
         // await bsm.StartAsync("dummy-tenant-background-service", scope.Resolve<DummyTenantBackgroundService>());
         await bsm.StartAsync(nameof(PeerOutboxProcessorBackgroundService), scope.Resolve<PeerOutboxProcessorBackgroundService>());
         await bsm.StartAsync(nameof(InboxOutboxReconciliationBackgroundService), scope.Resolve<InboxOutboxReconciliationBackgroundService>());
+        await bsm.StartAsync(nameof(IcrKeyAvailableBackgroundService), scope.Resolve<IcrKeyAvailableBackgroundService>());
     }
     
     //

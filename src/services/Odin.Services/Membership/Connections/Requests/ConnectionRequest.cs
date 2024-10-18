@@ -35,6 +35,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public byte[] TempRawKey { get; set; }
 
+        public Guid VerificationRandomCode { get; set; }
+        public byte[] VerificationHash { get; set; }
+
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.
         /// </summary>
@@ -43,8 +46,6 @@ namespace Odin.Services.Membership.Connections.Requests
             OdinValidationUtils.AssertNotNullOrEmpty(SenderOdinId, nameof(SenderOdinId));
             OdinValidationUtils.AssertNotNull(Recipient, nameof(Recipient));
             OdinValidationUtils.AssertNotEmptyGuid(Id, nameof(Id));
-            OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
-            ContactData.Validate();
         }
     }
 }

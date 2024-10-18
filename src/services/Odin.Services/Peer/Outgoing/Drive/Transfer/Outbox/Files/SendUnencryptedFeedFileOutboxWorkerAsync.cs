@@ -31,7 +31,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
     IDriveAclAuthorizationService driveAcl
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null)
 
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)

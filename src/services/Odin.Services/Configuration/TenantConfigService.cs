@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
@@ -69,7 +67,49 @@ public class TenantConfigService
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
+        var db = _tenantSystemStorage.IdentityDatabase;
         _tenantContext.UpdateSystemConfig(GetTenantSettings());
+    }
+
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public TenantVersionInfo IncrementVersion()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = null;
+        //TODO CONNECTIONS
+        // cn.CreateCommitUnitOfWork(() =>
+        {
+            var currentVersion = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key) ?? new TenantVersionInfo()
+            {
+                DataVersionNumber = 0,
+                LastUpgraded = 0
+            };
+
+            newVersion = new TenantVersionInfo()
+            {
+                DataVersionNumber = ++currentVersion.DataVersionNumber,
+                LastUpgraded = UnixTimeUtc.Now().milliseconds
+            };
+
+            _configStorage.Upsert(db, TenantVersionInfo.Key, newVersion);
+        }
+        //);
+
+        return newVersion;
+    }
+
+    public TenantVersionInfo GetVersionInfo()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var info = _configStorage.Get<TenantVersionInfo>(db, TenantVersionInfo.Key);
+        return info ?? new TenantVersionInfo
+        {
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
     }
 
     public bool IsIdentityServerConfigured()
@@ -145,15 +185,10 @@ public class TenantConfigService
 
     public async Task CreateInitialKeys(IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-
         odinContext.Caller.AssertHasMasterKey();
-
         await _recoverService.CreateInitialKey(odinContext);
-
-        await _publicPrivateKeyService.CreateInitialKeys(odinContext, db);
-
         await _icrKeyService.CreateInitialKeys(odinContext);
+        await _publicPrivateKeyService.CreateInitialKeys(odinContext);
     }
 
     /// <summary>
@@ -170,7 +205,7 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCircle(odinContext);
+        await _circleMembershipService.CreateSystemCircles(odinContext);
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext);
@@ -195,16 +230,15 @@ public class TenantConfigService
         }
 
         await this.RegisterBuiltInApps(odinContext);
-
         var db = _tenantSystemStorage.IdentityDatabase;
 
         // TODO CONNECTIONS
         // db.CreateCommitUnitOfWork(() => {
         _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
-            _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
-            {
-                FirstRunDate = UnixTimeUtc.Now().milliseconds
-            });
+        _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
+        {
+            FirstRunDate = UnixTimeUtc.Now().milliseconds
+        });
         // });
     }
 
@@ -246,7 +280,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -265,6 +300,10 @@ public class TenantConfigService
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
+            case TenantConfigFlagNames.DisableAutoAcceptIntroductions:
+                cfg.DisableAutoAcceptIntroductions = bool.Parse(request.Value);
+                break;
+
             default:
                 throw new OdinClientException("Flag name is valid but not handled",
                     OdinClientErrorCode.UnknownFlagName);
@@ -275,6 +314,7 @@ public class TenantConfigService
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
+
 
     public TenantSettings GetTenantSettings()
     {
@@ -385,7 +425,8 @@ public class TenantConfigService
             Name = "Homebase - Chat",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -396,17 +437,11 @@ public class TenantConfigService
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
+                            Permission = DrivePermission.Write | DrivePermission.React
                         }
                     }
                 ],
                 PermissionSet = new PermissionSet()
-
-                // PermissionSet = new PermissionSet(
-                //     PermissionKeys.ReadConnections,
-                //     PermissionKeys.SendPushNotifications,
-                //     PermissionKeys.UseTransitRead,
-                //     PermissionKeys.UseTransitWrite)
             },
             Drives =
             [
@@ -439,7 +474,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
-                // PermissionKeys.UseTransitRead,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
@@ -454,7 +489,8 @@ public class TenantConfigService
             Name = "Homebase - Mail",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -502,6 +538,7 @@ public class TenantConfigService
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.SendIntroductions,
                 PermissionKeys.UseTransitWrite)
         };
 
@@ -537,7 +574,7 @@ public class TenantConfigService
 
     private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
-        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
+        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
 
         if (shouldGrantKey)
         {

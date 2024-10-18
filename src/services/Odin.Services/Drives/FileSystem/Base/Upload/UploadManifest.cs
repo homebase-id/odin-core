@@ -4,6 +4,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -12,12 +13,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 /// </summary>
 public class UploadManifest
 {
-    public UploadManifest()
-    {
-        PayloadDescriptors = new List<UploadManifestPayloadDescriptor>();
-    }
+    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; } = new();
 
-    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
+    public UploadManifestPayloadDescriptor GetPayloadDescriptor(string key)
+    {
+        return PayloadDescriptors?.SingleOrDefault(p => string.Equals(p.PayloadKey, key, StringComparison.InvariantCultureIgnoreCase));
+    }
 
     public void AssertIsValid()
     {
@@ -55,6 +56,22 @@ public class UploadManifest
             }
         }
     }
+
+    /// <summary>
+    /// Sets the UIDs for payloads 
+    /// </summary>
+    public void ResetPayloadUiDs()
+    {
+        if (this.PayloadDescriptors != null)
+        {
+            foreach (var pd in this.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -62,12 +79,17 @@ public class UploadManifest
 /// </summary>
 public class UploadManifestPayloadDescriptor
 {
+    /// <summary>
+    /// Indicates how to treat this payload during an update.
+    /// </summary>
+    public PayloadUpdateOperationType PayloadUpdateOperationType { get; init; }
+
     public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
-    
+
     public string ContentType { get; set; }
-    
+
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -76,15 +98,65 @@ public class UploadManifestPayloadDescriptor
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
     public UnixTimeUtcUnique PayloadUid { get; set; }
+
+    public void AssertIsValid(bool encrypted)
+    {
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.None)
+        {
+            throw new OdinClientException($"Missing operation type on payload {this.PayloadKey}", OdinClientErrorCode.InvalidPayload);
+        }
+
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.AppendOrOverwrite)
+        {
+            if(encrypted)
+            {
+                OdinValidationUtils.AssertNotNull(this.Iv, nameof(Iv));
+                OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
+            }
+            
+            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+            OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
+
+            foreach (var thumb in this.Thumbnails ?? [])
+            {
+                OdinValidationUtils.AssertNotNullOrEmpty(thumb.ThumbnailKey, nameof(thumb.ThumbnailKey));
+            }
+        }
+
+        if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.DeletePayload)
+        {
+            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+        }
+    }
+    
+
+    public PackagePayloadDescriptor PackagePayloadDescriptor(uint bytesWritten, string fallbackContentType)
+    {
+        //TODO: remove the fallback in apiv2
+        var p = new PackagePayloadDescriptor()
+        {
+            Iv = this.Iv,
+            PayloadKey = this.PayloadKey,
+            Uid = this.PayloadUid,
+            ContentType = string.IsNullOrEmpty(this.ContentType?.Trim()) ? fallbackContentType : this.ContentType,
+            LastModified = UnixTimeUtc.Now(),
+            BytesWritten = bytesWritten,
+            DescriptorContent = this.DescriptorContent,
+            PreviewThumbnail = this.PreviewThumbnail,
+            UpdateOperationType = PayloadUpdateOperationType
+        };
+
+        return p;
+    }
 }
 
 public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
-    
+
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }
-    
+
     public string ContentType { get; set; }
 }

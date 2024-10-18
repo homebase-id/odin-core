@@ -20,7 +20,6 @@ namespace Odin.Services.Membership.Connections
         public async Task AutoFix(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
             
             // TODO CONNECTIONS

@@ -1,10 +1,9 @@
 ﻿#nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
@@ -32,7 +31,8 @@ namespace Odin.Services.Authorization.Apps
         /// <returns></returns>
         Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
 
-        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
+        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(
+            ClientAuthenticationToken authToken,
             IOdinContext odinContext);
 
         /// <summary>
@@ -40,6 +40,12 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task<List<RedactedAppRegistration>> GetRegisteredApps(IOdinContext odinContext);
+
+        /// <summary>
+        /// Gets all apps which grant the specified circle
+        /// </summary>
+        /// <returns></returns>
+        Task<List<RedactedAppRegistration>> GetAppsGrantingCircle(Guid circleId, IOdinContext odinContext);
 
         /// <summary>
         /// Removes access for a given application across all devices
@@ -51,7 +57,8 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext);
 
-        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
+        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId,
+            byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext);
 
 

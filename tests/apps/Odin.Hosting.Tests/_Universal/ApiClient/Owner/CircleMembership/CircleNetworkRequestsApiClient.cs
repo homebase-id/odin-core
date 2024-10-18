@@ -13,6 +13,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership;
 
+[Obsolete]
 public class CircleNetworkRequestsApiClient
 {
     private readonly TestIdentity _identity;

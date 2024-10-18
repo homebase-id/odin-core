@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Time;
-using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Registry.Registration;
 

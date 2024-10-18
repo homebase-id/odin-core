@@ -26,7 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Services.Background.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -79,8 +79,6 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
@@ -98,6 +96,15 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
+
+            if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
+            {
+                // there's an ICR key, so we can handle introductions, if any
+                // var icrContext = Context.RequestServices.GetRequiredService<IcrKeyAvailableContext>();
+                // icrContext.SetContext((OdinContext)ctx);
+                var icrKeyBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
+                icrKeyBackgroundService.RunNow(ctx);
+            }
 
             var claims = new List<Claim>
             {

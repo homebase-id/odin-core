@@ -27,7 +27,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// Decrypts the grant key store key and shared secret using your Client Auth Token 
         /// </summary>
         /// <returns></returns>
-        public (SensitiveByteArray grantKeyStoreKey, SensitiveByteArray sharedSecret) DecryptUsingClientAuthenticationToken(ClientAuthenticationToken authToken)
+        public (SensitiveByteArray keyStoreKey, SensitiveByteArray sharedSecret) DecryptUsingClientAuthenticationToken(ClientAuthenticationToken authToken)
         {
             var token = authToken.AccessTokenHalfKey;
             var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(token);
