@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -24,7 +25,8 @@ public class CircleNetworkVerificationService(
     OdinConfiguration odinConfiguration,
     CircleNetworkService cns,
     IOdinHttpClientFactory odinHttpClientFactory,
-    FileSystemResolver fileSystemResolver)
+    FileSystemResolver fileSystemResolver,
+    ILogger<CircleNetworkVerificationService> logger)
     : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver)
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
@@ -152,6 +154,8 @@ public class CircleNetworkVerificationService(
 
         if (icr.Status == ConnectionStatus.Connected)
         {
+            logger.LogDebug("Syncing verification hash for connected [{identity}]", odinId);
+
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 

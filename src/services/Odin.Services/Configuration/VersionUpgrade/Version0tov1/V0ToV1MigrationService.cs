@@ -22,10 +22,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
     {
         public async Task Upgrade(IOdinContext odinContext)
         {
+            logger.LogDebug("Preparing Introductions Release for Identity [{identity}]", odinContext.Tenant);
             await PrepareIntroductionsRelease(odinContext);
             
             await AutoFixCircleGrants(odinContext);
-
         }
 
         public async Task AutoFixCircleGrants(IOdinContext odinContext)
@@ -57,26 +57,30 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         private async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-
+            
             //
             // Generate new Online Icr Encrypted ECC Key
             //
+            logger.LogDebug("Creating new Online Icr Encrypted ECC Key");
             await publicPrivateKeyService.CreateInitialKeys(odinContext);
 
             //
             // Create new circles, rename existing ones
             //
+            logger.LogDebug("Creating new circles; renaming existing ones");
             await circleDefinitionService.EnsureSystemCirclesExist();
 
             //
             // This will reapply the grants since we added a new permission
             //
+            logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinition(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
             
 
             //
             // Sync verification hash's across all connections
             //
+            logger.LogInformation("Syncing verification hashes");
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
