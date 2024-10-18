@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
@@ -164,35 +165,71 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
             Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(getCircleDefinitionsResponse.Content);
-            var circleDefs = getCircleDefinitionsResponse.Content;
+            var circleDefs = getCircleDefinitionsResponse.Content?.ToList();
             Assert.IsNotNull(circleDefs);
 
-            Assert.IsTrue(circleDefs.Count() == 1, "Only the system circle should exist");
+            Assert.IsTrue(circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count, "not all system circles were created");
 
-            var systemCircle = circleDefs.Single();
-            Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-            Assert.IsTrue(systemCircle.Name == "All Connected Identities");
+            var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
+            Assert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
+            Assert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 6);
 
-            Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(systemCircle.DriveGrants.Count() == 6,
-                "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
-
-            Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
+            Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
 
-            //note: the permission for chat drive is write
-            Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
+            Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
-            Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+            Assert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
+            Assert.IsNotNull(connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
-            Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
-            Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+            Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
-            Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
-                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
-            Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+            Assert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+
+            //
+
+            var autoConnectionsSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.AutoConnectionsCircleId);
+            Assert.IsTrue(autoConnectionsSystemCircle.Name == "Auto-connected Identities");
+
+            // Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(dg =>
+            //     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+
+            Assert.IsTrue(!autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
+
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+
+
+            // Granted via allowAnonymous read
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
+
+
+            // Granted via allowAnonymous read
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.HomePageConfigDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
+
+
+            // Granted via allowAnonymous read
+            Assert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.PublicPostsChannelDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
 
 
             // System apps should be in place
@@ -286,12 +323,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // System circle exists and has correct grants
             //
 
-            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsNotNull(systemCircle, "system circle should exist");
             Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-            Assert.IsTrue(systemCircle.Name == "All Connected Identities");
-            Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+            Assert.IsTrue(systemCircle.Name == "Confirmed Connected Identities");
+            Assert.IsTrue(systemCircle.Description ==
+                          "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
+            Assert.IsTrue(systemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
+            Assert.IsNotNull(systemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
             var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);

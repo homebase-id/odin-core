@@ -72,7 +72,9 @@ namespace Odin.Services.Base
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
+
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
+        public bool IsAuthenticated => this.SecurityLevel == SecurityGroupType.Authenticated;
 
         public void AssertHasMasterKey()
         {
@@ -87,6 +89,22 @@ namespace Odin.Services.Base
             if (!IsOwner)
             {
                 throw new OdinSecurityException("Caller must be owner");
+            }
+        }
+
+        public void AssertCallerIsConnected()
+        {
+            if (!IsConnected)
+            {
+                throw new OdinSecurityException("Caller must be connected");
+            }
+        }
+
+        public void AssertCallerIsAuthenticated()
+        {
+            if ((int)this.SecurityLevel < (int)SecurityGroupType.Authenticated)
+            {
+                throw new OdinSecurityException("Caller must be authenticated");
             }
         }
 
@@ -106,7 +124,7 @@ namespace Odin.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
-                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConnectedIdentitiesSystemCircleId),
+                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId),
                 SecurityLevel = this.SecurityLevel,
             };
         }

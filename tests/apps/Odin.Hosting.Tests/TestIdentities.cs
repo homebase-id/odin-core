@@ -28,6 +28,16 @@ namespace Odin.Hosting.Tests
             ContactData = new ContactRequestData()
         };
 
+        public static readonly TestIdentity Collab = new TestIdentity()
+        {
+            OdinId = (OdinId)"collab.dotyou.cloud",
+            ContactData = new ContactRequestData()
+            {
+                Name = "Collaboration Identity",
+                ImageId = new Guid()
+            }
+        };
+
         public static readonly TestIdentity TomBombadil = new TestIdentity()
         {
             OdinId = (OdinId)"tom.dotyou.cloud",
@@ -82,7 +92,8 @@ namespace Odin.Hosting.Tests
             { Samwise.OdinId, Samwise },
             { Merry.OdinId, Merry },
             { Pippin.OdinId, Pippin },
-            { TomBombadil.OdinId, TomBombadil }
+            { TomBombadil.OdinId, TomBombadil },
+            { Collab.OdinId, Collab }
         };
     }
 }

@@ -4,6 +4,10 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Peer.Encryption;
 using Refit;
 
@@ -18,7 +22,7 @@ namespace Odin.Hosting.Tests
             var code = Enum.Parse<OdinClientErrorCode>(codeText!, true);
             return code;
         }
-        
+
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {
             var key = keyHeader.AesKey;
@@ -39,20 +43,39 @@ namespace Odin.Hosting.Tests
 
             return new MemoryStream(cipher);
         }
-        
+
         /// <summary>
         /// Converts data to json then encrypts
         /// </summary>
         public static Stream JsonEncryptAes(object instance, byte[] iv, ref SensitiveByteArray key)
         {
             var data = OdinSystemSerializer.Serialize(instance);
-            
+
             var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
                 key: key,
                 iv: iv);
 
             return new MemoryStream(cipher);
+        }
+
+        public static PermissionSetGrantRequest CreatePermissionGrantRequest(TargetDrive targetDrive, DrivePermission drivePermissions)
+        {
+            return new PermissionSetGrantRequest
+            {
+                Drives =
+                [
+                    new DriveGrantRequest
+                    {
+                        PermissionedDrive = new()
+                        {
+                            Drive = targetDrive,
+                            Permission = drivePermissions
+                        }
+                    }
+                ],
+                PermissionSet = new PermissionSet()
+            };
         }
     }
 }

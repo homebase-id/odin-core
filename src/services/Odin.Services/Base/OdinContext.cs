@@ -73,7 +73,7 @@ namespace Odin.Services.Base
 
             AuthContext = authContext;
         }
-        
+
         public void AssertCanManageConnections()
         {
             if (Caller.IsOwner && Caller.HasMasterKey)
@@ -94,7 +94,7 @@ namespace Odin.Services.Base
             };
         }
     }
-    
+
     public class RedactedOdinContext
     {
         public RedactedCallerContext Caller { get; set; }

@@ -14,10 +14,9 @@ namespace Odin.Services.DataSubscription.Follower
         private const string RootPath = PeerApiPathConstants.FollowersV1;
 
         [Post(RootPath + "/follow")]
-        Task<ApiResponse<HttpContent>> Follow([Body] RsaEncryptedPayload request);
+        Task<ApiResponse<HttpContent>> Follow([Body] EccEncryptedPayload request);
 
         [Post(RootPath + "/unfollow")]
         Task<ApiResponse<HttpContent>> Unfollow();
-        
     }
 }

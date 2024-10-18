@@ -34,4 +34,8 @@
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Mediator\Owner\" />
+  </ItemGroup>
+
 </Project>

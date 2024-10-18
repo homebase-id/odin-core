@@ -4,20 +4,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
-using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -26,7 +20,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
-using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Util;
@@ -56,17 +49,15 @@ namespace Odin.Services.Authentication.Owner
         private readonly TenantContext _tenantContext;
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-
+        
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
         private readonly SingleKeyValueStorage _firstRunInfoStorage;
-
+        
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
-            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
+            TenantConfigService tenantConfigService, IIdentityRegistry identityRegistry,
             OdinConfiguration configuration)
         {
             _logger = logger;
@@ -76,7 +67,6 @@ namespace Odin.Services.Authentication.Owner
             _driveManager = driveManager;
             _icrKeyService = icrKeyService;
             _tenantConfigService = tenantConfigService;
-            _httpContextAccessor = httpContextAccessor;
             _identityRegistry = identityRegistry;
 
             _configuration = configuration;
@@ -115,8 +105,11 @@ namespace Odin.Services.Authentication.Owner
         /// Authenticates the owner based on the <see cref="PasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
+        /// <param name="devicePushNotificationKey"></param>
+        /// <param name="odinContext"></param>
         /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
-        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply)
+        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply,
+            Guid devicePushNotificationKey, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var noncePackage = await AssertValidPassword(reply);
@@ -127,8 +120,6 @@ namespace Odin.Services.Authentication.Owner
 
             _serverTokenStorage.Upsert(db, serverToken.Id, serverToken);
 
-            // TODO - where do we set the MasterKek and MasterDek?
-
             // TODO: audit login some where, or in helper class below
 
             var token = new ClientAuthenticationToken()
@@ -138,9 +129,16 @@ namespace Odin.Services.Authentication.Owner
                 ClientTokenType = ClientTokenType.Other
             };
 
+            var clientContext = new OdinClientContext()
+            {
+                ClientIdOrDomain = string.Empty,
+                CorsHostName = string.Empty,
+                AccessRegistrationId = token.Id,
+                DevicePushNotificationKey = devicePushNotificationKey
+            };
+
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
-            var odinContext = _httpContextAccessor!.HttpContext!.RequestServices.GetRequiredService<IOdinContext>();
-            await this.UpdateOdinContext(token, odinContext);
+            await this.UpdateOdinContext(token, clientContext, odinContext);
             await EnsureFirstRunOperations(odinContext);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
@@ -187,7 +185,6 @@ namespace Odin.Services.Authentication.Owner
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionTokenId, SensitiveByteArray clientSecret)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = _serverTokenStorage.Get<OwnerConsoleToken>(db, sessionTokenId);
 
@@ -207,7 +204,8 @@ namespace Odin.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token,
+        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(
+            ClientAuthenticationToken token,
             IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
@@ -246,7 +244,8 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, IOdinContext odinContext)
+        public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, OdinClientContext clientContext,
+            IOdinContext odinContext)
         {
             var creator = new Func<Task<IOdinContext>>(async delegate
             {
@@ -264,13 +263,7 @@ namespace Odin.Services.Authentication.Owner
                     odinId: _tenantContext.HostOdinId,
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner,
-                    odinClientContext: new OdinClientContext()
-                    {
-                        ClientIdOrDomain = string.Empty,
-                        CorsHostName = string.Empty,
-                        AccessRegistrationId = token.Id,
-                        DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
-                    });
+                    odinClientContext: clientContext);
 
                 return dotYouContext;
             });
@@ -283,7 +276,6 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         /// <param name="tokenId"></param>
         /// <param name="ttlSeconds"></param>
-        /// <param name="db"></param>
         public async Task ExtendTokenLife(Guid tokenId, int ttlSeconds)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
@@ -346,10 +338,9 @@ namespace Odin.Services.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
+        public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinClientContext clientContext,
+            IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var context = _httpContextAccessor.HttpContext;
             odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
             //HACK: fix this
@@ -358,18 +349,18 @@ namespace Odin.Services.Authentication.Owner
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             odinContext.Caller = new CallerContext(
-                odinId: (OdinId)context!.Request.Host.Host,
+                odinId: _tenantContext.HostOdinId,
                 masterKey: null, //will be set later
                 securityLevel: SecurityGroupType.Owner,
-                odinClientContext: new OdinClientContext()
+                odinClientContext: clientContext ?? new OdinClientContext
                 {
-                    ClientIdOrDomain = string.Empty,
-                    CorsHostName = string.Empty,
-                    AccessRegistrationId = token.Id,
-                    DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
+                    CorsHostName = null,
+                    AccessRegistrationId = null,
+                    DevicePushNotificationKey = null,
+                    ClientIdOrDomain = null
                 });
 
-            IOdinContext ctx = await this.GetDotYouContext(token, odinContext);
+            IOdinContext ctx = await this.GetDotYouContext(token, clientContext, odinContext);
 
             if (null == ctx)
             {
@@ -382,12 +373,6 @@ namespace Odin.Services.Authentication.Owner
 
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
-
-            //experimental:tell the system the owner is online
-            // var mediator = context.RequestServices.GetRequiredService<IMediator>();
-            // await mediator.Publish(new OwnerIsOnlineNotification()
-            // {
-            // });
 
             return true;
         }
@@ -406,6 +391,8 @@ namespace Odin.Services.Authentication.Owner
                 {
                     FirstLoginDate = UnixTimeUtc.Now()
                 });
+
+                _tenantConfigService.IncrementVersion();
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -12,6 +13,7 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
         private readonly string _tempDataRootPath;
@@ -128,6 +130,23 @@ namespace Odin.Services.Drives
             {
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
+        }
+
+        public bool AttributeHasTrueValue(string attribute)
+        {
+            if (null == Attributes)
+            {
+                return false;
+            }
+
+            return this.Attributes.TryGetValue(attribute, out string value) &&
+                   bool.TryParse(value, out bool flagValue) &&
+                   flagValue;
+        }
+
+        public bool IsCollaborationDrive()
+        {
+            return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
         }
     }
 

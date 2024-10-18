@@ -52,6 +52,13 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
         return _factory;
     }
 
+    
+    public Task Cleanup()
+    {
+        //no-op
+        return Task.CompletedTask;
+    }
+
     public override string ToString()
     {
         return nameof(AppWriteOnlyAccessToDrive);

@@ -8,9 +8,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
-using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -32,11 +30,11 @@ public abstract class FileSystemStreamWriterBase
 
 
     private readonly DriveManager _driveManager;
-    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext,
-        DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
+        DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
 
@@ -93,15 +91,7 @@ public abstract class FileSystemStreamWriterBase
             };
         }
 
-        if (instructionSet.Manifest?.PayloadDescriptors != null)
-        {
-            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
-            {
-                //These are created in advance to ensure we can
-                //upload thumbnails and payloads in any order
-                pd.PayloadUid = UnixTimeUtcUnique.Now();
-            }
-        }
+        instructionSet.Manifest?.ResetPayloadUiDs();
 
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
         await Task.CompletedTask;
@@ -113,7 +103,7 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext, db);
     }
 
-    public virtual async Task AddPayload(string key, string overrideContentType, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -132,17 +122,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (bytesWritten > 0)
         {
-            Package.Payloads.Add(new PackagePayloadDescriptor()
-            {
-                Iv = descriptor.Iv,
-                Uid = descriptor.PayloadUid,
-                PayloadKey = key,
-                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? overrideContentType : descriptor.ContentType,
-                LastModified = UnixTimeUtc.Now(),
-                BytesWritten = bytesWritten,
-                DescriptorContent = descriptor.DescriptorContent,
-                PreviewThumbnail = descriptor.PreviewThumbnail
-            });
+            Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
     }
 

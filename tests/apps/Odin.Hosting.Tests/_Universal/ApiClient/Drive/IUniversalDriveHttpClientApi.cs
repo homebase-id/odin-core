@@ -32,7 +32,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Multipart]
         [Post(RootStorageEndpoint + "/uploadpayload")]
         Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
-
+        
+        [Multipart]
+        [Patch(RootStorageEndpoint + "/update")]
+        Task<ApiResponse<UploadPayloadResult>> UpdateFile(StreamPart[] streamdata);
+        
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteFileResult>> SoftDeleteFile([Body] DeleteFileRequest file);
 

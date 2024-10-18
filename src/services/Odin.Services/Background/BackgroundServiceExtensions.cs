@@ -71,7 +71,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterType<PeerOutboxProcessorBackgroundService>()
             .AsSelf()
             .SingleInstance();
-       
+        
         // Add more tenant services here
         // ...
         // ...

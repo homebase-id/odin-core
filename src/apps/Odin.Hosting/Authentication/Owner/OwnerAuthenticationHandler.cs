@@ -1,29 +1,25 @@
 ﻿#nullable enable
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Mediator.Owner;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
+using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -32,14 +28,21 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
+        private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
+        private readonly IcrKeyAvailableScheduler _icrKeyAvailableScheduler;
+        private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
-        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, TenantSystemStorage tenantSystemStorage)
-            : base(options, logger, encoder)
+        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
+            VersionUpgradeScheduler versionUpgradeScheduler,
+            IcrKeyAvailableScheduler icrKeyAvailableScheduler,
+            ILoggerFactory logger,
+            UrlEncoder encoder,
+            ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            _versionUpgradeScheduler = versionUpgradeScheduler;
+            _icrKeyAvailableScheduler = icrKeyAvailableScheduler;
+            _tenantProvider = tenantProvider;
         }
 
         /// <summary/>
@@ -56,6 +59,7 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             }
+
             return Task.CompletedTask;
         }
 
@@ -69,31 +73,38 @@ namespace Odin.Hosting.Authentication.Owner
                     return AuthenticateResult.Fail("Empty authResult");
                 }
 
-                var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+                var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+
+                odinContext.Tenant = (OdinId)_tenantProvider.GetCurrentTenant()?.Name;
 
                 try
                 {
-                    var db = _tenantSystemStorage.IdentityDatabase;
-                    if (!await UpdateOdinContext(authResult, dotYouContext))
+                    var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+                    if (!await authService.UpdateOdinContext(authResult, clientContext: null, odinContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
+
+                    await _versionUpgradeScheduler.EnsureScheduled(authResult, odinContext);
+                    await _icrKeyAvailableScheduler.EnsureScheduled(authResult, odinContext, IcrKeyAvailableJobData.JobTokenType.Owner);
                 }
                 catch (OdinSecurityException e)
                 {
                     return AuthenticateResult.Fail(e.Message);
                 }
 
-                if (dotYouContext.Caller.OdinId == null)
+                if (odinContext.Caller.OdinId == null)
                 {
                     return AuthenticateResult.Fail("Missing OdinId");
                 }
 
                 var claims = new List<Claim>()
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,
+                        OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean,
+                        OdinClaimTypes.YouFoundationIssuer),
                 };
 
                 var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
@@ -113,19 +124,11 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
-        {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext);
-        }
-
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                var db = _tenantSystemStorage.IdentityDatabase;
                 authService.ExpireToken(result.Id);
             }
 
