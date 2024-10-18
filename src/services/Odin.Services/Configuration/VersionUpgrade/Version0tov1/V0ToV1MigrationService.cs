@@ -15,7 +15,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
     public class V0ToV1VersionMigrationService(
         ILogger<V0ToV1VersionMigrationService> logger,
         IAppRegistrationService appRegistrationService,
-        TenantSystemStorage tenantSystemStorage,
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
         CircleNetworkVerificationService verificationService,
