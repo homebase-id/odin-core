@@ -64,10 +64,19 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await publicPrivateKeyService.CreateInitialKeys(odinContext);
 
             //
-            // Create new circles
+            // Create new circles, rename existing ones
             //
             await circleDefinitionService.EnsureSystemCirclesExist();
 
+            //
+            // This will reapply the grants since we added a new permission
+            //
+            await circleNetworkService.UpdateCircleDefinition(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
+            
+
+            //
+            // Sync verification hash's across all connections
+            //
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
