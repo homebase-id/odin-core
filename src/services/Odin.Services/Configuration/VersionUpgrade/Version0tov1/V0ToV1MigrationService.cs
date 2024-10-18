@@ -24,12 +24,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         public async Task Upgrade(IOdinContext odinContext)
         {
             await PrepareIntroductionsRelease(odinContext);
+            
+            await AutoFixCircleGrants(odinContext);
+
         }
 
         public async Task AutoFixCircleGrants(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var db = tenantSystemStorage.IdentityDatabase;
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
@@ -68,7 +70,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await circleDefinitionService.EnsureSystemCirclesExist();
 
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
-            
+
             //TODO CONNECTIONS
             // await db.CreateCommitUnitOfWorkAsync(async () =>
             {
