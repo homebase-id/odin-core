@@ -26,7 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Services.Background.Services.Tenant;
+using Odin.Services.Membership.Connections.IcrKeyUpgrade;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -34,7 +34,8 @@ namespace Odin.Hosting.Authentication.YouAuth
         IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        TenantSystemStorage tenantSystemStorage)
+        TenantSystemStorage tenantSystemStorage,
+        IcrKeyUpgradeScheduler icrKeyUpgradeScheduler)
         : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
         //
@@ -43,13 +44,15 @@ namespace Odin.Hosting.Authentication.YouAuth
         {
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-            bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isAppPath =
+                this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
                 return await HandleAppAuth(dotYouContext);
             }
 
-            bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isYouAuthPath =
+                this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
                 return await HandleYouAuth(dotYouContext);
@@ -97,14 +100,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            if (odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
-            {
-                // there's an ICR key, so we can handle introductions, if any
-                // var icrContext = Context.RequestServices.GetRequiredService<IcrKeyAvailableContext>();
-                // icrContext.SetContext((OdinContext)ctx);
-                var icrKeyBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
-                icrKeyBackgroundService.RunNow(ctx);
-            }
+            await icrKeyUpgradeScheduler.EnsureScheduled(authToken, ctx, IcrKeyUpgradeJobData.JobTokenType.App);
 
             var claims = new List<Claim>
             {
@@ -125,7 +121,6 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleYouAuth(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
             odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
@@ -146,7 +141,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken,
+            IOdinContext odinContext)
         {
             var db = tenantSystemStorage.IdentityDatabase;
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
@@ -211,7 +207,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new OdinClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                throw new OdinClientException(
+                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
                     OdinClientErrorCode.NotInitialized);
             }
 
@@ -257,8 +254,10 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             var claims = new[]
             {
-                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
+                    OdinClaimTypes.YouFoundationIssuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
+                    OdinClaimTypes.YouFoundationIssuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);

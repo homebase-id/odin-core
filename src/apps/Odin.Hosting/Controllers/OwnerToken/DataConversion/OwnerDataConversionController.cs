@@ -18,11 +18,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
             return Ok();
         }
         
-        [HttpPost("prepare-introductions-release")]
-        public async Task<IActionResult> EnsureVerificationHash()
-        {
-            await fixer.PrepareIntroductionsRelease(WebOdinContext);
-            return Ok();
-        }
     }
 }

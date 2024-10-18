@@ -10,17 +10,17 @@ using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 namespace Odin.Services.Configuration.VersionUpgrade;
 
 public class VersionUpgradeService(
+    TenantContext tenantContext,
     TenantConfigService tenantConfigService,
     V0ToV1VersionMigrationService v0ToV1VersionMigrationService,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
-
     public async Task Upgrade(VersionUpgradeJobData data)
     {
         logger.LogInformation("Running Version Upgrade Process");
 
-        var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, authService.TemporalEncryptionKey, data.Iv);
+        var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, tenantContext.TemporalEncryptionKey, data.Iv);
         var token = ClientAuthenticationToken.FromPortableBytes(tokenBytes);
 
         var odinContext = new OdinContext
@@ -37,7 +37,7 @@ public class VersionUpgradeService(
             DevicePushNotificationKey = null,
             ClientIdOrDomain = null
         };
-        
+
         await authService.UpdateOdinContext(token, clientContext, odinContext);
 
         var currentVersion = tenantConfigService.GetVersionInfo().DataVersionNumber;
@@ -66,7 +66,7 @@ public class VersionUpgradeService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception occured");
+            logger.LogError(ex, $"Upgrading from {currentVersion} failed");
         }
 
         await Task.CompletedTask;

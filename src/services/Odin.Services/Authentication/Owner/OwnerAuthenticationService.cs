@@ -12,14 +12,11 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Time;
-using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
-using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
@@ -44,7 +41,6 @@ namespace Odin.Services.Authentication.Owner
         private readonly OwnerSecretService _secretService;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinConfiguration _configuration;
-        private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -53,21 +49,16 @@ namespace Odin.Services.Authentication.Owner
         private readonly TenantContext _tenantContext;
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
-
-        private readonly IcrKeyAvailableBackgroundService _icrKeyAvailableBackgroundService;
-
+        
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
         private readonly SingleKeyValueStorage _firstRunInfoStorage;
-
-        public SensitiveByteArray TemporalEncryptionKey { get; } = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-
+        
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IIdentityRegistry identityRegistry,
-            OdinConfiguration configuration, IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService,
-            VersionUpgradeScheduler versionUpgradeScheduler)
+            OdinConfiguration configuration)
         {
             _logger = logger;
             _secretService = secretService;
@@ -79,8 +70,6 @@ namespace Odin.Services.Authentication.Owner
             _identityRegistry = identityRegistry;
 
             _configuration = configuration;
-            _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
-            _versionUpgradeScheduler = versionUpgradeScheduler;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -116,6 +105,7 @@ namespace Odin.Services.Authentication.Owner
         /// Authenticates the owner based on the <see cref="PasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
+        /// <param name="devicePushNotificationKey"></param>
         /// <param name="odinContext"></param>
         /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
         public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply,

@@ -17,8 +17,8 @@ using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
-using Odin.Services.Background.Services.Tenant;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Membership.Connections.IcrKeyUpgrade;
 using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.Owner
@@ -28,13 +28,20 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
+        private readonly IcrKeyUpgradeScheduler _icrKeyUpgradeScheduler;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
-        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
+        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
+            VersionUpgradeScheduler versionUpgradeScheduler,
+            IcrKeyUpgradeScheduler icrKeyUpgradeScheduler,
+            ILoggerFactory logger,
             UrlEncoder encoder,
             ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
+            _versionUpgradeScheduler = versionUpgradeScheduler;
+            _icrKeyUpgradeScheduler = icrKeyUpgradeScheduler;
             _tenantProvider = tenantProvider;
         }
 
@@ -77,12 +84,9 @@ namespace Odin.Hosting.Authentication.Owner
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
-                    
-                    var versionUpgradeScheduler = Context.RequestServices.GetRequiredService<VersionUpgradeScheduler>();
-                    await versionUpgradeScheduler.ScheduleUpgradeJobIfNeeded(authResult, authService.TemporalEncryptionKey, odinContext);
-                
-                    var icrKeyAvailableBackgroundService = Context.RequestServices.GetRequiredService<IcrKeyAvailableBackgroundService>();
-                    icrKeyAvailableBackgroundService.RunNow(odinContext);
+
+                    await _versionUpgradeScheduler.EnsureScheduled(authResult, odinContext);
+                    await _icrKeyUpgradeScheduler.EnsureScheduled(authResult, odinContext, IcrKeyUpgradeJobData.JobTokenType.Owner);
                 }
                 catch (OdinSecurityException e)
                 {

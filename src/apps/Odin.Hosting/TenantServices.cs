@@ -48,6 +48,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Membership.Connections.IcrKeyUpgrade;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
@@ -60,7 +61,6 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-           
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
@@ -216,7 +216,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingTransferService>().SingleInstance();
-            
+
             cb.RegisterType<PeerOutboxProcessorMediatorAdapter>()
                 .As<INotificationHandler<OutboxItemAddedNotification>>()
                 .AsSelf();
@@ -236,9 +236,12 @@ namespace Odin.Hosting
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().As<IVersionMigrationService>().SingleInstance();
+            cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
+
+            cb.RegisterType<IcrKeyUpgradeService>().AsSelf().SingleInstance();
+            cb.RegisterType<IcrKeyUpgradeScheduler>().AsSelf().SingleInstance();
             
             // Background services
             cb.AddTenantBackgroundServices(tenant);

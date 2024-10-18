@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
@@ -20,12 +19,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
         CircleNetworkVerificationService verificationService,
-        PublicPrivateKeyService publicPrivateKeyService) : IVersionMigrationService
+        PublicPrivateKeyService publicPrivateKeyService)
     {
         public async Task Upgrade(IOdinContext odinContext)
         {
-            await AutoFixCircleGrants(odinContext);
-
             await PrepareIntroductionsRelease(odinContext);
         }
 
@@ -40,7 +37,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             {
                 foreach (var identity in allIdentities.Results)
                 {
-                    await FixIdentity(identity, odinContext, db);
+                    await FixIdentity(identity, odinContext);
                 }
 
                 var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
@@ -56,7 +53,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         /// <summary>
         /// Handles the changes to production data required for the introductions feature
         /// </summary>
-        public async Task PrepareIntroductionsRelease(IOdinContext odinContext)
+        private async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -71,6 +68,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await circleDefinitionService.EnsureSystemCirclesExist();
 
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
+            
             //TODO CONNECTIONS
             // await db.CreateCommitUnitOfWorkAsync(async () =>
             {
@@ -89,7 +87,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //);
         }
 
-        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext, IdentityDatabase db)
+        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {

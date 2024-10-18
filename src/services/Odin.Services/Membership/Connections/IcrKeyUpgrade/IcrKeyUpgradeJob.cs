@@ -10,17 +10,17 @@ using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.Tenant.Container;
 
-namespace Odin.Services.Configuration.VersionUpgrade;
+namespace Odin.Services.Membership.Connections.IcrKeyUpgrade;
 
 #nullable enable
 
 //
 
-public class VersionUpgradeJob(
+public class IcrKeyUpgradeJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
-    ILogger<VersionUpgradeJob> logger) : AbstractJob
+    ILogger<IcrKeyUpgradeJob> logger) : AbstractJob
 {
-    public VersionUpgradeJobData Data { get; set; } = new();
+    public IcrKeyUpgradeJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
@@ -33,12 +33,12 @@ public class VersionUpgradeJob(
             }
 
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
-            var versionUpgradeService = scope.Resolve<VersionUpgradeService>();
-            await versionUpgradeService.Upgrade(Data);
+            var service = scope.Resolve<IcrKeyUpgradeService>();
+            await service.Upgrade(Data);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Version Upgrade Job railed to run");
+            logger.LogError(e, "IcrKeyUpgradeJob railed to run");
             return JobExecutionResult.Fail();
         }
 
@@ -63,7 +63,7 @@ public class VersionUpgradeJob(
 
     public override void DeserializeJobData(string json)
     {
-        Data = OdinSystemSerializer.DeserializeOrThrow<VersionUpgradeJobData>(json);
+        Data = OdinSystemSerializer.DeserializeOrThrow<IcrKeyUpgradeJobData>(json);
     }
 
     //

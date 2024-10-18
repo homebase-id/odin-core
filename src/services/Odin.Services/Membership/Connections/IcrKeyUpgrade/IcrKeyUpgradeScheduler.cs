@@ -3,27 +3,29 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.JobManagement;
 
-namespace Odin.Services.Configuration.VersionUpgrade;
+namespace Odin.Services.Membership.Connections.IcrKeyUpgrade;
 
 /// <summary>
 /// Used to handle upgrades to data for each tenant based on the version number
 /// </summary>
-public sealed class VersionUpgradeScheduler(
-    TenantConfigService configService,
+public sealed class IcrKeyUpgradeScheduler(
     TenantContext tenantContext,
-    ILogger<VersionUpgradeScheduler> logger,
+    ILogger<IcrKeyUpgradeScheduler> logger,
     IJobManager jobManager)
 {
     private readonly IJobManager _jobManager = jobManager;
 
     public async Task EnsureScheduled(
         ClientAuthenticationToken token,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        IcrKeyUpgradeJobData.JobTokenType jobTokenType
+    )
     {
-        if (!odinContext.Caller.HasMasterKey || !RequiresUpgrade())
+        if (!odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
         {
             return;
         }
@@ -33,12 +35,13 @@ public sealed class VersionUpgradeScheduler(
             return;
         }
 
-        var job = _jobManager.NewJob<VersionUpgradeJob>();
+        var job = _jobManager.NewJob<IcrKeyUpgradeJob>();
 
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
 
-        job.Data = new VersionUpgradeJobData()
+        job.Data = new IcrKeyUpgradeJobData()
         {
+            TokenType = jobTokenType,
             Iv = iv,
             Tenant = odinContext.Tenant,
             EncryptedToken = encryptedToken
@@ -53,11 +56,5 @@ public sealed class VersionUpgradeScheduler(
             OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
             OnFailureDeleteAfter = TimeSpan.FromMinutes(0),
         });
-    }
-
-    public bool RequiresUpgrade()
-    {
-        var currentVersion = configService.GetVersionInfo().DataVersionNumber;
-        return currentVersion != ReleaseVersionInfo.DataVersionNumber;
     }
 }
