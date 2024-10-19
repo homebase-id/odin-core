@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
@@ -24,7 +25,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         {
             logger.LogDebug("Preparing Introductions Release for Identity [{identity}]", odinContext.Tenant);
             await PrepareIntroductionsRelease(odinContext);
-            
+
             await AutoFixCircleGrants(odinContext);
         }
 
@@ -57,7 +58,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         private async Task PrepareIntroductionsRelease(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            
+
             //
             // Generate new Online Icr Encrypted ECC Key
             //
@@ -75,7 +76,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinition(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
-            
+
+            //
+            // Update the apps that use the new circle
+            //
+            logger.LogDebug("Updating system apps with new circles and permissions");
+            await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+            await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
 
             //
             // Sync verification hash's across all connections
@@ -99,6 +106,23 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 }
             }
             //);
+        }
+
+        private async Task UpdateApp(AppRegistrationRequest request, IOdinContext odinContext)
+        {
+            await appRegistrationService.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest
+            {
+                AppId = request.AppId,
+                AuthorizedCircles = request.AuthorizedCircles,
+                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant
+            }, odinContext);
+
+            await appRegistrationService.UpdateAppPermissions(new UpdateAppPermissionsRequest
+            {
+                AppId = request.AppId,
+                PermissionSet = request.PermissionSet,
+                Drives = request.Drives,
+            }, odinContext);
         }
 
         private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext)

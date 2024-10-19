@@ -86,8 +86,8 @@ namespace Odin.Services.Authorization.Apps
                 });
             }
 
-            var appGrant =
-                await _exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
+            var appGrant = await _exchangeGrantService.CreateExchangeGrant(db,
+                keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
             //TODO: add check if app is already registered

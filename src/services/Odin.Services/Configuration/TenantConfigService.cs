@@ -71,6 +71,21 @@ public class TenantConfigService
         _tenantContext.UpdateSystemConfig(GetTenantSettings());
     }
 
+    public TenantVersionInfo ForceVersionNumber(int version)
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = new TenantVersionInfo()
+        {
+            DataVersionNumber = version,
+            LastUpgraded = UnixTimeUtc.Now().milliseconds
+        };
+
+        _configStorage.Upsert(db, TenantVersionInfo.Key, newVersion);
+
+        return newVersion;
+    }
+
     /// <summary>
     /// Increments the version number and returns the new version
     /// </summary>
@@ -415,134 +430,15 @@ public class TenantConfigService
 
         await _appRegistrationService.RegisterApp(request, odinContext);
     }
-
-
+    
     private async Task RegisterChatApp(IOdinContext odinContext)
     {
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.ChatAppId,
-            Name = "Homebase - Chat",
-            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-            {
-                SystemCircleConstants.ConfirmedConnectionsCircleId,
-                SystemCircleConstants.AutoConnectionsCircleId
-            },
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
-            {
-                Drives =
-                [
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive()
-                        {
-                            Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write | DrivePermission.React
-                        }
-                    }
-                ],
-                PermissionSet = new PermissionSet()
-            },
-            Drives =
-            [
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ChatDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                }
-            ],
-            PermissionSet = new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.SendIntroductions,
-                PermissionKeys.UseTransitWrite)
-        };
-
-        await _appRegistrationService.RegisterApp(request, odinContext);
+        await _appRegistrationService.RegisterApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
     }
 
     private async Task RegisterMailApp(IOdinContext odinContext)
     {
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.MailAppId,
-            Name = "Homebase - Mail",
-            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-            {
-                SystemCircleConstants.ConfirmedConnectionsCircleId,
-                SystemCircleConstants.AutoConnectionsCircleId
-            },
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
-            {
-                Drives =
-                [
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive()
-                        {
-                            Drive = SystemDriveConstants.MailDrive,
-                            Permission = DrivePermission.Write
-                        }
-                    }
-                ],
-                PermissionSet = new PermissionSet()
-            },
-            Drives =
-            [
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.MailDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                }
-            ],
-            PermissionSet = new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.SendIntroductions,
-                PermissionKeys.UseTransitWrite)
-        };
-
-        await _appRegistrationService.RegisterApp(request, odinContext);
+        await _appRegistrationService.RegisterApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
     }
 
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext)
