@@ -128,7 +128,7 @@ namespace Odin.Hosting.Middleware
             {
                 using (var responseStream = new MemoryStream())
                 {
-                    //create a separate response stream to collect all of the content being written
+                    //create a separate response stream to collect all the content being written
                     var originalBody = context.Response.Body;
                     context.Response.Body = responseStream;
 
@@ -233,6 +233,7 @@ namespace Odin.Hosting.Middleware
                 OdinSystemSerializer.JsonSerializerOptions);
 
             // context.Response.Headers.Append("X-SSE", "1");
+            context.Response.Headers.ContentType = "application/json";
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
