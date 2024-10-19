@@ -30,18 +30,21 @@ namespace Odin.Hosting.Authentication.Owner
     {
         private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
         private readonly IcrKeyAvailableScheduler _icrKeyAvailableScheduler;
+        private readonly IcrKeyAvailableBackgroundService _icrKeyAvailableBackgroundService;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
             VersionUpgradeScheduler versionUpgradeScheduler,
             IcrKeyAvailableScheduler icrKeyAvailableScheduler,
+            IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
             _versionUpgradeScheduler = versionUpgradeScheduler;
             _icrKeyAvailableScheduler = icrKeyAvailableScheduler;
+            _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
             _tenantProvider = tenantProvider;
         }
 

@@ -36,7 +36,6 @@ public sealed class IcrKeyAvailableScheduler(
             // logger.LogDebug("Not running IcrKeyAvailableBackgroundService Process");
             return;
         }
-
         
         if (!odinContext.PermissionsContext.HasAtLeastOnePermission(PermissionKeys.UseTransitRead, PermissionKeys.UseTransitWrite))
         {

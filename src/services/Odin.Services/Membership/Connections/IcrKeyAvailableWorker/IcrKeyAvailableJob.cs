@@ -20,6 +20,9 @@ public class IcrKeyAvailableJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
     ILogger<IcrKeyAvailableJob> logger) : AbstractJob
 {
+
+    public int RunCount { get; set; }
+
     public IcrKeyAvailableJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
@@ -35,15 +38,20 @@ public class IcrKeyAvailableJob(
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
             var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
             await service.Run(Data);
+            RunCount++;
+
+            if (RunCount > 5) //TODO: config
+            {
+                return JobExecutionResult.Success();
+            }
+
+            return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(5));
         }
         catch (Exception e)
         {
             logger.LogError(e, "IcrKeyUpgradeJob railed to run");
             return JobExecutionResult.Fail();
         }
-
-        // do the thing
-        return JobExecutionResult.Success();
     }
 
     public override string? CreateJobHash()

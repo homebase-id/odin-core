@@ -58,6 +58,10 @@ public sealed class VersionUpgradeScheduler(
     public bool RequiresUpgrade()
     {
         var currentVersion = configService.GetVersionInfo().DataVersionNumber;
+        
+        logger.LogInformation("Checking Requires Upgrade.  current Version: {cv}, release version: {rv}",
+            currentVersion, ReleaseVersionInfo.DataVersionNumber);
+        
         return currentVersion != ReleaseVersionInfo.DataVersionNumber;
     }
 }
