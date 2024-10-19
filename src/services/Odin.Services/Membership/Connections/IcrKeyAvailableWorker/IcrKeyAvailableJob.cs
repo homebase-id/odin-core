@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
@@ -46,6 +47,11 @@ public class IcrKeyAvailableJob(
             }
 
             return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(5));
+        }
+        catch (OdinSecurityException se)
+        {
+            logger.LogError(se, "IcrKeyUpgradeJob failed to use token");
+            return JobExecutionResult.Abort();
         }
         catch (CryptographicException ce)
         {

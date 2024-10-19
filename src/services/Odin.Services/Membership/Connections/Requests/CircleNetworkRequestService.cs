@@ -739,6 +739,8 @@ namespace Odin.Services.Membership.Connections.Requests
             var masterKey = odinContext.Caller.GetMasterKey();
 
             var recipient = (OdinId)header.Recipient;
+            
+            _logger.LogDebug("Sending Identity-owner-connection request to {recipient}", recipient);
 
             var incomingRequest = await this.GetPendingRequest(recipient, odinContext);
             if (incomingRequest != null)
@@ -792,6 +794,8 @@ namespace Odin.Services.Membership.Connections.Requests
             // await ValidateWriteOnlyDriveGrants(header, odinContext, cn);
 
             var recipient = (OdinId)header.Recipient;
+            
+            _logger.LogDebug("Sending Introduced-connection request to {recipient}", recipient);
 
             if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
             {

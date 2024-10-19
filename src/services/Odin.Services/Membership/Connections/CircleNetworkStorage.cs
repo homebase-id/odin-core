@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
@@ -74,8 +75,7 @@ public class CircleNetworkStorage
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity);
             foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
             {
-                var circleMembers =
-                    _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true);
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true);
                 var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)
