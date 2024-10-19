@@ -63,7 +63,7 @@ public sealed class IcrKeyAvailableScheduler(
         await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.Now,
-            MaxAttempts = 20,
+            MaxAttempts = 5,
             RetryDelay = TimeSpan.FromSeconds(3),
             OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
             OnFailureDeleteAfter = TimeSpan.FromMinutes(0),

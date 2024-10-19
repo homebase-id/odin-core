@@ -20,7 +20,6 @@ public class IcrKeyAvailableJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
     ILogger<IcrKeyAvailableJob> logger) : AbstractJob
 {
-
     public int RunCount { get; set; }
 
     public IcrKeyAvailableJobData Data { get; set; } = new();
@@ -40,6 +39,7 @@ public class IcrKeyAvailableJob(
             await service.Run(Data);
             RunCount++;
 
+            logger.LogDebug("IcrKeyAvailableJob RunCount: {rc}", RunCount);
             if (RunCount > 5) //TODO: config
             {
                 return JobExecutionResult.Success();
@@ -47,9 +47,14 @@ public class IcrKeyAvailableJob(
 
             return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(5));
         }
+        catch (CryptographicException ce)
+        {
+            logger.LogError(ce, "IcrKeyUpgradeJob failed to decrypt");
+            return JobExecutionResult.Abort();
+        }
         catch (Exception e)
         {
-            logger.LogError(e, "IcrKeyUpgradeJob railed to run");
+            logger.LogError(e, "IcrKeyUpgradeJob failed to run");
             return JobExecutionResult.Fail();
         }
     }
