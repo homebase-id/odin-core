@@ -371,7 +371,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         try
         {
             _logger.LogInformation("Attempting to auto-accept connection request from {sender}", sender);
-            await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, odinContext);
+            var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership);
+            await _circleNetworkRequestService.AcceptConnectionRequest(header, tryOverrideAcl: true, newContext);
         }
         catch (Exception ex)
         {
