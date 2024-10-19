@@ -20,8 +20,6 @@ public class IcrKeyAvailableJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
     ILogger<IcrKeyAvailableJob> logger) : AbstractJob
 {
-    public int RunCount { get; set; }
-
     public IcrKeyAvailableJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
@@ -37,11 +35,13 @@ public class IcrKeyAvailableJob(
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
             var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
             await service.Run(Data);
-            RunCount++;
 
-            logger.LogDebug("IcrKeyAvailableJob RunCount: {rc}", RunCount);
-            if (RunCount > 5) //TODO: config
+            service.RunCount++;
+
+            logger.LogDebug("IcrKeyAvailableJob RunCount: {rc}", service.RunCount);
+            if (service.RunCount > 5) //TODO: config
             {
+                service.RunCount = 0;
                 return JobExecutionResult.Success();
             }
 

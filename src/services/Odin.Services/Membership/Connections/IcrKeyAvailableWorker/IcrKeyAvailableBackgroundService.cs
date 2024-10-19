@@ -24,6 +24,8 @@ public class IcrKeyAvailableBackgroundService(
     ILogger<IcrKeyAvailableBackgroundService> logger)
 {
 
+    public int RunCount { get; set; }
+
     public async Task Run(IcrKeyAvailableJobData data)
     {
         logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process for {data.Tenant}; token type: {data.TokenType}");
