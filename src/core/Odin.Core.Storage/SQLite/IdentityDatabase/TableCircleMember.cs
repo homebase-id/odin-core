@@ -16,12 +16,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public int Delete(Guid circleId, Guid memberId)
+        public int Delete(Guid circleId, Guid memberId, DatabaseConnection connection)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            if (null == connection)
             {
-                return base.Delete(conn, _db._identityId, circleId, memberId);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return base.Delete(conn, _db._identityId, circleId, memberId);
+                }
             }
+
+            return base.Delete(connection, _db._identityId, circleId, memberId);
         }
 
         public int Insert(CircleMemberRecord item)
@@ -33,19 +38,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Upsert(CircleMemberRecord item)
+        public int Upsert(CircleMemberRecord item, DatabaseConnection connection)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
+            if (null == connection)
             {
-                return base.Upsert(conn, item);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return base.Upsert(conn, item);
+                }
             }
+
+            return base.Upsert(connection, item);
         }
 
 
-        public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
+        public List<CircleMemberRecord> GetCircleMembers(Guid circleId, DatabaseConnection connection = null)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            List<CircleMemberRecord> GetData(DatabaseConnection conn)
             {
                 var r = base.GetCircleMembers(conn, _db._identityId, circleId);
 
@@ -55,6 +65,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 return r;
             }
+
+            if (null == connection)
+            {
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return GetData(conn);
+                }
+            }
+
+            return GetData(connection);
         }
 
 
@@ -64,9 +84,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
+        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId, DatabaseConnection connection = null)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            List<CircleMemberRecord> GetData(DatabaseConnection conn)
             {
                 var r = base.GetMemberCirclesAndData(conn, _db._identityId, memberId);
 
@@ -76,6 +96,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 return r;
             }
+
+            if (null == connection)
+            {
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return GetData(conn);
+                }
+            }
+
+            return GetData(connection);
         }
 
 

@@ -10,6 +10,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
@@ -47,6 +48,7 @@ namespace Odin.Services.Membership.Connections
             INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
+        private readonly KeyedAsyncLock _lock = new();
 
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
@@ -196,7 +198,7 @@ namespace Odin.Services.Membership.Connections
             {
                 info.Status = ConnectionStatus.Blocked;
                 info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                this.SaveIcr(info, odinContext);
+                await this.SaveIcr(info, odinContext);
 
                 await mediator.Publish(new ConnectionBlockedNotification
                 {
@@ -213,7 +215,7 @@ namespace Odin.Services.Membership.Connections
                 info.Status = ConnectionStatus.Blocked;
                 info.Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                this.SaveIcr(info, odinContext);
+                await this.SaveIcr(info, odinContext);
 
                 await mediator.Publish(new ConnectionBlockedNotification
                 {
@@ -263,12 +265,12 @@ namespace Odin.Services.Membership.Connections
                 if (isValid)
                 {
                     info.Status = ConnectionStatus.Connected;
-                    this.SaveIcr(info, odinContext);
+                    await this.SaveIcr(info, odinContext);
                     return true;
                 }
 
                 info.Status = ConnectionStatus.None;
-                this.SaveIcr(info, odinContext);
+                await this.SaveIcr(info, odinContext);
                 return true;
             }
 
@@ -383,7 +385,7 @@ namespace Odin.Services.Membership.Connections
                 VerificationHash = verificationHash
             };
 
-            this.SaveIcr(newConnection, odinContext);
+            await this.SaveIcr(newConnection, odinContext);
 
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
@@ -441,7 +443,7 @@ namespace Odin.Services.Membership.Connections
             }
 
             keyStoreKey.Wipe();
-            this.SaveIcr(icr, odinContext);
+            await this.SaveIcr(icr, odinContext);
         }
 
         /// <summary>
@@ -471,7 +473,7 @@ namespace Odin.Services.Membership.Connections
                 appCircleGrants.Remove(circleId.Value);
             }
 
-            this.SaveIcr(icr, odinContext);
+            await this.SaveIcr(icr, odinContext);
         }
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(
@@ -550,7 +552,7 @@ namespace Odin.Services.Membership.Connections
                     // invalidMembers.Add(odinId);
                 }
 
-                this.SaveIcr(icr, odinContext);
+                await this.SaveIcr(icr, odinContext);
             }
 
             await circleMembershipService.Update(circleDef, odinContext);
@@ -722,7 +724,7 @@ namespace Odin.Services.Membership.Connections
                         var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                         icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
                         keyStoreKey.Wipe();
-                        this.SaveIcr(icr, odinContext);
+                        await this.SaveIcr(icr, odinContext);
                     }
                 }
             }
@@ -749,7 +751,7 @@ namespace Odin.Services.Membership.Connections
 
                     keyStoreKey.Wipe();
 
-                    this.SaveIcr(icr, odinContext);
+                    await this.SaveIcr(icr, odinContext);
                 }
             }
             //
@@ -841,7 +843,7 @@ namespace Odin.Services.Membership.Connections
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
                 icr.VerificationHash = hash;
-                this.SaveIcr(icr, odinContext);
+                await this.SaveIcr(icr, odinContext);
                 return true;
             }
 
@@ -1121,12 +1123,9 @@ namespace Odin.Services.Membership.Connections
             return await Task.FromResult(registration);
         }
 
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-
-        private void SaveIcr(IdentityConnectionRegistration icr, IOdinContext odinContext)
+        private async Task SaveIcr(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
-            // _lock.Wait();
-            try
+            using (await _lock.LockAsync(icr.OdinId))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
@@ -1135,12 +1134,9 @@ namespace Odin.Services.Membership.Connections
                 }
                 else
                 {
-                    _storage.Upsert(icr, odinContext);
+                    // _storage.Upsert(icr, odinContext);
+                    _storage.UpsertUoW(icr, odinContext);
                 }
-            }
-            finally
-            {
-                // _lock.Release();
             }
         }
 
@@ -1157,11 +1153,8 @@ namespace Odin.Services.Membership.Connections
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
-
-                identity.EncryptedClientAccessToken = encryptedCat;
-                identity.TemporaryWeakClientAccessToken = null;
-
-                SaveIcr(identity, odinContext);
+                
+                _storage.UpdateClientAccessToken(identity.OdinId, identity.Status, encryptedCat);
             }
         }
 
@@ -1176,12 +1169,8 @@ namespace Odin.Services.Membership.Connections
                     identity.TempWeakKeyStoreKey, odinContext);
 
                 var masterKey = odinContext.Caller.GetMasterKey();
-                identity.AccessGrant.MasterKeyEncryptedKeyStoreKey =
-                    new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                identity.TempWeakKeyStoreKey = null;
-
-
-                SaveIcr(identity, odinContext);
+                var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                _storage.UpdateKeyStoreKey(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
             }
         }
     }

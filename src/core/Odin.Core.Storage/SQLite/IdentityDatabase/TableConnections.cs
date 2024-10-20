@@ -36,13 +36,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Upsert(ConnectionsRecord item)
+        public int Upsert(ConnectionsRecord item, DatabaseConnection connection = null)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
+
+            if (connection == null)
             {
-                return base.Upsert(conn, item);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return base.Upsert(conn, item);
+                }
             }
+
+            return base.Upsert(connection, item);
         }
 
         public int Update(ConnectionsRecord item)
@@ -79,7 +85,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public List<ConnectionsRecord> PagingByCreated(int count, Int32 status, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<ConnectionsRecord> PagingByCreated(int count, Int32 status, UnixTimeUtcUnique? inCursor,
+            out UnixTimeUtcUnique? nextCursor)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
