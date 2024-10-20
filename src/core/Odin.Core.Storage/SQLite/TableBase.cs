@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite
 {
-    public class TableBase : IDisposable
+    public abstract class TableBase : IDisposable
     {
         public readonly string _tableName;
         public TableBase(string tableName)
@@ -11,23 +12,19 @@ namespace Odin.Core.Storage.SQLite
             _tableName = tableName;
         }
 
+        // SEB:TODO delete
         ~TableBase()
         {
         }
 
+        // SEB:TODO delete
         public virtual void Dispose()
         {
             throw new NotImplementedException();
         }
 
-        public virtual void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
-        {
-            throw new NotImplementedException();
-        }
+        public abstract Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false);
 
-        public virtual List<string> GetColumnNames()
-        {
-            throw new NotImplementedException();
-        }
+        public abstract List<string> GetColumnNames();
     }
 } 

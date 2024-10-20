@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -25,9 +26,9 @@ public class ThreeKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(IdentityDatabase db, Guid key) where T : class
+    public async Task<T> GetAsync<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var bytes = db.TblKeyThreeValue.Get(MakeStorageKey(key));
+        var bytes = await db.TblKeyThreeValue.GetAsync(MakeStorageKey(key));
 
         if (null == bytes)
         {
@@ -37,21 +38,21 @@ public class ThreeKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
+    public async Task UpsertAsync<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
 
-        db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
+        await db.TblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(IdentityDatabase db, Guid id)
+    public async Task DeleteAsync(IdentityDatabase db, Guid id)
     {
-        db.TblKeyThreeValue.Delete(MakeStorageKey(id));
+        await db.TblKeyThreeValue.DeleteAsync(MakeStorageKey(id));
     }
 
-    public IEnumerable<T> GetByDataType<T>(IdentityDatabase db, byte[] dataType) where T : class
+    public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(IdentityDatabase db, byte[] dataType) where T : class
     {
-        var list = db.TblKeyThreeValue.GetByKeyTwo(dataType);
+        var list = await db.TblKeyThreeValue.GetByKeyTwoAsync(dataType);
 
         if (null == list)
         {
@@ -61,9 +62,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByCategory<T>(IdentityDatabase db, byte[] categoryKey) where T : class
+    public async Task<IEnumerable<T>> GetByCategoryAsync<T>(IdentityDatabase db, byte[] categoryKey) where T : class
     {
-        var list = db.TblKeyThreeValue.GetByKeyThree(categoryKey);
+        var list = await db.TblKeyThreeValue.GetByKeyThreeAsync(categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -72,9 +73,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(IdentityDatabase db, byte[] dataTypeKey, byte[] categoryKey) where T : class
+    public async Task<IEnumerable<T>> GetByKey2And3Async<T>(IdentityDatabase db, byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
-        var list = db.TblKeyThreeValue.GetByKeyTwoThree(dataTypeKey, categoryKey);
+        var list = await db.TblKeyThreeValue.GetByKeyTwoThreeAsync(dataTypeKey, categoryKey);
 
         if (null == list)
         {

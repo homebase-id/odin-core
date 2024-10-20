@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
+using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Org.BouncyCastle.Asn1.Ocsp;
-using static Dapper.SqlMapper;
 
 //
 // FollowsMe - this class stores all the people that follow me.
@@ -22,38 +20,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableFollowsMe()
-        {
-        }
-
         public override void Dispose()
         {
             base.Dispose();
             GC.SuppressFinalize(this);
         }
 
-        public int Delete(OdinId identity, Guid driveId)
+        public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, identity.DomainName, driveId);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync (conn, _db._identityId, identity.DomainName, driveId);
         }
 
-        public int DeleteAndInsertMany(OdinId identity, List<FollowsMeRecord> items)
+        public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
         {
             int recordsInserted = 0;
 
-            DeleteByIdentity(identity);
+            await DeleteByIdentityAsync(identity);
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i= 0; i < items.Count; i++)
                     {
                         items[i].identityId = _db._identityId;
-                        recordsInserted += base.Insert(conn, items[i]);
+                        recordsInserted += await base.InsertAsync(conn, items[i]);
                     }
                 });
             }
@@ -62,14 +54,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int Insert(FollowsMeRecord item)
+        public async Task<int> InsertAsync(FollowsMeRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
 
@@ -79,37 +68,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowsMeRecord> Get(OdinId identity)
+        public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = base.Get(conn, _db._identityId, identity.DomainName);
+            using var conn = _db.CreateDisposableConnection();
+            var r = await base.GetAsync(conn, _db._identityId, identity.DomainName);
 
-                if (r == null)
-                    r = new List<FollowsMeRecord>();
+            if (r == null)
+                r = new List<FollowsMeRecord>();
 
-                return r;
-            }
+            return r;
         }
 
 
-        public int DeleteByIdentity(OdinId identity)
+        public async Task<int> DeleteByIdentityAsync(OdinId identity)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
                 int n = 0;
-                var r = base.Get(conn, _db._identityId, identity.DomainName);
+                var r = await base.GetAsync(conn, _db._identityId, identity.DomainName);
 
                 if (r == null)
                 {
                     return 0;
                 }
                 
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < r.Count; i++)
                     {
-                        n += base.Delete(conn, _db._identityId, identity.DomainName, r[i].driveId);
+                        n += await base.DeleteAsync(conn, _db._identityId, identity.DomainName, r[i].driveId);
                     }
                 });
 
@@ -118,20 +105,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // Returns # records inserted (1 or 0)
-        public int DeleteAndAddFollower(FollowsMeRecord r)
+        public async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord r)
         {
             r.identityId = _db._identityId;
             using (var conn = _db.CreateDisposableConnection())
             {
                 int n = 0;
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    var followerList = base.Get(conn, _db._identityId, r.identity);
+                    var followerList = await base.GetAsync(conn, _db._identityId, r.identity);
                     for (int i = 0; i < followerList.Count; i++)
                     {
-                        base.Delete(conn, _db._identityId, followerList[i].identity, followerList[i].driveId);
+                        await base.DeleteAsync(conn, _db._identityId, followerList[i].identity, followerList[i].driveId);
                     }
-                    n = base.Insert(conn, r);
+                    n = await base.InsertAsync(conn, r);
                 });
                 return n;
             }
@@ -153,30 +140,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _select3Command = _db.CreateCommand())
+            using (var select3Command = _db.CreateCommand())
             {
-                _select3Command.CommandText =
+                select3Command.CommandText =
                     $"SELECT DISTINCT identity FROM followsme WHERE identityId = $identityId AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
-                var _s3param1 = _select3Command.CreateParameter();
-                var _s3param2 = _select3Command.CreateParameter();
-                var _s3param3 = _select3Command.CreateParameter();
+                var s3param1 = select3Command.CreateParameter();
+                var s3param2 = select3Command.CreateParameter();
+                var s3param3 = select3Command.CreateParameter();
 
-                _s3param1.ParameterName = "$cursor";
-                _s3param2.ParameterName = "$count";
-                _s3param3.ParameterName = "$identityId";
+                s3param1.ParameterName = "$cursor";
+                s3param2.ParameterName = "$count";
+                s3param3.ParameterName = "$identityId";
 
-                _select3Command.Parameters.Add(_s3param1);
-                _select3Command.Parameters.Add(_s3param2);
-                _select3Command.Parameters.Add(_s3param3);
+                select3Command.Parameters.Add(s3param1);
+                select3Command.Parameters.Add(s3param2);
+                select3Command.Parameters.Add(s3param3);
 
-                _s3param1.Value = inCursor;
-                _s3param2.Value = count + 1;
-                _s3param3.Value = _db._identityId.ToByteArray();
+                s3param1.Value = inCursor;
+                s3param2.Value = count + 1;
+                s3param3.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
+                    // SEB:TODO make async
+                    using (var rdr = conn.ExecuteReaderAsync(select3Command, System.Data.CommandBehavior.Default).Result)
                     {
                         var result = new List<string>();
 
@@ -250,7 +238,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
+                    // SEB:TODO make async
+                    using (var rdr = conn.ExecuteReaderAsync(_select2Command, System.Data.CommandBehavior.Default).Result)
                     {
                         var result = new List<string>();
 

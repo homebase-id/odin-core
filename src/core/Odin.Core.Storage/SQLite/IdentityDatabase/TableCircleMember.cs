@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -12,49 +13,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableCircleMember()
+        public async Task<int> Delete(Guid circleId, Guid memberId)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, circleId, memberId);
         }
 
-        public int Delete(Guid circleId, Guid memberId)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, circleId, memberId);
-            }
-        }
-
-        public int Insert(CircleMemberRecord item)
+        public async Task<int> InsertAsync(CircleMemberRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int Upsert(CircleMemberRecord item)
+        public async Task<int> UpsertAsync(CircleMemberRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Upsert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpsertAsync(conn, item);
         }
 
 
-        public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
+        public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = base.GetCircleMembers(conn, _db._identityId, circleId);
+            using var conn = _db.CreateDisposableConnection();
+            var r = await base.GetCircleMembersAsync(conn, _db._identityId, circleId);
 
-                // The services code doesn't handle null, so I've made this override
-                if (r == null)
-                    r = new List<CircleMemberRecord>();
+            // The services code doesn't handle null, so I've made this override
+            if (r == null)
+                r = new List<CircleMemberRecord>();
 
-                return r;
-            }
+            return r;
         }
 
 
@@ -64,39 +53,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
+        public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = base.GetMemberCirclesAndData(conn, _db._identityId, memberId);
+            using var conn = _db.CreateDisposableConnection();
+            var r = await base.GetMemberCirclesAndDataAsync(conn, _db._identityId, memberId);
 
-                // The services code doesn't handle null, so I've made this override
-                if (r == null)
-                    r = new List<CircleMemberRecord>();
+            // The services code doesn't handle null, so I've made this override
+            if (r == null)
+                r = new List<CircleMemberRecord>();
 
-                return r;
-            }
+            return r;
         }
 
 
         /// <summary>
         /// Adds each CircleMemberRecord in the supplied list.
         /// </summary>
-        /// <param name="CircleMemberRecordList"></param>
+        /// <param name="circleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void UpsertCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
+        public async Task UpsertCircleMembersAsync(List<CircleMemberRecord> circleMemberRecordList)
         {
-            if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
+            if (circleMemberRecordList == null || circleMemberRecordList.Count < 1)
                 throw new Exception("No members supplied (null or empty)");
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    for (int i = 0; i < CircleMemberRecordList.Count; i++)
+                    for (int i = 0; i < circleMemberRecordList.Count; i++)
                     {
-                        CircleMemberRecordList[i].identityId = _db._identityId;
-                        base.Upsert(conn, CircleMemberRecordList[i]);
+                        circleMemberRecordList[i].identityId = _db._identityId;
+                        await base.UpsertAsync(conn, circleMemberRecordList[i]);
                     }
                 });
             }
@@ -109,17 +96,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void RemoveCircleMembers(Guid circleId, List<Guid> members)
+        public async Task RemoveCircleMembersAsync(Guid circleId, List<Guid> members)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
                 if ((members == null) || (members.Count < 1))
                     throw new Exception("No members supplied (null or empty)");
 
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < members.Count; i++)
-                        base.Delete(conn, _db._identityId, circleId, members[i]);
+                        await base.DeleteAsync(conn, _db._identityId, circleId, members[i]);
                 });
             }
         }
@@ -130,21 +117,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteMembersFromAllCircles(List<Guid> members)
+        public async Task DeleteMembersFromAllCirclesAsync(List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < members.Count; i++)
                     {
-                        var circles = base.GetMemberCirclesAndData(conn, _db._identityId, members[i]);
+                        var circles = await base.GetMemberCirclesAndDataAsync(conn, _db._identityId, members[i]);
 
                         for (int j = 0; j < circles.Count; j++)
-                            base.Delete(conn, _db._identityId, circles[j].circleId, members[i]);
+                            await base.DeleteAsync(conn, _db._identityId, circles[j].circleId, members[i]);
                     }
                 });
             }

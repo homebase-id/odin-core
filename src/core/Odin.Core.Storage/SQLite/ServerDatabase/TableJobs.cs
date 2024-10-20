@@ -4,6 +4,8 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase;
 
+// SEB:TODO remove DatabaseConnection cn parameters from all methods
+
 #nullable enable
 
 public enum JobState
@@ -27,19 +29,19 @@ public class TableJobs : TableJobsCRUD
     
     //
 
-    public Task<long> GetCountAsync(DatabaseConnection cn)
+    public async Task<long> GetCountAsync(DatabaseConnection cn)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM jobs;";
-        var result = (long)(cn.ExecuteScalar(cmd) ?? 0L); 
-        return Task.FromResult(result); 
+        var count = (long)(await cn.ExecuteScalarAsync(cmd) ?? 0L);
+        return count;
     }
     
     //
     
-    public Task<bool> JobIdExists(DatabaseConnection cn, Guid jobId)
+    public async Task<bool> JobIdExistsAsync(DatabaseConnection cn, Guid jobId)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText = "SELECT 1 FROM jobs WHERE id = @id;";
         
         var idParam = cmd.CreateParameter();
@@ -47,15 +49,15 @@ public class TableJobs : TableJobsCRUD
         idParam.Value = jobId.ToByteArray();
         cmd.Parameters.Add(idParam);
         
-        var result = (long)(cn.ExecuteScalar(cmd) ?? 0L) != 0L;
-        return Task.FromResult(result);
+        var count = (long)(await cn.ExecuteScalarAsync(cmd) ?? 0L);
+        return count > 0L;
     }
     
     //
 
-    public Task<long?> GetNextRunTime(DatabaseConnection cn)
+    public async Task<long?> GetNextRunTimeAsync(DatabaseConnection cn)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText =
             """
             SELECT nextRun
@@ -70,15 +72,15 @@ public class TableJobs : TableJobsCRUD
         scheduled.Value = (int)JobState.Scheduled;
         cmd.Parameters.Add(scheduled);
 
-        var nextRun = (long?)cn.ExecuteScalar(cmd);
-        return Task.FromResult(nextRun);
+        var nextRun = (long?)await cn.ExecuteScalarAsync(cmd);
+        return nextRun;
     }
     
     //
     
-    public Task<JobsRecord?> GetNextScheduledJob(DatabaseConnection cn)
+    public async Task<JobsRecord?> GetNextScheduledJobAsync(DatabaseConnection cn)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText =
             """
             -- sqlite: According to chatgpt, "immediate" is needed to help the atomic update
@@ -121,20 +123,20 @@ public class TableJobs : TableJobsCRUD
         cmd.Parameters.Add(preflight);
 
         JobsRecord? result = null;
-        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
-        if (rdr.Read())
+        await using var rdr = await cn.ExecuteReaderAsync(cmd, System.Data.CommandBehavior.Default);
+        if (await rdr.ReadAsync())
         {
             result = ReadRecordFromReaderAll(rdr);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
     
     //
 
-    public Task<JobsRecord?> GetJobByHash(DatabaseConnection cn, string jobHash)
+    public async Task<JobsRecord?> GetJobByHashAsync(DatabaseConnection cn, string jobHash)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText = "SELECT * FROM jobs WHERE jobHash = @jobHash;";
 
         var jobHashParam = cmd.CreateParameter();
@@ -143,18 +145,18 @@ public class TableJobs : TableJobsCRUD
         cmd.Parameters.Add(jobHashParam);
 
         JobsRecord? result = null;
-        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
-        if (rdr.Read())
+        await using var rdr = await cn.ExecuteReaderAsync(cmd, System.Data.CommandBehavior.Default);
+        if (await rdr.ReadAsync())
         {
             result = ReadRecordFromReaderAll(rdr);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
     //
 
-    public Task DeleteExpiredJobs(DatabaseConnection cn)
+    public async Task DeleteExpiredJobsAsync(DatabaseConnection cn)
     {
         using var cmd = _db.CreateCommand();
         cmd.CommandText =
@@ -168,8 +170,7 @@ public class TableJobs : TableJobsCRUD
         now.Value = UnixTimeUtc.Now().milliseconds;
         cmd.Parameters.Add(now);
 
-        cn.ExecuteNonQuery(cmd);
-        return Task.CompletedTask;
+        await cn.ExecuteNonQueryAsync(cmd);
     }
 
     //

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -13,93 +14,80 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableDriveTagIndex()
+        public async Task<DriveTagIndexRecord> GeAsync(Guid driveId, Guid fileId, Guid tagId)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, driveId, fileId, tagId);
         }
 
-        public DriveTagIndexRecord Get(Guid driveId, Guid fileId, Guid tagId)
+        public async Task<List<Guid>> Get(Guid driveId, Guid fileId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, driveId, fileId, tagId);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, driveId, fileId);
         }
 
-        public List<Guid> Get(Guid driveId, Guid fileId)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, driveId, fileId);
-            }
-        }
-
-        public int Insert(DriveTagIndexRecord item)
+        public async Task<int> InsertAsync(DriveTagIndexRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int DeleteAllRows(Guid driveId, Guid fileId)
+        public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.DeleteAllRows(conn, _db._identityId, driveId, fileId);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAllRowsAsync(conn, _db._identityId, driveId, fileId);
         }
 
-        public void InsertRows(Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)
                 return;
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
+                {
+                    var item = new DriveTagIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
+
+                    for (int i = 0; i < tagIdList.Count; i++)
+                    {
+                        item.tagId = tagIdList[i];
+                        await base.InsertAsync(conn, item);
+                    }
+                });
+            }
+        }
+
+        internal async Task InsertRowsAsync(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
+        {
+            if (tagIdList == null)
+                return;
+
+            await conn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 var item = new DriveTagIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
 
                 for (int i = 0; i < tagIdList.Count; i++)
                 {
                     item.tagId = tagIdList[i];
-                    base.Insert(conn, item);
-                }
-            });
-            }
-        }
-
-
-        internal void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
-        {
-            if (tagIdList == null)
-                return;
-
-            conn.CreateCommitUnitOfWork(() =>
-            {
-                var item = new DriveTagIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
-
-                for (int i = 0; i < tagIdList.Count; i++)
-                {
-                    item.tagId = tagIdList[i];
-                    base.Insert(conn, item);
+                    await base.InsertAsync(conn, item);
                 }
             });
         }
 
-        public void DeleteRow(Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)
                 return;
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < tagIdList.Count; i++)
                     {
-                        base.Delete(conn, _db._identityId, driveId, fileId, tagIdList[i]);
+                        await base.DeleteAsync(conn, _db._identityId, driveId, fileId, tagIdList[i]);
                     }
                 });
             }

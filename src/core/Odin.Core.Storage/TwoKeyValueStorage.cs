@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -25,9 +26,9 @@ public class TwoKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(IdentityDatabase db, Guid key) where T : class
+    public async Task<T> GetAsync<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var record = db.tblKeyTwoValue.Get(MakeStorageKey(key));
+        var record = await db.tblKeyTwoValue.GetAsync(MakeStorageKey(key));
 
         if (null == record)
         {
@@ -37,9 +38,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(IdentityDatabase db, byte[] key2) where T : class
+    public async Task<IEnumerable<T>> GetByDataType<T>(IdentityDatabase db, byte[] key2) where T : class
     {
-        var list = db.tblKeyTwoValue.GetByKeyTwo(key2);
+        var list = await db.tblKeyTwoValue.GetByKeyTwoAsync(key2);
         if (null == list)
         {
             return new List<T>();
@@ -48,15 +49,15 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, T value)
+    public async Task Upsert<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        await db.tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(IdentityDatabase db, Guid id)
+    public async Task Delete(IdentityDatabase db, Guid id)
     {
-        db.tblKeyTwoValue.Delete(MakeStorageKey(id));
+        await db.tblKeyTwoValue.DeleteAsync(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

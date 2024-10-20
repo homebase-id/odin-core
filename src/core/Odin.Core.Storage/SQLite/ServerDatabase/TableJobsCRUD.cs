@@ -1,9 +1,12 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using System.Runtime.CompilerServices;
+
+// THIS FILE IS AUTO GENERATED 2024-10-17T08:51:14.6680536Z - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
@@ -235,14 +238,14 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
-                       conn.ExecuteNonQuery(cmd);
+                       await conn.ExecuteNonQueryAsync(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS jobs("
@@ -272,96 +275,96 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
                      +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                    await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> InsertAsync(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@id";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@name";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@state";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@priority";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@nextRun";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@lastRun";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@runCount";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@maxAttempts";
-                _insertCommand.Parameters.Add(_insertParam8);
-                var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "@retryDelay";
-                _insertCommand.Parameters.Add(_insertParam9);
-                var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "@onSuccessDeleteAfter";
-                _insertCommand.Parameters.Add(_insertParam10);
-                var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "@onFailureDeleteAfter";
-                _insertCommand.Parameters.Add(_insertParam11);
-                var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "@expiresAt";
-                _insertCommand.Parameters.Add(_insertParam12);
-                var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "@correlationId";
-                _insertCommand.Parameters.Add(_insertParam13);
-                var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "@jobType";
-                _insertCommand.Parameters.Add(_insertParam14);
-                var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "@jobData";
-                _insertCommand.Parameters.Add(_insertParam15);
-                var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "@jobHash";
-                _insertCommand.Parameters.Add(_insertParam16);
-                var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "@lastError";
-                _insertCommand.Parameters.Add(_insertParam17);
-                var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam18);
-                var _insertParam19 = _insertCommand.CreateParameter();
-                _insertParam19.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam19);
-                _insertParam1.Value = item.id.ToByteArray();
-                _insertParam2.Value = item.name;
-                _insertParam3.Value = item.state;
-                _insertParam4.Value = item.priority;
-                _insertParam5.Value = item.nextRun.milliseconds;
-                _insertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
-                _insertParam7.Value = item.runCount;
-                _insertParam8.Value = item.maxAttempts;
-                _insertParam9.Value = item.retryDelay;
-                _insertParam10.Value = item.onSuccessDeleteAfter;
-                _insertParam11.Value = item.onFailureDeleteAfter;
-                _insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
-                _insertParam13.Value = item.correlationId;
-                _insertParam14.Value = item.jobType;
-                _insertParam15.Value = item.jobData ?? (object)DBNull.Value;
-                _insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
-                _insertParam17.Value = item.lastError ?? (object)DBNull.Value;
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@id";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@name";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@state";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@priority";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@nextRun";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@lastRun";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@runCount";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@maxAttempts";
+                insertCommand.Parameters.Add(insertParam8);
+                var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.ParameterName = "@retryDelay";
+                insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@onSuccessDeleteAfter";
+                insertCommand.Parameters.Add(insertParam10);
+                var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.ParameterName = "@onFailureDeleteAfter";
+                insertCommand.Parameters.Add(insertParam11);
+                var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.ParameterName = "@expiresAt";
+                insertCommand.Parameters.Add(insertParam12);
+                var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.ParameterName = "@correlationId";
+                insertCommand.Parameters.Add(insertParam13);
+                var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.ParameterName = "@jobType";
+                insertCommand.Parameters.Add(insertParam14);
+                var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.ParameterName = "@jobData";
+                insertCommand.Parameters.Add(insertParam15);
+                var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.ParameterName = "@jobHash";
+                insertCommand.Parameters.Add(insertParam16);
+                var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.ParameterName = "@lastError";
+                insertCommand.Parameters.Add(insertParam17);
+                var insertParam18 = insertCommand.CreateParameter();
+                insertParam18.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam18);
+                var insertParam19 = insertCommand.CreateParameter();
+                insertParam19.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam19);
+                insertParam1.Value = item.id.ToByteArray();
+                insertParam2.Value = item.name;
+                insertParam3.Value = item.state;
+                insertParam4.Value = item.priority;
+                insertParam5.Value = item.nextRun.milliseconds;
+                insertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
+                insertParam7.Value = item.runCount;
+                insertParam8.Value = item.maxAttempts;
+                insertParam9.Value = item.retryDelay;
+                insertParam10.Value = item.onSuccessDeleteAfter;
+                insertParam11.Value = item.onFailureDeleteAfter;
+                insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                insertParam13.Value = item.correlationId;
+                insertParam14.Value = item.jobType;
+                insertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                insertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam18.Value = now.uniqueTime;
+                insertParam18.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam19.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam19.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                      item.created = now;
@@ -370,92 +373,92 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@id";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@name";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@state";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@priority";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@nextRun";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@lastRun";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@runCount";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@maxAttempts";
-                _insertCommand.Parameters.Add(_insertParam8);
-                var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "@retryDelay";
-                _insertCommand.Parameters.Add(_insertParam9);
-                var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "@onSuccessDeleteAfter";
-                _insertCommand.Parameters.Add(_insertParam10);
-                var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "@onFailureDeleteAfter";
-                _insertCommand.Parameters.Add(_insertParam11);
-                var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "@expiresAt";
-                _insertCommand.Parameters.Add(_insertParam12);
-                var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "@correlationId";
-                _insertCommand.Parameters.Add(_insertParam13);
-                var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "@jobType";
-                _insertCommand.Parameters.Add(_insertParam14);
-                var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "@jobData";
-                _insertCommand.Parameters.Add(_insertParam15);
-                var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "@jobHash";
-                _insertCommand.Parameters.Add(_insertParam16);
-                var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "@lastError";
-                _insertCommand.Parameters.Add(_insertParam17);
-                var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam18);
-                var _insertParam19 = _insertCommand.CreateParameter();
-                _insertParam19.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam19);
-                _insertParam1.Value = item.id.ToByteArray();
-                _insertParam2.Value = item.name;
-                _insertParam3.Value = item.state;
-                _insertParam4.Value = item.priority;
-                _insertParam5.Value = item.nextRun.milliseconds;
-                _insertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
-                _insertParam7.Value = item.runCount;
-                _insertParam8.Value = item.maxAttempts;
-                _insertParam9.Value = item.retryDelay;
-                _insertParam10.Value = item.onSuccessDeleteAfter;
-                _insertParam11.Value = item.onFailureDeleteAfter;
-                _insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
-                _insertParam13.Value = item.correlationId;
-                _insertParam14.Value = item.jobType;
-                _insertParam15.Value = item.jobData ?? (object)DBNull.Value;
-                _insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
-                _insertParam17.Value = item.lastError ?? (object)DBNull.Value;
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@id";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@name";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@state";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@priority";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@nextRun";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@lastRun";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@runCount";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@maxAttempts";
+                insertCommand.Parameters.Add(insertParam8);
+                var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.ParameterName = "@retryDelay";
+                insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@onSuccessDeleteAfter";
+                insertCommand.Parameters.Add(insertParam10);
+                var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.ParameterName = "@onFailureDeleteAfter";
+                insertCommand.Parameters.Add(insertParam11);
+                var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.ParameterName = "@expiresAt";
+                insertCommand.Parameters.Add(insertParam12);
+                var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.ParameterName = "@correlationId";
+                insertCommand.Parameters.Add(insertParam13);
+                var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.ParameterName = "@jobType";
+                insertCommand.Parameters.Add(insertParam14);
+                var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.ParameterName = "@jobData";
+                insertCommand.Parameters.Add(insertParam15);
+                var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.ParameterName = "@jobHash";
+                insertCommand.Parameters.Add(insertParam16);
+                var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.ParameterName = "@lastError";
+                insertCommand.Parameters.Add(insertParam17);
+                var insertParam18 = insertCommand.CreateParameter();
+                insertParam18.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam18);
+                var insertParam19 = insertCommand.CreateParameter();
+                insertParam19.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam19);
+                insertParam1.Value = item.id.ToByteArray();
+                insertParam2.Value = item.name;
+                insertParam3.Value = item.state;
+                insertParam4.Value = item.priority;
+                insertParam5.Value = item.nextRun.milliseconds;
+                insertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
+                insertParam7.Value = item.runCount;
+                insertParam8.Value = item.maxAttempts;
+                insertParam9.Value = item.retryDelay;
+                insertParam10.Value = item.onSuccessDeleteAfter;
+                insertParam11.Value = item.onFailureDeleteAfter;
+                insertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                insertParam13.Value = item.correlationId;
+                insertParam14.Value = item.jobType;
+                insertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                insertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam18.Value = now.uniqueTime;
+                insertParam18.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam19.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam19.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                     item.created = now;
@@ -464,94 +467,94 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public virtual int Upsert(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _upsertCommand = conn.db.CreateCommand())
+            using (var upsertCommand = conn.db.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
+                upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created)"+
                                              "ON CONFLICT (id) DO UPDATE "+
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
                                              "RETURNING created, modified;";
-                var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "@id";
-                _upsertCommand.Parameters.Add(_upsertParam1);
-                var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "@name";
-                _upsertCommand.Parameters.Add(_upsertParam2);
-                var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "@state";
-                _upsertCommand.Parameters.Add(_upsertParam3);
-                var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "@priority";
-                _upsertCommand.Parameters.Add(_upsertParam4);
-                var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "@nextRun";
-                _upsertCommand.Parameters.Add(_upsertParam5);
-                var _upsertParam6 = _upsertCommand.CreateParameter();
-                _upsertParam6.ParameterName = "@lastRun";
-                _upsertCommand.Parameters.Add(_upsertParam6);
-                var _upsertParam7 = _upsertCommand.CreateParameter();
-                _upsertParam7.ParameterName = "@runCount";
-                _upsertCommand.Parameters.Add(_upsertParam7);
-                var _upsertParam8 = _upsertCommand.CreateParameter();
-                _upsertParam8.ParameterName = "@maxAttempts";
-                _upsertCommand.Parameters.Add(_upsertParam8);
-                var _upsertParam9 = _upsertCommand.CreateParameter();
-                _upsertParam9.ParameterName = "@retryDelay";
-                _upsertCommand.Parameters.Add(_upsertParam9);
-                var _upsertParam10 = _upsertCommand.CreateParameter();
-                _upsertParam10.ParameterName = "@onSuccessDeleteAfter";
-                _upsertCommand.Parameters.Add(_upsertParam10);
-                var _upsertParam11 = _upsertCommand.CreateParameter();
-                _upsertParam11.ParameterName = "@onFailureDeleteAfter";
-                _upsertCommand.Parameters.Add(_upsertParam11);
-                var _upsertParam12 = _upsertCommand.CreateParameter();
-                _upsertParam12.ParameterName = "@expiresAt";
-                _upsertCommand.Parameters.Add(_upsertParam12);
-                var _upsertParam13 = _upsertCommand.CreateParameter();
-                _upsertParam13.ParameterName = "@correlationId";
-                _upsertCommand.Parameters.Add(_upsertParam13);
-                var _upsertParam14 = _upsertCommand.CreateParameter();
-                _upsertParam14.ParameterName = "@jobType";
-                _upsertCommand.Parameters.Add(_upsertParam14);
-                var _upsertParam15 = _upsertCommand.CreateParameter();
-                _upsertParam15.ParameterName = "@jobData";
-                _upsertCommand.Parameters.Add(_upsertParam15);
-                var _upsertParam16 = _upsertCommand.CreateParameter();
-                _upsertParam16.ParameterName = "@jobHash";
-                _upsertCommand.Parameters.Add(_upsertParam16);
-                var _upsertParam17 = _upsertCommand.CreateParameter();
-                _upsertParam17.ParameterName = "@lastError";
-                _upsertCommand.Parameters.Add(_upsertParam17);
-                var _upsertParam18 = _upsertCommand.CreateParameter();
-                _upsertParam18.ParameterName = "@created";
-                _upsertCommand.Parameters.Add(_upsertParam18);
-                var _upsertParam19 = _upsertCommand.CreateParameter();
-                _upsertParam19.ParameterName = "@modified";
-                _upsertCommand.Parameters.Add(_upsertParam19);
+                var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.ParameterName = "@id";
+                upsertCommand.Parameters.Add(upsertParam1);
+                var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.ParameterName = "@name";
+                upsertCommand.Parameters.Add(upsertParam2);
+                var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.ParameterName = "@state";
+                upsertCommand.Parameters.Add(upsertParam3);
+                var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.ParameterName = "@priority";
+                upsertCommand.Parameters.Add(upsertParam4);
+                var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.ParameterName = "@nextRun";
+                upsertCommand.Parameters.Add(upsertParam5);
+                var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.ParameterName = "@lastRun";
+                upsertCommand.Parameters.Add(upsertParam6);
+                var upsertParam7 = upsertCommand.CreateParameter();
+                upsertParam7.ParameterName = "@runCount";
+                upsertCommand.Parameters.Add(upsertParam7);
+                var upsertParam8 = upsertCommand.CreateParameter();
+                upsertParam8.ParameterName = "@maxAttempts";
+                upsertCommand.Parameters.Add(upsertParam8);
+                var upsertParam9 = upsertCommand.CreateParameter();
+                upsertParam9.ParameterName = "@retryDelay";
+                upsertCommand.Parameters.Add(upsertParam9);
+                var upsertParam10 = upsertCommand.CreateParameter();
+                upsertParam10.ParameterName = "@onSuccessDeleteAfter";
+                upsertCommand.Parameters.Add(upsertParam10);
+                var upsertParam11 = upsertCommand.CreateParameter();
+                upsertParam11.ParameterName = "@onFailureDeleteAfter";
+                upsertCommand.Parameters.Add(upsertParam11);
+                var upsertParam12 = upsertCommand.CreateParameter();
+                upsertParam12.ParameterName = "@expiresAt";
+                upsertCommand.Parameters.Add(upsertParam12);
+                var upsertParam13 = upsertCommand.CreateParameter();
+                upsertParam13.ParameterName = "@correlationId";
+                upsertCommand.Parameters.Add(upsertParam13);
+                var upsertParam14 = upsertCommand.CreateParameter();
+                upsertParam14.ParameterName = "@jobType";
+                upsertCommand.Parameters.Add(upsertParam14);
+                var upsertParam15 = upsertCommand.CreateParameter();
+                upsertParam15.ParameterName = "@jobData";
+                upsertCommand.Parameters.Add(upsertParam15);
+                var upsertParam16 = upsertCommand.CreateParameter();
+                upsertParam16.ParameterName = "@jobHash";
+                upsertCommand.Parameters.Add(upsertParam16);
+                var upsertParam17 = upsertCommand.CreateParameter();
+                upsertParam17.ParameterName = "@lastError";
+                upsertCommand.Parameters.Add(upsertParam17);
+                var upsertParam18 = upsertCommand.CreateParameter();
+                upsertParam18.ParameterName = "@created";
+                upsertCommand.Parameters.Add(upsertParam18);
+                var upsertParam19 = upsertCommand.CreateParameter();
+                upsertParam19.ParameterName = "@modified";
+                upsertCommand.Parameters.Add(upsertParam19);
                 var now = UnixTimeUtcUnique.Now();
-                _upsertParam1.Value = item.id.ToByteArray();
-                _upsertParam2.Value = item.name;
-                _upsertParam3.Value = item.state;
-                _upsertParam4.Value = item.priority;
-                _upsertParam5.Value = item.nextRun.milliseconds;
-                _upsertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
-                _upsertParam7.Value = item.runCount;
-                _upsertParam8.Value = item.maxAttempts;
-                _upsertParam9.Value = item.retryDelay;
-                _upsertParam10.Value = item.onSuccessDeleteAfter;
-                _upsertParam11.Value = item.onFailureDeleteAfter;
-                _upsertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
-                _upsertParam13.Value = item.correlationId;
-                _upsertParam14.Value = item.jobType;
-                _upsertParam15.Value = item.jobData ?? (object)DBNull.Value;
-                _upsertParam16.Value = item.jobHash ?? (object)DBNull.Value;
-                _upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                _upsertParam18.Value = now.uniqueTime;
-                _upsertParam19.Value = now.uniqueTime;
-                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                upsertParam1.Value = item.id.ToByteArray();
+                upsertParam2.Value = item.name;
+                upsertParam3.Value = item.state;
+                upsertParam4.Value = item.priority;
+                upsertParam5.Value = item.nextRun.milliseconds;
+                upsertParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
+                upsertParam7.Value = item.runCount;
+                upsertParam8.Value = item.maxAttempts;
+                upsertParam9.Value = item.retryDelay;
+                upsertParam10.Value = item.onSuccessDeleteAfter;
+                upsertParam11.Value = item.onFailureDeleteAfter;
+                upsertParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                upsertParam13.Value = item.correlationId;
+                upsertParam14.Value = item.jobType;
+                upsertParam15.Value = item.jobData ?? (object)DBNull.Value;
+                upsertParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
+                upsertParam18.Value = now.uniqueTime;
+                upsertParam19.Value = now.uniqueTime;
+                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -569,92 +572,92 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _updateCommand = conn.db.CreateCommand())
+            using (var updateCommand = conn.db.CreateCommand())
             {
-                _updateCommand.CommandText = "UPDATE jobs " +
+                updateCommand.CommandText = "UPDATE jobs " +
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
                                              "WHERE (id = @id)";
-                var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "@id";
-                _updateCommand.Parameters.Add(_updateParam1);
-                var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "@name";
-                _updateCommand.Parameters.Add(_updateParam2);
-                var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "@state";
-                _updateCommand.Parameters.Add(_updateParam3);
-                var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "@priority";
-                _updateCommand.Parameters.Add(_updateParam4);
-                var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "@nextRun";
-                _updateCommand.Parameters.Add(_updateParam5);
-                var _updateParam6 = _updateCommand.CreateParameter();
-                _updateParam6.ParameterName = "@lastRun";
-                _updateCommand.Parameters.Add(_updateParam6);
-                var _updateParam7 = _updateCommand.CreateParameter();
-                _updateParam7.ParameterName = "@runCount";
-                _updateCommand.Parameters.Add(_updateParam7);
-                var _updateParam8 = _updateCommand.CreateParameter();
-                _updateParam8.ParameterName = "@maxAttempts";
-                _updateCommand.Parameters.Add(_updateParam8);
-                var _updateParam9 = _updateCommand.CreateParameter();
-                _updateParam9.ParameterName = "@retryDelay";
-                _updateCommand.Parameters.Add(_updateParam9);
-                var _updateParam10 = _updateCommand.CreateParameter();
-                _updateParam10.ParameterName = "@onSuccessDeleteAfter";
-                _updateCommand.Parameters.Add(_updateParam10);
-                var _updateParam11 = _updateCommand.CreateParameter();
-                _updateParam11.ParameterName = "@onFailureDeleteAfter";
-                _updateCommand.Parameters.Add(_updateParam11);
-                var _updateParam12 = _updateCommand.CreateParameter();
-                _updateParam12.ParameterName = "@expiresAt";
-                _updateCommand.Parameters.Add(_updateParam12);
-                var _updateParam13 = _updateCommand.CreateParameter();
-                _updateParam13.ParameterName = "@correlationId";
-                _updateCommand.Parameters.Add(_updateParam13);
-                var _updateParam14 = _updateCommand.CreateParameter();
-                _updateParam14.ParameterName = "@jobType";
-                _updateCommand.Parameters.Add(_updateParam14);
-                var _updateParam15 = _updateCommand.CreateParameter();
-                _updateParam15.ParameterName = "@jobData";
-                _updateCommand.Parameters.Add(_updateParam15);
-                var _updateParam16 = _updateCommand.CreateParameter();
-                _updateParam16.ParameterName = "@jobHash";
-                _updateCommand.Parameters.Add(_updateParam16);
-                var _updateParam17 = _updateCommand.CreateParameter();
-                _updateParam17.ParameterName = "@lastError";
-                _updateCommand.Parameters.Add(_updateParam17);
-                var _updateParam18 = _updateCommand.CreateParameter();
-                _updateParam18.ParameterName = "@created";
-                _updateCommand.Parameters.Add(_updateParam18);
-                var _updateParam19 = _updateCommand.CreateParameter();
-                _updateParam19.ParameterName = "@modified";
-                _updateCommand.Parameters.Add(_updateParam19);
+                var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.ParameterName = "@id";
+                updateCommand.Parameters.Add(updateParam1);
+                var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.ParameterName = "@name";
+                updateCommand.Parameters.Add(updateParam2);
+                var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.ParameterName = "@state";
+                updateCommand.Parameters.Add(updateParam3);
+                var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.ParameterName = "@priority";
+                updateCommand.Parameters.Add(updateParam4);
+                var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.ParameterName = "@nextRun";
+                updateCommand.Parameters.Add(updateParam5);
+                var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.ParameterName = "@lastRun";
+                updateCommand.Parameters.Add(updateParam6);
+                var updateParam7 = updateCommand.CreateParameter();
+                updateParam7.ParameterName = "@runCount";
+                updateCommand.Parameters.Add(updateParam7);
+                var updateParam8 = updateCommand.CreateParameter();
+                updateParam8.ParameterName = "@maxAttempts";
+                updateCommand.Parameters.Add(updateParam8);
+                var updateParam9 = updateCommand.CreateParameter();
+                updateParam9.ParameterName = "@retryDelay";
+                updateCommand.Parameters.Add(updateParam9);
+                var updateParam10 = updateCommand.CreateParameter();
+                updateParam10.ParameterName = "@onSuccessDeleteAfter";
+                updateCommand.Parameters.Add(updateParam10);
+                var updateParam11 = updateCommand.CreateParameter();
+                updateParam11.ParameterName = "@onFailureDeleteAfter";
+                updateCommand.Parameters.Add(updateParam11);
+                var updateParam12 = updateCommand.CreateParameter();
+                updateParam12.ParameterName = "@expiresAt";
+                updateCommand.Parameters.Add(updateParam12);
+                var updateParam13 = updateCommand.CreateParameter();
+                updateParam13.ParameterName = "@correlationId";
+                updateCommand.Parameters.Add(updateParam13);
+                var updateParam14 = updateCommand.CreateParameter();
+                updateParam14.ParameterName = "@jobType";
+                updateCommand.Parameters.Add(updateParam14);
+                var updateParam15 = updateCommand.CreateParameter();
+                updateParam15.ParameterName = "@jobData";
+                updateCommand.Parameters.Add(updateParam15);
+                var updateParam16 = updateCommand.CreateParameter();
+                updateParam16.ParameterName = "@jobHash";
+                updateCommand.Parameters.Add(updateParam16);
+                var updateParam17 = updateCommand.CreateParameter();
+                updateParam17.ParameterName = "@lastError";
+                updateCommand.Parameters.Add(updateParam17);
+                var updateParam18 = updateCommand.CreateParameter();
+                updateParam18.ParameterName = "@created";
+                updateCommand.Parameters.Add(updateParam18);
+                var updateParam19 = updateCommand.CreateParameter();
+                updateParam19.ParameterName = "@modified";
+                updateCommand.Parameters.Add(updateParam19);
              var now = UnixTimeUtcUnique.Now();
-                _updateParam1.Value = item.id.ToByteArray();
-                _updateParam2.Value = item.name;
-                _updateParam3.Value = item.state;
-                _updateParam4.Value = item.priority;
-                _updateParam5.Value = item.nextRun.milliseconds;
-                _updateParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
-                _updateParam7.Value = item.runCount;
-                _updateParam8.Value = item.maxAttempts;
-                _updateParam9.Value = item.retryDelay;
-                _updateParam10.Value = item.onSuccessDeleteAfter;
-                _updateParam11.Value = item.onFailureDeleteAfter;
-                _updateParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
-                _updateParam13.Value = item.correlationId;
-                _updateParam14.Value = item.jobType;
-                _updateParam15.Value = item.jobData ?? (object)DBNull.Value;
-                _updateParam16.Value = item.jobHash ?? (object)DBNull.Value;
-                _updateParam17.Value = item.lastError ?? (object)DBNull.Value;
-                _updateParam18.Value = now.uniqueTime;
-                _updateParam19.Value = now.uniqueTime;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                updateParam1.Value = item.id.ToByteArray();
+                updateParam2.Value = item.name;
+                updateParam3.Value = item.state;
+                updateParam4.Value = item.priority;
+                updateParam5.Value = item.nextRun.milliseconds;
+                updateParam6.Value = item.lastRun == null ? (object)DBNull.Value : item.lastRun?.milliseconds;
+                updateParam7.Value = item.runCount;
+                updateParam8.Value = item.maxAttempts;
+                updateParam9.Value = item.retryDelay;
+                updateParam10.Value = item.onSuccessDeleteAfter;
+                updateParam11.Value = item.onFailureDeleteAfter;
+                updateParam12.Value = item.expiresAt == null ? (object)DBNull.Value : item.expiresAt?.milliseconds;
+                updateParam13.Value = item.correlationId;
+                updateParam14.Value = item.jobType;
+                updateParam15.Value = item.jobData ?? (object)DBNull.Value;
+                updateParam16.Value = item.jobHash ?? (object)DBNull.Value;
+                updateParam17.Value = item.lastError ?? (object)DBNull.Value;
+                updateParam18.Value = now.uniqueTime;
+                updateParam19.Value = now.uniqueTime;
+                var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -663,12 +666,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public virtual int GetCountDirty(DatabaseConnection conn)
+        public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            using (var _getCountCommand = conn.db.CreateCommand())
+            using (var getCountCommand = conn.db.CreateCommand())
             {
-                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM jobs; PRAGMA read_uncommitted = 0;";
-                var count = conn.ExecuteScalar(_getCountCommand);
+                 // TODO: this is SQLite specific
+                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM jobs; PRAGMA read_uncommitted = 0;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -705,21 +709,21 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public JobsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<JobsRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new JobsRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in id...");
-                item.id = new Guid(_guid);
+                item.id = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
@@ -850,18 +854,18 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, Guid id)
+        public async Task<int> DeleteAsync(DatabaseConnection conn, Guid id)
         {
-            using (var _delete0Command = conn.db.CreateCommand())
+            using (var delete0Command = conn.db.CreateCommand())
             {
-                _delete0Command.CommandText = "DELETE FROM jobs " +
+                delete0Command.CommandText = "DELETE FROM jobs " +
                                              "WHERE id = @id";
-                var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "@id";
-                _delete0Command.Parameters.Add(_delete0Param1);
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@id";
+                delete0Command.Parameters.Add(delete0Param1);
 
-                _delete0Param1.Value = id.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                delete0Param1.Value = id.ToByteArray();
+                var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 return count;
             } // Using
         }
@@ -869,11 +873,11 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
         {
             var result = new List<JobsRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new JobsRecord();
             item.id = id;
 
@@ -1005,29 +1009,28 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public JobsRecord Get(DatabaseConnection conn, Guid id)
+        public async Task<JobsRecord> GetAsync(DatabaseConnection conn, Guid id)
         {
-            using (var _get0Command = conn.db.CreateCommand())
+            using (var get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
+                get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
                                              "WHERE id = @id LIMIT 1;";
-                var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "@id";
-                _get0Command.Parameters.Add(_get0Param1);
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@id";
+                get0Command.Parameters.Add(get0Param1);
 
-                _get0Param1.Value = id.ToByteArray();
-                lock (conn._lock)
+                get0Param1.Value = id.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr, id);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 

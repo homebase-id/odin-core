@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 [assembly: InternalsVisibleTo("IdentityDatabase")]
 
@@ -15,64 +16,50 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableDriveAclIndex()
+        public async Task<DriveAclIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid aclMemberId)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, driveId, fileId, aclMemberId);
         }
 
-        public DriveAclIndexRecord Get(Guid driveId, Guid fileId, Guid aclMemberId)
+        public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, driveId, fileId, aclMemberId);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, driveId, fileId);
         }
 
-        public List<Guid> Get(Guid driveId, Guid fileId)
+        public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, driveId, fileId);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAllRowsAsync(conn, _db._identityId, driveId, fileId);
         }
 
-        public int DeleteAllRows(Guid driveId, Guid fileId)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.DeleteAllRows(conn, _db._identityId, driveId, fileId);
-            }
-        }
-
-        public int Insert(DriveAclIndexRecord item)
+        public async Task<int> InsertAsync(DriveAclIndexRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        internal void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        internal async Task InsertRowsAsync(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            conn.CreateCommitUnitOfWork(() =>
+            await conn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                var item = new DriveAclIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
-
+                var item = new DriveAclIndexRecord { identityId = _db._identityId, driveId = driveId, fileId = fileId };
                 for (int i = 0; i < accessControlList.Count; i++)
                 {
                     item.aclMemberId = accessControlList[i];
-                    base.Insert(conn, item);
+                    await base.InsertAsync(conn, item);
                 }
             });
         }
 
 
-        public void InsertRows(Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
@@ -80,31 +67,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var conn = _db.CreateDisposableConnection())
             {
                 // Since we are writing multiple rows we do a logic unit here
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     var item = new DriveAclIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
 
                     for (int i = 0; i < accessControlList.Count; i++)
                     {
                         item.aclMemberId = accessControlList[i];
-                        base.Insert(conn, item);
+                        await base.InsertAsync(conn, item);
                     }
                 });
             }
         }
 
-        public void DeleteRow(Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < accessControlList.Count; i++)
                     {
-                        base.Delete(conn, _db._identityId, driveId, fileId, accessControlList[i]);
+                        await base.DeleteAsync(conn, _db._identityId, driveId, fileId, accessControlList[i]);
                     }
                 });
             }

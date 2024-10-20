@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -11,56 +12,40 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableKeyValue()
+        public new Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
+            return base.GetCountDirtyAsync(conn);
         }
 
-        public new int GetCountDirty(DatabaseConnection conn)
+        public async Task<KeyValueRecord> GetAsync(byte[] key)
         {
-            return base.GetCountDirty(conn);
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, key);
         }
-
-        public KeyValueRecord Get(byte[] key)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, key);
-            }
-        }
-        public int Insert(KeyValueRecord item)
+        public async Task<int> InsertAsync(KeyValueRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
-        public int Delete(byte[] key)
+        public async Task<int> DeleteAsync(byte[] key)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, key);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, key);
         }
 
-        public int Upsert(KeyValueRecord item)
+        public async Task<int> UpsertAsync(KeyValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Upsert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpsertAsync(conn, item);
         }
 
-        public int Update(KeyValueRecord item)
+        public async Task<int> UpdateAsync(KeyValueRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Update(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpdateAsync(conn, item);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 /*
 =====
@@ -55,13 +56,13 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            using (var conn = this.CreateDisposableConnection())
+            using var conn = CreateDisposableConnection();
+            await tblKeyChain.EnsureTableExistsAsync(conn, dropExistingTables);
+            if (dropExistingTables)
             {
-                tblKeyChain.EnsureTableExists(conn, dropExistingTables);
-                if (dropExistingTables)
-                    conn.Vacuum();
+                await conn.VacuumAsync();
             }
         }
     }

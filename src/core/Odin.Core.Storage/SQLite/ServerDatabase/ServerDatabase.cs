@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 
 /*
@@ -49,16 +50,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            using (var conn = this.CreateDisposableConnection())
+            using var conn = CreateDisposableConnection();
+            await tblJobs.EnsureTableExistsAsync(conn, dropExistingTables);
+            if (dropExistingTables)
             {
-                if (dropExistingTables)
-                    conn.Vacuum();
-
-                tblJobs.EnsureTableExists(conn, dropExistingTables);
-                if (dropExistingTables)
-                    conn.Vacuum();
+                await conn.VacuumAsync();
             }
         }
     }
