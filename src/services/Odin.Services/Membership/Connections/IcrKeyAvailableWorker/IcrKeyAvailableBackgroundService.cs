@@ -23,7 +23,6 @@ public class IcrKeyAvailableBackgroundService(
     CircleNetworkService circleNetworkService,
     ILogger<IcrKeyAvailableBackgroundService> logger)
 {
-
     public int RunCount { get; set; }
 
     public async Task Run(IcrKeyAvailableJobData data)

@@ -29,14 +29,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Upsert(AppGrantsRecord item)
+        public int Upsert(AppGrantsRecord item, DatabaseConnection connection = null)
         {
             item.identityId = _db._identityId;
 
-            using (var conn = _db.CreateDisposableConnection())
+            if (null == connection)
             {
-                return base.Insert(conn, item);
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    return base.Insert(conn, item);
+                }
             }
+
+            return base.Insert(connection, item);
         }
 
         public List<AppGrantsRecord> GetByOdinHashId(Guid odinHashId)
@@ -47,9 +52,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void DeleteByIdentity(Guid odinHashId)
+        public void DeleteByIdentity(Guid odinHashId, DatabaseConnection connection = null)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            void DoDelete(DatabaseConnection conn)
             {
                 var r = GetByOdinHashId(conn, _db._identityId, odinHashId);
 
@@ -63,6 +68,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         Delete(conn, _db._identityId, odinHashId, r[i].appId, r[i].circleId);
                     }
                 });
+            }
+
+            if (connection == null)
+            {
+                using (var conn = _db.CreateDisposableConnection())
+                {
+                    DoDelete(conn);
+                }
+            }
+            else
+            {
+                DoDelete(connection);
             }
         }
     }

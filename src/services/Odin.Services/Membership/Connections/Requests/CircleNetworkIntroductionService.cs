@@ -172,7 +172,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequests(PageOptions.All, odinContext);
         _logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)",
             incomingConnectionRequests.Results.Count);
