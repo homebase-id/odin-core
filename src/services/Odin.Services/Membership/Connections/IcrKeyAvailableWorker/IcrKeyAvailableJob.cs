@@ -40,13 +40,13 @@ public class IcrKeyAvailableJob(
             service.RunCount++;
 
             logger.LogDebug("IcrKeyAvailableJob RunCount: {rc}", service.RunCount);
-            if (service.RunCount > 5) //TODO: config
+            if (service.RunCount > 30) //TODO: config
             {
                 service.RunCount = 0;
                 return JobExecutionResult.Success();
             }
 
-            return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(5));
+            return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(60));
         }
         catch (OdinSecurityException se)
         {
