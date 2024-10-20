@@ -49,13 +49,13 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public async Task Upsert<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, T value)
+    public async Task UpsertAsync<T>(IdentityDatabase db, Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
         await db.tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public async Task Delete(IdentityDatabase db, Guid id)
+    public async Task DeleteAsync(IdentityDatabase db, Guid id)
     {
         await db.tblKeyTwoValue.DeleteAsync(MakeStorageKey(id));
     }

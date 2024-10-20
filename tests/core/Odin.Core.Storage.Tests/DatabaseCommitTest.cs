@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.Tests
     public class DatabaseCommitTest
     {
         [Test]
-        public void LogicCommitUnit1Test()
+        public async Task LogicCommitUnit1Test()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests001");
             using (var myc = db.CreateDisposableConnection())
@@ -20,15 +20,16 @@ namespace Odin.Core.Storage.Tests
                 Debug.Assert(myc._nestedCounter == 0);
                 Debug.Assert(myc.TransactionCount() == 0);
 
-                myc.CreateCommitUnitOfWork(() =>
+                await myc.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     Debug.Assert(myc.TransactionCount() == 0);
                     Debug.Assert(myc._nestedCounter == 1);
 
-                    myc.CreateCommitUnitOfWork(() =>
+                    await myc.CreateCommitUnitOfWorkAsync(async () =>
                     {
                         Debug.Assert(myc.TransactionCount() == 0);
                         Debug.Assert(myc._nestedCounter == 2);
+                        await Task.CompletedTask;
                     });
 
                     Debug.Assert(myc.TransactionCount() == 0);
@@ -125,22 +126,23 @@ namespace Odin.Core.Storage.Tests
 
             for (int i = 0; i < 10; i++)
             {
-                var task = Task.Run(() =>
+                var task = Task.Run(async () =>
                 {
                     using (var myc = db.CreateDisposableConnection())
                     {
                         Debug.Assert(myc._nestedCounter == 0, "Counter should be ready to commit initially.");
                         Debug.Assert(myc.TransactionCount() == 0, "Initial commits count should be zero.");
 
-                        myc.CreateCommitUnitOfWork(() =>
+                        await myc.CreateCommitUnitOfWorkAsync(async () =>
                         {
                             Debug.Assert(myc.TransactionCount() == 0, "Commits count should be zero after creating unit of work.");
                             Debug.Assert(myc._nestedCounter == 1, "Counter should not be ready to commit after creating unit of work.");
 
-                            myc.CreateCommitUnitOfWork(() =>
+                            await myc.CreateCommitUnitOfWorkAsync(async () =>
                             {
                                 Debug.Assert(myc.TransactionCount() == 0, "Commits count should remain zero after nested unit of work.");
                                 Debug.Assert(myc._nestedCounter == 2, "Counter should not be ready to commit in nested unit of work.");
+                                await Task.CompletedTask;
                             });
 
                             Debug.Assert(myc.TransactionCount() == 0, "Commits count should still be zero after exiting nested unit of work.");
@@ -160,120 +162,121 @@ namespace Odin.Core.Storage.Tests
         }
 
         [Test]
-        public void CreateCommitUnitOfWorkShouldRollbackOnException()
+        public async Task CreateCommitUnitOfWorkShouldRollbackOnException()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests005");
-            db.CreateDatabase(true);
+            await db.CreateDatabaseAsync(true);
 
             var kv = new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             using var cn = db.CreateDisposableConnection();
 
-            db.tblKeyValue.Insert(cn, kv);
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(1));
+            await db.tblKeyValue.InsertAsync(cn, kv);
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(1));
 
             // First make sure we can provoke a key violation
-            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(kv));
+            var exception = Assert.ThrowsAsync<SqliteException>(async () => await db.tblKeyValue.InsertAsync(kv));
+
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Lets add 3 some rows in two nested transactions
-            cn.CreateCommitUnitOfWork(() =>
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                db.tblKeyValue.Insert(cn,
+                await db.tblKeyValue.InsertAsync(cn,
                     new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                cn.CreateCommitUnitOfWork(() =>
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                    db.tblKeyValue.Insert(cn, 
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                 });
             });
 
             // Make sure they are committed (total row count == 4)
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(4));
 
             // Rollback Variant 1
             // Lets add 3 more rows in two nested transactions
             // And then the fatal key violation that should rollback everything
-            exception = Assert.Throws<SqliteException>(() =>
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
             {
-                cn.CreateCommitUnitOfWork(() =>
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    cn.CreateCommitUnitOfWork(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        await db.tblKeyValue.InsertAsync(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        await db.tblKeyValue.InsertAsync(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                        db.tblKeyValue.Insert(cn, kv);
+                        await db.tblKeyValue.InsertAsync(cn, kv);
                     });
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(4));
 
             // Rollback Variant 2
             // Lets add 3 more rows in two nested transactions
             // And then the fatal key violation that should rollback everything
-            exception = Assert.Throws<SqliteException>(() =>
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
             {
-                cn.CreateCommitUnitOfWork(() =>
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    cn.CreateCommitUnitOfWork(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
 
-                    db.tblKeyValue.Insert(cn,kv);
+                    await db.tblKeyValue.InsertAsync(cn,kv);
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(4));
 
             // Rollback Variant 3
             // Lets add 3 more rows in two nested transactions
             // And then the fatal key violation that should rollback everything
-            exception = Assert.Throws<SqliteException>(() =>
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
             {
-                cn.CreateCommitUnitOfWork(() =>
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    await db.tblKeyValue.InsertAsync(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    db.tblKeyValue.Insert(cn, kv);
+                    await db.tblKeyValue.InsertAsync(cn, kv);
 
-                    cn.CreateCommitUnitOfWork(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        await db.tblKeyValue.InsertAsync(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        await db.tblKeyValue.InsertAsync(cn, new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
                     });
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Make sure we still only have 4 rows
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(4));
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(4));
 
             // Finally a single successful row for good measure
-            cn.CreateCommitUnitOfWork(() =>
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                db.tblKeyValue.Insert(cn,
+                await db.tblKeyValue.InsertAsync(cn,
                     new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             });
-            Assert.That(db.tblKeyValue.GetCountDirty(cn), Is.EqualTo(5));
+            Assert.That(await db.tblKeyValue.GetCountDirtyAsync(cn), Is.EqualTo(5));
         }
 
         [Test]
@@ -288,31 +291,29 @@ namespace Odin.Core.Storage.Tests
             }
 
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests006");
-            db.CreateDatabase(true); // SEB:TODO make async variant
+            await db.CreateDatabaseAsync(true);
             var kv = new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
             using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
-            db.tblKeyValue.Insert(cn, kv); // SEB:TODO make async variant
+            await db.tblKeyValue.InsertAsync(cn, kv);
             Assert.That(await CountAsync(cn), Is.EqualTo(1));
 
             // First make sure we can provoke a key violation
-            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(cn, kv));
+            var exception = Assert.ThrowsAsync<SqliteException>(async () => await db.tblKeyValue.InsertAsync(cn, kv));
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
 
             // Lets add 3 some rows in two nested transactions
             await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                db.tblKeyValue.Insert(cn,
+                await db.tblKeyValue.InsertAsync(cn,
                     new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                await cn.CreateCommitUnitOfWorkAsync(() =>
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-
-                    return Task.CompletedTask;
                 });
             });
 
@@ -326,19 +327,17 @@ namespace Odin.Core.Storage.Tests
             {
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                        db.tblKeyValue.Insert(cn, kv);
-
-                        return Task.CompletedTask;
+                        await db.tblKeyValue.InsertAsync(cn, kv);
                     });
                 });
             });
@@ -354,20 +353,18 @@ namespace Odin.Core.Storage.Tests
             {
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-
-                        return Task.CompletedTask;
                     });
 
-                    db.tblKeyValue.Insert(cn,kv);
+                    await db.tblKeyValue.InsertAsync(cn,kv);
                 });
             });
             Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
@@ -382,19 +379,17 @@ namespace Odin.Core.Storage.Tests
             {
                 await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    db.tblKeyValue.Insert(cn,
+                    await db.tblKeyValue.InsertAsync(cn,
                         new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
 
-                    db.tblKeyValue.Insert(cn, kv);
+                    await db.tblKeyValue.InsertAsync(cn, kv);
 
-                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    await cn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                        db.tblKeyValue.Insert(cn,
+                        await db.tblKeyValue.InsertAsync(cn,
                             new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-
-                        return Task.CompletedTask;
                     });
                 });
             });
@@ -404,32 +399,31 @@ namespace Odin.Core.Storage.Tests
             Assert.That(await CountAsync(cn), Is.EqualTo(4));
 
             // Finally a single successful row for good measure
-            await cn.CreateCommitUnitOfWorkAsync(() =>
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                db.tblKeyValue.Insert(cn,
+                await db.tblKeyValue.InsertAsync(cn,
                     new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                return Task.CompletedTask;
             });
             Assert.That(await CountAsync(cn), Is.EqualTo(5));
         }
 
 
         [Test]
-        public void Test4()
+        public async Task Test4()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests007");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
 
                 var wasCommitCallCount = myc.TransactionCount();
 
                 Debug.Assert(myc.TransactionCount() == wasCommitCallCount + 0);
 
-                myc.CreateCommitUnitOfWork(() =>
+                await myc.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     // Add some data
-                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                    await db.tblFollowsMe.InsertAsync(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                     Debug.Assert(myc.TransactionCount() == wasCommitCallCount);
                 });
@@ -440,19 +434,19 @@ namespace Odin.Core.Storage.Tests
 
 
         [Test]
-        public void Test5()
+        public async Task Test5()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "DatabaseCommitTests008");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
 
                 var wasCommitCallCount = myc.TransactionCount();
 
-                myc.CreateCommitUnitOfWork(() =>
+                await myc.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     // Add some data
-                    db.tblFollowsMe.Insert(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                    await db.tblFollowsMe.InsertAsync(myc, new FollowsMeRecord() { identityId = db._identityId, identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                     Debug.Assert(myc.TransactionCount() == wasCommitCallCount);
                 });

@@ -14,13 +14,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        public async Task<DriveTagIndexRecord> GeAsync(Guid driveId, Guid fileId, Guid tagId)
+        public async Task<DriveTagIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid tagId)
         {
             using var conn = _db.CreateDisposableConnection();
             return await base.GetAsync(conn, _db._identityId, driveId, fileId, tagId);
         }
 
-        public async Task<List<Guid>> Get(Guid driveId, Guid fileId)
+        public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
         {
             using var conn = _db.CreateDisposableConnection();
             return await base.GetAsync(conn, _db._identityId, driveId, fileId);

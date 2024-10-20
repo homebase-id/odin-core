@@ -29,7 +29,7 @@ namespace Odin.Core.Storage.SQLite
         {
             this.db = db;
             _connection = new SqliteConnection(connectionString);
-            _connection.Open();
+            _connection.Open(); // SEB:NOTE we can't make this async unless we move it out of the ctor
         }
 
         ~DatabaseConnection()

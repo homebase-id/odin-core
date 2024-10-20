@@ -789,7 +789,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal async Task<int> UpdateEntryZapZapPassAlong(Guid driveId, Guid fileId,
+        internal async Task<int> UpdateEntryZapZapPassAlongAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
