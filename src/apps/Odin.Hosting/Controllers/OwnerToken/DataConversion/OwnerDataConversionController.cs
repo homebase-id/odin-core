@@ -19,6 +19,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
             return Ok();
         }
 
+        [HttpPost("prepare-introductions-release")]
+        public Task<IActionResult> PrepareIntroductionsRelease()
+        {
+            return Task.FromResult(Ok() as IActionResult);
+        }
+
         [HttpPost("force-version-number")]
         public Task<IActionResult> ForceVersionReset([FromQuery] int version)
         {

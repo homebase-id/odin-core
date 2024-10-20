@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
@@ -25,6 +26,7 @@ namespace Odin.Services.Authorization.Apps
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
+        private readonly ILogger<AppRegistrationService> _logger;
 
         private readonly byte[] _appRegistrationDataType = Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
         private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
@@ -39,13 +41,15 @@ namespace Odin.Services.Authorization.Apps
 
         public AppRegistrationService(TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator,
-            IcrKeyService icrKeyService)
+            IcrKeyService icrKeyService,
+            ILogger<AppRegistrationService> logger)
         {
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _mediator = mediator;
             _icrKeyService = icrKeyService;
+            _logger = logger;
 
             const string appRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
             _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appRegContextKey));
@@ -293,6 +297,7 @@ namespace Odin.Services.Authorization.Apps
             var appClient = _appClientValueStorage.Get<AppClient>(db, authToken.Id);
             if (null == appClient)
             {
+                _logger.LogDebug("null app client");
                 return (false, null, null);
             }
 
@@ -300,11 +305,13 @@ namespace Odin.Services.Authorization.Apps
 
             if (null == appReg || null == appReg.Grant)
             {
+                _logger.LogDebug("null app registration or app registration grant");
                 return (false, null, null);
             }
 
             if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
+                _logger.LogDebug("app client or app is revoked");
                 return (false, null, null);
             }
 
