@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -37,24 +35,50 @@ namespace Odin.Services.Membership.Circles
             return await this.CreateCircleInternal(request);
         }
 
-        public async Task CreateSystemCircle()
+        public async Task EnsureSystemCirclesExist()
         {
-            if (null == this.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId))
+            var confirmedCircleDefinition = this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId);
+            if (null == confirmedCircleDefinition)
             {
-                await this.CreateCircleInternal(new CreateCircleRequest()
+                var def = SystemCircleConstants.ConfirmedConnectionsDefinition;
+                await this.CreateCircleInternal(new CreateCircleRequest
                 {
-                    Id = SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value,
-                    Name = "All Connected Identities",
-                    Description = "All Connected Identities",
-                    DriveGrants = SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives,
-                    Permissions = new PermissionSet()
-                    {
-                        Keys = new List<int>()
-                    }
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
                 }, skipValidation: true);
             }
-        }
+            else
+            {
+                if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
+                {
+                    await this.Update(SystemCircleConstants.ConfirmedConnectionsDefinition);
+                }
+            }
 
+            var autoCircleDef = this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId);
+            if (null == autoCircleDef)
+            {
+                var def = SystemCircleConstants.AutoConnectionsSystemCircleDefinition;
+                await this.CreateCircleInternal(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
+                }, skipValidation: true);
+            }
+            else
+            {
+                if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
+                {
+                    await this.Update(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
+                }
+            }
+        }
 
         public async Task Update(CircleDefinition newCircleDefinition)
         {
@@ -87,13 +111,13 @@ namespace Odin.Services.Membership.Circles
             var def = _circleValueStorage.Get<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, circleId);
             return def;
         }
-
-        public Task<IEnumerable<CircleDefinition>> GetCircles(bool includeSystemCircle)
+        
+        public Task<List<CircleDefinition>> GetCircles(bool includeSystemCircle)
         {
-            var circles = _circleValueStorage.GetByCategory<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType);
+            var circles = (_circleValueStorage.GetByCategory<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType) ?? []).ToList();
             if (!includeSystemCircle)
             {
-                return Task.FromResult(circles.Where(c => c.Id != SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value));
+                circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
             }
 
             return Task.FromResult(circles);
@@ -132,8 +156,10 @@ namespace Odin.Services.Membership.Circles
 
                 var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault(), _tenantSystemStorage.IdentityDatabase);
 
-                //Allow access when OwnerOnly AND the only permission is Write; TODO: this defeats purpose of owneronly drive, i think
-                if (drive.OwnerOnly && ((int)dgr.PermissionedDrive.Permission != (int)DrivePermission.Write))
+                //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
+                var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
+                                         dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.React);
+                if (drive.OwnerOnly && !hasValidPermission)
                 {
                     throw new OdinSecurityException("Cannot grant access to owner-only drives to circles");
                 }

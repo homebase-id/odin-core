@@ -39,14 +39,18 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
 
+            var sender = odinContext.GetCallerOdinIdOrFail();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
+            if (request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
-                return await RouteFeedRequestToInbox(request, odinContext, db);
+                if (request.FileMetadata.IsEncrypted)
+                {
+                    return await RouteFeedRequestToInbox(request, odinContext, db);
+                }
             }
 
             var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, db);
@@ -88,7 +92,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // Clearing the UID for any files that go into the feed drive because the feed drive
                     // comes from multiple channel drives from many different identities so there could be a clash
                     request.FileMetadata.AppData.UniqueId = null;
-
+                    request.FileMetadata.SenderOdinId = sender;
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, db);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, db, raiseEvent: true);
@@ -96,7 +100,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
-                        Sender = odinContext.GetCallerOdinIdOrFail(),
+                        Sender = sender,
                         OdinContext = newContext,
                         GlobalTransitId = request.FileMetadata.ReferencedFile != null ? request.FileMetadata.ReferencedFile.GlobalTransitId : request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                         db = db
@@ -111,8 +115,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // perform update
                     try
                     {
-                        request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
-                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, db);
+                        request.FileMetadata.SenderOdinId = sender;
+                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, db, bypassCallerCheck: true);
                     }
                     catch (Exception e)
                     {
@@ -292,7 +296,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 EncryptedFeedPayload = request.EncryptedPayload
             };
 
-            await inboxBoxStorage.Add(item, db);
+            await inboxBoxStorage.Add(item);
 
             await mediator.Publish(new InboxItemReceivedNotification()
             {

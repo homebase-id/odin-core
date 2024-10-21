@@ -20,7 +20,8 @@ public class TenantSettings
         AuthenticatedIdentitiesCanCommentOnAnonymousDrives = false,
         AuthenticatedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanReactOnAnonymousDrives = true,
-        ConnectedIdentitiesCanCommentOnAnonymousDrives = true
+        ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
+        DisableAutoAcceptIntroductions = false
     };
 
     /// <summary/>
@@ -45,6 +46,8 @@ public class TenantSettings
     public bool AuthenticatedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 
     public bool ConnectedIdentitiesCanReactOnAnonymousDrives { get; set; }
+    
+    public bool DisableAutoAcceptIntroductions { get; set; }
 
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 

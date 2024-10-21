@@ -18,9 +18,24 @@ public static class OdinSystemSerializer
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new ByteArrayConverter(), new NullableGuidConverter(), new GuidConverter() }
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+            new ByteArrayConverter(),
+            new NullableGuidConverter(),
+            new GuidConverter(),
+            // new OdinContextConverter(),
+            // new CallerContextConverter(),
+            // new PermissionContextConverter(),
+            // new PermissionGroupConverter()
+        }
     };
 
+    public static void Serialize<TValue>(Utf8JsonWriter writer, TValue value)
+    {
+        JsonSerializer.Serialize(writer, value, JsonSerializerOptions);
+    }
+    
     public static async Task Serialize(Stream utf8Json,
         object? value,
         Type inputType,
@@ -34,11 +49,13 @@ public static class OdinSystemSerializer
         var json = JsonSerializer.Serialize(value, type, JsonSerializerOptions);
         return json;
     }
+
     public static string Serialize<TValue>(TValue value)
     {
         var json = JsonSerializer.Serialize(value, JsonSerializerOptions);
         return json;
     }
+
     public static string Serialize(object value)
     {
         var json = JsonSerializer.Serialize(value, JsonSerializerOptions);
@@ -49,21 +66,27 @@ public static class OdinSystemSerializer
     {
         return JsonSerializer.Deserialize<T>(jsonBytes, JsonSerializerOptions);
     }
+
     public static T? Deserialize<T>(string json)
     {
         return JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
     }
-    
+
     public static T DeserializeOrThrow<T>(string json)
     {
         var result = JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
-        
+
         if (result == null)
         {
             throw new OdinSystemException("Failed to deserialize data");
         }
 
         return result;
+    }
+
+    public static T? Deserialize<T>(ref Utf8JsonReader reader)
+    {
+        return JsonSerializer.Deserialize<T>(ref reader, JsonSerializerOptions);
     }
 
     public static async Task<T?> Deserialize<T>(Stream utf8Json, CancellationToken cancellationToken = default)
@@ -76,5 +99,4 @@ public static class OdinSystemSerializer
         var json = Serialize(source);
         return DeserializeOrThrow<T>(json);
     }
-    
 }

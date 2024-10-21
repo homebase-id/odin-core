@@ -28,8 +28,15 @@ namespace Odin.Services.Authorization.Permissions
         
         public const int SendOnBehalfOfOwner = 707;
         
-        public static readonly List<int> All = new List<int>()
-        {
+        /// <summary>
+        /// Circles with this permission can introduce me to others
+        /// </summary>
+        public const int AllowIntroductions = 808;
+        
+        public const int SendIntroductions = 909;
+        
+        public static readonly List<int> All =
+        [
             ReadConnections,
             ReadConnectionRequests,
             ReadCircleMembership,
@@ -39,8 +46,10 @@ namespace Odin.Services.Authorization.Permissions
             UseTransitRead,
             SendPushNotifications,
             ManageFeed,
-            PublishStaticContent
-        };
+            PublishStaticContent,
+            AllowIntroductions,
+            SendIntroductions
+        ];
     }
 
     /// <summary>
@@ -71,7 +80,9 @@ namespace Odin.Services.Authorization.Permissions
 
                 //Note: circles can potentially useTransitWrite so feed items can be
                 //distributed when posting to a group channel;  intentionally leaving out UseTransitRead
-                PermissionKeys.SendOnBehalfOfOwner
+                PermissionKeys.SendOnBehalfOfOwner,
+                
+                PermissionKeys.AllowIntroductions
             });
         }
 

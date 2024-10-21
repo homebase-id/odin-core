@@ -853,7 +853,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
-                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -868,7 +868,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
-                var frodoAccessFromSystemCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+                var frodoAccessFromSystemCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId);
                 Assert.NotNull(frodoAccessFromSystemCircle);
 
                 AssertAllDrivesGrantedFromCircle(systemCircleDef, frodoAccessFromSystemCircle);
@@ -883,7 +883,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 // Frodo should show up in the member list for each circle
                 //
-                await AssertIdentityIsInCircle(client, ownerSharedSecret, SystemCircleConstants.ConnectedIdentitiesSystemCircleId, frodo.Identity);
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, SystemCircleConstants.ConfirmedConnectionsCircleId, frodo.Identity);
             }
 
 
@@ -893,7 +893,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
-                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -908,7 +908,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Assert.IsTrue(getSamInfoResponse.Content.Status == ConnectionStatus.Connected);
 
                 var samAccess = getSamInfoResponse.Content.AccessGrant;
-                var samAccessFromSystemCircle = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+                var samAccessFromSystemCircle = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId);
                 Assert.NotNull(samAccessFromSystemCircle);
 
                 AssertAllDrivesGrantedFromCircle(systemCircleDef, samAccessFromSystemCircle);
@@ -923,7 +923,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 // Frodo should show up in the member list for each circle
                 //
-                await AssertIdentityIsInCircle(client, ownerSharedSecret, SystemCircleConstants.ConnectedIdentitiesSystemCircleId, sam.Identity);
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, SystemCircleConstants.ConfirmedConnectionsCircleId, sam.Identity);
             }
 
             await DisconnectIdentities(frodo, sam);

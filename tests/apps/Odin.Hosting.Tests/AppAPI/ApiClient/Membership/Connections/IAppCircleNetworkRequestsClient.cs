@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Membership.Connections.Requests;
@@ -8,6 +9,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
 {
+    [Obsolete]
     public interface IAppCircleNetworkRequestsClient
     {
         private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
@@ -23,7 +25,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
         [Get(SentPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
 
-        [Post(SentPathRoot+ "/single")]
+        [Post(SentPathRoot + "/single")]
         Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] OdinIdRequest request);
 
         [Post(SentPathRoot + "/delete")]
@@ -32,7 +34,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
         [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<PendingConnectionRequestHeader>>> GetPendingRequestList([Query] PageOptions pageRequest);
 
-        [Post(PendingPathRoot+ "/single")]
+        [Post(PendingPathRoot + "/single")]
         Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] OdinIdRequest request);
 
         [Post(PendingPathRoot + "/delete")]

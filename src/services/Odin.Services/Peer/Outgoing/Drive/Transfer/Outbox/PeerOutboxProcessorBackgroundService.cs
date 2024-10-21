@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -200,6 +199,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.File:
                     return await SendFileOutboxItem(fileItem, odinContext, db, cancellationToken);
 
+                case OutboxItemType.RemoteFileUpdate:
+                    return await UpdateRemoteFile(fileItem, odinContext, db, cancellationToken);
+
                 case OutboxItemType.UnencryptedFeedItem:
                     return await SendUnencryptedFeedItem(fileItem, odinContext, db, cancellationToken);
 
@@ -262,6 +264,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, db, cancellationToken);
         }
 
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> UpdateRemoteFile(OutboxFileItem fileItem, IOdinContext odinContext,
+            IdentityDatabase db,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<UpdateRemoteFileOutboxWorker>();
+            var worker = new UpdateRemoteFileOutboxWorker(fileItem,
+                fileSystemResolver,
+                workLogger,
+                odinConfiguration,
+                odinHttpClientFactory
+            );
+
+            return await worker.Send(odinContext, db, cancellationToken);
+        }
+        
+        
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext,
             IdentityDatabase db,
             CancellationToken cancellationToken)

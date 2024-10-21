@@ -2,17 +2,14 @@
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Services.Base;
+using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Verification;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
     [AuthorizeValidAppToken]
-    public class AppCircleNetworkController : CircleNetworkControllerBase
-    {
-        public AppCircleNetworkController(CircleNetworkService cn, TenantSystemStorage tenantSystemStorage)
-            : base(cn, tenantSystemStorage)
-        {
-        }
-    }
+    public class AppCircleNetworkController(CircleNetworkService cn, CircleNetworkVerificationService verificationService)
+        : CircleNetworkControllerBase(cn, verificationService);
 }

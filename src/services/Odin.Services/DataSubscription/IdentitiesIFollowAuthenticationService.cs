@@ -80,9 +80,4 @@ public class IdentitiesIFollowAuthenticationService
         return (cc, permissionContext);
     }
 
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
-    {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
-        return Task.CompletedTask;
-    }
 }

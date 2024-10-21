@@ -77,7 +77,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
 
-            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
             Assert.IsNotNull(getSystemCircleResponse1.Content);
 
@@ -92,7 +92,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // system circle should not have permissions
             //
-            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
             Assert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
             Assert.IsNotNull(getSystemCircleResponse2.Content);
             var systemCircle = getSystemCircleResponse2.Content;
@@ -101,6 +101,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         
         [Test]
         public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanReactOnAnonymousDrives_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
+        }
+        
+        [Test]
+        public async Task SystemDefault_TenantSettings_AutoAcceptIntroductions_IsTrue()
         {
             var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
 

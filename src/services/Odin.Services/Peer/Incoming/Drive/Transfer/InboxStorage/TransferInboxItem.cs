@@ -6,6 +6,7 @@ using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -53,6 +54,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         //Feed bolt-ons
         public EccEncryptedPayload EncryptedFeedPayload { get; set; }
+        
+        /// <summary>
+        /// Serialized data specific to this inbox item
+        /// </summary>
+        // public string Data { get; set; }
 
         /// <summary>
         /// Generic field to hold serialized information for the given <see cref="InstructionType"/>

@@ -26,8 +26,7 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class AppNotificationHandler(
         PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
-        ILogger<AppNotificationHandler> logger,
-        TenantSystemStorage tenantSystemStorage)
+        ILogger<AppNotificationHandler> logger)
         :
             INotificationHandler<IClientNotification>,
             INotificationHandler<IDriveNotification>,
@@ -368,7 +367,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     if (d != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase);
+                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext);
                     }
                 }
                     break;
@@ -378,7 +377,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase, request.BatchSize);
+                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, request.BatchSize);
                     }
                 }
                     break;
