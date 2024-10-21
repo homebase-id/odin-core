@@ -38,7 +38,7 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public async Task<IEnumerable<T>> GetByDataType<T>(IdentityDatabase db, byte[] key2) where T : class
+    public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(IdentityDatabase db, byte[] key2) where T : class
     {
         var list = await db.tblKeyTwoValue.GetByKeyTwoAsync(key2);
         if (null == list)

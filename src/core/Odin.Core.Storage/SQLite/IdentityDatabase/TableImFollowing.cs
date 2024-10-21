@@ -88,7 +88,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetAllFollowers(int count, string inCursor, out string nextCursor)
+        public async Task<(List<string> followers, string nextCursor)>  GetAllFollowersAsync(int count, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -119,14 +119,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(_select3Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
+                        string nextCursor;
 
                         int n = 0;
 
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             var s = rdr.GetString(0);
@@ -135,7 +135,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             result.Add(s);
                         }
 
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                             nextCursor = result[n - 1];
                         }
@@ -144,7 +144,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             nextCursor = null;
                         }
 
-                        return result;
+                        return (result, nextCursor);
                     }
                 }
             }
@@ -160,7 +160,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
+        public async Task<(List<string> followers, string nextCursor)>  GetFollowersAsync(int count, Guid driveId, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -195,14 +195,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(_select2Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
+                        string nextCursor;
 
                         int n = 0;
 
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             var s = rdr.GetString(0);
@@ -211,7 +211,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             result.Add(s);
                         }
 
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                             nextCursor = result[n - 1];
                         }
@@ -220,7 +220,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             nextCursor = null;
                         }
 
-                        return result;
+                        return (result, nextCursor);
                     }
                 }
             }

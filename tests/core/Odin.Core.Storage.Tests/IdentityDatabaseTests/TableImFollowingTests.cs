@@ -47,12 +47,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // Now Frodo makes a new post to d1, which means we shouold get
                 // everyone except Heimdal. Let's do a page size of 3
                 // Get freja, loke, odin back. Still missing Thor
-                var r = db.tblImFollowing.GetFollowers(3, d1, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(3, d1, null);
                 Debug.Assert(r.Count == 3, message: "rdr.HasRows is the sinner");
                 Debug.Assert(nextCursor == r[2]);
 
                 // Get the second page. Always use the last result as the cursor
-                r = db.tblImFollowing.GetFollowers(3, d1, nextCursor, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(3, d1, nextCursor);
                 Debug.Assert(r.Count == 1);  // We know this is the last page because 1 < 3
                                              // but if we call again anyway, we get 0 back.
                 Debug.Assert(nextCursor == null);
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 // Now Frodo does a post to d2 which means Freja, Heimdal, Loke gets it
                 //
-                r = db.tblImFollowing.GetFollowers(3, d2, null, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(3, d2, null);
                 Debug.Assert(r.Count == 3);
                 Debug.Assert(nextCursor == null);
             }
@@ -223,7 +223,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 bool ok = false;
                 try
                 {
-                    db.tblImFollowing.GetFollowers(0, d1, null, out var nextCursor);
+                    await db.tblImFollowing.GetFollowersAsync(0, d1, null);
                 }
                 catch
                 {
@@ -253,16 +253,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i2), driveId = d1 });
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i2), driveId = d2 });
 
-                var r = db.tblImFollowing.GetFollowers(100, d3, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(100, d3, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0] == i2);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
-                r = db.tblImFollowing.GetFollowers(100, d1, "", out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(100, d1, "");
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(nextCursor == null);
 
-                r = db.tblImFollowing.GetFollowers(100, d2, "", out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(100, d2, "");
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0] == i2);
                 Debug.Assert(nextCursor == null);
@@ -293,26 +293,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i4), driveId = d1 });
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i5), driveId = Guid.Empty });
 
-                var r = db.tblImFollowing.GetFollowers(2, d1, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(2, d1, null);
                 Debug.Assert(r.Count == 2, message: "rdr.HasRows is the sinner");
                 Debug.Assert(r[0] == i3);
                 Debug.Assert(r[1] == i4);
                 Debug.Assert(nextCursor == r[1]);
 
-                r = db.tblImFollowing.GetFollowers(2, d1, nextCursor, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(2, d1, nextCursor);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0] == i5);
                 Debug.Assert(r[1] == i1);
                 Debug.Assert(nextCursor == r[1]);
 
-                r = db.tblImFollowing.GetFollowers(2, d1, nextCursor, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(2, d1, nextCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0] == i2);
                 Debug.Assert(nextCursor == null);
 
                 nextCursor = r[0];
 
-                r = db.tblImFollowing.GetFollowers(2, d1, r[0], out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetFollowersAsync(2, d1, r[0]);
                 Debug.Assert(r.Count == 0);
                 Debug.Assert(nextCursor == null);
             }
@@ -343,24 +343,24 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i4), driveId = d1 });
                 await db.tblImFollowing.InsertAsync(new ImFollowingRecord() { identity = new OdinId(i5), driveId = Guid.Empty });
 
-                var r = db.tblImFollowing.GetAllFollowers(2, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblImFollowing.GetAllFollowersAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0] == i3);
                 Debug.Assert(r[1] == i4);
                 Debug.Assert(nextCursor == r[1]);
 
-                r = db.tblImFollowing.GetAllFollowers(2, nextCursor, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetAllFollowersAsync(2, nextCursor);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0] == i5, message: "rdr.HasRows is the sinner");
                 Debug.Assert(r[1] == i1);
                 Debug.Assert(nextCursor == r[1]);
 
-                r = db.tblImFollowing.GetAllFollowers(2, nextCursor, out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetAllFollowersAsync(2, nextCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0] == i2);
                 Debug.Assert(nextCursor == null);
 
-                r = db.tblImFollowing.GetAllFollowers(2, r[0], out nextCursor);
+                (r, nextCursor) = await db.tblImFollowing.GetAllFollowersAsync(2, r[0]);
                 Debug.Assert(r.Count == 0);
                 Debug.Assert(nextCursor == null);
             }
