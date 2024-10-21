@@ -13,7 +13,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        public async Task<int> Delete(Guid circleId, Guid memberId)
+        public async Task<int> DeleteAsync(Guid circleId, Guid memberId)
         {
             using var conn = _db.CreateDisposableConnection();
             return await base.DeleteAsync(conn, _db._identityId, circleId, memberId);
