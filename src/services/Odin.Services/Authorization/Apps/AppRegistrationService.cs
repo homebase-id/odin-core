@@ -57,7 +57,7 @@ namespace Odin.Services.Authorization.Apps
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, IOdinContext odinContext)
+        public async Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
@@ -87,7 +87,7 @@ namespace Odin.Services.Authorization.Apps
                 });
             }
 
-            var appGrant = await _exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
+            var appGrant = await _exchangeGrantService.CreateExchangeGrantAsync(db, keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
             //TODO: add check if app is already registered
@@ -103,13 +103,13 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            _appRegistrationValueStorage.Upsert(db, appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+            await _appRegistrationValueStorage.UpsertAsync(db, appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
         }
 
-        public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request, IOdinContext odinContext)
+        public async Task UpdateAppPermissionsAsync(UpdateAppPermissionsRequest request, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
@@ -142,14 +142,14 @@ namespace Odin.Services.Authorization.Apps
                 });
             }
 
-            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
+            appReg.Grant = await _exchangeGrantService.CreateExchangeGrantAsync(db, keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
 
-            _appRegistrationValueStorage.Upsert(db, request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+            await _appRegistrationValueStorage.UpsertAsync(db, request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetAppPermissionContextCache();
         }
 
-        public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext)
+        public async Task UpdateAuthorizedCirclesAsync(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
@@ -171,7 +171,7 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            _appRegistrationValueStorage.Upsert(db,request.AppId, GuidId.Empty, _appRegistrationDataType, updatedAppReg);
+            await _appRegistrationValueStorage.UpsertAsync(db,request.AppId, GuidId.Empty, _appRegistrationDataType, updatedAppReg);
 
             //TODO: consider optimize by checking if anything actually changed before calling notify app changed
 
@@ -231,7 +231,7 @@ namespace Odin.Services.Authorization.Apps
             var db = _tenantSystemStorage.IdentityDatabase;
             async Task<IOdinContext> Creator()
             {
-                var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token, odinContext);
+                var (isValid, accessReg, appReg) = await ValidateClientAuthTokenAsync(token, odinContext);
 
                 if (!isValid || null == appReg || accessReg == null)
                 {
@@ -274,11 +274,11 @@ namespace Odin.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(
+        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var appClient = _appClientValueStorage.Get<AppClient>(db, authToken.Id);
+            var appClient = await _appClientValueStorage.GetAsync<AppClient>(db, authToken.Id);
             if (null == appClient)
             {
                 return (false, null, null);
@@ -299,7 +299,7 @@ namespace Odin.Services.Authorization.Apps
             return (true, appClient.AccessRegistration, appReg);
         }
 
-        public async Task RevokeApp(GuidId appId, IOdinContext odinContext)
+        public async Task RevokeAppAsync(GuidId appId, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 
@@ -311,12 +311,12 @@ namespace Odin.Services.Authorization.Apps
             }
 
             //TODO: revoke all clients? or is the one flag enough?
-            _appRegistrationValueStorage.Upsert(db, appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            await _appRegistrationValueStorage.UpsertAsync(db, appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetAppPermissionContextCache();
         }
 
-        public async Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext)
+        public async Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 
@@ -327,7 +327,7 @@ namespace Odin.Services.Authorization.Apps
                 appReg.Grant.IsRevoked = false;
             }
 
-            _appRegistrationValueStorage.Upsert(db, appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            await _appRegistrationValueStorage.UpsertAsync(db, appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetAppPermissionContextCache();
         }

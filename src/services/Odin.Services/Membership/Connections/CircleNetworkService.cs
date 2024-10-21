@@ -298,7 +298,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
             //added override:true because PermissionKeys.ReadCircleMembership is present
-            var result = circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true)
+            var result = circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true)
                 .Where(d => d.DomainType == DomainType.Identity)
                 .Select(m => new OdinId(m.Domain));
             return await Task.FromResult(result);
@@ -387,7 +387,7 @@ namespace Odin.Services.Membership.Connections
             var circleDefinition = circleMembershipService.GetCircle(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext);
+            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(circleDefinition, keyStoreKey, masterKey, odinContext);
 
             icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -505,7 +505,7 @@ namespace Odin.Services.Membership.Connections
                     // Re-create the circle grant so 
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] =
-                        await circleMembershipService.CreateCircleGrant(circleDef, keyStoreKey, masterKey, odinContext);
+                        await circleMembershipService.CreateCircleGrantAsync(circleDef, keyStoreKey, masterKey, odinContext);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -672,7 +672,7 @@ namespace Odin.Services.Membership.Connections
             SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
-            var grant = await exchangeGrantService.CreateExchangeGrant(
+            var grant = await exchangeGrantService.CreateExchangeGrantAsync(
                 tenantSystemStorage.IdentityDatabase,
                 keyStoreKey,
                 appReg.CircleMemberPermissionSetGrantRequest.PermissionSet,
@@ -812,7 +812,7 @@ namespace Odin.Services.Membership.Connections
 
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrant(tenantSystemStorage.IdentityDatabase, keyStoreKey,
+            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrantAsync(tenantSystemStorage.IdentityDatabase, keyStoreKey,
                 new Permissions_PermissionSet(),
                 new List<DriveGrantRequest>()
                 {

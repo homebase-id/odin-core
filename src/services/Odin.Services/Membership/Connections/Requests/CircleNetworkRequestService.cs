@@ -103,7 +103,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             var (isValidPublicKey, payloadBytes) =
-                await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, db);
+                await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, db);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -195,7 +195,7 @@ namespace Odin.Services.Membership.Connections.Requests
             async Task<bool> TrySendRequest()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
-                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(PublicPrivateKeyType.OnlineKey,
+                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipientAsync(PublicPrivateKeyType.OnlineKey,
                     (OdinId)header.Recipient, payloadBytes, db);
                 var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
@@ -205,7 +205,7 @@ namespace Odin.Services.Membership.Connections.Requests
             if (!await TrySendRequest())
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivateKeyService.InvalidateRecipientRsaPublicKey((OdinId)header.Recipient, db);
+                await _publicPrivateKeyService.InvalidateRecipientRsaPublicKeyAsync((OdinId)header.Recipient, db);
 
                 if (!await TrySendRequest())
                 {
@@ -232,7 +232,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext),
                 AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
@@ -361,7 +361,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext),
                 AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
                 AccessRegistration = accessRegistration

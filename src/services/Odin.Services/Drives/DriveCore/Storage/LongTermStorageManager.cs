@@ -62,7 +62,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             var mgr = await GetDbManager(db);
-            await mgr.SaveFileHeader(header, db);
+            await mgr.SaveFileHeaderAsync(header, db);
         }
 
         public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
@@ -76,13 +76,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             OdinValidationUtils.AssertNotNull(history, nameof(history));
             var mgr = await GetDbManager(db);
-            await mgr.SaveTransferHistory(fileId, history, db);
+            await mgr.SaveTransferHistoryAsync(fileId, history, db);
         }
 
         public async Task DeleteTransferHistory(Guid fileId, IdentityDatabase db)
         {
             var mgr = await GetDbManager(db);
-            await mgr.SaveTransferHistory(fileId, null, db);
+            await mgr.SaveTransferHistoryAsync(fileId, null, db);
         }
 
         public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
@@ -104,20 +104,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string dir = await GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
 
-            await _driveFileReaderWriter.DeleteFile(path);
+            await _driveFileReaderWriter.DeleteFileAsync(path);
         }
 
         public async Task DeletePayloadFile(Guid fileId, PayloadDescriptor descriptor)
         {
             string path = await GetPayloadFilePath(fileId, descriptor);
-            await _driveFileReaderWriter.DeleteFile(path);
+            await _driveFileReaderWriter.DeleteFileAsync(path);
         }
 
         public async Task DeleteAllPayloadFiles(Guid fileId)
         {
             var searchPattern = this.GetFilename(fileId, "-*", FilePart.Payload);
             string dir = await GetFilePath(fileId, FilePart.Payload);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
         }
 
         public async Task<Int64> GetPayloadDiskUsage(Guid fileId)
@@ -129,7 +129,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
 
             Int64 usage = 0;
-            var filePaths = await _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
+            var filePaths = _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
             foreach (var filePath in filePaths)
             {
                 var info = new FileInfo(filePath);
@@ -241,7 +241,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await DeleteAllPayloadFiles(fileId);
 
             var mgr = await GetDbManager(db);
-            await mgr.HardDeleteFileHeader(GetInternalFile(fileId), db);
+            await mgr.HardDeleteFileHeaderAsync(GetInternalFile(fileId), db);
         }
 
         /// <summary>
@@ -283,7 +283,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, IdentityDatabase db)
         {
             var mgr = await GetDbManager(db);
-            var header = await mgr.GetFileHeader(fileId, _fileSystemType);
+            var header = await mgr.GetFileHeaderAsync(fileId, _fileSystemType);
             return header;
         }
 
@@ -311,7 +311,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     var keepPayload = payloadsToKeep.Exists(p => p.Key == payloadKeyOnDisk);
                     if (!keepPayload)
                     {
-                        await _driveFileReaderWriter.DeleteFile(payloadFilePath);
+                        await _driveFileReaderWriter.DeleteFileAsync(payloadFilePath);
                     }
                 }
             }
@@ -343,7 +343,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
                     if (!keepThumbnail)
                     {
-                        await _driveFileReaderWriter.DeleteFile(thumbnailFilePath);
+                        await _driveFileReaderWriter.DeleteFileAsync(thumbnailFilePath);
                     }
                 }
             }
@@ -419,7 +419,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
             var searchPattern = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
             string dir = await GetFilePath(fileId, FilePart.Thumb);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
         }
 
         private async Task<IDriveDatabaseManager> GetDbManager(IdentityDatabase db)

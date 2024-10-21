@@ -68,7 +68,7 @@ public class PushNotificationService(
     }
 
 
-    public Task AddDevice(PushNotificationSubscription subscription, IOdinContext odinContext, IdentityDatabase db)
+    public async Task AddDeviceAsync(PushNotificationSubscription subscription, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -77,30 +77,26 @@ public class PushNotificationService(
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        _deviceSubscriptionStorage.Upsert(db, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
-        return Task.CompletedTask;
+        await _deviceSubscriptionStorage.UpsertAsync(db, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
     }
 
-    public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(db, GetDeviceKey(odinContext)));
+        return await _deviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(db, GetDeviceKey(odinContext));
     }
 
-    public Task RemoveDevice(IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveDeviceAsync(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        return this.RemoveDevice(GetDeviceKey(odinContext), odinContext, db);
+        await RemoveDeviceAsync(GetDeviceKey(odinContext), odinContext, db);
     }
 
-    public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        _deviceSubscriptionStorage.Delete(db, deviceKey);
-        return Task.CompletedTask;
+        await _deviceSubscriptionStorage.DeleteAsync(db, deviceKey);
     }
 
     public async Task RemoveAllDevices(IOdinContext odinContext, IdentityDatabase db)
@@ -109,16 +105,16 @@ public class PushNotificationService(
         var subscriptions = await GetAllSubscriptions(odinContext, db);
         foreach (var sub in subscriptions)
         {
-            _deviceSubscriptionStorage.Delete(db, sub.AccessRegistrationId);
+            await _deviceSubscriptionStorage.DeleteAsync(db, sub.AccessRegistrationId);
         }
     }
 
-    public Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(db, _deviceStorageDataType);
-        return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
+        var subscriptions = await _deviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(db, _deviceStorageDataType);
+        return subscriptions?.ToList() ?? new List<PushNotificationSubscription>();
     }
 
     public async Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
@@ -154,7 +150,7 @@ public class PushNotificationService(
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var subscriptions = await GetAllSubscriptions(odinContext, db);
-        var keys = keyService.GetEccNotificationsKeys(db);
+        var keys = await keyService.GetEccNotificationsKeysAsync(db);
 
         var tasks = new List<Task>();
         foreach (var subscription in subscriptions)
@@ -194,7 +190,7 @@ public class PushNotificationService(
         {
             if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
+                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
                 logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
 
@@ -203,7 +199,7 @@ public class PushNotificationService(
 
             if (exception.Message.StartsWith("Received unexpected response code: 403", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
+                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
                 logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
 
@@ -290,7 +286,7 @@ public class PushNotificationService(
                     if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
                     {
                         logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        await RemoveDevice(subscription.AccessRegistrationId, odinContext, db);
+                        await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
                     }
                     else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                     {

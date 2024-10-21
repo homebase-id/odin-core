@@ -40,7 +40,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Saves the file to the database
         /// </summary>
-        Task SaveFileHeader(ServerFileHeader metadata, IdentityDatabase db);
+        Task SaveFileHeaderAsync(ServerFileHeader metadata, IdentityDatabase db);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is
@@ -51,7 +51,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
-        Task HardDeleteFileHeader(InternalDriveFileId file, IdentityDatabase db);
+        Task HardDeleteFileHeaderAsync(InternalDriveFileId file, IdentityDatabase db);
 
         Task LoadLatestIndex(IdentityDatabase db);
 
@@ -77,9 +77,9 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db);
 
-        Task<ServerFileHeader> GetFileHeader(Guid fileId, FileSystemType fileSystemType);
+        Task<ServerFileHeader> GetFileHeaderAsync(Guid fileId, FileSystemType fileSystemType);
         
-        Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db);
+        Task SaveTransferHistoryAsync(Guid fileId, RecipientTransferHistory history, IdentityDatabase db);
         
         Task SaveReactionSummary(Guid fileId, ReactionSummary summary, IdentityDatabase db);
     }

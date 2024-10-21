@@ -41,7 +41,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        _storage.Insert(record);
+        await _storage.InsertAsync(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -115,16 +115,14 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         });
     }
 
-    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
+    public async Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var id in request.IdList)
         {
-            _storage.Delete(id);
+            await _storage.DeleteAsync(id);
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
@@ -133,11 +131,11 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var update in request.Updates)
         {
-            var record = _storage.Get(update.Id);
+            var record = await _storage.GetAsync(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                _storage.Update(record);
+                await _storage.UpdateAsync(record);
             }
         }
 

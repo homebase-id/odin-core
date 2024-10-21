@@ -53,7 +53,7 @@ namespace Odin.Services.Authentication.Owner
             var rsaKeyList = await this.GetOfflineRsaKeyList(db);
             var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
             var nonce = NonceData.NewRandomNonce(key);
-            _nonceDataStorage.Upsert(db, nonce.Id, nonce);
+            await _nonceDataStorage.UpsertAsync(db, nonce.Id, nonce);
 
             return nonce;
         }
@@ -66,7 +66,7 @@ namespace Odin.Services.Authentication.Owner
                 throw new OdinSystemException("Invalid first run token; cannot set password");
             }
 
-            if (await IsMasterPasswordSet(db))
+            if (await IsMasterPasswordSetAsync(db))
             {
                 throw new OdinSecurityException("Password already set");
             }
@@ -78,19 +78,19 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Returns true if the master password has set
         /// </summary>
-        public Task<bool> IsMasterPasswordSet(IdentityDatabase db)
+        public async Task<bool> IsMasterPasswordSetAsync(IdentityDatabase db)
         {
-            var existingPwd = _passwordDataStorage.Get<PasswordData>(db, _passwordKeyStorageId);
-            return Task.FromResult(existingPwd != null);
+            var existingPwd = await _passwordDataStorage.GetAsync<PasswordData>(db, _passwordKeyStorageId);
+            return existingPwd != null;
         }
 
         /// <summary>
         /// Returns the encrypted version of the data encryption key.  This is generated when you set
         /// the initial password
         /// </summary>
-        public async Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret, IdentityDatabase db)
+        public async Task<SensitiveByteArray> GetMasterKeyAsync(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret, IdentityDatabase db)
         {
-            var pk = _passwordDataStorage.Get<PasswordData>(db, _passwordKeyStorageId);
+            var pk = await _passwordDataStorage.GetAsync<PasswordData>(db, _passwordKeyStorageId);
             if (null == pk)
             {
                 throw new OdinClientException("Secrets configuration invalid. Did you initialize a password?");
@@ -105,7 +105,7 @@ namespace Odin.Services.Authentication.Owner
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();
 
-            return await Task.FromResult(masterKey);
+            return masterKey;
         }
 
         /// <summary>
@@ -121,9 +121,9 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Returns the stored salts for the tenant
         /// </summary>
-        public async Task<SaltsPackage> GetStoredSalts(IdentityDatabase db)
+        public async Task<SaltsPackage> GetStoredSaltsAsync(IdentityDatabase db)
         {
-            var pk = _passwordDataStorage.Get<PasswordData>(db, _passwordKeyStorageId);
+            var pk = await _passwordDataStorage.GetAsync<PasswordData>(db, _passwordKeyStorageId);
 
             if (null == pk)
             {
@@ -146,8 +146,8 @@ namespace Odin.Services.Authentication.Owner
         {
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, RsaKeyListManagement.DefaultMaxOfflineKeys,
                 RsaKeyListManagement.DefaultHoursOfflineKey); // TODO
-            _rsaStorage.Upsert(db, _rsaKeyStorageId, rsaKeyList);
-            return await Task.FromResult(rsaKeyList);
+            await _rsaStorage.UpsertAsync(db, _rsaKeyStorageId, rsaKeyList);
+            return rsaKeyList;
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         public async Task<RsaFullKeyListData> GetOfflineRsaKeyList(IdentityDatabase db)
         {
-            var result = _rsaStorage.Get<RsaFullKeyListData>(db, _rsaKeyStorageId);
+            var result = await _rsaStorage.GetAsync<RsaFullKeyListData>(db, _rsaKeyStorageId);
 
             if (result == null || result.ListRSA == null || result.ListRSA.Count == 0 || result.ListRSA.TrueForAll(x => x.IsDead()))
             {
@@ -175,17 +175,16 @@ namespace Odin.Services.Authentication.Owner
         /// <param name="nonce64"></param>
         public async Task AssertPasswordKeyMatch(string nonceHashedPassword64, string nonce64, IdentityDatabase db)
         {
-            var pk = _passwordDataStorage.Get<PasswordData>(db, _passwordKeyStorageId);
+            var pk = await _passwordDataStorage.GetAsync<PasswordData>(db, _passwordKeyStorageId);
 
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 
             PasswordDataManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
-            await Task.CompletedTask;
         }
 
         public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
-            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext, db);
+            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext, db);
 
             if (!isValidPublicKey)
             {
@@ -193,7 +192,7 @@ namespace Odin.Services.Authentication.Owner
             }
 
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-            _recoveryService.AssertValidKey(recoveryKey, out var masterKey);
+            var masterKey = await _recoveryService.AssertValidKeyAsync(recoveryKey);
             await SavePassword(request.PasswordReply, db, masterKey);
         }
 
@@ -210,15 +209,15 @@ namespace Odin.Services.Authentication.Owner
         private async Task SavePassword(PasswordReply reply, IdentityDatabase db, SensitiveByteArray masterKey = null)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
-            var originalNoncePackage = _nonceDataStorage.Get<NonceData>(db, originalNoncePackageKey);
+            var originalNoncePackage = await _nonceDataStorage.GetAsync<NonceData>(db, originalNoncePackageKey);
 
             var keys = await this.GetOfflineRsaKeyList(db);
 
             PasswordData pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys, masterKey);
-            _passwordDataStorage.Upsert(db, _passwordKeyStorageId, pk);
+            await _passwordDataStorage.UpsertAsync(db, _passwordKeyStorageId, pk);
 
             //delete the temporary salts
-            _nonceDataStorage.Delete(db, originalNoncePackageKey);
+            await _nonceDataStorage.DeleteAsync(db, originalNoncePackageKey);
         }
     }
 }

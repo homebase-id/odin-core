@@ -15,7 +15,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, IOdinContext odinContext);
+        Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext);
 
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
 
@@ -24,15 +24,15 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Updates the permissions granted to the app
         /// </summary>
-        Task UpdateAppPermissions(UpdateAppPermissionsRequest request, IOdinContext odinContext);
+        Task UpdateAppPermissionsAsync(UpdateAppPermissionsRequest request, IOdinContext odinContext);
 
         /// <summary>
         /// Updates the authorized circles and the permissions granted to them
         /// </summary>
         /// <returns></returns>
-        Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
+        Task UpdateAuthorizedCirclesAsync(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
 
-        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
+        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(ClientAuthenticationToken authToken,
             IOdinContext odinContext);
 
         /// <summary>
@@ -44,12 +44,12 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Removes access for a given application across all devices
         /// </summary>
-        Task RevokeApp(GuidId appId, IOdinContext odinContext);
+        Task RevokeAppAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Allows an app that has been revoked
         /// </summary>
-        Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext);
+        Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext);
 
         Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext);

@@ -28,11 +28,11 @@ public class CircleMembershipService(
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger)
 {
-    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType)
+    public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
-        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
+        var circleMemberRecords = await tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndDataAsync(memberId);
 
         // TODO CONNECTIONS
         //db.CreateCommitUnitOfWork(() => {
@@ -42,7 +42,7 @@ public class CircleMembershipService(
                 .ToStringFromUtf8Bytes());
             if (sd.DomainType == domainType)
             {
-                tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
+                await tenantSystemStorage.CircleMemberStorage.DeleteAsync(sd.CircleGrant.CircleId, memberId);
             }
         }
         // }); TODO CONNECTIONS
@@ -51,16 +51,18 @@ public class CircleMembershipService(
         // _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles([OdinId.ToHashId(domainName)]);
     }
 
-    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType)
+    public async Task<IEnumerable<CircleGrant>> GetCirclesGrantsByDomainAsync(AsciiDomainName domainName, DomainType domainType)
     {
-        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
+        var records =
+            await tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
+        var circleMemberRecords = records.Select(d =>
             OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
         );
 
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
-    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, IOdinContext odinContext, bool overrideHack = false)
+    public async Task<List<CircleDomainResult>> GetDomainsInCircleAsync(GuidId circleId, IOdinContext odinContext, bool overrideHack = false)
     {
         //TODO: need to figure out how to enforce this even when the call is
         //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
@@ -74,7 +76,7 @@ public class CircleMembershipService(
             }
         }
 
-        var memberBytesList = tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
+        var memberBytesList = await tenantSystemStorage.CircleMemberStorage.GetCircleMembersAsync(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
@@ -89,7 +91,7 @@ public class CircleMembershipService(
         return result;
     }
 
-    public void AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
+    public async Task AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
         var circleMemberRecord = new CircleMemberRecord()
         {
@@ -104,19 +106,19 @@ public class CircleMembershipService(
         };
 
         // tenantSystemStorage.CircleMemberStorage.Insert(circleMemberRecord);
-        tenantSystemStorage.CircleMemberStorage.Upsert(circleMemberRecord);
+        await tenantSystemStorage.CircleMemberStorage.UpsertAsync(circleMemberRecord);
         // tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers([circleMemberRecord]);
     }
 
     // Grants
 
-    public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey,
+    public async Task<CircleGrant> CreateCircleGrantAsync(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey,
         IOdinContext odinContext)
     {
         var db = tenantSystemStorage.IdentityDatabase;
 
         //map the exchange grant to a structure that matches ICR
-        var grant = await exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey: null);
+        var grant = await exchangeGrantService.CreateExchangeGrantAsync(db, keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey: null);
         return new CircleGrant()
         {
             CircleId = def.Id,
@@ -125,16 +127,16 @@ public class CircleMembershipService(
         };
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircleAsync(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
         IOdinContext odinContext)
     {
         // Always put identities in the system circle
         var list = circleIds ?? new List<GuidId>();
         list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-        return await this.CreateCircleGrantList(list, keyStoreKey, odinContext);
+        return await CreateCircleGrantListAsync(list, keyStoreKey, odinContext);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListAsync(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -150,7 +152,7 @@ public class CircleMembershipService(
         foreach (var id in deduplicated)
         {
             var def = this.GetCircle(id, odinContext);
-            var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey, null);
+            var cg = await this.CreateCircleGrantAsync(def, keyStoreKey, masterKey, null);
 
             if (circleGrants.ContainsKey(id.Value))
             {
