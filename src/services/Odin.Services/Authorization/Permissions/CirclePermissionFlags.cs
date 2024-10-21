@@ -28,6 +28,9 @@ namespace Odin.Services.Authorization.Permissions
         
         public const int SendOnBehalfOfOwner = 707;
         
+        /// <summary>
+        /// Circles with this permission can introduce me to others
+        /// </summary>
         public const int AllowIntroductions = 808;
         
         public const int SendIntroductions = 909;

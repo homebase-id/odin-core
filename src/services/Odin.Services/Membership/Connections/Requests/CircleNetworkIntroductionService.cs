@@ -185,7 +185,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 var introduction = await this.GetIntroductionInternal(sender);
                 if (null != introduction)
                 {
-                    _logger.LogInformation("Auto-accept connection request from {sender} due to received introduction", sender);
+                    _logger.LogDebug("Auto-accept connection request from {sender} due to received introduction", sender);
                     await AutoAccept(sender, odinContext);
                     return;
                 }
@@ -193,20 +193,38 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, odinContext);
                 if (null != existingSentRequest)
                 {
-                    _logger.LogInformation("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
-
+                    _logger.LogDebug("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
                     await AutoAccept(sender, odinContext);
                     return;
                 }
 
                 if (await CircleNetworkService.IsConnected(sender, odinContext))
                 {
-                    _logger.LogInformation("Auto-accept connection request from {sender} since there is already an ICR", sender);
+                    _logger.LogDebug("Auto-accept connection request from {sender} since there is already an ICR", sender);
                     await AutoAccept(sender, odinContext);
                     return;
                 }
 
-                _logger.LogInformation("Auto-accept was not executed for request from {sender}; not matching reasons to accept", sender);
+                var incomingRequest = await _circleNetworkRequestService.GetPendingRequest(sender, odinContext);
+                if (incomingRequest?.IntroducerOdinId != null)
+                {
+                    var introducerIcr = await CircleNetworkService.GetIcr(incomingRequest.IntroducerOdinId.Value, odinContext);
+
+                    if (introducerIcr.IsConnected() &&
+                        introducerIcr.AccessGrant.CircleGrants.Values.Any(v => v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
+                    {
+                        _logger.LogDebug(
+                            "Auto-accept connection request from {sender} since sender was introduced by " +
+                            "[{introducer}]; who is connected and has {permission}",
+                            sender,
+                            introducerIcr.OdinId,
+                            nameof(PermissionKeys.AllowIntroductions));
+                        await AutoAccept(sender, odinContext);
+                        return;
+                    }
+                }
+
+                _logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
             }
             catch (Exception ex)
             {
@@ -428,12 +446,15 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private async Task DeleteIntroductionsTo(OdinId identity)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
+        _logger.LogDebug("Deleting introduction sent to {identity}", identity);
         _receivedIntroductionValueStorage.Delete(db, identity);
         await Task.CompletedTask;
     }
 
     private async Task DeleteIntroductionsFrom(OdinId introducer)
     {
+        _logger.LogDebug("Deleting introduction sent from {identity}", introducer);
+
         var db = _tenantSystemStorage.IdentityDatabase;
         var introductionsFromIdentity =
             _receivedIntroductionValueStorage.GetByDataType<IdentityIntroduction>(db, introducer.ToHashId().ToByteArray());
@@ -448,6 +469,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task DeleteIntroductions(IOdinContext odinContext)
     {
+        _logger.LogDebug("Deleting all introductions");
+
         var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
         var results = _receivedIntroductionValueStorage.GetByCategory<IdentityIntroduction>(db, _receivedIntroductionDataType);
