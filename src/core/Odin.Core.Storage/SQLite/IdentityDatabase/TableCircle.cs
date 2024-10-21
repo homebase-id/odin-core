@@ -30,12 +30,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return await base.DeleteAsync(conn, ((IdentityDatabase)conn.db)._identityId, circleId);
         }
 
-        // SEB:TODO make async
-        public List<CircleRecord> PagingByCircleId(int count, Guid? inCursor, out Guid? nextCursor)
+        public async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid? inCursor)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                return base.PagingByCircleId(conn, count, _db._identityId, inCursor, out nextCursor);
+                return await PagingByCircleIdAsync(conn, count, _db._identityId, inCursor);
             }
         }
     }

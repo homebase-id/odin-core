@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
                 await db.tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
 
-                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblCircle.PagingByCircleIdAsync(100, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
@@ -55,7 +55,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 await db.tblCircle.DeleteAsync(c2);
 
-                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblCircle.PagingByCircleIdAsync(100, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
@@ -100,7 +100,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using (var myc = db.CreateDisposableConnection())
             {
                 await db.CreateDatabaseAsync();
-                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblCircle.PagingByCircleIdAsync(100, null);
                 Debug.Assert(r.Count == 0);
                 Debug.Assert(nextCursor == null);
             }
@@ -123,7 +123,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
                 await db.tblCircle.InsertAsync(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
 
-                var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
+                var (r, nextCursor) = await db.tblCircle.PagingByCircleIdAsync(100, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 

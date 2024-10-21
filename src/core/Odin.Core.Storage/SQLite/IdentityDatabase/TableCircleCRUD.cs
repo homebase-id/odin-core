@@ -402,8 +402,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        internal List<CircleRecord> PagingByCircleId(DatabaseConnection conn, int count, Guid identityId, Guid? inCursor, out Guid? nextCursor)
+        internal async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(DatabaseConnection conn, int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -429,24 +428,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging3Param3.Value = identityId.ToByteArray();
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging3Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging3Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
+                        Guid? nextCursor;
+                        
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
-                        {
-                                nextCursor = result[n - 1].circleId;
+                        if ((n > 0) && await rdr.ReadAsync())
+                        { 
+                            nextCursor = result[n - 1].circleId;
                         }
                         else
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 

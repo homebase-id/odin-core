@@ -204,7 +204,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
+        public async Task<(List<string> followers, string nextCursor)> GetFollowersAsync(int count, Guid driveId, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -212,41 +212,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var _select2Command = _db.CreateCommand())
+            using (var select2Command = _db.CreateCommand())
             {
-                _select2Command.CommandText =
+                select2Command.CommandText =
                     $"SELECT DISTINCT identity FROM followsme WHERE identityId=$identityId AND (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
-                var _s2param1 = _select2Command.CreateParameter();
-                var _s2param2 = _select2Command.CreateParameter();
-                var _s2param3 = _select2Command.CreateParameter();
-                var _s2param4 = _select2Command.CreateParameter();
+                var s2Param1 = select2Command.CreateParameter();
+                var s2param2 = select2Command.CreateParameter();
+                var s2param3 = select2Command.CreateParameter();
+                var s2param4 = select2Command.CreateParameter();
 
-                _s2param1.ParameterName = "$driveId";
-                _s2param2.ParameterName = "$cursor";
-                _s2param3.ParameterName = "$count";
-                _s2param4.ParameterName = "$identityId";
+                s2Param1.ParameterName = "$driveId";
+                s2param2.ParameterName = "$cursor";
+                s2param3.ParameterName = "$count";
+                s2param4.ParameterName = "$identityId";
 
-                _select2Command.Parameters.Add(_s2param1);
-                _select2Command.Parameters.Add(_s2param2);
-                _select2Command.Parameters.Add(_s2param3);
-                _select2Command.Parameters.Add(_s2param4);
+                select2Command.Parameters.Add(s2Param1);
+                select2Command.Parameters.Add(s2param2);
+                select2Command.Parameters.Add(s2param3);
+                select2Command.Parameters.Add(s2param4);
 
-                _s2param1.Value = driveId.ToByteArray();
-                _s2param2.Value = inCursor;
-                _s2param3.Value = count + 1;
-                _s2param4.Value = _db._identityId.ToByteArray();
+                s2Param1.Value = driveId.ToByteArray();
+                s2param2.Value = inCursor;
+                s2param3.Value = count + 1;
+                s2param4.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(_select2Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(select2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
+                        string nextCursor;
 
                         int n = 0;
 
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             var s = rdr.GetString(0);
@@ -264,7 +264,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             nextCursor = null;
                         }
 
-                        return result;
+                        return (result, nextCursor);
                     }
                 }
             }

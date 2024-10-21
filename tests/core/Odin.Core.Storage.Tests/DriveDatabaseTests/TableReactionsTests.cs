@@ -7,7 +7,7 @@ using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     
     public class TableReactions
@@ -45,13 +45,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Debug.Assert(r[2] == ":smiley:");
 
             Int32? cursor = 0;
-            var r2 = db.tblDriveReactions.PagingByRowid(db, 5, cursor, out cursor, driveId, p1);
+            var (r2, nextCursor) = await db.tblDriveReactions.PagingByRowidAsync(db, 5, cursor, driveId, p1);
             Debug.Assert(r2.Count == 5);
-            Debug.Assert(cursor != null);
+            Debug.Assert(nextCursor != null);
 
-            r2 = db.tblDriveReactions.PagingByRowid(db, 5, cursor, out cursor, driveId, p1);
+            (r2, nextCursor) = await db.tblDriveReactions.PagingByRowidAsync(db, 5, nextCursor, driveId, p1);
             Debug.Assert(r2.Count == 1);
-            Debug.Assert(cursor == null, message: "rdr.HasRows is the sinner");
+            Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
 
             // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }

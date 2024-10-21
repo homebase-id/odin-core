@@ -247,8 +247,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
 
         // Copied and modified from CRUD
-        // SEB:TODO make async
-        public List<DriveReactionsRecord> PagingByRowid(IdentityDatabase db, int count, Int32? inCursor, out Int32? nextCursor, Guid driveId, Guid postIdFilter)
+        public async Task<(List<DriveReactionsRecord>, Int32? nextCursor)> PagingByRowidAsync(IdentityDatabase db, int count, Int32? inCursor, Guid driveId, Guid postIdFilter)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -286,13 +285,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(paging0Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(paging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<DriveReactionsRecord>();
+                        Int32? nextCursor;
+                        
                         int n = 0;
                         int rowid = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             var item = new DriveReactionsRecord();
@@ -331,7 +331,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                             result.Add(item);
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                             nextCursor = rowid;
                         }
@@ -340,9 +340,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             nextCursor = null;
                         }
 
-                        return result;
+                        return (result, nextCursor);
                     } // using
-                } // lock
+                }
             } // using
         }
     }
