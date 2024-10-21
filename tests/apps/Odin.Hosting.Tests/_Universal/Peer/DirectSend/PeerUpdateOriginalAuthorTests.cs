@@ -89,7 +89,7 @@ public class PeerUpdateOriginalAuthorTests
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.TomBombadil);
+        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
         await collabChannelOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await originalAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
@@ -307,7 +307,7 @@ public class PeerUpdateOriginalAuthorTests
 
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.TomBombadil);
+        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
         await collabChannelOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await originalAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
