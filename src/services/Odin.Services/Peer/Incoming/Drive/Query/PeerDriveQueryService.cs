@@ -20,27 +20,32 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 {
     public class PeerDriveQueryService(DriveManager driveManager, IDriveFileSystem fileSystem)
     {
-        public Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options,
+            IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
-            var results = fileSystem.Query.GetModified(driveId, qp, options, odinContext, db);
+            var results = await fileSystem.Query.GetModified(driveId, qp, options, odinContext, db);
             return results;
         }
 
-        public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
+            IdentityDatabase db)
         {
-            var results = fileSystem.Query.GetBatchCollection(request, odinContext, db);
+            var results = await fileSystem.Query.GetBatchCollection(request, odinContext, db);
             return results;
         }
 
-        public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
-            var results = fileSystem.Query.GetBatch(driveId, qp, options, odinContext, db);
+            var results = await fileSystem.Query.GetBatch(driveId, qp, options, odinContext, db);
             return results;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var file = new InternalDriveFileId()
             {
@@ -93,7 +98,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 string ContentType,
                 UnixTimeUtc LastModified,
                 Stream thumb)>
-            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey, IOdinContext odinContext, IdentityDatabase db)
+            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey, IOdinContext odinContext,
+                IdentityDatabase db)
         {
             var file = new InternalDriveFileId()
             {
@@ -116,9 +122,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 return (null, default, null, null, default, null);
             }
 
-            var (thumb, _) = await fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey, payloadDescriptor.Uid, odinContext, db);
+            var (thumb, _) =
+                await fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey, payloadDescriptor.Uid, odinContext, db);
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
-            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType, payloadDescriptor.LastModified, thumb);
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType,
+                payloadDescriptor.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType, IOdinContext odinContext, IdentityDatabase db)

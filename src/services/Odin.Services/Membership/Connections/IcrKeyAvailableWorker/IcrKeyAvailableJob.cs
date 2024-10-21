@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.Tenant.Container;
@@ -34,6 +35,10 @@ public class IcrKeyAvailableJob(
             }
 
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
+
+            var stickyHostnameContext = scope.Resolve<IStickyHostname>();
+            stickyHostnameContext.Hostname = $"{Data.Tenant}&";
+            
             var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
             await service.Run(Data);
 
@@ -50,12 +55,12 @@ public class IcrKeyAvailableJob(
         }
         catch (OdinSecurityException se)
         {
-            logger.LogError(se, "IcrKeyUpgradeJob failed to use token");
+            logger.LogDebug(se, "IcrKeyUpgradeJob failed to use token");
             return JobExecutionResult.Abort();
         }
         catch (CryptographicException ce)
         {
-            logger.LogError(ce, "IcrKeyUpgradeJob failed to decrypt");
+            logger.LogDebug(ce, "IcrKeyUpgradeJob failed to decrypt");
             return JobExecutionResult.Abort();
         }
         catch (Exception e)

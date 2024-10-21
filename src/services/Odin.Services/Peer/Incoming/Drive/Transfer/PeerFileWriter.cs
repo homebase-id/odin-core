@@ -89,7 +89,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             else
             {
                 //
-                // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
+                // Collab channel hack
                 //
                 if (isCollaborationChannel)
                 {
@@ -116,6 +116,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 case TransferFileType.EncryptedFileForFeed:
+                case TransferFileType.EncryptedFileForFeedViaTransit:
                     await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, driveOriginWasCollaborative,
                         odinContext, db);
                     break;

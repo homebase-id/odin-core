@@ -290,7 +290,7 @@ namespace Odin.Services.DataSubscription
             var transferStatusMap = await _peerOutgoingTransferService.SendFile(
                 file,
                 transitOptions,
-                TransferFileType.Normal,
+                TransferFileType.EncryptedFileForFeedViaTransit,
                 header.ServerMetadata.FileSystemType,
                 odinContext,
                 db);

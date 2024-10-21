@@ -107,25 +107,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                         await transitInboxBoxStorage.MarkComplete(tempFile, inboxItem.Marker);
                     }
-                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
+
+                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
                     {
-                        await ProcessFeedInboxItem(odinContext, inboxItem, writer, tempFile, fs);
+                        //this was a file sent over transit (fully encrypted for connected identities but targeting the feed drive)
+                        await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs, db); 
+                    }
+                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed) //older path
+                    {
+                        await ProcessEccEncryptedFeedInboxItem(inboxItem, writer, tempFile, fs, odinContext);
                     }
                     else
                     {
-                        logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
-
-                        var decryptedKeyHeader =
-                            await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
-                        var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
-                        {
-                            await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
-                                inboxItem.TransferInstructionSet,
-                                odinContext, db);
-                        });
-
-                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
-                            handleFileMs);
+                        await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs, db);
                     }
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
@@ -251,6 +245,40 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // });
         }
 
+        private async Task ProcessNormalFileSaveOperation(TransferInboxItem inboxItem, IOdinContext odinContext, PeerFileWriter writer,
+            InternalDriveFileId tempFile, IDriveFileSystem fs, IdentityDatabase db)
+        {
+            logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
+
+            var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
+            var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+            {
+                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
+                    inboxItem.TransferInstructionSet,
+                    odinContext, db);
+            });
+
+            logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
+                handleFileMs);
+        }
+        
+        private async Task ProcessFeedItemViaTransit(TransferInboxItem inboxItem, IOdinContext odinContext, PeerFileWriter writer,
+            InternalDriveFileId tempFile, IDriveFileSystem fs, IdentityDatabase db)
+        {
+            logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
+
+            var decryptedKeyHeader = await DecryptedKeyHeader(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
+            var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+            {
+                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
+                    inboxItem.TransferInstructionSet,
+                    odinContext, db);
+            });
+
+            logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
+                handleFileMs);
+        }
+
         private async Task HandleUpdateFile(TransferInboxItem inboxItem, IOdinContext odinContext, IdentityDatabase db)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
@@ -309,9 +337,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
         }
 
-        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer,
+        private async Task ProcessEccEncryptedFeedInboxItem(TransferInboxItem inboxItem, PeerFileWriter writer,
             InternalDriveFileId tempFile,
-            IDriveFileSystem fs)
+            IDriveFileSystem fs,
+            IOdinContext odinContext)
         {
             try
             {

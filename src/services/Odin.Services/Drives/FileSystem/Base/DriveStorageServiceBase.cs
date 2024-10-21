@@ -761,7 +761,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 DrivePermission.Write);
 
             summary ??= new ReactionSummary();
-            
+
             var lts = await GetLongTermStorageManager(targetFile.DriveId, db);
             var existingHeader = await lts.GetServerFileHeader(targetFile.FileId, db);
             existingHeader.FileMetadata.ReactionPreview = summary;
@@ -1151,6 +1151,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
 
             var mgr = await GetLongTermStorageManager(header.FileMetadata.File.DriveId, db);
+
+            // await mgr.SaveReactionHistory(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db);
             await mgr.SaveFileHeader(header, db);
         }
 

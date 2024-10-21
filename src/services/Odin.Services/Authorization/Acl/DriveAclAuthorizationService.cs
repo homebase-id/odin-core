@@ -103,6 +103,7 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Authenticated:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
+                case SecurityGroupType.AutoConnected:
                 case SecurityGroupType.Connected:
                     return CallerIsConnected(odinContext);
             }
