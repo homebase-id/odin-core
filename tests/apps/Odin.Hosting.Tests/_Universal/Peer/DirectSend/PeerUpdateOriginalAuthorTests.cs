@@ -86,6 +86,8 @@ public class PeerUpdateOriginalAuthorTests
         IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        var debugTimeSpan = TimeSpan.FromMinutes(30);
+
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
@@ -125,9 +127,6 @@ public class PeerUpdateOriginalAuthorTests
         Assert.IsTrue((await member2_OwnerClient.Connections.SendConnectionRequest(collabChannel)).IsSuccessStatusCode);
         Assert.IsTrue((await collabChannelOwnerClient.Connections.AcceptConnectionRequest(member2, [collabChannelId])).IsSuccessStatusCode);
 
-        // await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel);
-
-        // Assert.IsTrue((await member2_OwnerClient.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications)).IsSuccessStatusCode);
         await member2_OwnerClient.Follower.FollowIdentity(collabChannel, FollowerNotificationType.AllNotifications);
 
         //
@@ -179,6 +178,33 @@ public class PeerUpdateOriginalAuthorTests
 
         var remoteTargetFile = originalFileUpload.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
+        var globalTransitIdFileIdentifierOnFeed = new GlobalTransitIdFileIdentifier()
+        {
+            GlobalTransitId = remoteTargetFile.GlobalTransitId.GetValueOrDefault(),
+            TargetDrive = SystemDriveConstants.FeedDrive
+        };
+        
+        //
+        // validate member2 got the file before we update it
+        //
+        
+        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+        await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
+
+        await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
+        
+        var member2FileOnFeedBeforeUpdateResponse = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifierOnFeed);
+        Assert.IsTrue(member2FileOnFeedBeforeUpdateResponse.IsSuccessStatusCode);
+        var theFileOnFeedDriveBeforeUpdate = member2FileOnFeedBeforeUpdateResponse.Content.SearchResults.SingleOrDefault();
+        Assert.IsNotNull(theFileOnFeedDriveBeforeUpdate);
+
+        //
+        //
+        //
+        
+
+
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 444;
@@ -224,8 +250,8 @@ public class PeerUpdateOriginalAuthorTests
 
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
-        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive);
+        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
+        await secondaryAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -234,19 +260,11 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsNotNull(uploadResult);
 
             await collabChannelOwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants
-                .FeedDrive); //waiting for distribution to occur
-            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants
-                .TransientTempDrive); //waiting for distribution to occur
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+            //waiting for distribution to occur
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.FeedDrive, debugTimeSpan);
+            await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeSpan);
 
-            // file should be on the feed of those connected
-            var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
-            {
-                GlobalTransitId = remoteTargetFile.GlobalTransitId.GetValueOrDefault(),
-                TargetDrive = SystemDriveConstants.FeedDrive
-            };
-            
             await member2_OwnerClient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive);
             await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
 
@@ -259,7 +277,7 @@ public class PeerUpdateOriginalAuthorTests
             Assert.IsNotNull(feedDriveStatus.Content);
             Assert.IsTrue(feedDriveStatus.Content.Outbox.TotalItems == 0);
             Assert.IsTrue(feedDriveStatus.Content.Inbox.TotalItems == 0);
-            
+
             // var xr = await member2_OwnerClient.DriveRedux.QueryBatch(new QueryBatchRequest
             // {
             //     QueryParams = new()
@@ -269,7 +287,7 @@ public class PeerUpdateOriginalAuthorTests
             //     ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             // });
 
-            var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
+            var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifierOnFeed);
             Assert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
             var theFileOnFeedDrive = channelOnMembersFeedDrive.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theFileOnFeedDrive);
