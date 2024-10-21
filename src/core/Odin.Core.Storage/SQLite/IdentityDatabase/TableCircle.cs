@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        public async Task<CircleRecord> Get(Guid circleId)
+        public async Task<CircleRecord> GetAsync(Guid circleId)
         {
             using var conn = _db.CreateDisposableConnection();
             return await base.GetAsync(conn, _db._identityId, circleId);

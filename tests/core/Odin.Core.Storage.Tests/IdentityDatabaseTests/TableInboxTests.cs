@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -9,13 +10,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     public class TableInboxTests
     {
         [TestCase()]
-        public void InsertRowTest()
+        public async Task InsertRowTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -24,11 +25,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var boxId = SequentialGuid.CreateGuid();
 
                 var tslo = UnixTimeUtc.Now();
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 10, value = v2 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 10, value = v2 });
                 var tshi = UnixTimeUtc.Now();
 
-                var r = db.tblInbox.Get(f1);
+                var r = await db.tblInbox.GetAsync(f1);
                 if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
                     Assert.Fail();
                 if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
@@ -38,7 +39,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (r.priority != 0)
                     Assert.Fail();
 
-                r = db.tblInbox.Get(f2);
+                r = await db.tblInbox.GetAsync(f2);
                 if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                     Assert.Fail();
                 if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
@@ -51,13 +52,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
         [TestCase()]
-        public void PopTest()
+        public async Task PopTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -71,14 +72,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var boxId = SequentialGuid.CreateGuid();
 
                 var tslo = UnixTimeUtc.Now();
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId,  boxId = boxId, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 1, value = v2 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 2, value = v3 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 3, value = v4 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 4, value = v5 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId,  boxId = boxId, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 1, value = v2 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 2, value = v3 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 3, value = v4 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 4, value = v5 });
                 var tshi = UnixTimeUtc.Now();
 
-                var (tot, pop, poptime) = db.tblInbox.PopStatus();
+                var (tot, pop, poptime) = await db.tblInbox.PopStatusAsync();
                 Assert.AreEqual(5, tot);
                 Assert.AreEqual(0, pop);
                 Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
@@ -86,12 +87,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 // pop one item from the inbox
                 var tbefore = new UnixTimeUtc();
-                var r = db.tblInbox.PopSpecificBox(boxId, 1);
+                var r = await db.tblInbox.PopSpecificBoxAsync(boxId, 1);
                 var tafter = new UnixTimeUtc();
                 if (r.Count != 1)
                     Assert.Fail();
 
-                (tot, pop, poptime) = db.tblInbox.PopStatus();
+                (tot, pop, poptime) = await db.tblInbox.PopStatusAsync();
                 Assert.AreEqual(5, tot);
                 Assert.AreEqual(1, pop);
                 if (poptime < tbefore) // We can't have popped before we popped
@@ -110,7 +111,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // pop all the remaining items from the inbox
-                r = db.tblInbox.PopSpecificBox(boxId, 10);
+                r = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
                 if (r.Count != 4)
                     Assert.Fail();
 
@@ -151,20 +152,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // pop to make sure there are no more items
-                r = db.tblInbox.PopSpecificBox(boxId, 1);
+                r = await db.tblInbox.PopSpecificBoxAsync(boxId, 1);
                 if (r.Count != 0)
                     Assert.Fail();
             }
         }
 
         [TestCase()]
-        public void PopCancelTest()
+        public async Task PopCancelTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -172,17 +173,17 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var f5 = SequentialGuid.CreateGuid();
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
-                var r1 = db.tblInbox.PopSpecificBox(boxId, 2);
-                var r2 = db.tblInbox.PopSpecificBox(boxId, 3);
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(boxId, 2);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(boxId, 3);
 
-                db.tblInbox.PopCancelAll((Guid)r1[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r1[0].popStamp);
 
-                var r3 = db.tblInbox.PopSpecificBox(boxId, 10);
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
 
                 if (r3.Count != 2)
                     Assert.Fail();
@@ -192,9 +193,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (ByteArrayUtil.muidcmp(r1[1].fileId, r3[1].fileId) != 0)
                     Assert.Fail();
 
-                db.tblInbox.PopCancelAll((Guid)r3[0].popStamp);
-                db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
-                var r4 = db.tblInbox.PopSpecificBox(boxId, 10);
+                await db.tblInbox.PopCancelAllAsync((Guid)r3[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r2[0].popStamp);
+                var r4 = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
 
                 if (r4.Count != 5)
                     Assert.Fail();
@@ -203,13 +204,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [TestCase()]
-        public void PopCommitTest()
+        public async Task PopCommitTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -218,16 +219,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
 
-                var r1 = db.tblInbox.PopSpecificBox(boxId, 2);
-                db.tblInbox.PopCommitAll((Guid)r1[0].popStamp);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(boxId, 2);
+                await db.tblInbox.PopCommitAllAsync((Guid)r1[0].popStamp);
 
-                var r2 = db.tblInbox.PopSpecificBox(boxId, 10);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
                 if (r2.Count != 3)
                     Assert.Fail();
             }
@@ -235,13 +236,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [TestCase()]
-        public void PopCommitListTest()
+        public async Task PopCommitListTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -250,49 +251,49 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b1 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
 
                 // Pop all records from the Inbox,be sure we get 3
-                var r1 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r1.Count != 3)
                     Assert.Fail();
 
                 // Commit one of the three records
-                db.tblInbox.PopCommitList((Guid)r1[0].popStamp, b1, new List<Guid>() { f2 });
+                await db.tblInbox.PopCommitListAsync((Guid)r1[0].popStamp, b1, new List<Guid>() { f2 });
 
                 // Cancel the rest (f1, f3)
-                db.tblInbox.PopCancelAll((Guid)r1[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r1[0].popStamp);
 
                 // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
-                var r2 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r2.Count != 2)
                     Assert.Fail();
 
                 // Commit all records
-                db.tblInbox.PopCommitList((Guid)r2[0].popStamp, b1, new List<Guid>() { f1, f3 });
+                await db.tblInbox.PopCommitListAsync((Guid)r2[0].popStamp, b1, new List<Guid>() { f1, f3 });
 
                 // Cancel nothing
-                db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r2[0].popStamp);
                 // Get everything back
-                db.tblInbox.PopRecoverDead(new UnixTimeUtc());
+                await db.tblInbox.PopRecoverDeadAsync(new UnixTimeUtc());
 
                 // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
-                var r3 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r3.Count != 0)
                     Assert.Fail();
             }
         }
 
         [TestCase()]
-        public void PopCancelListTest()
+        public async Task PopCancelListTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -301,28 +302,28 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b1 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f3, priority = 10, value = v1 });
 
                 // Pop all records from the Inbox,be sure we get 3
-                var r1 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r1.Count != 3)
                     Assert.Fail();
 
                 // Cancel two of the three records
-                db.tblInbox.PopCancelList((Guid)r1[0].popStamp, b1, new List<Guid>() { f1, f2 });
+                await db.tblInbox.PopCancelListAsync((Guid)r1[0].popStamp, b1, new List<Guid>() { f1, f2 });
 
                 // Pop all the recods from the Inbox, but sure we get the two cancelled
-                var r2 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r2.Count != 2)
                     Assert.Fail();
 
                 // Cancel one of the two records
-                db.tblInbox.PopCancelList((Guid)r2[0].popStamp, b1, new List<Guid>() { f1 });
+                await db.tblInbox.PopCancelListAsync((Guid)r2[0].popStamp, b1, new List<Guid>() { f1 });
 
                 // Pop all the recods from the Inbox, but sure we get the two cancelled
-                var r3 = db.tblInbox.PopSpecificBox(b1, 5);
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(b1, 5);
                 if (r3.Count != 1)
                     Assert.Fail();
             }
@@ -330,13 +331,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [TestCase()]
-        public void PopRecoverDeadTest()
+        public async Task PopRecoverDeadTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var f2 = SequentialGuid.CreateGuid();
                 var f3 = SequentialGuid.CreateGuid();
@@ -345,24 +346,24 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 var boxId = SequentialGuid.CreateGuid();
 
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f1, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f2, priority = 0, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f3, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f4, priority = 10, value = null });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = boxId, fileId = f5, priority = 20, value = null });
 
-                var r1 = db.tblInbox.PopSpecificBox(boxId, 2);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(boxId, 2);
 
                 // Recover all items older than the future (=all)
-                db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(2));
+                await db.tblInbox.PopRecoverDeadAsync(UnixTimeUtc.Now().AddSeconds(2));
 
-                var r2 = db.tblInbox.PopSpecificBox(boxId, 10);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
                 if (r2.Count != 5)
                     Assert.Fail();
 
                 // Recover items older than long ago (=none)
-                db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(-2));
-                var r3 = db.tblInbox.PopSpecificBox(boxId, 10);
+                await db.tblInbox.PopRecoverDeadAsync(UnixTimeUtc.Now().AddSeconds(-2));
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(boxId, 10);
                 if (r3.Count != 0)
                     Assert.Fail();
             }
@@ -370,13 +371,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [TestCase()]
-        public void DualBoxTest()
+        public async Task DualBoxTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -388,26 +389,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var b2 = SequentialGuid.CreateGuid();
 
                 // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f3, priority = 10, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f4, priority = 10, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f5, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b1, fileId = f2, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f3, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f4, priority = 10, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = b2, fileId = f5, priority = 10, value = v1 });
 
-                var (tot, pop, poptime) = db.tblInbox.PopStatusSpecificBox(b1);
+                var (tot, pop, poptime) = await db.tblInbox.PopStatusSpecificBoxAsync(b1);
                 Assert.AreEqual(2, tot);
                 Assert.AreEqual(0, pop);
                 Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
                 var tbefore = new UnixTimeUtc();
 
                 // Pop the oldest record from the inbox 1
-                var r1 = db.tblInbox.PopSpecificBox(b1, 1);
-                var r2 = db.tblInbox.PopSpecificBox(b1, 10);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(b1, 1);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(b1, 10);
                 if (r2.Count != 1)
                     Assert.Fail();
 
                 var tafter = new UnixTimeUtc();
-                (tot, pop, poptime) = db.tblInbox.PopStatusSpecificBox(b1);
+                (tot, pop, poptime) = await db.tblInbox.PopStatusSpecificBoxAsync(b1);
                 Assert.AreEqual(2, tot);
                 Assert.AreEqual(2, pop);
                 if (poptime < tbefore) // We can't have popped before we popped
@@ -416,19 +417,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
 
                 // Then pop 10 oldest record from the inbox (only 2 are available now)
-                var r3 = db.tblInbox.PopSpecificBox(b2, 10);
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(b2, 10);
                 if (r3.Count != 3)
                     Assert.Fail();
 
                 // The thread that popped the first record is now done.
                 // Commit the pop
-                db.tblInbox.PopCommitAll((Guid)r1[0].popStamp);
+                await db.tblInbox.PopCommitAllAsync((Guid)r1[0].popStamp);
 
                 // Oh no, the second thread running on the second pop of records
                 // encountered a terrible error. Undo the pop
-                db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r2[0].popStamp);
 
-                var r4 = db.tblInbox.PopSpecificBox(b1, 10);
+                var r4 = await db.tblInbox.PopSpecificBoxAsync(b1, 10);
                 if (r4.Count != 1)
                     Assert.Fail();
             }
@@ -436,13 +437,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [TestCase()]
-        public void ExampleTest()
+        public async Task ExampleTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableInboxTests009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var f1 = SequentialGuid.CreateGuid();
                 var v1 = SequentialGuid.CreateGuid().ToByteArray();
                 var f2 = SequentialGuid.CreateGuid();
@@ -462,37 +463,37 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // An inbox is simply a GUID. E.g. the boxId.
                 // A record has a fileId, priority and a custom value
                 // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f1, priority = 0, value = v1 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f2, priority = 10, value = v2 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f3, priority = 10, value = v3 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f4, priority = 10, value = v4 });
-                db.tblInbox.Insert(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f5, priority = 10, value = v5 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f1, priority = 0, value = v1 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f2, priority = 10, value = v2 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box1id, fileId = f3, priority = 10, value = v3 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f4, priority = 10, value = v4 });
+                await db.tblInbox.InsertAsync(new InboxRecord() { identityId = ((IdentityDatabase)myc.db)._identityId, boxId = box2id, fileId = f5, priority = 10, value = v5 });
 
                 // A thread1 pops one record from inbox1 (it'll get the oldest one)
                 // Popping the record "reserves it" for your thread but doesn't remove
                 // it from the inbox until the pop is committed or cancelled.
-                var r1 = db.tblInbox.PopSpecificBox(box1id, 1);
+                var r1 = await db.tblInbox.PopSpecificBoxAsync(box1id, 1);
 
                 // Another thread2 then pops 10 records from inbox1 (only 2 are available now)
-                var r2 = db.tblInbox.PopSpecificBox(box1id, 10);
+                var r2 = await db.tblInbox.PopSpecificBoxAsync(box1id, 10);
 
                 // The thread1 that popped the first record is now done.
                 // Commit the pop, which effectively deletes it from the inbox
                 // You of course call commit as the very final step when you're
                 // certain the item has been saved correctly.
-                db.tblInbox.PopCommitAll((Guid)r1[0].popStamp);
+                await db.tblInbox.PopCommitAllAsync((Guid)r1[0].popStamp);
 
                 // Imagine that thread2 encountered a terrible error, e.g. out of disk space
                 // Undo the pop and put the items back into the inbox
-                db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
+                await db.tblInbox.PopCancelAllAsync((Guid)r2[0].popStamp);
 
                 // Thread3 pops 10 items from inbox2 (will retrieve 2)
-                var r3 = db.tblInbox.PopSpecificBox(box2id, 10);
+                var r3 = await db.tblInbox.PopSpecificBoxAsync(box2id, 10);
 
                 // Now imagine that there is a power outage, the server crashes.
                 // The popped items are in "limbo" because they are not committed and not cancelled.
                 // You can recover items popped for more than X seconds like this:
-                db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(60 * 10));
+                await db.tblInbox.PopRecoverDeadAsync(UnixTimeUtc.Now().AddSeconds(60 * 10));
 
                 // That would recover all popped items that have not been committed or cancelled.
             }

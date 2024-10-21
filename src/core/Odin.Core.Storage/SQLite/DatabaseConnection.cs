@@ -86,6 +86,7 @@ namespace Odin.Core.Storage.SQLite
                 else
                 {
                     await _transaction.RollbackAsync();
+                    db.ClearCache();
                 }
 
                 return true;

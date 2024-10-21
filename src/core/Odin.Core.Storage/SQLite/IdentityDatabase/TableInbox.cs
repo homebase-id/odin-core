@@ -388,7 +388,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public async Task<int> PopRecoverDead(UnixTimeUtc ut)
+        public async Task<int> PopRecoverDeadAsync(UnixTimeUtc ut)
         {
             using (var popRecoverCommand = _db.CreateCommand())
             {

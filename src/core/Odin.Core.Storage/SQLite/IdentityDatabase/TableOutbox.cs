@@ -381,7 +381,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (!rdr.IsDBNull(0))
                             poppedCount = rdr.GetInt32(0);
 
-                        if (await rdr.ReadAsync() == false)
+                        if (await rdr.NextResultAsync() == false)
                             throw new Exception("Not possible");
 
                         var utc = UnixTimeUtc.ZeroTime;

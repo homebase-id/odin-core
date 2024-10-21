@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public async Task<int> Insert(ImFollowingRecord item)
+        public async Task<int> InsertAsync(ImFollowingRecord item)
         {
             item.identityId = _db._identityId;
             using var conn = _db.CreateDisposableConnection();

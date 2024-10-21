@@ -40,20 +40,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         ///     Bandwidth: 4830917 rows / second
         ///     </summary>
         [Test]
-        public void PerformanceTestGetNone()
+        public async Task PerformanceTestGetNone()
         {
             var stopWatch = new Stopwatch();
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman1");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
 
                 var g = Guid.NewGuid().ToByteArray();
 
                 stopWatch.Start();
                 for (int i = 1; i < _performanceIterations; i++)
                 {
-                    _testDatabase.tblKeyValue.Get(g);
+                    await _testDatabase.tblKeyValue.GetAsync(g);
                 }
                 stopWatch.Stop();
             }
@@ -72,23 +72,23 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         ///         Bandwidth: 4725897 rows / second
         /// </summary>
         [Test]
-        public void PerformanceTestGetOne()
+        public async Task PerformanceTestGetOne()
         {
             var stopWatch = new Stopwatch();
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman2");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
 
                 var k1 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
 
-                _testDatabase.tblKeyValue.Insert(new KeyValueRecord { key = k1, data = v1 } );
+                await _testDatabase.tblKeyValue.InsertAsync(new KeyValueRecord { key = k1, data = v1 } );
 
                 stopWatch.Start();
                 for (int i = 1; i < _performanceIterations; i++)
                 {
-                    _testDatabase.tblKeyValue.Get(k1);
+                    await _testDatabase.tblKeyValue.GetAsync(k1);
                 }
                 stopWatch.Stop();
             }
@@ -116,14 +116,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// Bandwidth: 4080 rows / second
         /// </summary>
         [Test]
-        public void PerformanceTest01()
+        public async Task PerformanceTest01()
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman3");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
                 var driveId = Guid.NewGuid();
 
                 var tmpacllist = new List<Guid>();
@@ -140,7 +140,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 stopWatch.Start();
                 for (int i = 1; i < _performanceIterations; i++)
                 {
-                    _testDatabase.metaIndex.AddEntryPassalongToUpsert(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                    await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
                 stopWatch.Stop();
             }
@@ -170,13 +170,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// DB Opened 1, Closed 0
         /// </summary>
         [Test]
-        public void PerformanceTest01B()
+        public async Task PerformanceTest01B()
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman4");
 
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
                 var driveId = Guid.NewGuid();
 
                 var tmpacllist = new List<Guid>();
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 for (int i = 1; i < _performanceIterations; i++)
                 {
-                    _testDatabase.metaIndex.AddEntryPassalongToUpsert(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                    await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
                 stopWatch.Stop();
                 int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -221,12 +221,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// 
         /// </summary>
         [Test]
-        public void PerformanceTest02() // Test batch of 100
+        public async Task PerformanceTest02() // Test batch of 100
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"PerformanceTest02");
-            _testDatabase.CreateDatabase();
+            await _testDatabase.CreateDatabaseAsync();
 
             var driveId = Guid.NewGuid();
 
@@ -246,7 +246,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.metaIndex.AddEntryPassalongToUpsert(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -275,14 +275,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// </summary>
         [Test]
         [Ignore("no lock")]
-        public void PerformanceTest03()
+        public async Task PerformanceTest03()
         {
             Task[] tasks = new Task[MAXTHREADS];
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"PerformanceTest03");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
                 var driveId = Guid.NewGuid();
                 var stopWatch = new Stopwatch();
 
@@ -332,13 +332,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
         /// Multi-threading on a connection per thread
         [Test]
-        public void PerformanceTest03B() // Just making sure multi-threaded doesn't give worse performance
+        public async Task PerformanceTest03B() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"memento03B.db");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
                 var driveId = Guid.NewGuid();
                 var stopWatch = new Stopwatch();
 
@@ -386,10 +386,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
-            _testDatabase.Dispose();
         }
 
-        public long[] WriteRows(int threadno, int iterations, IdentityDatabase db, DatabaseConnection myc, Guid driveId)
+        private long[] WriteRows(int threadno, int iterations, IdentityDatabase db, DatabaseConnection myc, Guid driveId)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -414,7 +413,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             //
             for (int count = 0; count < iterations; count++)
             {
-                db.metaIndex.AddEntryPassalongToUpsert(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                // NOTE: synchroneous call
+                db.metaIndex.AddEntryPassalongToUpsertAsync(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToString(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1).Wait();
             }
 
             return timers;
@@ -425,7 +425,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// Bandwidth: 4560 rows / second
         /// </summary>
         [Test]
-        public void PerformanceTest10()
+        public async Task PerformanceTest10()
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
@@ -433,7 +433,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
-                _testDatabase.CreateDatabase();
+                await _testDatabase.CreateDatabaseAsync();
                 var driveId = Guid.NewGuid();
 
                 stopWatch.Start();
@@ -474,7 +474,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                             hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                             hdrTmpDriveType = SequentialGuid.CreateGuid()
                         };
-                        _testDatabase.tblDriveMainIndex.Insert(r);
+                        await _testDatabase.tblDriveMainIndex.InsertAsync(r);
                         //_testDatabase.tblDriveMainIndex.Insert(r);
                         _connection.Close();
                     }

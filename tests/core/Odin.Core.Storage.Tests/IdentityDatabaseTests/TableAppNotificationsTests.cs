@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -9,22 +10,22 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     public class TableAppNotificationsTest
     {
         [Test]
-        public void InsertGetTest()
+        public async Task InsertGetTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableAppNotificationsTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var nid = SequentialGuid.CreateGuid();
                 var d1 = Guid.NewGuid().ToByteArray();
                 var c2 = SequentialGuid.CreateGuid();
                 var c3 = SequentialGuid.CreateGuid();
                 var d2 = Guid.NewGuid().ToByteArray();
 
-                var i = db.tblAppNotificationsTable.Insert(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
+                var i = await db.tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
                 Debug.Assert(i == 1);
-                var r = db.tblAppNotificationsTable.Get(nid);
+                var r = await db.tblAppNotificationsTable.GetAsync(nid);
                 Debug.Assert(r != null);
                 Debug.Assert(ByteArrayUtil.EquiByteArrayCompare(nid.ToByteArray(), r.notificationId.ToByteArray()) == true);
                 Debug.Assert(r.senderId == "frodo.com");
@@ -32,13 +33,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
         [Test]
-        public void InsertPageTest()
+        public async Task InsertPageTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableAppNotificationsTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var nid = SequentialGuid.CreateGuid();
                 var nid2 = SequentialGuid.CreateGuid();
                 var d1 = Guid.NewGuid().ToByteArray();
@@ -46,9 +47,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var c3 = SequentialGuid.CreateGuid();
                 var d2 = Guid.NewGuid().ToByteArray();
 
-                var i = db.tblAppNotificationsTable.Insert(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
+                var i = await db.tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
                 Debug.Assert(i == 1);
-                i = db.tblAppNotificationsTable.Insert(new AppNotificationsRecord() { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
+                i = await db.tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
                 Debug.Assert(i == 1);
 
                 var results = db.tblAppNotificationsTable.PagingByCreated(1, null, out var cursor2);

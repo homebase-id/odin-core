@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -9,13 +10,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     public class TableFollowsMeTests
     {
         [Test]
-        public void ExampleTest()
+        public async Task ExampleTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 // Let's say that we're Frodo and we're followed by these 5 asir
                 // We have 2 channels we post to.
                 //
@@ -28,20 +29,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var d2 = Guid.NewGuid();
 
                 // Odin follows d1
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = d1 });
 
                 // Thor follows d1
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d1 });
 
                 // Freja follows d1 & d2
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i3, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i3, driveId = d2 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i3, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i3, driveId = d2 });
 
                 // Heimdal follows d2
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i4, driveId = d2 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i4, driveId = d2 });
 
                 // Loke follows everything
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i5, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i5, driveId = Guid.Empty });
 
                 // Now Frodo makes a new post to d1, which means we shouold get
                 // everyone except Heimdal. Let's do a page size of 3
@@ -67,50 +68,50 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void InsertValidFollowerTest()
+        public async Task InsertValidFollowerTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest002");
 
-            db.CreateDatabase();
+            await db.CreateDatabaseAsync();
             var i1 = new OdinId("odin.valhalla.com");
             var g1 = Guid.NewGuid();
             var g2 = Guid.NewGuid();
 
             // This is OK {odin.vahalla.com, driveId}
-            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g1 });
-            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g2 });
-            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = g1 });
+            await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = g1 });
+            await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = g2 });
+            await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = g1 });
 
-            var r = db.tblFollowsMe.Get(i1);
+            var r = await db.tblFollowsMe.GetAsync(i1);
             Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
             Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
-            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
-            r = db.tblFollowsMe.Get(i1);
+            await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
+            r = await db.tblFollowsMe.GetAsync(i1);
             Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
         }
 
 
         [Test]
-        public void InsertInvalidFollowerTest()
+        public async Task InsertInvalidFollowerTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var i1 = "odin.valhalla.com";
                 var g1 = Guid.NewGuid();
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = g1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
 
                 bool ok = false;
                 try
                 {
                     // Can't insert duplicate
-                    db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = g1 });
+                    await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = g1 });
                 }
                 catch
                 {
@@ -123,7 +124,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 try
                 {
                     // 
-                    db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = null, driveId = Guid.NewGuid() });
+                    await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = null, driveId = Guid.NewGuid() });
                 }
                 catch
                 {
@@ -134,7 +135,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 ok = false;
                 try
                 {
-                    db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "", driveId = Guid.NewGuid() });
+                    await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = "", driveId = Guid.NewGuid() });
                 }
                 catch
                 {
@@ -146,7 +147,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 ok = false;
                 try
                 {
-                    db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "", driveId = Guid.Empty });
+                    await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = "", driveId = Guid.Empty });
                 }
                 catch
                 {
@@ -159,7 +160,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 try
                 {
                     // Can't insert duplicate, this is supposed to fail.
-                    db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
+                    await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
                 }
                 catch
                 {
@@ -171,86 +172,86 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void DeleteTest()
+        public async Task DeleteTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var i1 = new OdinId("odin.valhalla.com");
                 var i2 = new OdinId("thor.valhalla.com");
                 var d1 = Guid.NewGuid();
                 var d2 = Guid.NewGuid();
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d2 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d2 });
 
-                db.tblFollowsMe.DeleteByIdentity(i2);
+                await db.tblFollowsMe.DeleteByIdentityAsync(i2);
 
-                var r = db.tblFollowsMe.Get(i1);
+                var r = await db.tblFollowsMe.GetAsync(i1);
                 Debug.Assert(r.Count == 1);
-                r = db.tblFollowsMe.Get(i2);
+                r = await db.tblFollowsMe.GetAsync(i2);
                 Debug.Assert(r.Count == 0);
-                db.tblFollowsMe.DeleteByIdentity(i1);
-                r = db.tblFollowsMe.Get(i2);
+                await db.tblFollowsMe.DeleteByIdentityAsync(i1);
+                r = await db.tblFollowsMe.GetAsync(i2);
                 Debug.Assert(r.Count == 0);
             }
         }
 
 
         [Test]
-        public void DeleteDriveTest()
+        public async Task DeleteDriveTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var i1 = new OdinId("odin.valhalla.com");
                 var i2 = new OdinId("thor.valhalla.com");
                 var d1 = Guid.NewGuid();
                 var d2 = Guid.NewGuid();
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d2 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d2 });
 
-                db.tblFollowsMe.Delete(i1, d2);
-                var r = db.tblFollowsMe.Get(i1);
+                await db.tblFollowsMe.DeleteAsync(i1, d2);
+                var r = await db.tblFollowsMe.GetAsync(i1);
                 Debug.Assert(r.Count == 1);
 
-                db.tblFollowsMe.Delete(i1, d1);
-                r = db.tblFollowsMe.Get(i1);
+                await db.tblFollowsMe.DeleteAsync(i1, d1);
+                r = await db.tblFollowsMe.GetAsync(i1);
                 Debug.Assert(r.Count == 0);
 
-                db.tblFollowsMe.Delete(i2, d1);
-                r = db.tblFollowsMe.Get(i2);
+                await db.tblFollowsMe.DeleteAsync(i2, d1);
+                r = await db.tblFollowsMe.GetAsync(i2);
                 Debug.Assert(r.Count == 2);
 
-                db.tblFollowsMe.Delete(i2, d2);
-                r = db.tblFollowsMe.Get(i2);
+                await db.tblFollowsMe.DeleteAsync(i2, d2);
+                r = await db.tblFollowsMe.GetAsync(i2);
                 Debug.Assert(r.Count == 1);
 
-                db.tblFollowsMe.Delete(i2, Guid.Empty);
-                r = db.tblFollowsMe.Get(i2);
+                await db.tblFollowsMe.DeleteAsync(i2, Guid.Empty);
+                r = await db.tblFollowsMe.GetAsync(i2);
                 Debug.Assert(r.Count == 0);
             }
         }
 
 
         [Test]
-        public void GetFollowersInvalidTest()
+        public async Task GetFollowersInvalidTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest007");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var d1 = Guid.NewGuid();
 
                 bool ok = false;
@@ -268,23 +269,23 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void GetFollowersTest()
+        public async Task GetFollowersTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var d1 = Guid.NewGuid();
                 var d2 = Guid.NewGuid();
                 var d3 = Guid.NewGuid();
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d2 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d2 });
 
                 // Get the all drive (only)
                 var r = db.tblFollowsMe.GetFollowers(100, d3, null, out var nextCursor);
@@ -306,13 +307,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void GetFollowersPagedTest()
+        public async Task GetFollowersPagedTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableFollowsMeTest009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var i1 = "odin.valhalla.com";
                 var i2 = "thor.valhalla.com";
                 var i3 = "freja.valhalla.com";
@@ -322,11 +323,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 var d2 = Guid.NewGuid();
                 var d3 = Guid.NewGuid();
 
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i1, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i3, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i4, driveId = d1 });
-                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i5, driveId = Guid.Empty });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i2, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i3, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i4, driveId = d1 });
+                await db.tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i5, driveId = Guid.Empty });
 
                 var r = db.tblFollowsMe.GetFollowers(2, d1, null, out var nextCursor);
                 Debug.Assert(r.Count == 2);
