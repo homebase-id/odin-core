@@ -395,9 +395,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryBatchAuto(Guid driveId,
+        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAutoAsync(Guid driveId,
             int noOfItems,
-            ref QueryBatchCursor cursor,
+            QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -473,7 +473,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2) = QueryBatchAuto(driveId, noOfItems - result.Count, ref cursor,
+                    var (r2, moreRows2, cursor2) = await QueryBatchAutoAsync(driveId, noOfItems - result.Count, cursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -494,7 +494,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         // The r2 result set should be newer than the result set
                         r2.AddRange(result);
-                        return (r2, moreRows2);
+                        return (r2, moreRows2, cursor2);
                     }
                 }
             }
@@ -505,7 +505,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     cursor.stopAtBoundary = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatchAuto(driveId, noOfItems, ref cursor,
+                    return await QueryBatchAutoAsync(driveId, noOfItems, cursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -526,7 +526,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
 
-            return (result, moreRows);
+            return (result, moreRows, cursor);
         }
 
         /// <summary>
