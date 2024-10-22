@@ -538,8 +538,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryModified(Guid driveId, int noOfItems,
-            ref UnixTimeUtcUnique cursor,
+        public async Task<(List<Guid>, bool moreRows, UnixTimeUtcUnique cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+            UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
@@ -590,8 +590,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(cmd, CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(cmd, CommandBehavior.Default))
                     {
                         var result = new List<Guid>();
                         var fileId = new byte[16];
@@ -599,7 +598,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         int i = 0;
                         long ts = 0;
 
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             rdr.GetBytes(0, 0, fileId, 0, 16);
                             result.Add(new Guid(fileId));
@@ -612,9 +611,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (i > 0)
                             cursor = new UnixTimeUtcUnique(ts);
 
-                        return (result, rdr.Read());
+                        return (result, await rdr.ReadAsync(), cursor);
                     } // using rdr
-                } // lock
+                } 
             } // using command
         }
 
