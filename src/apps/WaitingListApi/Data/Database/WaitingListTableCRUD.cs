@@ -13,9 +13,11 @@ namespace WaitingListApi.Data.Database
     public class WaitingListTableCrud : TableBase
     {
         private bool _disposed = false;
+        private readonly WaitingListDatabase _db;
 
-        public WaitingListTableCrud(WaitingListDatabase db) : base(db, "waiting_list")
+        public WaitingListTableCrud(WaitingListDatabase db) : base("waiting_list")
         {
+            _db = db;
         }
 
         ~WaitingListTableCrud()
@@ -30,8 +32,8 @@ namespace WaitingListApi.Data.Database
 
         public void EnsureTableExists(bool dropExisting = false)
         {
-            using var cn = _database.CreateDisposableConnection();
-            using (var cmd = _database.CreateCommand())
+            using var cn = _db.CreateDisposableConnection();
+            using (var cmd = _db.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -54,9 +56,9 @@ namespace WaitingListApi.Data.Database
 
         public virtual int Insert(WaitingListRecord item)
         {
-            using var cn = _database.CreateDisposableConnection();
+            using var cn = _db.CreateDisposableConnection();
 
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = _db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO waiting_list (emailAddress, jsonData, created) " +
                                              "VALUES ($emailAddress, $jsonData, $created)";

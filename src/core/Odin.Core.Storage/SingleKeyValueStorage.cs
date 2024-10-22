@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -26,10 +28,9 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var item = db.tblKeyValue.Get(cn, MakeStorageKey(key));
+        var item = db.tblKeyValue.Get(MakeStorageKey(key));
 
         if (null == item)
         {
@@ -44,17 +45,27 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key, T value)
+    public void UpsertMany<T>(IdentityDatabase db, List<(Guid key, T value)> keyValuePairs)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyValue.Upsert(cn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
+        {
+            key = MakeStorageKey(pair.key),
+            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray(),
+            identityId = db._identityId
+        }).ToList();
+
+        db.tblKeyValue.UpsertMany(keyValueRecords);
     }
 
-    public void Delete(DatabaseConnection cn, Guid key)
+    public void Upsert<T>(IdentityDatabase db, Guid key, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyValue.Delete(cn, MakeStorageKey(key));
+        var json = OdinSystemSerializer.Serialize(value);
+        db.tblKeyValue.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    public void Delete(IdentityDatabase db, Guid key)
+    {
+        db.tblKeyValue.Delete(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

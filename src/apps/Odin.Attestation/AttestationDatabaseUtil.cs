@@ -12,7 +12,7 @@ namespace Odin.Attestation
         /// <param name="_db"></param>
         public static void InitializeDatabase(AttestationDatabase _db, DatabaseConnection conn)
         {
-            _db.CreateDatabase(conn, dropExistingTables: true); // Remove "true" for production
+            _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
         }
     }
 }

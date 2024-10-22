@@ -26,8 +26,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.ReceiveFileStream(cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.ReceiveFileStream(db);
         }
         
         /// <summary>
@@ -37,8 +37,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayloadOnly()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.ReceivePayloadStream(cn);
+            var db = tenantSystemStorage.IdentityDatabase;
+            return await base.ReceivePayloadStream(db);
         }
     }
 }

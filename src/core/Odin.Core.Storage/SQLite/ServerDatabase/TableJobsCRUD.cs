@@ -1,8 +1,9 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
@@ -219,7 +220,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
     {
         private bool _disposed = false;
 
-        public TableJobsCRUD(ServerDatabase db, CacheHelper cache) : base(db, "jobs")
+        public TableJobsCRUD(CacheHelper cache) : base("jobs")
         {
         }
 
@@ -236,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -278,7 +279,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public virtual int Insert(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
@@ -372,7 +373,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public virtual int TryInsert(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
@@ -466,7 +467,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public virtual int Upsert(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created)"+
@@ -550,7 +551,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 _upsertParam18.Value = now.uniqueTime;
                 _upsertParam19.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -571,7 +572,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public virtual int Update(DatabaseConnection conn, JobsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.id, "Guid parameter id cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE jobs " +
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
@@ -664,7 +665,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM jobs; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -701,7 +702,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         }
 
         // SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
-        public JobsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public JobsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<JobsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -851,7 +852,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public int Delete(DatabaseConnection conn, Guid id)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM jobs " +
                                              "WHERE id = @id";
@@ -865,7 +866,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public JobsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid id)
+        public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
         {
             var result = new List<JobsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -1006,7 +1007,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public JobsRecord Get(DatabaseConnection conn, Guid id)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
                                              "WHERE id = @id LIMIT 1;";
@@ -1017,7 +1018,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _get0Param1.Value = id.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

@@ -1,47 +1,84 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableDriveTagIndex : TableDriveTagIndexCRUD
     {
-        public TableDriveTagIndex(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        private readonly IdentityDatabase _db;
+
+        public TableDriveTagIndex(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
+            _db = db;
         }
 
         ~TableDriveTagIndex()
         {
         }
 
-        public new DriveTagIndexRecord Get(DatabaseConnection conn, Guid driveId, Guid fileId, Guid tagId)
+        public DriveTagIndexRecord Get(Guid driveId, Guid fileId, Guid tagId)
         {
-            return base.Get(conn, ((IdentityDatabase) conn.db)._identityId, driveId, fileId, tagId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Get(conn, _db._identityId, driveId, fileId, tagId);
+            }
         }
 
-        public List<Guid> Get(DatabaseConnection conn, Guid driveId, Guid fileId)
+        public List<Guid> Get(Guid driveId, Guid fileId)
         {
-            return base.Get(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Get(conn, _db._identityId, driveId, fileId);
+            }
         }
 
-        public new int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
+        public int Insert(DriveTagIndexRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Insert(conn, item);
+            item.identityId = _db._identityId;
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
         }
 
-        public int DeleteAllRows(DatabaseConnection conn, Guid driveId, Guid fileId)
+        public int DeleteAllRows(Guid driveId, Guid fileId)
         {
-            return base.DeleteAllRows(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId);
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.DeleteAllRows(conn, _db._identityId, driveId, fileId);
+            }
         }
 
-        public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public void InsertRows(Guid driveId, Guid fileId, List<Guid> tagIdList)
+        {
+            if (tagIdList == null)
+                return;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                conn.CreateCommitUnitOfWork(() =>
+            {
+                var item = new DriveTagIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
+
+                for (int i = 0; i < tagIdList.Count; i++)
+                {
+                    item.tagId = tagIdList[i];
+                    base.Insert(conn, item);
+                }
+            });
+            }
+        }
+
+
+        internal void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)
                 return;
 
             conn.CreateCommitUnitOfWork(() =>
             {
-                var item = new DriveTagIndexRecord() { identityId = ((IdentityDatabase)conn.db)._identityId,  driveId = driveId, fileId = fileId };
+                var item = new DriveTagIndexRecord() { identityId = _db._identityId, driveId = driveId, fileId = fileId };
 
                 for (int i = 0; i < tagIdList.Count; i++)
                 {
@@ -51,21 +88,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             });
         }
 
-        public void DeleteRow(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public void DeleteRow(Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
-            if (this._database != conn.db)
-                throw new Exception("Database mixup");
-
             if (tagIdList == null)
                 return;
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < tagIdList.Count; i++)
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    base.Delete(conn, ((IdentityDatabase)conn.db)._identityId, driveId, fileId, tagIdList[i]);
-                }
-            });
+                    for (int i = 0; i < tagIdList.Count; i++)
+                    {
+                        base.Delete(conn, _db._identityId, driveId, fileId, tagIdList[i]);
+                    }
+                });
+            }
         }
     }
 }

@@ -1,8 +1,9 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -67,7 +68,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableAppGrantsCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "appGrants")
+        public TableAppGrantsCRUD(CacheHelper cache) : base("appGrants")
         {
             _cache = cache;
         }
@@ -85,7 +86,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -106,13 +107,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
@@ -145,13 +146,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, AppGrantsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
@@ -184,13 +185,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
@@ -223,13 +224,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.odinHashId, "Guid parameter odinHashId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.appId, "Guid parameter appId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE appGrants " +
                                              "SET data = @data "+
@@ -263,9 +264,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM appGrants; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -288,7 +289,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,odinHashId,appId,circleId,data
-        protected AppGrantsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -353,9 +354,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId";
@@ -383,7 +384,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected AppGrantsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid odinHashId)
+        internal AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -430,9 +431,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<AppGrantsRecord> GetByOdinHashId(DatabaseConnection conn, Guid identityId,Guid odinHashId)
+        internal List<AppGrantsRecord> GetByOdinHashId(DatabaseConnection conn, Guid identityId,Guid odinHashId)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId;";
@@ -447,12 +448,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = odinHashId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString(), null);
-                            return null;
+                            return new List<AppGrantsRecord>();
                         }
                         var result = new List<AppGrantsRecord>();
                         while (true)
@@ -467,7 +468,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected AppGrantsRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -496,12 +497,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected AppGrantsRecord Get(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal AppGrantsRecord Get(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
             if (hit)
                 return (AppGrantsRecord)cacheObject;
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT data FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;";
@@ -524,7 +525,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param4.Value = circleId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {

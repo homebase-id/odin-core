@@ -8,45 +8,62 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableAppGrants : TableAppGrantsCRUD
     {
-        public TableAppGrants(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        private readonly IdentityDatabase _db;
+
+        public TableAppGrants(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
+            _db = db;
         }
 
         ~TableAppGrants()
         {
         }
 
-        public new int Insert(DatabaseConnection conn, AppGrantsRecord item)
+        public int Insert(AppGrantsRecord item)
         {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Insert(conn, item);
-        }
+            item.identityId = _db._identityId;
 
-        public new int Upsert(DatabaseConnection conn, AppGrantsRecord item)
-        {
-            item.identityId = ((IdentityDatabase)conn.db)._identityId;
-            return base.Insert(conn, item);
-        }
-
-        public List<AppGrantsRecord> GetByOdinHashId(DatabaseConnection conn, Guid odinHashId)
-        {
-            return base.GetByOdinHashId(conn, ((IdentityDatabase)conn.db)._identityId, odinHashId);
-        }
-
-        public void DeleteByIdentity(DatabaseConnection conn, Guid odinHashId)
-        {
-            var r = GetByOdinHashId(conn, ((IdentityDatabase)conn.db)._identityId, odinHashId);
-
-            if (r == null)
-                return;
-
-            conn.CreateCommitUnitOfWork(() =>
+            using (var conn = _db.CreateDisposableConnection())
             {
-                for (int i = 0; i < r.Count; i++)
+                return base.Insert(conn, item);
+            }
+        }
+
+        public int Upsert(AppGrantsRecord item)
+        {
+            item.identityId = _db._identityId;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.Insert(conn, item);
+            }
+        }
+
+        public List<AppGrantsRecord> GetByOdinHashId(Guid odinHashId)
+        {
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                return base.GetByOdinHashId(conn, _db._identityId, odinHashId);
+            }
+        }
+
+        public void DeleteByIdentity(Guid odinHashId)
+        {
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                var r = GetByOdinHashId(conn, _db._identityId, odinHashId);
+
+                if (r == null)
+                    return;
+
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    Delete(conn, ((IdentityDatabase)conn.db)._identityId, odinHashId, r[i].appId, r[i].circleId);
-                }
-            });
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        Delete(conn, _db._identityId, odinHashId, r[i].appId, r[i].circleId);
+                    }
+                });
+            }
         }
     }
 }

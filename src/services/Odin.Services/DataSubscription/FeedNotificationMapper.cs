@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -39,7 +40,7 @@ namespace Odin.Services.DataSubscription
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
             var driveId = notification.Reaction.FileId.DriveId;
-            if (await IsFeedDriveRelated(driveId, notification.DatabaseConnection))
+            if (await IsFeedDriveRelated(driveId, notification.db))
             {
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
@@ -47,14 +48,14 @@ namespace Odin.Services.DataSubscription
                     var odinContext = notification.OdinContext;
                     var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                        {
-                            AppId = SystemAppConstants.FeedAppId,
-                            TypeId = notification.NotificationTypeId,
-                            TagId = sender.ToHashId(),
-                            Silent = false,
-                        },
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = notification.NotificationTypeId,
+                        TagId = notification.Reaction.FileId.FileId,
+                        Silent = false,
+                    },
                         newContext,
-                        notification.DatabaseConnection);
+                        notification.db);
                 }
             }
         }
@@ -66,14 +67,14 @@ namespace Odin.Services.DataSubscription
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
             await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = typeId,
-                    TagId = notification.Sender.ToHashId(),
-                    Silent = false,
-                },
+            {
+                AppId = SystemAppConstants.FeedAppId,
+                TypeId = typeId,
+                TagId = notification.GlobalTransitId,
+                Silent = false,
+            },
                 newContext,
-                notification.DatabaseConnection);
+                notification.db);
         }
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
@@ -93,14 +94,14 @@ namespace Odin.Services.DataSubscription
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                 await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                    {
-                        AppId = SystemAppConstants.FeedAppId,
-                        TypeId = CommentNotificationTypeId,
-                        TagId = sender.ToHashId(),
-                        Silent = false,
-                    },
+                {
+                    AppId = SystemAppConstants.FeedAppId,
+                    TypeId = CommentNotificationTypeId,
+                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    Silent = false,
+                },
                     newContext,
-                    notification.DatabaseConnection);
+                    notification.db);
             }
         }
 
@@ -116,12 +117,12 @@ namespace Odin.Services.DataSubscription
                     Silent = false
                 },
                 newContext,
-                notification.DatabaseConnection);
+                notification.db);
         }
 
-        private async Task<bool> IsFeedDriveRelated(Guid driveId, DatabaseConnection cn)
+        private async Task<bool> IsFeedDriveRelated(Guid driveId, IdentityDatabase db)
         {
-            var drive = await driveManager.GetDrive(driveId, cn);
+            var drive = await driveManager.GetDrive(driveId, db);
             if (null == drive)
             {
                 logger.LogWarning("notification sent with invalid driveId - this is totes rare");

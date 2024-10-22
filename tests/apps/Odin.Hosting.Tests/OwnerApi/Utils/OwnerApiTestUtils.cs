@@ -110,7 +110,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         }
 
 
-        public async Task ForceNewPassword(string identity, string password)
+        public async Task ForceNewPassword(OdinId identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -122,7 +122,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -186,14 +186,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return reply;
         }
 
-        public HttpClient CreateAnonymousClient(string identity)
+        public HttpClient CreateAnonymousClient(OdinId identity)
         {
             HttpClient authClient = new();
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             return authClient;
         }
 
-        public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string identity, string recoveryKey, string password)
+        public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(OdinId identity, string recoveryKey, string password)
         {
             using var authClient = CreateAnonymousClient(identity);
             var saltyReply = await CalculatePasswordReply(authClient, password);
@@ -229,7 +229,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
         }
 
-        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
+        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(OdinId identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -238,10 +238,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            var uri = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
 
             Console.WriteLine($"authenticating to {uri}");
             // var nonceResponse = await svc.GenerateAuthenticationNonce();
@@ -258,7 +258,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var reply = await this.CalculateAuthenticationPasswordReply(authClient, password);
             var response = await svc.Authenticate(reply);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity.DomainName}");
             Assert.That(response.Content, Is.Not.Null);
 
             var ownerAuthenticationResult = response.Content;

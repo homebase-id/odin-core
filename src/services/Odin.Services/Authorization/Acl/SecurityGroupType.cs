@@ -17,6 +17,11 @@ namespace Odin.Services.Authorization.Acl
         Authenticated = 444,
 
         /// <summary>
+        /// Caller is auto-connected and can only write to designated drives
+        /// </summary>
+        AutoConnected = 555,
+
+        /// <summary>
         /// Requests where the caller is marked as connected and holds a connected token
         /// </summary>
         Connected = 777,

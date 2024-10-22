@@ -1,8 +1,9 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -54,7 +55,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private bool _disposed = false;
 
-        public TableDriveTagIndexCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "driveTagIndex")
+        public TableDriveTagIndexCRUD(CacheHelper cache) : base("driveTagIndex")
         {
         }
 
@@ -71,7 +72,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -92,13 +93,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)";
@@ -126,13 +127,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)";
@@ -160,13 +161,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)"+
@@ -193,13 +194,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
+        internal virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE driveTagIndex " +
                                              "SET  "+
@@ -228,9 +229,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -251,9 +252,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        protected virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
+        internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
         {
-            using (var _getCountDriveCommand = _database.CreateCommand())
+            using (var _getCountDriveCommand = conn.db.CreateCommand())
             {
                 _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
                 var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
@@ -269,7 +270,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,driveId,fileId,tagId
-        protected DriveTagIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -321,9 +322,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM driveTagIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId";
@@ -349,9 +350,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal int DeleteAllRows(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _delete1Command = _database.CreateCommand())
+            using (var _delete1Command = conn.db.CreateCommand())
             {
                 _delete1Command.CommandText = "DELETE FROM driveTagIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
@@ -373,7 +374,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected DriveTagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -389,9 +390,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected DriveTagIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        internal DriveTagIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT identityId,driveId,fileId,tagId FROM driveTagIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;";
@@ -414,7 +415,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param4.Value = tagId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -427,9 +428,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected List<Guid> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal List<Guid> Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT tagId FROM driveTagIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
@@ -448,12 +449,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = fileId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
                         if (!rdr.Read()) {
-                            return null;
+                            return thelistresult;
                         }
                     byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168

@@ -35,8 +35,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, cn);
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()

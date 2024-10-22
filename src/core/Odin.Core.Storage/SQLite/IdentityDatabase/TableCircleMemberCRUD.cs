@@ -1,8 +1,9 @@
 using System;
+using System.Data.Common;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using System.Runtime.CompilerServices;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -57,7 +58,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private bool _disposed = false;
         private readonly CacheHelper _cache;
 
-        public TableCircleMemberCRUD(IdentityDatabase db, CacheHelper cache) : base(db, "circleMember")
+        public TableCircleMemberCRUD(CacheHelper cache) : base("circleMember")
         {
             _cache = cache;
         }
@@ -75,7 +76,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+                using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -95,12 +96,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        protected virtual int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Insert(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)";
@@ -129,12 +130,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int TryInsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int TryInsert(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = conn.db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT OR IGNORE INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)";
@@ -163,12 +164,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int Upsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Upsert(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)"+
@@ -197,12 +198,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Using
         }
-        protected virtual int Update(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual int Update(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = conn.db.CreateCommand())
             {
                 _updateCommand.CommandText = "UPDATE circleMember " +
                                              "SET data = @data "+
@@ -232,9 +233,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual int GetCountDirty(DatabaseConnection conn)
         {
-            using (var _getCountCommand = _database.CreateCommand())
+            using (var _getCountCommand = conn.db.CreateCommand())
             {
                 _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circleMember; PRAGMA read_uncommitted = 0;";
                 var count = conn.ExecuteScalar(_getCountCommand);
@@ -256,7 +257,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // SELECT identityId,circleId,memberId,data
-        protected CircleMemberRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        internal CircleMemberRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -311,9 +312,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected int Delete(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal int Delete(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
-            using (var _delete0Command = _database.CreateCommand())
+            using (var _delete0Command = conn.db.CreateCommand())
             {
                 _delete0Command.CommandText = "DELETE FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId";
@@ -337,7 +338,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
+        internal CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -365,12 +366,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected CircleMemberRecord Get(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal CircleMemberRecord Get(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
             if (hit)
                 return (CircleMemberRecord)cacheObject;
-            using (var _get0Command = _database.CreateCommand())
+            using (var _get0Command = conn.db.CreateCommand())
             {
                 _get0Command.CommandText = "SELECT data FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;";
@@ -389,7 +390,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param3.Value = memberId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -404,7 +405,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid identityId,Guid circleId)
+        internal CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -441,9 +442,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid identityId,Guid circleId)
+        internal List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid identityId,Guid circleId)
         {
-            using (var _get1Command = _database.CreateCommand())
+            using (var _get1Command = conn.db.CreateCommand())
             {
                 _get1Command.CommandText = "SELECT memberId,data FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId;";
@@ -458,12 +459,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param2.Value = circleId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
-                            return null;
+                            return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
                         while (true)
@@ -478,7 +479,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid identityId,Guid memberId)
+        internal CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -515,9 +516,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        protected List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid identityId,Guid memberId)
+        internal List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid identityId,Guid memberId)
         {
-            using (var _get2Command = _database.CreateCommand())
+            using (var _get2Command = conn.db.CreateCommand())
             {
                 _get2Command.CommandText = "SELECT circleId,data FROM circleMember " +
                                              "WHERE identityId = @identityId AND memberId = @memberId;";
@@ -532,12 +533,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get2Param2.Value = memberId.ToByteArray();
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                    using (DbDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
-                            return null;
+                            return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
                         while (true)

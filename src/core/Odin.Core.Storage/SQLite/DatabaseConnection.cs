@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Tasks;
+using System.Data.Common;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
@@ -17,13 +18,13 @@ namespace Odin.Core.Storage.SQLite
         private bool _disposed = false;
         public readonly DatabaseBase db;
 
-        private SqliteConnection _connection;
+        private DbConnection _connection;
         private SqliteTransaction _transaction = null;
         private int _transactionCount = 0;
         public object _lock = new ();
         internal int _nestedCounter = 0;
 
-        public SqliteConnection Connection { get { return _connection; } }
+        public DbConnection Connection { get { return _connection; } }
 
         public DatabaseConnection(DatabaseBase db, string connectionString)
         {
@@ -48,7 +49,7 @@ namespace Odin.Core.Storage.SQLite
                 using (var cmd = db.CreateCommand())
                 {
                     cmd.CommandText = "VACUUM;";
-                    cmd.Connection = Connection;
+                    cmd.Connection = (SqliteConnection) Connection;
                     ExecuteNonQuery(cmd);
                 }
             }
@@ -59,7 +60,7 @@ namespace Odin.Core.Storage.SQLite
             ArgumentNullException.ThrowIfNull(_connection);
             if (_transaction != null)
                 throw new ArgumentException("transaction already in use on this connection.");
-            _transaction = _connection.BeginTransaction();
+            _transaction = ((SqliteConnection)_connection).BeginTransaction();
         }
 
 
@@ -183,7 +184,7 @@ namespace Odin.Core.Storage.SQLite
         }
 
 
-        public int ExecuteNonQuery(SqliteCommand command)
+        public int ExecuteNonQuery(DbCommand command)
         {
             lock (_lock) // SEB:TODO lock review
             {
@@ -195,7 +196,7 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
-        public object ExecuteScalar(SqliteCommand command)
+        public object ExecuteScalar(DbCommand command)
         {
             lock (_lock) // SEB:TODO lock review
             {
@@ -215,7 +216,7 @@ namespace Odin.Core.Storage.SQLite
         /// <param name="behavior"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
+        public DbDataReader ExecuteReader(DbCommand command, CommandBehavior behavior)
         {
             lock (_lock) // SEB:TODO lock review
             {

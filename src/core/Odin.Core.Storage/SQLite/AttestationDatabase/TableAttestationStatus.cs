@@ -6,7 +6,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
     public class TableAttestationStatus : TableAttestationStatusCRUD
     {
-        public TableAttestationStatus(AttestationDatabase db, CacheHelper cache) : base(db, cache)
+        public TableAttestationStatus(CacheHelper cache) : base(cache)
         {
         }
 

@@ -26,8 +26,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public AttestationDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString)
         {
-            tblAttestationRequest = new TableAttestationRequest(this, _cache);
-            tblAttestationStatus = new TableAttestationStatus(this, _cache);
+            tblAttestationRequest = new TableAttestationRequest(_cache);
+            tblAttestationStatus = new TableAttestationStatus(_cache);
 
             _file = file;
             _line = line;
@@ -59,12 +59,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(bool dropExistingTables = true)
         {
-            tblAttestationRequest.EnsureTableExists(conn, dropExistingTables);
-            tblAttestationStatus.EnsureTableExists(conn, dropExistingTables);
-            if (dropExistingTables)
-                conn.Vacuum();
+            using (var conn = this.CreateDisposableConnection())
+            {
+                tblAttestationRequest.EnsureTableExists(conn, dropExistingTables);
+                tblAttestationStatus.EnsureTableExists(conn, dropExistingTables);
+                if (dropExistingTables)
+                    conn.Vacuum();
+            }
         }
     }
 }
