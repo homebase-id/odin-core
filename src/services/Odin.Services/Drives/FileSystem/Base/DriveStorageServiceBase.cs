@@ -1120,7 +1120,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId, IdentityDatabase db)
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
+            logger.LogDebug("GetLongTermStorageManager lookup - driveId: {d}", driveId);
             var drive = await DriveManager.GetDrive(driveId, db, failIfInvalid: true);
+            logger.LogDebug("GetLongTermStorageManager lookup drive: {d}", drive.Name);
+            
             var manager = new LongTermStorageManager(drive, logger, driveFileReaderWriter, driveDatabaseHost, GetFileSystemType());
             return manager;
         }

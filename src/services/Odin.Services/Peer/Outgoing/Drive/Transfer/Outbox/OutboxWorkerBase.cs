@@ -73,6 +73,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
+            logger.LogDebug("BadRequest received: [{data}]", response.Error?.Content);
             return LatestTransferStatus.RecipientIdentityReturnedBadRequest;
         }
 

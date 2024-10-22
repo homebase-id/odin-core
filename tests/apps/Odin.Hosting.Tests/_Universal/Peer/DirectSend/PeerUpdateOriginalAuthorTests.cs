@@ -92,7 +92,7 @@ public class PeerUpdateOriginalAuthorTests
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
+        
         await collabChannelOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await originalAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await member2_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);

@@ -63,6 +63,7 @@ public class IdentitiesIFollowAuthenticationService
             return dotYouContext;
         });
 
+        // return await creator();
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
