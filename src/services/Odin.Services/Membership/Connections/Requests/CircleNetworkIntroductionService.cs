@@ -211,7 +211,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                     var introducerIcr = await CircleNetworkService.GetIcr(incomingRequest.IntroducerOdinId.Value, odinContext);
 
                     if (introducerIcr.IsConnected() &&
-                        introducerIcr.AccessGrant.CircleGrants.Values.Any(v => v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
+                        introducerIcr.AccessGrant.CircleGrants.Values.Any(v =>
+                            v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
                     {
                         _logger.LogDebug(
                             "Auto-accept connection request from {sender} since sender was introduced by " +
@@ -268,6 +269,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 if (intro.SendAttemptCount <= maxSendAttempts)
                 {
                     await this.TrySendConnectionRequest(intro, odinContext);
+                }
+                else
+                {
+                    _logger.LogDebug("Not sending introduction to {intro} (introduced by {introducer}); it has reached " +
+                                     "maxSendAttempts of {max}", intro.Identity, intro.IntroducerOdinId, maxSendAttempts);
                 }
             }
             catch (Exception ex)
