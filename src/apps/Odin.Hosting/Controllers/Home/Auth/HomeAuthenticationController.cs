@@ -60,7 +60,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             try
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey(db);
+                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKeyAsync(db);
                 var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
                 var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
@@ -157,7 +157,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         {
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _homeAuthenticatorService.DeleteSession(WebOdinContext, db);
+            await _homeAuthenticatorService.DeleteSessionAsync(WebOdinContext, db);
 
             return Ok();
         }

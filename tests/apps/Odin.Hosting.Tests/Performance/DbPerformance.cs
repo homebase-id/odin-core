@@ -31,7 +31,7 @@ namespace Odin.Hosting.Tests.Performance
 
 
         [OneTimeSetUp]
-        public void OneTimeSetUp()
+        public async Task OneTimeSetUp()
         {
             var testContextKey = Guid.NewGuid();
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -40,7 +40,7 @@ namespace Odin.Hosting.Tests.Performance
             _db = new IdentityDatabase(Guid.NewGuid(), Guid.NewGuid().ToString()+".db");
             using (var myc = _db.CreateDisposableConnection())
             {
-                _db.CreateDatabase();
+                await _db.CreateDatabaseAsync();
                 // storage = new SingleKeyValueStorage(testContextKey);
             
                 for (int i = 0; i < KEYS; i++)
@@ -56,7 +56,7 @@ namespace Odin.Hosting.Tests.Performance
                     };
             
                     // storage.Upsert<Item>(_keys[i], item);
-                    _db.tblKeyValue.Upsert(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
+                    await _db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
                     // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
                 }
             }
@@ -174,7 +174,7 @@ TaskPerformanceTest_Db_MultiThread
             Assert.Pass();
         }
 
-        public Task<(long, long[])> DoDb(int threadno, int iterations)
+        public async Task<(long, long[])> DoDb(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -186,13 +186,13 @@ TaskPerformanceTest_Db_MultiThread
                 {
                     sw.Restart();
 
-                    var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
+                    var r = await _db.tblKeyValue.GetAsync(_keys[0].ToByteArray());
                     Debug.Assert(r != null);
 
                     timers[count] = sw.ElapsedMilliseconds;
                 }
 
-                return Task.FromResult((0L, timers));
+                return (0L, timers);
             }
         }
 

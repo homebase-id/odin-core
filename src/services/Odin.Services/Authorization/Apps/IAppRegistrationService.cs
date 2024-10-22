@@ -51,7 +51,7 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext);
 
-        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
+        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId, byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext);
 
 

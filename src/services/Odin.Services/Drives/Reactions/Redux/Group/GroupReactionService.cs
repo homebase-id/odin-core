@@ -144,7 +144,7 @@ public class GroupReactionService(
         IdentityDatabase db,
         FileSystemType fileSystemType)
     {
-        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+        var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, db, false);
         if (null == clientAuthToken)
         {
             return TransferStatus.EnqueuedFailed;

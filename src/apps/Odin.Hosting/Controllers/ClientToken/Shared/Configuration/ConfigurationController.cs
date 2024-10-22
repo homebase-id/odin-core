@@ -31,11 +31,10 @@ public class ConfigurationController : Controller
     /// </summary>
     /// <returns></returns>
     [HttpPost("system/isconfigured")]
-    public Task<bool> IsIdentityServerConfigured()
+    public async Task<bool> IsIdentityServerConfigured()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsIdentityServerConfigured();
-        return Task.FromResult(result);
+        var result = await _tenantConfigService.IsIdentityServerConfiguredAsync();
+        return result;
     }
 
 }

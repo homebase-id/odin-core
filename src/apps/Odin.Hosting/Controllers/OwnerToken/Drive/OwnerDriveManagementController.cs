@@ -57,7 +57,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             //create a drive on the drive service
             var db = _tenantSystemStorage.IdentityDatabase;
-            var _ = await _driveManager.CreateDrive(request, WebOdinContext, db);
+            var _ = await _driveManager.CreateDriveAsync(request, WebOdinContext, db);
             return true;
         }
 
@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
-            await _driveManager.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, db);
+            await _driveManager.UpdateMetadataAsync(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, db);
             return true;
         }
         
@@ -75,7 +75,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
-            await _driveManager.UpdateAttributes(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, db);
+            await _driveManager.UpdateAttributesAsync(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, db);
             return true;
         }
         
@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
-            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, db);
+            await _driveManager.SetDriveReadModeAsync(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, db);
             return Ok();
         }
 

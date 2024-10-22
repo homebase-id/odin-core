@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
+            var result = await _requestService.GetPendingRequestsAsync(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
             return result;
             // var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             // return new PagedResult<PendingConnectionRequestHeader>(result.Request, result.TotalPages, resp);
@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
             var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetPendingRequest(id, WebOdinContext, db);
+            var result = await _requestService.GetPendingRequestAsync(id, WebOdinContext, db);
 
             if (result == null)
             {
@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.AcceptConnectionRequest(header, WebOdinContext, db);
+            await _requestService.AcceptConnectionRequestAsync(header, WebOdinContext, db);
             return true;
         }
 
@@ -103,7 +103,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
+            var result = await _requestService.GetSentRequestsAsync(new PageOptions(pageNumber, pageSize), WebOdinContext, db);
             var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing)).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
@@ -158,7 +158,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _requestService.SendConnectionRequest(requestHeader, WebOdinContext, db);
+            await _requestService.SendConnectionRequestAsync(requestHeader, WebOdinContext, db);
             return true;
         }
     }

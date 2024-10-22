@@ -35,20 +35,20 @@ public class ConfigurationController : OdinControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpPost("system/isconfigured")]
-    public Task<bool> IsIdentityServerConfigured()
+    public async Task<bool> IsIdentityServerConfigured()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsIdentityServerConfigured();
-        return Task.FromResult(result);
+        var result = await _tenantConfigService.IsIdentityServerConfiguredAsync();
+        return result;
     }
 
 
     [HttpPost("system/IsEulaSignatureRequired")]
-    public Task<bool> IsEulaSignatureRequired()
+    public async Task<bool> IsEulaSignatureRequired()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.IsEulaSignatureRequired(WebOdinContext);
-        return Task.FromResult(result);
+        var result = await _tenantConfigService.IsEulaSignatureRequiredAsync(WebOdinContext);
+        return result;
     }
 
     [HttpPost("system/GetRequiredEulaVersion")]
@@ -59,19 +59,19 @@ public class ConfigurationController : OdinControllerBase
     }
 
     [HttpPost("system/GetEulaSignatureHistory")]
-    public Task<List<EulaSignature>> GetEulaSignatureHistory()
+    public async Task<List<EulaSignature>> GetEulaSignatureHistory()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var result = _tenantConfigService.GetEulaSignatureHistory(WebOdinContext);
-        return Task.FromResult(result);
+        var result = await _tenantConfigService.GetEulaSignatureHistoryAsync(WebOdinContext);
+        return result;
     }
 
     [HttpPost("system/MarkEulaSigned")]
-    public IActionResult MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
+    public async Task<IActionResult> MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var db = _tenantSystemStorage.IdentityDatabase;
-        _tenantConfigService.MarkEulaSigned(request, WebOdinContext);
+        await _tenantConfigService.MarkEulaSignedAsync(request, WebOdinContext);
         return Ok();
     }
 
@@ -83,7 +83,7 @@ public class ConfigurationController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext);
+        await _tenantConfigService.EnsureInitialOwnerSetupAsync(request, WebOdinContext);
         return true;
     }
 
@@ -98,7 +98,7 @@ public class ConfigurationController : OdinControllerBase
         OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _tenantConfigService.UpdateSystemFlag(request, WebOdinContext);
+        await _tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
 
         //todo: map to all the various flags
         return await Task.FromResult(false);
@@ -108,10 +108,10 @@ public class ConfigurationController : OdinControllerBase
     /// Gets the system flags
     /// </summary>
     [HttpPost("system/flags")]
-    public TenantSettings GetTenantSettings()
+    public async Task<TenantSettings> GetTenantSettings()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var settings = _tenantConfigService.GetTenantSettings();
+        var settings = await _tenantConfigService.GetTenantSettingsAsync();
         return settings;
     }
 
@@ -120,7 +120,7 @@ public class ConfigurationController : OdinControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet("system/driveinfo")]
-    public Task<Dictionary<string, TargetDrive>> GetSystemDrives()
+    public Dictionary<string, TargetDrive> GetSystemDrives()
     {
         var d = new Dictionary<string, TargetDrive>()
         {
@@ -130,7 +130,7 @@ public class ConfigurationController : OdinControllerBase
             { "chat", SystemDriveConstants.ChatDrive }
         };
 
-        return Task.FromResult(d);
+        return d;
     }
 
     /// <summary>
@@ -141,18 +141,18 @@ public class ConfigurationController : OdinControllerBase
     {
         OdinValidationUtils.AssertNotNull(settings?.Settings, nameof(settings.Settings));
         var db = _tenantSystemStorage.IdentityDatabase;
-        _tenantConfigService.UpdateOwnerAppSettings(settings, WebOdinContext);
-        return await Task.FromResult(true);
+        await _tenantConfigService.UpdateOwnerAppSettingsAsync(settings, WebOdinContext);
+        return true;
     }
 
     /// <summary>
     /// Gets a map/dictionary of all settings specified by the owner-app
     /// </summary>
     [HttpPost("ownerapp/settings/list")]
-    public OwnerAppSettings GetOwnerSettings()
+    public async Task<OwnerAppSettings> GetOwnerSettings()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var settings = _tenantConfigService.GetOwnerAppSettings(WebOdinContext);
+        var settings = await _tenantConfigService.GetOwnerAppSettingsAsync(WebOdinContext);
         return settings;
     }
 

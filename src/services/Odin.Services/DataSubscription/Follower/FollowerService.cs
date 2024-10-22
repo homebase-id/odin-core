@@ -151,7 +151,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.SynchronizeFeedHistoryNow)
             {
-                await SynchronizeChannelFiles(identityToFollow, odinContext);
+                await SynchronizeChannelFilesAsync(identityToFollow, odinContext);
             }
         }
 
@@ -365,7 +365,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
         }
 
-        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext)
+        public async Task SynchronizeChannelFilesAsync(OdinId odinId, IOdinContext odinContext)
         {
             var db = _tenantStorage.IdentityDatabase;
 
@@ -376,10 +376,10 @@ namespace Odin.Services.DataSubscription.Follower
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            await this.SynchronizeChannelFiles(odinId, odinContext, sharedSecret: sharedSecret);
+            await this.SynchronizeChannelFilesAsync(odinId, odinContext, sharedSecret: sharedSecret);
         }
 
-        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext, SensitiveByteArray sharedSecret)
+        public async Task SynchronizeChannelFilesAsync(OdinId odinId, IOdinContext odinContext, SensitiveByteArray sharedSecret)
         {
             var db = _tenantStorage.IdentityDatabase;
 

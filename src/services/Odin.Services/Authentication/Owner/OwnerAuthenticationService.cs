@@ -300,7 +300,7 @@ namespace Odin.Services.Authentication.Owner
         /// clicks logout.  Invalid or expired tokens are ignored.
         /// </summary>
         /// <param name="tokenId"></param>
-        public async Task ExpireToken(Guid tokenId)
+        public async Task ExpireTokenAsync(Guid tokenId)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 

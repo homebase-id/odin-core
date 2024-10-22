@@ -80,7 +80,7 @@ public class PushNotificationService(
         await _deviceSubscriptionStorage.UpsertAsync(db, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
     }
 
-    public async Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PushNotificationSubscription> GetDeviceSubscriptionAsync(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -99,17 +99,17 @@ public class PushNotificationService(
         await _deviceSubscriptionStorage.DeleteAsync(db, deviceKey);
     }
 
-    public async Task RemoveAllDevices(IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveAllDevicesAsync(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var subscriptions = await GetAllSubscriptions(odinContext, db);
+        var subscriptions = await GetAllSubscriptionsAsync(odinContext, db);
         foreach (var sub in subscriptions)
         {
             await _deviceSubscriptionStorage.DeleteAsync(db, sub.AccessRegistrationId);
         }
     }
 
-    public async Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<List<PushNotificationSubscription>> GetAllSubscriptionsAsync(IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -149,7 +149,7 @@ public class PushNotificationService(
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var subscriptions = await GetAllSubscriptions(odinContext, db);
+        var subscriptions = await GetAllSubscriptionsAsync(odinContext, db);
         var keys = await keyService.GetEccNotificationsKeysAsync(db);
 
         var tasks = new List<Task>();
@@ -157,13 +157,13 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPush(subscription, keys, content, odinContext, db, cancellationToken));
+                tasks.Add(WebPushAsync(subscription, keys, content, odinContext, db, cancellationToken));
             }
             else
             {
                 foreach (var payload in content.Payloads)
                 {
-                    tasks.Add(DevicePush(subscription, payload, odinContext, db));
+                    tasks.Add(DevicePushAsync(subscription, payload, odinContext, db));
                 }
             }
         }
@@ -171,7 +171,7 @@ public class PushNotificationService(
         await Task.WhenAll(tasks);
     }
 
-    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext,
+    private async Task WebPushAsync(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext,
         IdentityDatabase db, CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
@@ -222,7 +222,7 @@ public class PushNotificationService(
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
-    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext, IdentityDatabase db)
+    private async Task DevicePushAsync(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
         logger.LogDebug("Attempting DevicePush Notification");
 

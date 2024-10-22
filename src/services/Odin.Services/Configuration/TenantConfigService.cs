@@ -189,7 +189,7 @@ public class TenantConfigService
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await CreateCircleIfNotExists(rc, odinContext);
+            await CreateCircleIfNotExistsAsync(rc, odinContext);
         }
 
         await this.RegisterBuiltInApps(odinContext);
@@ -511,9 +511,9 @@ public class TenantConfigService
         await _appRegistrationService.RegisterAppAsync(request, odinContext);
     }
 
-    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext)
+    private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
     {
-        var existingCircleDef = _circleMembershipService.GetCircleAsync(request.Id, odinContext);
+        var existingCircleDef = await _circleMembershipService.GetCircleAsync(request.Id, odinContext);
         if (null == existingCircleDef)
         {
             await _circleMembershipService.CreateCircleDefinition(request, odinContext);

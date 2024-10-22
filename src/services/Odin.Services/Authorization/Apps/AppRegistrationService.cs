@@ -179,7 +179,7 @@ namespace Odin.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
+        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId, byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
