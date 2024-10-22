@@ -370,7 +370,7 @@ namespace Odin.Services.DataSubscription.Follower
             var db = _tenantStorage.IdentityDatabase;
 
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext);
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistrationAsync(odinId, odinContext);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;

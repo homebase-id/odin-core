@@ -46,7 +46,7 @@ public class RecoveryService
         return existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
-    public async Task CreateInitialKey(IOdinContext odinContext)
+    public async Task CreateInitialKeyAsync(IOdinContext odinContext)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
         odinContext.Caller.AssertHasMasterKey();

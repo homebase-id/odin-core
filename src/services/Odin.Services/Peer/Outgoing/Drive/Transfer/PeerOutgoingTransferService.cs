@@ -66,7 +66,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
-                await peerOutbox.AddItem(item, db);
+                await peerOutbox.AddItemAsync(item, db);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -239,7 +239,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
             };
 
-            await peerOutbox.AddItem(outboxItem, db, useUpsert: true);
+            await peerOutbox.AddItemAsync(outboxItem, db, useUpsert: true);
 
             return new SendReadReceiptResultRecipientStatusItem()
             {
@@ -287,7 +287,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     }
                 };
 
-                await peerOutbox.AddItem(item, db, useUpsert: true);
+                await peerOutbox.AddItemAsync(item, db, useUpsert: true);
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 

@@ -91,7 +91,7 @@ public class CircleMembershipService(
         return result;
     }
 
-    public async Task AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
+    public async Task AddCircleMemberAsync(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
         var circleMemberRecord = new CircleMemberRecord()
         {
@@ -151,8 +151,8 @@ public class CircleMembershipService(
 
         foreach (var id in deduplicated)
         {
-            var def = this.GetCircle(id, odinContext);
-            var cg = await this.CreateCircleGrantAsync(def, keyStoreKey, masterKey, null);
+            var def = await GetCircleAsync(id, odinContext);
+            var cg = await CreateCircleGrantAsync(def, keyStoreKey, masterKey, null);
 
             if (circleGrants.ContainsKey(id.Value))
             {
@@ -167,7 +167,7 @@ public class CircleMembershipService(
         return circleGrants;
     }
 
-    public (Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles) MapCircleGrantsToExchangeGrants(AsciiDomainName domainName,
+    public async Task<(Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles)> MapCircleGrantsToExchangeGrantsAsync(AsciiDomainName domainName,
         List<CircleGrant> circleGrants,
         IOdinContext odinContext)
     {
@@ -181,7 +181,8 @@ public class CircleMembershipService(
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
-            if (this.CircleIsEnabled(cg.CircleId, out var circleExists))
+            var (enabled, exists) = await CircleIsEnabledAsync(cg.CircleId);
+            if (enabled)
             {
                 enabledCircles.Add(cg.CircleId);
                 grants.Add(cg.CircleId, new ExchangeGrant()
@@ -198,7 +199,7 @@ public class CircleMembershipService(
             }
             else
             {
-                if (!circleExists)
+                if (!exists)
                 {
                     logger.LogInformation("Caller [{callingIdentity}] has been granted circleId:[{circleId}], which no longer exists",
                         odinContext.Caller.OdinId, cg.CircleId);
@@ -246,10 +247,10 @@ public class CircleMembershipService(
         return circles;
     }
 
-    public CircleDefinition GetCircle(GuidId circleId, IOdinContext odinContext)
+    public async Task<CircleDefinition> GetCircleAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-        return circleDefinitionService.GetCircleAsync(circleId);
+        return await circleDefinitionService.GetCircleAsync(circleId);
     }
 
     public async Task AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrants)
@@ -274,11 +275,11 @@ public class CircleMembershipService(
     /// <summary>
     /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
     /// </summary>
-    public async Task DisableCircle(GuidId circleId, IOdinContext odinContext)
+    public async Task DisableCircleAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var circle = this.GetCircle(circleId, odinContext);
+        var circle = await GetCircleAsync(circleId, odinContext);
         circle.Disabled = true;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
         await circleDefinitionService.UpdateAsync(circle);
@@ -287,11 +288,11 @@ public class CircleMembershipService(
     /// <summary>
     /// Enables a circle
     /// </summary>
-    public async Task EnableCircle(GuidId circleId, IOdinContext odinContext)
+    public async Task EnableCircleAsync(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var circle = this.GetCircle(circleId, odinContext);
+        var circle = await GetCircleAsync(circleId, odinContext);
         circle.Disabled = false;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
         await circleDefinitionService.UpdateAsync(circle);
@@ -301,17 +302,18 @@ public class CircleMembershipService(
     /// Creates the system circle
     /// </summary>
     /// <returns></returns>
-    public async Task CreateSystemCircle(IOdinContext odinContext)
+    public async Task CreateSystemCircleAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.CreateSystemCircle();
+        await circleDefinitionService.CreateSystemCircleAsync();
     }
 
-    private bool CircleIsEnabled(GuidId circleId, out bool exists)
+    private async Task<(bool isEnabled, bool exists)> CircleIsEnabledAsync(GuidId circleId)
     {
-        var circle = circleDefinitionService.GetCircleAsync(circleId);
-        exists = circle != null;
-        return !circle?.Disabled ?? false;
+        var circle = await circleDefinitionService.GetCircleAsync(circleId);
+        var isEnabled = !circle?.Disabled ?? false; 
+        var exists = circle != null;
+        return (isEnabled, exists); 
     }
 }

@@ -57,13 +57,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
-                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItem(db) is { } item)
+                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync(db) is { } item)
                 {
                     var task = ProcessItemThread(item, stoppingToken);
                     tasks.Add(task);
                 }
 
-                nextRun = await peerOutbox.NextRun(db) ?? MaxSleepDuration;
+                nextRun = await peerOutbox.NextRunAsync(db) ?? MaxSleepDuration;
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
@@ -101,7 +101,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(fileItem, odinContext, db, cancellationToken);
                 if (shouldMarkComplete)
                 {
-                    await peerOutbox.MarkComplete(fileItem.Marker, db);
+                    await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
 
                     await CleanupIfTransientItem(fileItem, odinContext, db);
                 }
@@ -119,7 +119,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinFileReadException fileReadException)
             {
-                await peerOutbox.MarkComplete(fileItem.Marker, db);
+                await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
@@ -157,7 +157,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         async () =>
                         {
                             // Try to clean up the transient file
-                            if (!await peerOutbox.HasOutboxFileItem(fileItem, db))
+                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem, db))
                             {
                                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
                                 await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, db);
@@ -175,7 +175,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
             {
-                await peerOutbox.MarkComplete(fileItem.Marker, db);
+                await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
                 logger.LogInformation(
                     "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
@@ -184,7 +184,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 return;
             }
 
-            await peerOutbox.MarkFailure(fileItem.Marker, nextRun, db);
+            await peerOutbox.MarkFailureAsync(fileItem.Marker, nextRun, db);
             PulseBackgroundProcessor();
         }
 

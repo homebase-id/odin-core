@@ -206,7 +206,7 @@ public class StaticFileContentService
         await Task.CompletedTask;
     }
 
-    public async Task PublishProfileCard(string json)
+    public async Task PublishProfileCardAsync(string json)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
@@ -224,7 +224,7 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        _staticFileConfigStorage.Upsert(db, GetConfigKey(filename), config);
+        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
 
         await Task.CompletedTask;
     }
@@ -234,11 +234,11 @@ public class StaticFileContentService
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
-    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename,
+    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStreamAsync(string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(db, GetConfigKey(filename));
+        var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(db, GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 
         if (config == null || !File.Exists(targetFile))
@@ -262,7 +262,7 @@ public class StaticFileContentService
     private string EnsurePath()
     {
         string targetFolder = _tenantContext.StorageConfig.StaticFileStoragePath;
-        await _driveFileReaderWriter.CreateDirectory(targetFolder);
+        _driveFileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
 

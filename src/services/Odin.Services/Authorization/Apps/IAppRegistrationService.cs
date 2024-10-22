@@ -39,7 +39,7 @@ namespace Odin.Services.Authorization.Apps
         /// Gets all registered apps
         /// </summary>
         /// <returns></returns>
-        Task<List<RedactedAppRegistration>> GetRegisteredApps(IOdinContext odinContext);
+        Task<List<RedactedAppRegistration>> GetRegisteredAppsAsync(IOdinContext odinContext);
 
         /// <summary>
         /// Removes access for a given application across all devices
@@ -72,15 +72,15 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RevokeClientAsync(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext);
+        Task DeleteClientAsync(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task AllowClient(GuidId accessRegistrationId, IOdinContext odinContext);
+        Task AllowClientAsync(GuidId accessRegistrationId, IOdinContext odinContext);
 
-        Task DeleteApp(GuidId appId, IOdinContext odinContext);
+        Task DeleteAppAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
-        Task DeleteCurrentAppClient(IOdinContext odinContext);
+        Task DeleteCurrentAppClientAsync(IOdinContext odinContext);
     }
 }

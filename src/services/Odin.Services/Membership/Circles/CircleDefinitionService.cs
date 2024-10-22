@@ -37,7 +37,7 @@ namespace Odin.Services.Membership.Circles
             return await this.CreateCircleInternalAsync(request);
         }
 
-        public async Task CreateSystemCircle()
+        public async Task CreateSystemCircleAsync()
         {
             if (null == await GetCircleAsync(SystemCircleConstants.ConnectedIdentitiesSystemCircleId))
             {

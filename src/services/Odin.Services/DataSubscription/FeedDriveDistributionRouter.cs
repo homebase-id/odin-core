@@ -378,7 +378,7 @@ namespace Odin.Services.DataSubscription
                 }
             };
 
-            await _peerOutbox.AddItem(item, db, useUpsert: true);
+            await _peerOutbox.AddItemAsync(item, db, useUpsert: true);
         }
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,
@@ -391,7 +391,7 @@ namespace Odin.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,

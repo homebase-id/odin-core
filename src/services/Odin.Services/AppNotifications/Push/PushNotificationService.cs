@@ -368,7 +368,7 @@ public class PushNotificationService(
         
         logger.LogDebug("Enqueuing notification. Sender: {senderId}, Recipient: {recipient}", senderId, odinContext.Tenant);
 
-        await peerOutbox.AddItem(item, db);
+        await peerOutbox.AddItemAsync(item, db);
         await mediator.Publish(new PushNotificationEnqueuedNotification()
         {
             OdinContext = odinContext,

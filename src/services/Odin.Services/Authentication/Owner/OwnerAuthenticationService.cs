@@ -216,7 +216,7 @@ namespace Odin.Services.Authentication.Owner
             {
                 var (masterKey, clientSharedSecret) = await GetMasterKeyAsync(token.Id, token.AccessTokenHalfKey);
 
-                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
+                var icrKey = await _icrKeyService.GetMasterKeyEncryptedIcrKeyAsync();
 
                 var allDrives = await _driveManager.GetDrives(PageOptions.All, odinContext, db);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()

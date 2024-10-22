@@ -26,7 +26,7 @@ public class PeerIncomingReactionService(
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, odinContext);
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
-        await reactionContentService.AddReaction(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.AddReactionAsync(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
@@ -34,7 +34,7 @@ public class PeerIncomingReactionService(
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
-        await reactionContentService.DeleteReaction(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.DeleteReactionAsync(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext,
@@ -43,7 +43,7 @@ public class PeerIncomingReactionService(
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
-        return await reactionContentService.GetReactionCountsByFile(fileId!.Value, odinContext, db);
+        return await reactionContentService.GetReactionCountsByFileAsync(fileId!.Value, odinContext, db);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
@@ -51,7 +51,7 @@ public class PeerIncomingReactionService(
         var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
-        return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId!.Value, odinContext, db);
+        return await reactionContentService.GetReactionsByIdentityAndFileAsync(request.Identity, fileId!.Value, odinContext, db);
     }
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
@@ -59,7 +59,7 @@ public class PeerIncomingReactionService(
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
-        await reactionContentService.DeleteAllReactions(fileId!.Value, odinContext, db);
+        await reactionContentService.DeleteAllReactionsAsync(fileId!.Value, odinContext, db);
     }
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
@@ -68,7 +68,7 @@ public class PeerIncomingReactionService(
 
         var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
         
-        var list = await reactionContentService.GetReactions(fileId!.Value, request.Cursor, request.MaxRecords, odinContext, db);
+        var list = await reactionContentService.GetReactionsAsync(fileId!.Value, request.Cursor, request.MaxRecords, odinContext, db);
 
         return new GetReactionsPerimeterResponse()
         {
