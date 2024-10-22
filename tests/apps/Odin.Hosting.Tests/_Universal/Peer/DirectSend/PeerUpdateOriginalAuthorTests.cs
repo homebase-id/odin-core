@@ -321,11 +321,11 @@ public class PeerUpdateOriginalAuthorTests
         IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
 
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.TomBombadil);
 
         await collabChannelOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await originalAuthor_OwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
