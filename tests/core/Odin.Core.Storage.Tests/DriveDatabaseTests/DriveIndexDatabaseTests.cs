@@ -385,7 +385,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
-                var (result, moreRows) = _testDatabase.metaIndex.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
+                var (result, moreRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(cursor.nextBoundaryCursor == null);
                 Debug.Assert(moreRows == false);
@@ -427,7 +427,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
-                var (result, moreRows) = _testDatabase.metaIndex.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, moreRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(cursor.nextBoundaryCursor == null);
                 Debug.Assert(new UnixTimeUtc(2000) == cursor.userDateStopAtBoundary);
@@ -467,7 +467,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
-                var (result, moreRows) = _testDatabase.metaIndex.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
+                var (result, moreRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(cursor.nextBoundaryCursor == null);
                 Debug.Assert(moreRows == false);
@@ -507,7 +507,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
                 QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
-                var (result, moreRows) = _testDatabase.metaIndex.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, moreRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(cursor.nextBoundaryCursor == null);
                 Debug.Assert(new UnixTimeUtc(-1000) == cursor.userDateStopAtBoundary);
@@ -892,15 +892,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
             }
@@ -928,15 +928,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
             }
@@ -964,15 +964,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
             }
@@ -1000,15 +1000,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
             }
@@ -1036,20 +1036,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
             }
         }
 
@@ -1074,22 +1074,22 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
-                Debug.Assert(cursor.userDatePagingCursor.Value.milliseconds == 42);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+                Debug.Assert(refCursor.userDatePagingCursor.Value.milliseconds == 42);
             }
         }
 
@@ -1115,20 +1115,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
             }
         }
 
@@ -1153,23 +1153,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 await _testDatabase.metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == true);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 1);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
 
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
-                Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
             }
         }
 
@@ -1197,11 +1197,11 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 // Check we get the oldest and newest items
 
                 QueryBatchCursor cursor = null;
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
 
                 cursor = null;
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             }
         }
@@ -1236,7 +1236,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(f3.ToByteArray());
 
                 // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
@@ -1249,7 +1249,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(f3.ToByteArray());
 
                 // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1291,7 +1291,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(t3, false);
 
                 // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
@@ -1304,7 +1304,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(t3, false);
 
                 // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1347,7 +1347,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
 
                 // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
@@ -1361,7 +1361,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
 
                 // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1398,13 +1398,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 var cursor = new QueryBatchCursor(f3.ToByteArray());
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
@@ -1416,13 +1416,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor = new QueryBatchCursor(f3.ToByteArray());
 
                 // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
@@ -1462,13 +1462,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 var cursor = new QueryBatchCursor(t3, false);
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                var (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                var (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 3);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
@@ -1480,13 +1480,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 cursor = new QueryBatchCursor(t3, false);
 
                 // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 2);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
                 // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-                (result, hasRows) = _testDatabase.metaIndex.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+                (result, hasRows, refCursor) = await _testDatabase.metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
                 Debug.Assert(result.Count == 0);
                 Debug.Assert(hasRows == false);
                 Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);

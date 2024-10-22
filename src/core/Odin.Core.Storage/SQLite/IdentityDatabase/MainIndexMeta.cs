@@ -218,9 +218,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
-        public (List<Guid>, bool moreRows) QueryBatch(Guid driveId,
+        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
             int noOfItems,
-            ref QueryBatchCursor cursor,
+            QueryBatchCursor cursor,
             bool newestFirstOrder,
             bool fileIdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -342,15 +342,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    // SEB:TODO make async
-                    using (var rdr = conn.ExecuteReaderAsync(cmd, CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(cmd, CommandBehavior.Default))
                     {
                         var result = new List<Guid>();
                         var _fileId = new byte[16];
                         long _userDate = 0;
 
                         int i = 0;
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             rdr.GetBytes(0, 0, _fileId, 0, 16);
                             result.Add(new Guid(_fileId));
@@ -370,11 +369,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                                 cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
                         }
 
-                        bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+                        bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
 
-                        return (result, HasMoreRows);
+                        return (result, hasMoreRows, cursor);
                     } // using rdr
-                } // lock
+                }
             } // using command
         }
 
@@ -415,9 +414,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
-            var (result, moreRows) =
-                QueryBatch(driveId, noOfItems,
-                    ref cursor,
+            var (result, moreRows, refCursor) = await
+                QueryBatchAsync(driveId, noOfItems,
+                    cursor,
                     newestFirstOrder: true,
                     fileIdSort: true,
                     fileSystemType,
@@ -447,22 +446,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    cursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
+                    refCursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
 
                 if (result.Count < noOfItems)
                 {
                     if (moreRows == false) // Advance the cursor
                     {
-                        if (cursor.nextBoundaryCursor != null)
+                        if (refCursor.nextBoundaryCursor != null)
                         {
-                            cursor.stopAtBoundary = cursor.nextBoundaryCursor;
-                            cursor.nextBoundaryCursor = null;
-                            cursor.pagingCursor = null;
+                            refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
+                            refCursor.nextBoundaryCursor = null;
+                            refCursor.pagingCursor = null;
                         }
                         else
                         {
-                            cursor.nextBoundaryCursor = null;
-                            cursor.pagingCursor = null;
+                            refCursor.nextBoundaryCursor = null;
+                            refCursor.pagingCursor = null;
                         }
                     }
 
@@ -473,7 +472,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2, cursor2) = await QueryBatchAutoAsync(driveId, noOfItems - result.Count, cursor,
+                    var (r2, moreRows2, refCursor2) = await QueryBatchAutoAsync(driveId, noOfItems - result.Count, refCursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -494,18 +493,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         // The r2 result set should be newer than the result set
                         r2.AddRange(result);
-                        return (r2, moreRows2, cursor2);
+                        return (r2, moreRows2, refCursor2);
                     }
                 }
             }
             else
             {
-                if (cursor.nextBoundaryCursor != null)
+                if (refCursor.nextBoundaryCursor != null)
                 {
-                    cursor.stopAtBoundary = cursor.nextBoundaryCursor;
-                    cursor.nextBoundaryCursor = null;
-                    cursor.pagingCursor = null;
-                    return await QueryBatchAutoAsync(driveId, noOfItems, cursor,
+                    refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
+                    refCursor.nextBoundaryCursor = null;
+                    refCursor.pagingCursor = null;
+                    return await QueryBatchAutoAsync(driveId, noOfItems, refCursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -521,12 +520,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 else
                 {
-                    cursor.nextBoundaryCursor = null;
-                    cursor.pagingCursor = null;
+                    refCursor.nextBoundaryCursor = null;
+                    refCursor.pagingCursor = null;
                 }
             }
 
-            return (result, moreRows, cursor);
+            return (result, moreRows, refCursor);
         }
 
         /// <summary>
