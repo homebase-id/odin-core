@@ -88,7 +88,7 @@ public class PeerUpdateOriginalAuthorTests
     {
         var debugTimeSpan = TimeSpan.FromMinutes(30);
 
-        var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
