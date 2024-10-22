@@ -758,7 +758,7 @@ namespace Odin.Services.Membership.Connections
                     foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
-                        if (alreadyEnabledCircle || circleDefinitionService.IsEnabled(appCg.CircleId))
+                        if (alreadyEnabledCircle || circleDefinitionService.IsEnabledAsync(appCg.CircleId))
                         {
                             if (!alreadyEnabledCircle)
                             {

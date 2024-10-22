@@ -65,12 +65,12 @@ namespace Odin.Services.Authorization.Apps
         /// <returns></returns>
         Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, IOdinContext odinContext);
 
-        Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, IOdinContext odinContext);
+        Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 
         /// <summary>
         /// Revokes a client from using the app
         /// </summary>
-        Task RevokeClient(GuidId accessRegistrationId, IOdinContext odinContext);
+        Task RevokeClientAsync(GuidId accessRegistrationId, IOdinContext odinContext);
 
         Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext);
 

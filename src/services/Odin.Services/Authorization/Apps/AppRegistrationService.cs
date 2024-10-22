@@ -216,7 +216,7 @@ namespace Odin.Services.Authorization.Apps
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
-            this.SaveClient(appClient);
+            this.SaveClientAsync(appClient);
             return (cat, appReg.CorsHostName);
         }
 
@@ -332,11 +332,11 @@ namespace Odin.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, IOdinContext odinContext)
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 
-            var list = _appClientValueStorage.GetByCategory<AppClient>(db, _appClientDataType);
+            var list = await _appClientValueStorage.GetByCategoryAsync<AppClient>(db, _appClientDataType);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
@@ -347,15 +347,15 @@ namespace Odin.Services.Authorization.Apps
                 AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
-            return await Task.FromResult(resp);
+            return resp;
         }
 
-        public async Task RevokeClient(GuidId accessRegistrationId, IOdinContext odinContext)
+        public async Task RevokeClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 
             odinContext.Caller.AssertHasMasterKey();
-            var client = _appClientValueStorage.Get<AppClient>(db, accessRegistrationId);
+            var client = await _appClientValueStorage.GetAsync<AppClient>(db, accessRegistrationId);
 
             if (null == client)
             {
@@ -363,8 +363,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             client.AccessRegistration.IsRevoked = true;
-            SaveClient(client);
-            await Task.CompletedTask;
+            await SaveClientAsync(client);
         }
 
         /// <summary>
@@ -427,7 +426,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             client.AccessRegistration.IsRevoked = false;
-            SaveClient(client);
+            SaveClientAsync(client);
             await Task.CompletedTask;
         }
 
@@ -474,11 +473,11 @@ namespace Odin.Services.Authorization.Apps
             return await Task.FromResult(redactedList);
         }
 
-        private void SaveClient(AppClient appClient)
+        private async Task SaveClientAsync(AppClient appClient)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
 
-            _appClientValueStorage.Upsert(db, appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
+            await _appClientValueStorage.UpsertAsync(db, appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
         private async Task<AppRegistration?> GetAppRegistrationInternal(GuidId appId)

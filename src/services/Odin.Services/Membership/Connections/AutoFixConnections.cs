@@ -46,7 +46,7 @@ namespace Odin.Services.Membership.Connections
             {
                 var circleId = circleGrant.Value.CircleId;
                 
-                var def = circleDefinitionService.GetCircle(circleId);
+                var def = circleDefinitionService.GetCircleAsync(circleId);
                 logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
                 
                 await circleNetworkService.RevokeCircleAccess(circleId, icr.OdinId, odinContext);

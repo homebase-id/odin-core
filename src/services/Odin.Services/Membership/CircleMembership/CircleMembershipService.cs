@@ -249,7 +249,7 @@ public class CircleMembershipService(
     public CircleDefinition GetCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-        return circleDefinitionService.GetCircle(circleId);
+        return circleDefinitionService.GetCircleAsync(circleId);
     }
 
     public async Task AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrants)
@@ -261,14 +261,14 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.Update(circleDef);
+        await circleDefinitionService.UpdateAsync(circleDef);
     }
 
     public async Task Delete(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await circleDefinitionService.Delete(circleId);
+        await circleDefinitionService.DeleteAsync(circleId);
     }
 
     /// <summary>
@@ -281,7 +281,7 @@ public class CircleMembershipService(
         var circle = this.GetCircle(circleId, odinContext);
         circle.Disabled = true;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.Update(circle);
+        await circleDefinitionService.UpdateAsync(circle);
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ public class CircleMembershipService(
         var circle = this.GetCircle(circleId, odinContext);
         circle.Disabled = false;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        await circleDefinitionService.Update(circle);
+        await circleDefinitionService.UpdateAsync(circle);
     }
 
     /// <summary>
@@ -310,7 +310,7 @@ public class CircleMembershipService(
 
     private bool CircleIsEnabled(GuidId circleId, out bool exists)
     {
-        var circle = circleDefinitionService.GetCircle(circleId);
+        var circle = circleDefinitionService.GetCircleAsync(circleId);
         exists = circle != null;
         return !circle?.Disabled ?? false;
     }

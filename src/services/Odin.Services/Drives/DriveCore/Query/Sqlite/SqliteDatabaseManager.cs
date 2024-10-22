@@ -25,7 +25,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public StorageDrive Drive { get; init; } = drive;
 
-    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType,
+    public async Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCoreAsync(IOdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options, IdentityDatabase db)
     {
         var callerContext = odinContext.Caller;
@@ -35,10 +35,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
         // TODO TODD - use moreRows
-        var (results, moreRows) = _db.metaIndex.QueryModified(
+        (var results, var moreRows, cursor) = await _db.metaIndex.QueryModifiedAsync(
             Drive.Id,
             noOfItems: options.MaxRecords,
-            cursor: ref cursor,
+            cursor,
             fileSystemType: (Int32)fileSystemType,
             stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
             requiredSecurityGroup: requiredSecurityGroup,
@@ -53,11 +53,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
-        return Task.FromResult((cursor.uniqueTime, results.AsEnumerable(), moreRows));
+        return (cursor.uniqueTime, results.AsEnumerable(), moreRows);
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext,
+    public async Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCoreAsync(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, IdentityDatabase db)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
@@ -66,10 +66,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         if (options.Ordering == Ordering.Default)
         {
-            var (results, moreRows) = _db.metaIndex.QueryBatchAuto(
+            (var results, var moreRows, cursor) = await _db.metaIndex.QueryBatchAutoAsync(
                 Drive.Id,
                 noOfItems: options.MaxRecords,
-                cursor: ref cursor,
+                cursor,
                 fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
                 fileSystemType: (Int32)fileSystemType,
                 requiredSecurityGroup: securityRange,
@@ -85,11 +85,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
                 archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
-            return Task.FromResult((cursor, results.Select(r => r), moreRows));
+            return (cursor, results.Select(r => r), moreRows);
         }
 
         // if the caller was explicit in how they want results...
-        return GetBatchExplicitOrdering(odinContext, fileSystemType, qp, options, db);
+        return await GetBatchExplicitOrderingAsync(odinContext, fileSystemType, qp, options, db);
     }
 
     private List<Guid> GetAcl(IOdinContext odinContext)
@@ -402,7 +402,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public async Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(int maxCount, int cursor, Guid fileId, IdentityDatabase db)
     {
-        var items = _db.tblDriveReactions.PagingByRowid(db, maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
+        var (items, nextCursor) = await _db.tblDriveReactions.PagingByRowidAsync(db, maxCount, inCursor: cursor, driveId: Drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
@@ -420,47 +420,47 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         return (results, nextCursor);
     }
 
-    public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(IdentityDatabase db)
+    public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(IdentityDatabase db)
     {
-        var (count, size) = _db.tblDriveMainIndex.GetDriveSizeDirty(Drive.Id);
-        return Task.FromResult((count, size));
+        var (count, size) = await _db.tblDriveMainIndex.GetDriveSizeDirtyAsync(Drive.Id);
+        return (count, size);
     }
 
-    public async Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db)
+    public async Task<Guid?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db)
     {
-        var record = _db.tblDriveMainIndex.GetByGlobalTransitId(driveId, globalTransitId);
+        var record = await _db.tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
         if (null == record)
         {
-            return Task.FromResult((Guid?)null);
+            return null;
         }
 
         if (record.fileSystemType == (int)fileSystemType)
         {
-            return Task.FromResult((Guid?)record.fileId);
+            return record.fileId;
         }
 
-        return Task.FromResult((Guid?)null);
+        return null;
     }
 
-    public async Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db)
+    public async Task<Guid?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db)
     {
-        var record = _db.tblDriveMainIndex.GetByUniqueId(driveId, uniqueId);
+        var record = await _db.tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
 
         if (null == record)
         {
-            return Task.FromResult((Guid?)null);
+            return null;
         }
 
         if (record.fileSystemType == (int)fileSystemType)
         {
-            return Task.FromResult((Guid?)record.fileId);
+            return record.fileId;
         }
 
-        return Task.FromResult((Guid?)null);
+        return null;
     }
 
 
-    private async Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
+    private async Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options, IdentityDatabase db)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
@@ -469,10 +469,10 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var cursor = options.Cursor;
 
-        var (results, hasMoreRows) = _db.metaIndex.QueryBatch(
+        (var results, var hasMoreRows, cursor) = await _db.metaIndex.QueryBatchAsync(
             Drive.Id,
             noOfItems: options.MaxRecords,
-            cursor: ref cursor,
+            cursor,
             fileIdSort: options.Sorting == Sorting.FileId,
             newestFirstOrder: options.Ordering == Ordering.NewestFirst,
             fileSystemType: (Int32)fileSystemType,
@@ -490,6 +490,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
+        return (cursor, results.Select(r => r), hasMoreRows);
     }
 }
 

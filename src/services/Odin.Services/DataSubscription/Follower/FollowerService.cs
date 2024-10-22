@@ -221,14 +221,14 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
+            var (dbResults, nextCursor) = await _tenantStorage.Followers.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
                 Results = dbResults.Select(ident => new OdinId(ident))
             };
 
-            return await Task.FromResult(result);
+            return result;
         }
 
         /// <summary>
@@ -238,7 +238,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            var (dbResults, nextCursor) = await _tenantStorage.Followers.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -246,7 +246,7 @@ namespace Odin.Services.DataSubscription.Follower
                 Results = dbResults.Select(ident => new OdinId(ident))
             };
 
-            return await Task.FromResult(result);
+            return result;
         }
 
         /// <summary>
@@ -256,13 +256,13 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowersAsync(DefaultMax(max), cursor, out var nextCursor);
+            var (dbResults, nextCursor) = await _tenantStorage.WhoIFollow.GetAllFollowersAsync(DefaultMax(max), cursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
                 Results = dbResults
             };
-            return await Task.FromResult(result);
+            return result;
         }
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollowAsync(Guid driveAlias, int max, string cursor, IOdinContext odinContext)
@@ -277,7 +277,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowersAsync(DefaultMax(max), driveAlias, cursor, out var nextCursor);
+            var (dbResults, nextCursor) = await _tenantStorage.WhoIFollow.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -555,12 +555,12 @@ namespace Odin.Services.DataSubscription.Follower
             return httpClient;
         }
 
-        private Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
+        private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
+            var dbRecords = await _tenantStorage.WhoIFollow.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
-                return Task.FromResult<FollowerDefinition>(null);
+                return null;
             }
 
             if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
@@ -575,14 +575,14 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (dbRecords.All(r => r.driveId == Guid.Empty))
             {
-                return Task.FromResult(new FollowerDefinition()
+                return new FollowerDefinition()
                 {
                     OdinId = odinId,
                     NotificationType = FollowerNotificationType.AllNotifications
-                });
+                };
             }
 
-            return Task.FromResult(new FollowerDefinition()
+            return new FollowerDefinition()
             {
                 OdinId = odinId,
                 NotificationType = FollowerNotificationType.SelectedChannels,
@@ -591,12 +591,12 @@ namespace Odin.Services.DataSubscription.Follower
                     Alias = record.driveId,
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
-            });
+            };
         }
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.Followers.Get(odinId);
+            var dbRecords = await _tenantStorage.Followers.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
@@ -632,7 +632,7 @@ namespace Odin.Services.DataSubscription.Follower
                 }).ToList()
             };
 
-            return await Task.FromResult(result);
+            return result;
         }
     }
 }
