@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 
-// THIS FILE IS AUTO GENERATED 2024-10-17T08:51:14.6515248Z - DO NOT EDIT
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -586,8 +586,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        internal List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId, string inCursor, out string nextCursor)
+        internal async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(DatabaseConnection conn, int count, Guid identityId, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -613,16 +612,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging2Param3.Value = identityId.ToByteArray();
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging2Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
+                        string nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].identity;
                         }
@@ -630,14 +630,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 
         } // PagingGet
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        internal List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Guid identityId,Int32 status, string inCursor, out string nextCursor)
+        internal async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(DatabaseConnection conn, int count, Guid identityId,Int32 status, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -667,16 +666,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging2Param4.Value = status;
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging2Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
+                        string nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].identity;
                         }
@@ -684,14 +684,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 
         } // PagingGet
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        internal List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(DatabaseConnection conn, int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -721,16 +720,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging7Param4.Value = status;
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
+                        UnixTimeUtcUnique? nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].created;
                         }
@@ -738,14 +738,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 
         } // PagingGet
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        internal List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -771,16 +770,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging7Param3.Value = identityId.ToByteArray();
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
+                        UnixTimeUtcUnique? nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].created;
                         }
@@ -788,7 +788,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 

@@ -294,7 +294,7 @@ namespace Odin.Core.Storage.Tests
             await db.CreateDatabaseAsync(true);
             var kv = new KeyValueRecord { identityId = db._identityId, key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
 
-            using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
+            using var cn = db.CreateDisposableConnection();
             await db.tblKeyValue.InsertAsync(cn, kv);
             Assert.That(await CountAsync(cn), Is.EqualTo(1));
 

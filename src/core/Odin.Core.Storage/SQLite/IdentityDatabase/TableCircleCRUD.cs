@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 
-// THIS FILE IS AUTO GENERATED 2024-10-17T08:51:14.6488128Z - DO NOT EDIT
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -432,7 +432,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         var result = new List<CircleRecord>();
                         Guid? nextCursor;
-                        
                         int n = 0;
                         while ((n < count) && await rdr.ReadAsync())
                         {
@@ -440,14 +439,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
                         if ((n > 0) && await rdr.ReadAsync())
-                        { 
-                            nextCursor = result[n - 1].circleId;
+                        {
+                                nextCursor = result[n - 1].circleId;
                         }
                         else
                         {
                             nextCursor = null;
                         }
-                        
                         return (result, nextCursor);
                     } // using
                 } //

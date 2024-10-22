@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 
-// THIS FILE IS AUTO GENERATED 2024-10-17T08:51:14.6616630Z - DO NOT EDIT
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 [assembly: InternalsVisibleTo("DatabaseConnectionTests")]

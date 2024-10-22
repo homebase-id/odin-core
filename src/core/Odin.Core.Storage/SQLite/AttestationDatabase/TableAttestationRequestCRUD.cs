@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 
-// THIS FILE IS AUTO GENERATED 2024-10-17T08:51:14.6457091Z - DO NOT EDIT
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
@@ -342,8 +342,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // using
         }
 
-        // SEB:TODO make this method async. It takes a bit of elbow grease because of the out parameter.
-        public List<AttestationRequestRecord> PagingByAttestationId(DatabaseConnection conn, int count, string inCursor, out string nextCursor)
+        public async Task<(List<AttestationRequestRecord>, string nextCursor)> PagingByAttestationIdAsync(DatabaseConnection conn, int count, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -365,16 +364,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 getPaging1Param2.Value = count+1;
 
                 {
-                    using (var rdr = conn.ExecuteReaderAsync(getPaging1Command, System.Data.CommandBehavior.Default).Result)
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging1Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AttestationRequestRecord>();
+                        string nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].attestationId;
                         }
@@ -382,7 +382,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 

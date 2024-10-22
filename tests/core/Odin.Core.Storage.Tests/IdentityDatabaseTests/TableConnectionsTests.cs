@@ -53,16 +53,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 // We have three connections, get the first two in the first page, then the last page of one
                 //
-                var r = db.tblConnections.PagingByIdentity(2, null, out var outCursor);
+                var (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, null);
                 Debug.Assert(r.Count == 2);
 
-                r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, outCursor);
                 Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
                 Debug.Assert(outCursor == null);
 
 
                 // Try the filter ones
-                r = db.tblConnections.PagingByIdentity(2, 42, null, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, 42, null);
                 Debug.Assert(r.Count == 1);
             }
         }
@@ -178,23 +178,23 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 // Test the CRUD 
 
                 // Get most recent (will be a different order)
-                var r = db.tblConnections.PagingByCreated(2, null, out var timeCursor);
+                var (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(r[1].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor != null);
-                r = db.tblConnections.PagingByCreated(2, timeCursor, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, timeCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(timeCursor == null);
 
 
                 // TEST THE HANDCODED
-                r = db.tblConnections.PagingByCreated(1, 42, null, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(1, 42, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(timeCursor != null);
-                r = db.tblConnections.PagingByCreated(2, 42, timeCursor, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, 42, timeCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(timeCursor == null);
@@ -245,36 +245,36 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 await db.tblConnections.UpsertAsync(item3);
 
 
-                var r = db.tblConnections.PagingByIdentity(2, null, out var outCursor);
+                var (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(r[1].identity == "gandalf.white.me");
 
-                r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, outCursor);
                 Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
                 Debug.Assert(r[0].identity == "samwise.gamgee.me");
                 Debug.Assert(outCursor == null);
 
                 // TEST HAND CODED STATUS FILTER
-                r = db.tblConnections.PagingByIdentity(1, 42, null, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(1, 42, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(outCursor != null);
-                r = db.tblConnections.PagingByIdentity(1, 42, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(1, 42, outCursor);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(outCursor == null);
 
 
 
                 // Get most recent (will be a different order)
-                r = db.tblConnections.PagingByCreated(2, null, out var timeCursor);
+                (r, var timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(r[1].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor != null);
 
                 // TEST THE HANDCODED
-                r = db.tblConnections.PagingByCreated(2, 43, null, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, 43, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor == null);

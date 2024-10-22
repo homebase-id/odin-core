@@ -52,13 +52,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 i = await db.tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
                 Debug.Assert(i == 1);
 
-                var results = db.tblAppNotificationsTable.PagingByCreated(1, null, out var cursor2);
+                var (results, cursor2) = await db.tblAppNotificationsTable.PagingByCreatedAsync(1, null);
 
                 Debug.Assert(results.Count == 1);
                 Debug.Assert(cursor2 != null);
                 Debug.Assert(cursor2.Value.uniqueTime == results[0].created.uniqueTime);
 
-                results = db.tblAppNotificationsTable.PagingByCreated(1, cursor2, out cursor2);
+                (results, cursor2) = await db.tblAppNotificationsTable.PagingByCreatedAsync(1, cursor2);
 
                 Debug.Assert(results.Count == 1);
                 Debug.Assert(cursor2 == null);

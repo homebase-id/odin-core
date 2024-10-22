@@ -34,12 +34,10 @@ public class TableAppNotifications: TableAppNotificationsCRUD
         return await base.UpdateAsync(myc, item);
     }
 
-    public List<AppNotificationsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+    public async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
     {
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.PagingByCreated(myc, count, _db._identityId, inCursor, out nextCursor);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.PagingByCreatedAsync(myc, count, _db._identityId, inCursor);
     }
 
     public async Task<int> DeleteAsync(Guid notificationId)
