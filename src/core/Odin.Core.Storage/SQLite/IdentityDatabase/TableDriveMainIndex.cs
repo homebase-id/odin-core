@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -12,7 +13,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private readonly IdentityDatabase _db;
 
-        public TableDriveMainIndex(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableDriveMainIndex(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
             _db = db;
         }
@@ -107,7 +108,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 
-            using (var _upsertCommand = _database.CreateCommand())
+            using (var _upsertCommand = conn.db.CreateCommand())
             {
                 _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
@@ -223,7 +224,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 _upsertParam26.Value = now.uniqueTime;
                 _upsertParam27.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                     if (rdr.Read())
                     {
@@ -244,7 +245,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public int UpdateReactionSummary(Guid driveId, Guid fileId, string reactionSummary)
         {
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = _db.CreateCommand())
             {
                 _updateCommand.CommandText =
                     $"UPDATE driveMainIndex SET modified=@modified,hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
@@ -267,13 +268,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateCommand.Parameters.Add(_sparam4);
                 _updateCommand.Parameters.Add(_sparam5);
 
-                _sparam1.Value = _db._identityId.ToByteArray();
+                _sparam1.Value = this._db._identityId.ToByteArray();
                 _sparam2.Value = driveId.ToByteArray();
                 _sparam3.Value = fileId.ToByteArray();
                 _sparam4.Value = reactionSummary;
                 _sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
-                using (var conn = _db.CreateDisposableConnection())
+                using (var conn = this._db.CreateDisposableConnection())
                 {
                     return conn.ExecuteNonQuery(_updateCommand);
                 }
@@ -282,7 +283,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public int UpdateTransferHistory(Guid driveId, Guid fileId, string transferHistory)
         {
-            using (var _updateCommand = _database.CreateCommand())
+            using (var _updateCommand = _db.CreateCommand())
             {
                 _updateCommand.CommandText =
                     $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
@@ -321,7 +322,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public (Int64, Int64) GetDriveSizeDirty(Guid driveId)
         {
-            using (var _sizeCommand = _database.CreateCommand())
+            using (var _sizeCommand = _db.CreateCommand())
             {
                 _sizeCommand.CommandText =
                     $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=$identityId AND driveid=$driveId; PRAGMA read_uncommitted = 0;";
@@ -339,7 +340,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
+                    using (var rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                         {
@@ -361,7 +362,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="fileId">Item to touch</param>
         internal int TestTouch(Guid driveId, Guid fileId)
         {
-            using (var _touchCommand = _database.CreateCommand())
+            using (var _touchCommand = _db.CreateCommand())
             {
                 _touchCommand.CommandText =
                     $"UPDATE drivemainindex SET modified=$modified WHERE identityId = $identityId AND driveId = $driveId AND fileid = $fileid;";

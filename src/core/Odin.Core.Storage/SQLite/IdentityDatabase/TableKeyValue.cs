@@ -7,7 +7,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     {
         private readonly IdentityDatabase _db;
 
-        public TableKeyValue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
+        public TableKeyValue(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
             _db = db;
         }
