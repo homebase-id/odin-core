@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -42,6 +44,18 @@ public class SingleKeyValueStorage
         }
 
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
+    }
+
+    public async Task UpsertManyAsync<T>(IdentityDatabase db, List<(Guid key, T value)> keyValuePairs)
+    {
+        var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
+        {
+            key = MakeStorageKey(pair.key),
+            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray(),
+            identityId = db._identityId
+        }).ToList();
+
+        await db.tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
     public async Task UpsertAsync<T>(IdentityDatabase db, Guid key, T value)

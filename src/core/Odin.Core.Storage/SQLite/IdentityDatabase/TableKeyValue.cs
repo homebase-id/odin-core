@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
@@ -12,9 +13,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        public new Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        public new async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            return base.GetCountDirtyAsync(conn);
+            return await base.GetCountDirtyAsync(conn);
         }
 
         public async Task<KeyValueRecord> GetAsync(byte[] key)
@@ -39,6 +40,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             item.identityId = _db._identityId;
             using var conn = _db.CreateDisposableConnection();
             return await base.UpsertAsync(conn, item);
+        }
+
+        public async Task<int> UpsertManyAsync(List<KeyValueRecord> items)
+        {
+            int affectedRows = 0;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
+                {
+                    foreach (var item in items)
+                    {
+                        item.identityId = _db._identityId;
+                        affectedRows += await base.UpsertAsync(conn, item);
+                    }
+                });
+            }
+            return affectedRows;
         }
 
         public async Task<int> UpdateAsync(KeyValueRecord item)
