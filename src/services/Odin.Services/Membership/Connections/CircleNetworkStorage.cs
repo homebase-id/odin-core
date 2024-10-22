@@ -155,7 +155,7 @@ public class CircleNetworkStorage
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
         _tenantSystemStorage.Connections.Update(record);
     }
-    
+
     public void UpdateClientAccessToken(OdinId identity, ConnectionStatus status, EncryptedClientAccessToken encryptedCat)
     {
         var existingRecord = this.Get(identity);
@@ -164,6 +164,16 @@ public class CircleNetworkStorage
         icrAccessRecord.EncryptedClientAccessToken = encryptedCat.EncryptedData;
         icrAccessRecord.WeakClientAccessToken = null;
 
+        var record = ToConnectionsRecord(identity, status, icrAccessRecord);
+        _tenantSystemStorage.Connections.Update(record);
+    }
+
+    public void UpdateVerificationHash(OdinId identity, ConnectionStatus status, byte[] hash)
+    {
+        var existingRecord = this.Get(identity);
+        var icrAccessRecord = MapToStorageIcrAccessRecord(existingRecord);
+
+        icrAccessRecord.VerificationHash64 = hash.ToBase64();
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
         _tenantSystemStorage.Connections.Update(record);
     }
@@ -275,7 +285,7 @@ public class CircleNetworkStorage
             VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()
         };
     }
-    
+
     private static ConnectionsRecord ToConnectionsRecord(OdinId odinId, ConnectionStatus status, IcrAccessRecord icrAccessRecord)
     {
         // Clearing these so they are not serialized on
@@ -312,7 +322,6 @@ public class CircleNetworkStorage
         };
         return icrAccessRecord;
     }
-
 }
 
 public class IcrKeyRecord
@@ -338,6 +347,6 @@ public class IcrAccessRecord
     public ContactRequestData OriginalContactData { get; set; }
     public string IntroducerOdinId { get; init; }
 
-    public string VerificationHash64 { get; init; }
+    public string VerificationHash64 { get; set; }
     public string ConnectionOrigin { get; init; }
 }

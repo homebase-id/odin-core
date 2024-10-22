@@ -842,8 +842,8 @@ namespace Odin.Services.Membership.Connections
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
-                icr.VerificationHash = hash;
-                await this.SaveIcr(icr, odinContext);
+                _storage.UpdateVerificationHash(icr.OdinId, icr.Status, hash);
+                
                 return true;
             }
 
@@ -1153,7 +1153,7 @@ namespace Odin.Services.Membership.Connections
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
-                
+
                 _storage.UpdateClientAccessToken(identity.OdinId, identity.Status, encryptedCat);
             }
         }
