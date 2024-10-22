@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -51,6 +52,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 return base.Upsert(conn, item);
             }
+        }
+
+        public int UpsertMany(List<KeyValueRecord> items)
+        {
+            int affectedRows = 0;
+
+            using (var conn = _db.CreateDisposableConnection())
+            {
+                conn.CreateCommitUnitOfWork(() =>
+                {
+                    foreach (var item in items)
+                    {
+                        item.identityId = _db._identityId;
+                        affectedRows += base.Upsert(conn, item);
+                    }
+                });
+            }
+            return affectedRows;
         }
 
         public int Update(KeyValueRecord item)

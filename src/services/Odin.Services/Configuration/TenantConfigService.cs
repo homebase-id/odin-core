@@ -249,12 +249,14 @@ public class TenantConfigService
 
         // TODO CONNECTIONS
         // db.CreateCommitUnitOfWork(() => {
-        _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
-        _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
+
+        var keyValuePairs = new List<(Guid key, object value)>
         {
-            FirstRunDate = UnixTimeUtc.Now().milliseconds
-        });
-        // });
+            (TenantSettings.ConfigKey, TenantSettings.Default),
+            (FirstRunInfo.Key, new FirstRunInfo() { FirstRunDate = UnixTimeUtc.Now().milliseconds })
+        };
+
+        _configStorage.UpsertMany(db, keyValuePairs);
     }
 
     public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext)
