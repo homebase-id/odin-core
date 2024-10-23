@@ -45,6 +45,7 @@ using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
 namespace Odin.Hosting
@@ -231,6 +232,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
 
+            cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
+            
+            
             // Background services
             cb.AddTenantBackgroundServices(tenant);
         }

@@ -7,12 +7,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken.Shared;
 using Odin.Services.AppNotifications.WebSocket;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
-    [AuthorizeValidAppToken]
+    [AuthorizeValidGuestToken]
     [Route(AppApiPathConstants.PeerNotificationsV1)]
     public class PeerAppNotificationSocketController(
         PeerAppNotificationHandler notificationHandler,
@@ -52,7 +53,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
         [HttpPost("preauth")]
         public IActionResult SocketPreAuth()
         {
-            //this only exists so we can use the [AuthorizeValidAppExchangeGrant] attribute to trigger the clienttokenauthhandler
+            //this only exists so we can use the [AuthorizeValidGuestToken] attribute to trigger the clienttokenauthhandler
             return Ok();
         }
     }
