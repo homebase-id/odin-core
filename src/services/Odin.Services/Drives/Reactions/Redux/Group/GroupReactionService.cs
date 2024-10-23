@@ -144,7 +144,7 @@ public class GroupReactionService(
         IdentityDatabase db,
         FileSystemType fileSystemType)
     {
-        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
         if (null == clientAuthToken)
         {
             return TransferStatus.EnqueuedFailed;
@@ -175,7 +175,7 @@ public class GroupReactionService(
             }
         };
 
-        await peerOutbox.AddItem(outboxItem, db, useUpsert: true);
+        await peerOutbox.AddItem(outboxItem, useUpsert: true);
         return TransferStatus.Enqueued;
     }
 }

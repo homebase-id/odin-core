@@ -25,6 +25,7 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
+    CannotGrantAutoConnectedMoreCircles = 3010,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -70,9 +71,12 @@ public enum OdinClientErrorCode
 
 
     // Connection errors 50xx
-    CannotSendConnectionRequestToExistingIncomingRequest = 5001,
-    CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
+    NotAnAutoConnection = 5001,
+    IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
+    BlockedConnection = 5004,
+    CannotSendConnectionRequestToValidConnection = 5005, 
+    RemoteServerMissingOutgoingRequest = 5006,
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
@@ -97,4 +101,6 @@ public enum OdinClientErrorCode
     NotInitialized = 9002,
     UnknownFlagName = 9003,
     InvalidOrExpiredRsaKey = 9004,
+    MissingVerificationHash = 9005,
+    PasswordAlreadySet = 9006
 }

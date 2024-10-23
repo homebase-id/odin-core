@@ -6,14 +6,6 @@ namespace Odin.Services.Authorization.ExchangeGrants
 {
     public class EncryptedClientAccessToken
     {
-        // public Guid Id { get; set; }
-
-        // public SymmetricKeyEncryptedAes AccessTokenHalfKey { get; set; }
-        //
-        // public SymmetricKeyEncryptedAes SharedSecret { get; set; }
-
-        // public ClientTokenType ClientTokenType { get; set; }
-        
         public SymmetricKeyEncryptedAes EncryptedData { get; set; }
 
         public ClientAccessToken Decrypt(SensitiveByteArray key)

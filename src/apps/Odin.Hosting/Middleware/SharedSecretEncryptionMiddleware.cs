@@ -17,11 +17,9 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Peer;
-using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Middleware
 {
@@ -62,15 +60,19 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
+                $"{OwnerApiPathConstants.DriveV1}/files/update",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{GuestApiPathConstants.PeerSenderV1}/files/send",
+                $"{GuestApiPathConstants.DriveV1}/files/update",
 
                 $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{AppApiPathConstants.DriveV1}/files/update",
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth"
             };
@@ -98,7 +100,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
-                
+
                 $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
                 $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
 
@@ -126,7 +128,7 @@ namespace Odin.Hosting.Middleware
             {
                 using (var responseStream = new MemoryStream())
                 {
-                    //create a separate response stream to collect all of the content being written
+                    //create a separate response stream to collect all the content being written
                     var originalBody = context.Response.Body;
                     context.Response.Body = responseStream;
 
@@ -171,6 +173,17 @@ namespace Odin.Hosting.Middleware
                     if (_logger.IsEnabled(LogLevel.Trace))
                     {
                         _logger.LogTrace("qs: {querystring}", request.QueryString.ToString());
+                    }
+                }
+                else if (request.Method.ToUpper() == "DELETE")
+                {
+                    // Some hand-holding for delete verbs; i don't understand why i have to do this, however.
+                    var bytes = request.Body.ToByteArray();
+                    if (bytes.Length > 0)
+                    {
+                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(bytes), this.GetSharedSecret(context), context.RequestAborted);
+                        //update the body with the decrypted json file so it can be read down stream as expected
+                        request.Body = new MemoryStream(decryptedBytes);
                     }
                 }
                 else
@@ -220,6 +233,7 @@ namespace Odin.Hosting.Middleware
                 OdinSystemSerializer.JsonSerializerOptions);
 
             // context.Response.Headers.Append("X-SSE", "1");
+            context.Response.Headers.ContentType = "application/json";
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 

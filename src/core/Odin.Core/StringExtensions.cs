@@ -1,3 +1,5 @@
+using System;
+
 namespace Odin.Core
 {
     public static class StringExtensions
@@ -6,7 +8,12 @@ namespace Odin.Core
         {
             return System.Text.Encoding.UTF8.GetBytes(str);
         }
-        
+
+        public static byte[] FromBase64(this string str)
+        {
+            return Convert.FromBase64String(str);
+        }
+
         public static string Reverse(this string str)
         {
             var charArray = str.ToCharArray();

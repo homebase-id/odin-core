@@ -63,6 +63,7 @@ public class IdentitiesIFollowAuthenticationService
             return dotYouContext;
         });
 
+        // return await creator();
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
@@ -80,9 +81,4 @@ public class IdentitiesIFollowAuthenticationService
         return (cc, permissionContext);
     }
 
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
-    {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
-        return Task.CompletedTask;
-    }
 }

@@ -12,10 +12,8 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
-using Odin.Services.Certificate;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.Drives.Management;
@@ -211,6 +209,12 @@ public class DriveManager
         return await Task.FromResult(drive);
     }
 
+    public async Task<StorageDrive> GetDrive(TargetDrive targetDrive, IdentityDatabase db, bool failIfInvalid = false)
+    {
+        var driveId =await  this.GetDriveIdByAlias(targetDrive, db, failIfInvalid);
+        return await  this.GetDrive(driveId.GetValueOrDefault(), db, failIfInvalid);
+    }
+    
     public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, IdentityDatabase db, bool failIfInvalid = false)
     {
         var cachedDrive = _driveCache.SingleOrDefault(d => d.Value.TargetDriveInfo == targetDrive).Value;

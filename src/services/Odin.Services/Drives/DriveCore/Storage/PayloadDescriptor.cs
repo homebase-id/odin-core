@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Time;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -27,14 +29,14 @@ public class PayloadDescriptor
     public string ContentType { get; set; }
 
     public long BytesWritten { get; set; }
-    
+
     public UnixTimeUtc LastModified { get; set; }
-    
+
     /// <summary>
     /// Content describing this payload (in what ever format you want)
     /// </summary>
     public string DescriptorContent { get; set; }
-    
+
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
@@ -47,17 +49,16 @@ public class PayloadDescriptor
     /// and changes each time you upload a new payload with this key
     /// </summary>
     public UnixTimeUtcUnique Uid { get; set; }
-    
+
     public string GetLastModifiedHttpHeaderValue()
     {
         return LastModified.ToDateTime().ToString("R");
     }
-    
+
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));
-        var hasValidKey = !(string.IsNullOrEmpty(Key) || string.IsNullOrWhiteSpace(Key));
+        var hasValidKey = DriveFileUtility.IsValidPayloadKey(Key);
         return hasValidKey && hasValidContentType;
     }
 }
-

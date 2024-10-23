@@ -20,7 +20,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
     {
@@ -119,7 +119,6 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
-
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors()
