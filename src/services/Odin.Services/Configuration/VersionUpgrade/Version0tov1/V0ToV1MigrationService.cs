@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
@@ -60,6 +61,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             odinContext.Caller.AssertHasMasterKey();
 
             //
+            // Clean up old circle (from development)
+            //
+            await DeleteOldCircles(odinContext);
+
+            //
             // Generate new Online Icr Encrypted ECC Key
             //
             logger.LogDebug("Creating new Online Icr Encrypted ECC Key");
@@ -106,6 +112,34 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 }
             }
             //);
+        }
+
+        private async Task DeleteOldCircles(IOdinContext odinContext)
+        {
+            try
+            {
+                Guid confirmedCircleGuid = Guid.Parse("ba4f80d2eac44b31afc1a3dfe7043411");
+                var definition = circleDefinitionService.GetCircle(confirmedCircleGuid);
+                if (definition == null)
+                {
+                    return;
+                }
+
+                logger.LogDebug("Deleting obsolete circle {name}", definition.Name);
+
+                var members = await circleNetworkService.GetCircleMembers(confirmedCircleGuid, odinContext);
+
+                foreach (var member in members)
+                {
+                    await circleNetworkService.RevokeCircleAccess(confirmedCircleGuid, member, odinContext);
+                }
+
+                await circleNetworkService.DeleteCircleDefinition(confirmedCircleGuid, odinContext);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Error while deleting obsolete circles");
+            }
         }
 
         private async Task UpdateApp(AppRegistrationRequest request, IOdinContext odinContext)
