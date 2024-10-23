@@ -13,25 +13,19 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
-using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 #nullable enable
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
     public class PeerAppNotificationHandler(
-        PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
-        ILogger<PeerAppNotificationHandler> logger,
-        TenantSystemStorage tenantSystemStorage)
-        :
-            INotificationHandler<IClientNotification>,
-            INotificationHandler<IDriveNotification>,
-            INotificationHandler<InboxItemReceivedNotification>
+        ILogger<PeerAppNotificationHandler> logger) :
+        INotificationHandler<IClientNotification>,
+        INotificationHandler<IDriveNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection = new();
 
@@ -40,7 +34,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken, IOdinContext odinContext)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -57,9 +52,10 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 // ignore, this exception is expected when the socket is closing behind the scenes
             }
-            catch (WebSocketException e) when (e.Message == "The remote party closed the WebSocket connection without completing the close handshake.")
+            catch (WebSocketException e) when (e.Message ==
+                                               "The remote party closed the WebSocket connection without completing the close handshake.")
             {
-                // ignore, this exception is expected when the client doesn't play by the rules
+                // ignore, this exception is expected when the client doesn't play by the rules; yea!  the rulez
             }
             catch (Exception e)
             {
@@ -164,7 +160,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
             var shouldEncrypt =
-                !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted or ClientNotificationType.ConnectionRequestReceived);
+                !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted
+                    or ClientNotificationType.ConnectionRequestReceived);
 
             var json = OdinSystemSerializer.Serialize(new
             {
@@ -211,6 +208,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 }
             }
         }
+
         //
 
         public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken)
@@ -324,7 +322,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken, IOdinContext odinContext)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             //process the command
             switch (command.Command)
@@ -333,12 +332,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                     try
                     {
                         var drives = new List<Guid>();
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ?? new EstablishConnectionOptions()
-                        {
-                            WaitTimeMs = 100,
-                            BatchSize = 100,
-                            Drives = []
-                        };
+                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
+                                      new EstablishConnectionOptions()
+                                      {
+                                          WaitTimeMs = 100,
+                                          BatchSize = 100,
+                                          Drives = []
+                                      };
 
                         foreach (var td in options.Drives)
                         {
@@ -361,26 +361,6 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var response = new EstablishConnectionResponse();
                     await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(response), cancellationToken);
-                    break;
-
-                case SocketCommandType.ProcessTransitInstructions:
-                {
-                    var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    if (d != null)
-                    {
-                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase);
-                    }
-                }
-                    break;
-
-                case SocketCommandType.ProcessInbox:
-                {
-                    var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                    if (request != null)
-                    {
-                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase, request.BatchSize);
-                    }
-                }
                     break;
 
                 case SocketCommandType.Ping:

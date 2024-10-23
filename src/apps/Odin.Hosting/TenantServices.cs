@@ -95,6 +95,19 @@ namespace Odin.Hosting
                 .As<INotificationHandler<AppNotificationAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<PeerAppNotificationHandler>()
+                // .As<INotificationHandler<FileAddedNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionContentDeletedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                // .As<INotificationHandler<AppNotificationAddedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
 
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
