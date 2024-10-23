@@ -168,7 +168,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.SendOutstandingConnectionRequests(WebOdinContext, CancellationToken.None);
+            await introductionService.SendOutstandingConnectionRequests(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
 
@@ -176,7 +176,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext, CancellationToken.None);
+            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
 

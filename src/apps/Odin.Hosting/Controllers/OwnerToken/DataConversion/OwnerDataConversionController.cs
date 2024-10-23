@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         [HttpPost("autofix-connections")]
         public async Task<IActionResult> RunAutofix()
         {
-            await fixer.AutoFixCircleGrants(WebOdinContext, CancellationToken.None);
+            await fixer.AutoFixCircleGrants(WebOdinContext, HttpContext.RequestAborted);
             return Ok();
         }
 
