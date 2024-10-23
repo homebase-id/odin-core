@@ -297,6 +297,39 @@ public class PeerDriveQueryService(
         }
     }
 
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueId(OdinId odinId, GetPayloadByUniqueIdRequest file,
+        FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+
+        try
+        {
+            ApiResponse<SharedSecretEncryptedFileHeader> response = null;
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                CancellationToken.None,
+                async () => { response = await httpClient.GetFileHeaderByUniqueId(file); });
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            await HandleInvalidResponse(odinId, response, odinContext, db);
+
+            var header = TransformSharedSecret(response.Content, icr, odinContext);
+            return header;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t);
+            throw;
+        }
+    }
+
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadByGlobalTransitId(OdinId odinId,
         GlobalTransitIdFileIdentifier file, string key,
         FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
@@ -568,7 +601,7 @@ public class PeerDriveQueryService(
         {
             ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
         }
-        
+
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
         var stream = await response.Content!.ReadAsStreamAsync();
