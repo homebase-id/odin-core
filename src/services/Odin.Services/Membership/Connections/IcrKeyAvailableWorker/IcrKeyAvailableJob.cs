@@ -40,7 +40,7 @@ public class IcrKeyAvailableJob(
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
             
             var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
-            await service.Run(Data);
+            await service.Run(Data, cancellationToken);
 
             service.RunCount++;
 

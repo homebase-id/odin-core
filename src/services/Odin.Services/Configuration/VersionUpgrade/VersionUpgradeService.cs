@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
@@ -16,7 +17,7 @@ public class VersionUpgradeService(
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
-    public async Task Upgrade(VersionUpgradeJobData data)
+    public async Task Upgrade(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
         logger.LogInformation($"Running Version Upgrade Process for {data.Tenant}");
 
@@ -48,10 +49,16 @@ public class VersionUpgradeService(
             {
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
 
-                await v0ToV1VersionMigrationService.Upgrade(odinContext);
+                await v0ToV1VersionMigrationService.Upgrade(odinContext, cancellationToken);
                 currentVersion = tenantConfigService.IncrementVersion().DataVersionNumber;
 
                 logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
             }
 
             // if (currentVersion == 1)

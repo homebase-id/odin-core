@@ -843,7 +843,7 @@ namespace Odin.Services.Membership.Connections
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
                 _storage.UpdateVerificationHash(icr.OdinId, icr.Status, hash);
-                
+
                 return true;
             }
 
@@ -857,11 +857,17 @@ namespace Odin.Services.Membership.Connections
             return expectedHash;
         }
 
-        public async Task UpgradeWeakClientAccessTokens(IOdinContext odinContext)
+        public async Task UpgradeWeakClientAccessTokens(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext);
             foreach (var identity in allIdentities.Results)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    logger.LogInformation("UpgradeWeakClientAccessTokens - Cancellation requested; breaking from loop");
+                    break;
+                }
+
                 try
                 {
                     await UpgradeTokenEncryptionIfNeeded(identity, odinContext);

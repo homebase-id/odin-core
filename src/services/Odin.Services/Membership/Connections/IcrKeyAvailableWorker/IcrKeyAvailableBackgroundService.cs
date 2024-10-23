@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
@@ -25,7 +26,7 @@ public class IcrKeyAvailableBackgroundService(
 {
     public int RunCount { get; set; }
 
-    public async Task Run(IcrKeyAvailableJobData data)
+    public async Task Run(IcrKeyAvailableJobData data, CancellationToken cancellationToken)
     {
         logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process for {data.Tenant}; token type: {data.TokenType}");
 
@@ -34,7 +35,7 @@ public class IcrKeyAvailableBackgroundService(
 
         try
         {
-            await RunInternal(odinContext);
+            await RunInternal(odinContext, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -100,24 +101,24 @@ public class IcrKeyAvailableBackgroundService(
         return odinContext;
     }
 
-    private async Task RunInternal(IOdinContext odinContext)
+    private async Task RunInternal(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
             if (!tenantContext.Settings.DisableAutoAcceptIntroductions &&
                 odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
             {
-                await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext);
+                await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cancellationToken);
             }
 
             if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
             {
-                await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext);
+                await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, cancellationToken);
             }
 
             if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
             {
-                await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext);
+                await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, cancellationToken);
             }
         }
         catch (Exception ex)

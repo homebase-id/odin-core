@@ -170,7 +170,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         await Task.CompletedTask;
     }
 
-    public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext)
+    public async Task AutoAcceptEligibleConnectionRequests(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequests(PageOptions.All, odinContext);
         _logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)",
@@ -178,6 +178,13 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         foreach (var request in incomingConnectionRequests.Results)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("AutoAcceptEligibleConnectionRequests - Cancellation requested; breaking from loop");
+
+                break;
+            }
+
             var sender = request.SenderOdinId;
 
             try
@@ -237,9 +244,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <summary>
     /// Sends connection requests for introductions
     /// </summary>
-    public async Task SendOutstandingConnectionRequests(IOdinContext odinContext)
+    public async Task SendOutstandingConnectionRequests(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        const int maxSendAttempts = 15;
+        const int maxSendAttempts = 30;
 
         //get the introductions from the list
         var introductions = await GetReceivedIntroductions(odinContext);
@@ -248,6 +255,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         foreach (var intro in introductions)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("SendOutstandingConnectionRequests - Cancellation requested; breaking from loop");
+                break;
+            }
+
             var recipient = intro.Identity;
 
             var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);

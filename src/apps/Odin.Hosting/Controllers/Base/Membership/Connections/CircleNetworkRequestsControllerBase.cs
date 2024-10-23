@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
@@ -108,7 +109,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            
+
             var result = await circleNetworkRequestService.GetSentRequest(id, WebOdinContext);
             if (result == null)
             {
@@ -129,7 +130,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            
+
             await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext);
             return true;
         }
@@ -147,7 +148,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
-            
+
             await circleNetworkRequestService.SendConnectionRequest(requestHeader, WebOdinContext);
             return true;
         }
@@ -167,7 +168,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.SendOutstandingConnectionRequests(WebOdinContext);
+            await introductionService.SendOutstandingConnectionRequests(WebOdinContext, CancellationToken.None);
             return new OkResult();
         }
 
@@ -175,7 +176,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext);
+            await introductionService.AutoAcceptEligibleConnectionRequests(WebOdinContext, CancellationToken.None);
             return new OkResult();
         }
 

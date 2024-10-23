@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Apps;
@@ -22,15 +23,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleNetworkVerificationService verificationService,
         PublicPrivateKeyService publicPrivateKeyService)
     {
-        public async Task Upgrade(IOdinContext odinContext)
+        public async Task Upgrade(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             logger.LogDebug("Preparing Introductions Release for Identity [{identity}]", odinContext.Tenant);
-            await PrepareIntroductionsRelease(odinContext);
+            await PrepareIntroductionsRelease(odinContext, cancellationToken);
 
-            await AutoFixCircleGrants(odinContext);
+            await AutoFixCircleGrants(odinContext,cancellationToken);
         }
 
-        public async Task AutoFixCircleGrants(IOdinContext odinContext)
+        public async Task AutoFixCircleGrants(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
             var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
@@ -40,12 +41,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             {
                 foreach (var identity in allIdentities.Results)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     await FixIdentity(identity, odinContext);
                 }
 
                 var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
                 foreach (var app in allApps)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
                     await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
                 }
@@ -56,7 +61,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         /// <summary>
         /// Handles the changes to production data required for the introductions feature
         /// </summary>
-        private async Task PrepareIntroductionsRelease(IOdinContext odinContext)
+        private async Task PrepareIntroductionsRelease(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -65,11 +70,15 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             await DeleteOldCircles(odinContext);
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             //
             // Generate new Online Icr Encrypted ECC Key
             //
             logger.LogDebug("Creating new Online Icr Encrypted ECC Key");
             await publicPrivateKeyService.CreateInitialKeys(odinContext);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Create new circles, rename existing ones
@@ -77,18 +86,23 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             logger.LogDebug("Creating new circles; renaming existing ones");
             await circleDefinitionService.EnsureSystemCirclesExist();
 
+            cancellationToken.ThrowIfCancellationRequested();
+            
             //
             // This will reapply the grants since we added a new permission
             //
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinition(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
 
+            cancellationToken.ThrowIfCancellationRequested();
+            
             //
             // Update the apps that use the new circle
             //
             logger.LogDebug("Updating system apps with new circles and permissions");
             await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
             await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+            cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Sync verification hash's across all connections
@@ -101,6 +115,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             {
                 foreach (var identity in allIdentities.Results)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     //
                     // Sync verification hash
                     //

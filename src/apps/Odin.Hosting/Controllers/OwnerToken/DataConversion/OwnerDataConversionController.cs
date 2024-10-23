@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
@@ -15,7 +16,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         [HttpPost("autofix-connections")]
         public async Task<IActionResult> RunAutofix()
         {
-            await fixer.AutoFixCircleGrants(WebOdinContext);
+            await fixer.AutoFixCircleGrants(WebOdinContext, CancellationToken.None);
             return Ok();
         }
 
