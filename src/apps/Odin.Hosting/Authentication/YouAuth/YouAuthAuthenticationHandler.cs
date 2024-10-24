@@ -26,7 +26,6 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -79,11 +78,19 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
+            }
+
+            if (authToken.ClientTokenType == ClientTokenType.RemoteNotificationSubscriber)
+            {
+                // authToken comes from ICR, not the app registration
+                // because it's a caller wanting to get peer app notifications
+                // so I need to create the context accordingly
+
+                string x = "";
+
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();

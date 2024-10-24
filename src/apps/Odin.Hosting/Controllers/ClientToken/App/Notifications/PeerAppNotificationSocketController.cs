@@ -7,27 +7,21 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.Controllers.ClientToken.Shared;
 using Odin.Services.AppNotifications.WebSocket;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
-    [AuthorizeValidAppToken]
-    [Route(AppApiPathConstants.NotificationsV1)]
-    public class AppNotificationSocketController : OdinControllerBase
+    [AuthorizeValidGuestToken]
+    [Route(AppApiPathConstants.PeerNotificationsV1)]
+    [Route(GuestApiPathConstants.PeerNotificationsV1)]
+    public class PeerAppNotificationSocketController(
+        PeerAppNotificationHandler notificationHandler,
+        IHostApplicationLifetime hostApplicationLifetime)
+        : OdinControllerBase
     {
-        private readonly AppNotificationHandler _notificationHandler;
-        private readonly IHostApplicationLifetime _hostApplicationLifetime;
-
-
-        public AppNotificationSocketController(
-            AppNotificationHandler notificationHandler,
-            IHostApplicationLifetime hostApplicationLifetime)
-        {
-            _notificationHandler = notificationHandler;
-            _hostApplicationLifetime = hostApplicationLifetime;
-        }
-
         /// <summary />
         [Route("ws")]
         [ApiExplorerSettings(IgnoreApi = true)]
@@ -41,7 +35,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 
             using var cancellationTokenSources = CancellationTokenSource.CreateLinkedTokenSource(
                 HttpContext.RequestAborted,
-                _hostApplicationLifetime.ApplicationStopping);
+                hostApplicationLifetime.ApplicationStopping);
 
             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
             {
@@ -50,7 +44,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 
             try
             {
-                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
+                await notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
             }
             catch (OperationCanceledException)
             {
@@ -61,8 +55,9 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
         [HttpPost("preauth")]
         public IActionResult SocketPreAuth()
         {
-            //this only exists so we can use the [AuthorizeValidAppExchangeGrant] attribute to trigger the clienttokenauthhandler
+            //this only exists so we can use the [AuthorizeValidGuestToken] attribute to trigger the clienttokenauthhandler
             return Ok();
         }
     }
+
 }

@@ -12,6 +12,7 @@
         public const string AuthV1 = BasePathV1 + "/auth";
         public const string DriveV1 = BasePathV1 + "/drive";
         public const string DriveQueryV1 = DriveV1 + "/query";
+        public const string PeerNotificationsV1 = BasePathV1 + "/notify/peer";
 
         public const string DriveQuerySpecializedV1 = DriveQueryV1 + "/specialized";
 

@@ -6,6 +6,7 @@ public static class PeerApiPathConstants
     public const string HostV1 = BasePathV1 + "/host";
     
     public const string SecurityV1 = HostV1 + "/security";
+    public const string AppNotificationsV1 = HostV1 + "/security/notify";
     public const string DriveV1 = HostV1 + "/drives";
     public const string FeedV1 = HostV1 + "/feed";
     public const string ReactionsV1 = HostV1 + "/reactions";

@@ -1,30 +1,33 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
+using Odin.Services.Peer.AppNotification;
 
-namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
+namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 
-public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificationBatchSize, int notificationWaitTime)
+public class PeerAppNotificationSocketHandler(int notificationBatchSize, int notificationWaitTime)
 {
-    private readonly TestOwnerWebSocketListener _socketListener = new();
-
-    private OwnerApiClientRedux _client;
+    private readonly TestAppWebSocketListener _socketListener = new();
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileModified;
 
-    public async Task ConnectAsync(OwnerApiClientRedux client)
+    public async Task ConnectAsync(OdinId hostIdentity, ClientAccessToken token, List<TargetDrive> targetDrives)
     {
-        this._client = client;
-
         _socketListener.NotificationReceived += SocketListenerOnNotificationReceived;
-        await _socketListener.ConnectAsync(_client.Identity.OdinId, _client.GetTokenContext(), new EstablishConnectionOptions()
+
+        // negotiate with the host identity, we need to send a toke
+
+        await _socketListener.ConnectAsync(hostIdentity, token, new EstablishConnectionOptions()
         {
-            Drives = [SystemDriveConstants.ChatDrive],
+            Drives = targetDrives,
             BatchSize = notificationBatchSize,
             WaitTimeMs = notificationWaitTime
         });
@@ -39,11 +42,6 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
     {
         switch (notification.NotificationType)
         {
-            case ClientNotificationType.InboxItemReceived:
-                await _client.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, processInboxBatchSize);
-                // Console.WriteLine($"Identity: {_client.Identity.OdinId}. Notification: InboxItemReceived");
-                break;
-
             case ClientNotificationType.FileAdded:
                 await HandleFileAdded(notification);
                 break;

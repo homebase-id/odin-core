@@ -24,8 +24,9 @@ namespace Odin.Services.Peer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver)
     {
+        protected CircleNetworkService CircleNetworkService { get; } = circleNetworkService;
         protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
-
+        
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -52,7 +53,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, overrideHack: true);
+            var icr = await CircleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -85,6 +86,21 @@ namespace Odin.Services.Peer
             }
         }
 
+        protected async Task<(ClientAccessToken token, T client)> CreateHttpClient<T>(
+            OdinId odinId,
+            IdentityDatabase db,
+            IOdinContext odinContext)
+        {
+
+            var token = await ResolveClientAccessToken(odinId, odinContext, db);
+
+            var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<T>(
+                odinId,
+                token.ToAuthenticationToken());
+        
+            return (token, httpClient);
+        }
+        
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;

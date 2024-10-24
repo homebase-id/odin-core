@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Drives;
@@ -20,8 +21,9 @@ public class DriveManagementApiClient
         _identity = identity;
     }
 
-    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
-        bool allowSubscriptions = false)
+    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
+        bool ownerOnly = false,
+        bool allowSubscriptions = false, Dictionary<string, string> attributes = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -39,7 +41,8 @@ public class DriveManagementApiClient
                 Metadata = metadata,
                 AllowAnonymousReads = allowAnonymousReads,
                 AllowSubscriptions = allowSubscriptions,
-                OwnerOnly = ownerOnly
+                OwnerOnly = ownerOnly,
+                Attributes = attributes
             });
 
             return response;

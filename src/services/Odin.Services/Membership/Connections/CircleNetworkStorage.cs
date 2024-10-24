@@ -16,6 +16,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Services.Membership.Connections;
 
@@ -27,6 +28,8 @@ public class CircleNetworkStorage
 
     private readonly SingleKeyValueStorage _icrKeyStorage;
 
+    private readonly SingleKeyValueStorage _peerIcrClientStorage;
+
     public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
         _tenantSystemStorage = tenantSystemStorage;
@@ -34,6 +37,9 @@ public class CircleNetworkStorage
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+        
+        const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
+        _peerIcrClientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
@@ -124,6 +130,13 @@ public class CircleNetworkStorage
         // });
     }
 
+    public void SavePeerIcrClient(PeerIcrClient client)
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        _peerIcrClientStorage.Upsert(db, client.Identity.ToHashId(), client);
+    }
+
+    
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
         ConnectionStatus connectionStatus)
     {
@@ -201,6 +214,7 @@ public class CircleNetworkStorage
             }
         };
     }
+
 }
 
 public class IcrKeyRecord

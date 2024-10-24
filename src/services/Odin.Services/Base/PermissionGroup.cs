@@ -107,7 +107,8 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
             {
                 Log.Verbose(
                     "Grant for drive {permissionDrive} with permission value ({permission}) has null key store key:{kskNull} and null key store key encrypted storage key: {kskstoragekey}",
-                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
+                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null,
+                    grant.KeyStoreKeyEncryptedStorageKey == null);
 
                 // return null;
                 continue;
@@ -121,7 +122,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
                 Log.Verbose(
                     "Grant for drive {permissionDrive} with permission value ({permission}) returned the storage key",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission);
-                
+
                 return storageKey;
             }
             catch
@@ -143,6 +144,11 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     {
         var key = this._keyStoreKey;
         return _encryptedIcrKey?.DecryptKeyClone(key);
+    }
+
+    public SensitiveByteArray? GetKeyStoreKey()
+    {
+        return this._keyStoreKey;
     }
 
     public RedactedPermissionGroup Redacted()
