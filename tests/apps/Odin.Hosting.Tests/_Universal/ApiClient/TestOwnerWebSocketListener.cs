@@ -10,7 +10,7 @@ using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 
-namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
+namespace Odin.Hosting.Tests._Universal.ApiClient;
 
 public class TestClientNotification
 {
@@ -18,7 +18,7 @@ public class TestClientNotification
     public string Data { get; set; }
 }
 
-public sealed class TestWebSocketListener
+public sealed class TestOwnerWebSocketListener
 {
     public event Func<TestClientNotification, Task> NotificationReceived;
     private readonly CancellationTokenSource _cancellationTokenSource = new();

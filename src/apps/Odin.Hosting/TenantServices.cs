@@ -45,6 +45,7 @@ using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 
 namespace Odin.Hosting
@@ -95,6 +96,19 @@ namespace Odin.Hosting
                 .As<INotificationHandler<AppNotificationAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<PeerAppNotificationHandler>()
+                // .As<INotificationHandler<FileAddedNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionContentDeletedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                // .As<INotificationHandler<AppNotificationAddedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
 
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
@@ -218,6 +232,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<ConnectionAutoFixService>().AsSelf().SingleInstance();
 
+            cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
+            
+            
             // Background services
             cb.AddTenantBackgroundServices(tenant);
         }

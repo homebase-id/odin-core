@@ -25,7 +25,7 @@ namespace Odin.Services.Peer
         FileSystemResolver fileSystemResolver)
     {
         protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
-
+        
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -85,6 +85,21 @@ namespace Odin.Services.Peer
             }
         }
 
+        protected async Task<(ClientAccessToken token, T client)> CreateClient<T>(
+            OdinId odinId,
+            IdentityDatabase db,
+            IOdinContext odinContext)
+        {
+
+            var token = await ResolveClientAccessToken(odinId, odinContext, db);
+
+            var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<T>(
+                odinId,
+                token.ToAuthenticationToken());
+        
+            return (token, httpClient);
+        }
+        
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;

@@ -9,7 +9,7 @@ namespace Odin.Services.Membership.Connections
     /// <summary>
     /// Specifies that an identity shares a connection with another identity (i.e. friend request)
     /// </summary>
-    public class IdentityConnectionRegistration
+    public class  IdentityConnectionRegistration
     {
         private ConnectionStatus _status;
 

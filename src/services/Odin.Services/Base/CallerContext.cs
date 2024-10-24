@@ -90,6 +90,15 @@ namespace Odin.Services.Base
             }
         }
 
+        public void AssertIsConnected()
+        {
+            if (!IsConnected)
+            {
+                throw new OdinSecurityException("Caller must be connected");
+            }
+        }
+        
+        
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>

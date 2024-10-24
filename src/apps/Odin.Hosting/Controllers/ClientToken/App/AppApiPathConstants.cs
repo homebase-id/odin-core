@@ -7,6 +7,8 @@
         public const string UtilsV1 = BasePathV1 + "/utils";
         
         public const string NotificationsV1 = BasePathV1 + "/notify";
+      
+        public const string PeerNotificationsV1 = BasePathV1 + "/notify/peer";
 
         public const string AuthV1 = BasePathV1 + "/auth";
 
