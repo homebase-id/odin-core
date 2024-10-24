@@ -12,7 +12,6 @@ namespace WaitingListApi.Data.Database
 
     public class WaitingListTableCrud : TableBase
     {
-        private bool _disposed = false;
         private readonly WaitingListDatabase _db;
 
         public WaitingListTableCrud(WaitingListDatabase db) : base("waiting_list")
@@ -20,17 +19,23 @@ namespace WaitingListApi.Data.Database
             _db = db;
         }
 
-        ~WaitingListTableCrud()
-        {
-            if (_disposed == false) throw new Exception("WaitingListTableCrud Not disposed properly");
-        }
-
         public override void Dispose()
         {
-            _disposed = true;
         }
 
-        public void EnsureTableExists(bool dropExisting = false)
+        public override Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        {
+            // SEB:NOTE Can't be bothered. This is a temporary class.
+            throw new NotImplementedException();
+        }
+
+        public override List<string> GetColumnNames()
+        {
+            // SEB:NOTE Can't be bothered. This is a temporary class.
+            throw new NotImplementedException();
+        }
+
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             using var cn = _db.CreateDisposableConnection();
             using (var cmd = _db.CreateCommand())
@@ -38,7 +43,7 @@ namespace WaitingListApi.Data.Database
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS waiting_list;";
-                    cn.ExecuteNonQuery(cmd);
+                    await cn.ExecuteNonQueryAsync(cmd);
                 }
 
                 cmd.CommandText =
@@ -48,9 +53,8 @@ namespace WaitingListApi.Data.Database
                     + "created INT NOT NULL "
                     + ", PRIMARY KEY (emailAddress)"
                     + ");";
-                cn.ExecuteNonQuery(cmd);
-
-                cn.Vacuum();
+                await cn.ExecuteNonQueryAsync(cmd);
+                await cn.VacuumAsync();
             }
         }
 
@@ -78,7 +82,7 @@ namespace WaitingListApi.Data.Database
                 _insertParam1!.Value = item.EmailAddress;
                 _insertParam2!.Value = item.JsonData;
                 _insertParam8!.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return cn.ExecuteNonQuery(_insertCommand);
+                return cn.ExecuteNonQueryAsync(_insertCommand).Result; // SEB:NOTE Can't be bothered. This is a temporary class.
             } // Lock
         }
     }

@@ -71,7 +71,7 @@ namespace Odin.Attestation.Controllers
         /// <param name="attestationIdBase64"></param>
         /// <returns>200 OK and attesation age in seconds (Unix Epoch), or Bad Request or Not Found</returns>
         [HttpGet("VerifyAttestation")]
-        public ActionResult GetVerifyAttestaion(string attestationIdBase64)
+        public async Task<ActionResult> GetVerifyAttestaion(string attestationIdBase64)
         {
             byte[] attestationId;
 
@@ -86,7 +86,7 @@ namespace Odin.Attestation.Controllers
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                var r = _db.tblAttestationStatus.Get(conn, attestationId);
+                var r = await _db.tblAttestationStatus.GetAsync(conn, attestationId);
                 if (r == null)
                 {
                     return NotFound("No such attestationId found.");
@@ -142,7 +142,7 @@ namespace Odin.Attestation.Controllers
             {
                 try
                 {
-                    if (_db.tblAttestationRequest.Upsert(conn, r) < 1)
+                    if (await _db.tblAttestationRequest.UpsertAsync(conn, r) < 1)
                         return BadRequest($"Had trouble upserting row into database, try again");
                 }
                 catch (Exception ex)
