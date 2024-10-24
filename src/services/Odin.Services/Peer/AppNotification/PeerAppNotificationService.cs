@@ -21,13 +21,10 @@ namespace Odin.Services.Peer.AppNotification;
 /// Handles incoming reactions and queries from followers
 /// </summary>
 public class PeerAppNotificationService(
-    YouAuthDomainRegistrationService youAuthDomainRegistrationService,
     IOdinHttpClientFactory odinHttpClientFactory,
-    PublicPrivateKeyService publicPrivateKeyService,
     OdinConfiguration odinConfiguration,
     CircleNetworkService circleNetworkService,
     TenantSystemStorage tenantSystemStorage,
-    ExchangeGrantService exchangeGrantService,
     FileSystemResolver fileSystemResolver)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
 {
