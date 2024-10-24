@@ -43,7 +43,7 @@ public class KeyedAsyncLockTests
 
         Assert.That(executionOrder, Is.EqualTo(new List<int> { 1, 2 }));
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_DifferentKeys_DoNotBlockEachOther()
     {
@@ -76,7 +76,7 @@ public class KeyedAsyncLockTests
 
         Assert.That(tasksCompleted, Is.EqualTo(2));
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_LockReleased_MutexCountDecreases()
     {
@@ -93,7 +93,7 @@ public class KeyedAsyncLockTests
 
         Assert.That(keyedMutex.Count, Is.EqualTo(0));
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_ExceptionWithinLock_LockIsReleased()
     {
@@ -123,7 +123,7 @@ public class KeyedAsyncLockTests
 
         Assert.IsTrue(wasAcquired);
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_MultipleTasksSameKey_TasksAreSynchronized()
     {
@@ -183,7 +183,7 @@ public class KeyedAsyncLockTests
 
         Assert.That(maxConcurrentTasks, Is.GreaterThan(1));
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_ReentrantLocking_ThrowsException()
     {
@@ -212,7 +212,7 @@ public class KeyedAsyncLockTests
             }
         }
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_MultipleLocks_CountIsAccurate()
     {
@@ -284,14 +284,14 @@ public class KeyedAsyncLockTests
         Assert.AreEqual(3, counter);
         Assert.AreEqual(0, keyedMutex.Count);
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_ParallelSameKey_ExecutesSequentially()
     {
         var keyedMutex = new KeyedAsyncLock();
         var runningTasks = new List<Task>();
         var counter = 0;
-        
+
         for (var i = 0; i < 1234; i++)
         {
             runningTasks.Add(Task.Run(async () =>
@@ -303,14 +303,14 @@ public class KeyedAsyncLockTests
                 }
             }));
         }
-        
+
         await Task.WhenAll(runningTasks);
 
         // Since the actions use the same key, they should run serially, not concurrently.
         Assert.AreEqual(1234, counter);
         Assert.AreEqual(0, keyedMutex.Count);
     }
-    
+
     [Test]
     public async Task LockedExecuteAsync_ConcurrentDifferentKeys_ExecutesConcurrently()
     {
@@ -340,6 +340,117 @@ public class KeyedAsyncLockTests
         Assert.AreEqual(allTasks, completed, "Actions with different keys should execute concurrently.");
         Assert.AreEqual(0, keyedMutex.Count, "The count should be zero after all actions complete.");
     }
+
+    [Test]
+    public async Task LockedExecute_MixSyncAndAsync_SerializesAccess()
+    {
+        var keyedMutex = new KeyedAsyncLock();
+        var key = "mixedKey";
+        var executionOrder = new List<int>();
+        var task1Started = new TaskCompletionSource<bool>();
+        var task2Started = new TaskCompletionSource<bool>();
+
+        var task1 = Task.Run(async () =>
+        {
+            using (await keyedMutex.LockAsync(key))
+            {
+                executionOrder.Add(1);
+                task1Started.SetResult(true);
+                // Wait to ensure task2 tries to acquire the lock
+                await Task.Delay(100);
+            }
+        });
+
+        var task2 = Task.Run(() =>
+        {
+            // Wait for task1 to start and acquire the lock
+            task1Started.Task.Wait();
+            using (keyedMutex.Lock(key))
+            {
+                executionOrder.Add(2);
+                task2Started.SetResult(true);
+            }
+        });
+
+        await Task.WhenAll(task1, task2);
+
+        Assert.That(executionOrder, Is.EqualTo(new List<int> { 1, 2 }));
+    }
+
+    [Test]
+    public async Task LockedExecute_MixAsyncAndSync_SerializesAccess()
+    {
+        var keyedMutex = new KeyedAsyncLock();
+        var key = "mixedKey2";
+        var executionOrder = new List<int>();
+        var task1Started = new TaskCompletionSource<bool>();
+        var task2Started = new TaskCompletionSource<bool>();
+
+        var task1 = Task.Run(() =>
+        {
+            using (keyedMutex.Lock(key))
+            {
+                executionOrder.Add(1);
+                task1Started.SetResult(true);
+                // Wait to ensure task2 tries to acquire the lock
+                Thread.Sleep(100);
+            }
+        });
+
+        var task2 = Task.Run(async () =>
+        {
+            // Wait for task1 to start and acquire the lock
+            await task1Started.Task;
+            using (await keyedMutex.LockAsync(key))
+            {
+                executionOrder.Add(2);
+                task2Started.SetResult(true);
+            }
+        });
+
+        await Task.WhenAll(task1, task2);
+
+        Assert.That(executionOrder, Is.EqualTo(new List<int> { 1, 2 }));
+    }
+
+    [Test]
+    public async Task LockedExecute_MixSyncAndAsync_ParallelExecution()
+    {
+        var keyedMutex = new KeyedAsyncLock();
+        var key = "mixedKey3";
+        var counter = 0;
+
+        var task1 = Task.Run(async () =>
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                using (await keyedMutex.LockAsync(key))
+                {
+                    counter++;
+                    // Simulate work
+                    await Task.Delay(10);
+                }
+            }
+        });
+
+        var task2 = Task.Run(() =>
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                using (keyedMutex.Lock(key))
+                {
+                    counter++;
+                    // Simulate work
+                    Thread.Sleep(10);
+                }
+            }
+        });
+
+        await Task.WhenAll(task1, task2);
+
+        // Since the tasks use the same key, they should execute serially, not concurrently.
+        Assert.That(counter, Is.EqualTo(20));
+    }
 }
 
 public static class TaskExtensions
@@ -355,6 +466,7 @@ public static class TaskExtensions
             return await task;
         }
     }
+
 
     private class CancellationTokenTaskSource<T> : IDisposable
     {
@@ -375,4 +487,3 @@ public static class TaskExtensions
         }
     }
 }
-
