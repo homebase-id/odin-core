@@ -198,7 +198,7 @@ namespace Odin.Services.Configuration
 
                 HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
-                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 30);
+                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 120);
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
                 //TODO: changed to required when Seb and I can coordinate config changes
