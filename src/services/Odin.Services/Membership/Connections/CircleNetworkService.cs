@@ -24,6 +24,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Peer.AppNotification;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
@@ -665,6 +666,27 @@ namespace Odin.Services.Membership.Connections
             return info;
         }
 
+        public async Task<ClientAccessToken> CreatePeerIcrClientForCaller(IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertIsConnected();
+            var caller = odinContext.GetCallerOdinIdOrFail();
+            var icr = await this.GetIdentityConnectionRegistration(caller, odinContext);
+
+            var encryptedKeyStoreKey = icr.AccessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey;
+            var grantKeyStoreKey = odinContext.PermissionsContext.DecryptUsingKeyStoreKey(encryptedKeyStoreKey);
+            var (accessRegistration, token) =
+                await exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.RemoteNotificationSubscriber);
+
+            var client = new PeerIcrClient
+            {
+                Identity = caller,
+                AccessRegistration = accessRegistration
+            };
+
+            _storage.SavePeerIcrClient(client);
+            return token;
+        }
+        
         private async Task<AppCircleGrant> CreateAppCircleGrant(
             RedactedAppRegistration appReg,
             GuidId circleId,

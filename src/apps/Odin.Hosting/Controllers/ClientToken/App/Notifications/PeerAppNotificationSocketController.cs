@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.ClientToken.Shared;
 using Odin.Services.AppNotifications.WebSocket;
 
@@ -15,6 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
     [ApiController]
     [AuthorizeValidGuestToken]
     [Route(AppApiPathConstants.PeerNotificationsV1)]
+    [Route(GuestApiPathConstants.PeerNotificationsV1)]
     public class PeerAppNotificationSocketController(
         PeerAppNotificationHandler notificationHandler,
         IHostApplicationLifetime hostApplicationLifetime)

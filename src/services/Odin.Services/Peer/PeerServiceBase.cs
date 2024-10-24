@@ -85,7 +85,7 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected async Task<(ClientAccessToken token, T client)> CreateClient<T>(
+        protected async Task<(ClientAccessToken token, T client)> CreateHttpClient<T>(
             OdinId odinId,
             IdentityDatabase db,
             IOdinContext odinContext)

@@ -65,9 +65,4 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
             return Ok();
         }
     }
-
-    public class SocketPreAuthRequest
-    {
-        public string? Cat64 { get; set; }
-    }
 }

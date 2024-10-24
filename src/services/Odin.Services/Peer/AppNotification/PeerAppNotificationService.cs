@@ -3,8 +3,8 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -27,42 +27,18 @@ public class PeerAppNotificationService(
     OdinConfiguration odinConfiguration,
     CircleNetworkService circleNetworkService,
     TenantSystemStorage tenantSystemStorage,
+    ExchangeGrantService exchangeGrantService,
     FileSystemResolver fileSystemResolver)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
 {
-    public async Task<EccEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
+    public async Task<SharedSecretEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
     {
-        odinContext.Caller.AssertIsConnected();
-        var caller = odinContext.GetCallerOdinIdOrFail();
+        var token = await circleNetworkService.CreatePeerIcrClientForCaller(odinContext);
+        var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var request = new YouAuthDomainRegistrationRequest
-        {
-            Domain = caller.DomainName,
-            Name = caller.DomainName,
-            CorsHostName = caller.DomainName,
-            CircleIds = null,
-            ConsentRequirements = new ConsentRequirements()
-            {
-                ConsentRequirementType = ConsentRequirementType.Never
-            }
-        };
-
-        var (token, _) = await youAuthDomainRegistrationService.RegisterClient(
-            caller.AsciiDomain,
-            "App Notification Client",
-            request,
-            odinContext);
-
-        var db = tenantSystemStorage.IdentityDatabase;
-        var eccPayload = await publicPrivateKeyService.EccEncryptPayloadForRecipient(
-            PublicPrivateKeyType.OfflineKey,
-            caller,
-            token.ToPortableBytes(),
-            db);
-        
-        return eccPayload;
+        return SharedSecretEncryptedPayload.Encrypt(token.ToPortableBytes(), sharedSecret);
     }
-
+    
     /// <summary>
     /// Calls to a remote identity to get an <see cref="ClientAccessToken"/> 
     /// </summary>
@@ -71,10 +47,10 @@ public class PeerAppNotificationService(
         var db = tenantSystemStorage.IdentityDatabase;
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
-        
-        var (_, client) = await CreateClient<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
 
-        ApiResponse<EccEncryptedPayload> response = null;
+        var (targetIdentityCat, client) = await CreateHttpClient<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+
+        ApiResponse<SharedSecretEncryptedPayload> response = null;
         try
         {
             await TryRetry.WithDelayAsync(
@@ -91,8 +67,8 @@ public class PeerAppNotificationService(
 
         AssertValidResponse(response);
 
-        var bytes = await publicPrivateKeyService.EccDecryptPayload(response.Content, db);
-
+        var bytes = response.Content.Decrypt(targetIdentityCat.SharedSecret);
+        
         return new AppNotificationTokenResponse()
         {
             Token = ClientAccessToken.FromPortableBytes(bytes)
@@ -131,14 +107,4 @@ public class PeerAppNotificationService(
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
     }
-}
-
-public class AppNotificationTokenResponse
-{
-    public ClientAccessToken Token { get; set; }
-}
-
-public class GetRemoteTokenRequest
-{
-    public OdinId Identity { get; set; }
 }
