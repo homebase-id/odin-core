@@ -5,10 +5,10 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Threading;
 
-public class KeyedAsyncLock
+public sealed class KeyedAsyncLock
 {
     // SEB:NOTE we can't use a ConcurrentDictionary because the delegates called in AddOrUpdate and GetOrAdd
-    // are not thread safe, so we need explicit locking instead.
+    // are not thread safe, so we use explicit locking instead.
     private readonly Dictionary<string, (AsyncLock asyncLock, int refCount)> _refCountedLocks = new ();
     private readonly object _mutex = new ();
 
@@ -16,28 +16,6 @@ public class KeyedAsyncLock
     /// Asynchronously acquires an exclusive lock associated with the specified key.
     /// </summary>
     /// <param name="key">The key identifying the lock to acquire.</param>
-    /// <returns>
-    /// A task that represents the asynchronous operation. The task result contains an <see cref="IDisposable"/>
-    /// that releases the lock when disposed.
-    /// </returns>
-    /// <remarks>
-    /// <para>
-    /// This method provides a way to synchronize asynchronous operations based on a specific key. When you call
-    /// <c>LockAsync</c> with a key, it ensures that only one asynchronous operation can hold the lock for that key
-    /// at any given time. Other operations attempting to acquire the lock for the same key will asynchronously wait
-    /// until the lock becomes available.
-    /// </para>
-    /// <para>
-    /// <strong>Supports Asynchronous Operations:</strong> The lock acquired by this method fully supports asynchronous
-    /// code within its scope. You can perform asynchronous operations inside the locked region, and the lock will be
-    /// held until the returned <see cref="IDisposable"/> is disposed, even across asynchronous awaits. This ensures
-    /// that exclusive access is maintained throughout the entire asynchronous operation.
-    /// </para>
-    /// <para>
-    /// The returned <see cref="IDisposable"/> should be disposed to release the lock. It's recommended to use a
-    /// <c>using</c> statement or declaration to ensure the lock is properly released even if an exception occurs.
-    /// </para>
-    /// </remarks>
     /// <example>
     /// <code>
     /// public async Task PerformOperationAsync(string key)
@@ -52,7 +30,40 @@ public class KeyedAsyncLock
     /// </example>
     public async Task<IDisposable> LockAsync(string key)
     {
+        var disposer = await GetOrCreateRefCountedLock(key).asyncLock.LockAsync();
+        return new Releaser(this, key, disposer);
+    }
+
+    //
+
+    /// <summary>
+    /// Synchronously acquires an exclusive lock associated with the specified key.
+    /// </summary>
+    /// <param name="key">The key identifying the lock to acquire.</param>
+    /// <example>
+    /// <code>
+    /// public void PerformOperation(string key)
+    /// {
+    ///     using (keyedAsyncLock.Lock(key))
+    ///     {
+    ///         // Synchronous code that requires exclusive access per key.
+    ///         SomeSyncOperation();
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
+    public IDisposable Lock(string key)
+    {
+        var disposer = GetOrCreateRefCountedLock(key).asyncLock.Lock();
+        return new Releaser(this, key, disposer);
+    }
+
+    //
+
+    private (AsyncLock asyncLock, int refCount) GetOrCreateRefCountedLock(string key)
+    {
         (AsyncLock asyncLock, int refCount) refCountedLock;
+
         lock (_mutex)
         {
             if (_refCountedLocks.TryGetValue(key, out var value))
@@ -69,10 +80,9 @@ public class KeyedAsyncLock
             }
         }
 
-        var disposer = await refCountedLock.asyncLock.LockAsync();
-        return new Releaser(this, key, disposer);
+        return refCountedLock;
     }
-    
+
     //
 
     private class Releaser(KeyedAsyncLock parent, string key, IDisposable asyncLockDisposer) : IDisposable
