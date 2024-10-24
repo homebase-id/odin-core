@@ -15,12 +15,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
         public async Task<List<OutboxRecord>> GetAsync(Guid driveId, Guid fileId)
         {
             using var conn = _db.CreateDisposableConnection();

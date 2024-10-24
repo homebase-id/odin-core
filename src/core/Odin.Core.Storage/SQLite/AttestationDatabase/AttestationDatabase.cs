@@ -34,29 +34,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _line = line;
         }
 
-
-        ~AttestationDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
-        public override void Dispose()
-        {
-            tblAttestationRequest.Dispose();
-            tblAttestationStatus.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>

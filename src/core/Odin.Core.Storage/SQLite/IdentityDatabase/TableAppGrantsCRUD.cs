@@ -68,7 +68,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableAppGrantsCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableAppGrantsCRUD(CacheHelper cache) : base("appGrants")
@@ -76,16 +75,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableAppGrantsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableAppGrantsCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

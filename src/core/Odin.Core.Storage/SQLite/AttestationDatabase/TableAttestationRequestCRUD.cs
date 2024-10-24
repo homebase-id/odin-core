@@ -52,7 +52,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
     public class TableAttestationRequestCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableAttestationRequestCRUD(CacheHelper cache) : base("attestationRequest")
@@ -60,16 +59,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _cache = cache;
         }
 
-        ~TableAttestationRequestCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableAttestationRequestCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

@@ -304,22 +304,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveMainIndexCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableDriveMainIndexCRUD(CacheHelper cache) : base("driveMainIndex")
         {
         }
 
-        ~TableDriveMainIndexCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableDriveMainIndexCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

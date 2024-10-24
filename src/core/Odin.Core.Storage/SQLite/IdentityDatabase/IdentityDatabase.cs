@@ -98,53 +98,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _identityId = identityId;
         }
 
-
-        ~IdentityDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
         public override void ClearCache()
         {
             _cache.ClearCache();
         }
-
-
-        public override void Dispose()
-        {
-            Serilog.Log.Information("IdentityDatabase Dispose() called {_databaseSource}.", _databaseSource);
-
-            // Drives
-            tblDriveMainIndex.Dispose();
-            tblDriveAclIndex.Dispose();
-            tblDriveTagIndex.Dispose();
-            tblDriveReactions.Dispose();
-
-            // Identity
-            tblAppGrants.Dispose();
-            tblKeyValue.Dispose();
-            tblKeyTwoValue.Dispose();
-            TblKeyThreeValue.Dispose();
-            tblInbox.Dispose();
-            tblOutbox.Dispose();
-            tblCircle.Dispose();
-            tblImFollowing.Dispose();
-            tblFollowsMe.Dispose();
-            tblCircleMember.Dispose();
-            tblConnections.Dispose();
-            tblAppNotificationsTable.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
 
         /// <summary>
         /// Will destroy all your data and create a fresh database

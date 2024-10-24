@@ -100,7 +100,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableAppNotificationsCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableAppNotificationsCRUD(CacheHelper cache) : base("AppNotifications")
@@ -108,16 +107,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableAppNotificationsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableAppNotificationsCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

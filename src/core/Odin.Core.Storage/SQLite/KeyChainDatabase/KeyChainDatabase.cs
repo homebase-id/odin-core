@@ -31,28 +31,6 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             _line = line;
         }
 
-
-        ~KeyChainDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"BlockChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"BlockChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
-        public override void Dispose()
-        {
-            tblKeyChain.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>

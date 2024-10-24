@@ -71,7 +71,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableFollowsMeCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableFollowsMeCRUD(CacheHelper cache) : base("followsMe")
@@ -79,16 +78,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableFollowsMeCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableFollowsMeCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

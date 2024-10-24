@@ -20,12 +20,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             this._db = db;
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
         public async Task<int> InsertAsync(ImFollowingRecord item)
         {
             item.identityId = _db._identityId;

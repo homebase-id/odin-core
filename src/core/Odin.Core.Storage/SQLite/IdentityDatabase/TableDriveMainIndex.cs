@@ -17,18 +17,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-
-        ~TableDriveMainIndex()
-        {
-        }
-
-
-        public override void Dispose()
-        {
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
         public async Task RecreateTable()
         {
             using var conn = _db.CreateDisposableConnection();

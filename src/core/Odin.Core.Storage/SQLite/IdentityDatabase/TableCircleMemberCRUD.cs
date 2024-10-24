@@ -58,7 +58,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableCircleMemberCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableCircleMemberCRUD(CacheHelper cache) : base("circleMember")
@@ -66,16 +65,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableCircleMemberCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableCircleMemberCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

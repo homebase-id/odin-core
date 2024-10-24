@@ -221,22 +221,11 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
     public class TableJobsCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableJobsCRUD(CacheHelper cache) : base("jobs")
         {
         }
 
-        ~TableJobsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableJobsCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

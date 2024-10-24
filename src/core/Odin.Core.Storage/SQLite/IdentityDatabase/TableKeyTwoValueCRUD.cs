@@ -63,7 +63,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableKeyTwoValueCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableKeyTwoValueCRUD(CacheHelper cache) : base("keyTwoValue")
@@ -71,16 +70,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableKeyTwoValueCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableKeyTwoValueCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

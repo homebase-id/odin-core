@@ -56,22 +56,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveAclIndexCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableDriveAclIndexCRUD(CacheHelper cache) : base("driveAclIndex")
         {
         }
 
-        ~TableDriveAclIndexCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableDriveAclIndexCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

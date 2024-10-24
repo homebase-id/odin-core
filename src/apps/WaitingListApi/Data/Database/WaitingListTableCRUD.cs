@@ -19,10 +19,6 @@ namespace WaitingListApi.Data.Database
             _db = db;
         }
 
-        public override void Dispose()
-        {
-        }
-
         public override Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             // SEB:NOTE Can't be bothered. This is a temporary class.

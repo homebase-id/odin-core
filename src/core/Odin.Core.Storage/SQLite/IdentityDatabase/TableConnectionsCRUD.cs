@@ -101,7 +101,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableConnectionsCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableConnectionsCRUD(CacheHelper cache) : base("connections")
@@ -109,16 +108,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableConnectionsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableConnectionsCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

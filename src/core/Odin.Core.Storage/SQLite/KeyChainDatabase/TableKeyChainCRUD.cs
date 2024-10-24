@@ -104,7 +104,6 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
     public class TableKeyChainCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableKeyChainCRUD(CacheHelper cache) : base("keyChain")
@@ -112,16 +111,6 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             _cache = cache;
         }
 
-        ~TableKeyChainCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableKeyChainCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

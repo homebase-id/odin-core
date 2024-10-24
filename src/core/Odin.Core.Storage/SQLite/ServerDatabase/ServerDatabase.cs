@@ -27,26 +27,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             tblJobs = new TableJobs(this, _cache);
         }
 
-        ~ServerDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception("ServerDatabase was not disposed properly.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error("ServerDatabase was not disposed properly.");
-#endif
-        }
-
-
-        public override void Dispose()
-        {
-            tblJobs.Dispose();
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>

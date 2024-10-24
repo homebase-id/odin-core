@@ -117,7 +117,6 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
     public class TableNotaryChainCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableNotaryChainCRUD(CacheHelper cache) : base("notaryChain")
@@ -125,16 +124,6 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             _cache = cache;
         }
 
-        ~TableNotaryChainCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableNotaryChainCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

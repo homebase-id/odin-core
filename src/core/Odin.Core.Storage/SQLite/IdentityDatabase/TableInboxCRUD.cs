@@ -108,22 +108,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableInboxCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableInboxCRUD(CacheHelper cache) : base("inbox")
         {
         }
 
-        ~TableInboxCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableInboxCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

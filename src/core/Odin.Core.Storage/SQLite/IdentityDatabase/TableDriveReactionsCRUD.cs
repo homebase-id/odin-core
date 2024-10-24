@@ -69,22 +69,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveReactionsCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableDriveReactionsCRUD(CacheHelper cache) : base("driveReactions")
         {
         }
 
-        ~TableDriveReactionsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableDriveReactionsCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

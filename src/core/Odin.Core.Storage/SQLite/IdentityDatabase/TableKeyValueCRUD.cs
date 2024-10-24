@@ -54,7 +54,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableKeyValueCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableKeyValueCRUD(CacheHelper cache) : base("keyValue")
@@ -62,16 +61,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableKeyValueCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableKeyValueCRUD Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
 
         public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {

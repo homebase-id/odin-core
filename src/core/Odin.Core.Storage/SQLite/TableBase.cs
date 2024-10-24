@@ -4,27 +4,10 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite
 {
-    public abstract class TableBase : IDisposable
+    public abstract class TableBase(string tableName)
     {
-        public readonly string _tableName;
-        public TableBase(string tableName)
-        {
-            _tableName = tableName;
-        }
-
-        // SEB:TODO delete
-        ~TableBase()
-        {
-        }
-
-        // SEB:TODO delete
-        public virtual void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
+        protected readonly string TableName = tableName;
         public abstract Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false);
-
         public abstract List<string> GetColumnNames();
     }
 } 

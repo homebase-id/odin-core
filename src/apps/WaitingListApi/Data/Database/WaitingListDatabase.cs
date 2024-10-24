@@ -25,14 +25,6 @@ namespace WaitingListApi.Data.Database
             WaitingListTable = new WaitingListTable(this);
         }
 
-
-        public override void Dispose()
-        {
-            WaitingListTable?.Dispose();;
-            base.Dispose();
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
