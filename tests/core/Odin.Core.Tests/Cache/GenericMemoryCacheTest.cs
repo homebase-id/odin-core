@@ -2,6 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cache;
 
@@ -44,6 +45,206 @@ public class GenericMemoryCacheTest
             var hit = cache.TryGet<SampleValue>(key, out var value);
             Assert.IsTrue(hit);
             Assert.AreEqual("bar", value!.Name);
+        }
+
+        cache.Dispose();
+    }
+
+    //
+
+    [Test]
+    public void ItShouldGetOrCreateNonNullValue()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        {
+            var factoryCallCount = 0;
+            var value = cache.GetOrCreate("foo", () =>
+            {
+                factoryCallCount++;
+                return "bar";
+            }, TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value);
+            Assert.AreEqual(1, factoryCallCount);
+        }
+        {
+            var factoryCallCount = 0;
+            var value = cache.GetOrCreate("foo", () =>
+            {
+                factoryCallCount++;
+                return "bar";
+            }, TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value);
+            Assert.AreEqual(0, factoryCallCount);
+        }
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value);
+        }
+
+        {
+            var exception = Assert.Throws<InvalidCastException>(() =>
+            {
+                cache.GetOrCreate("foo", () => new SampleValue(), TimeSpan.FromSeconds(10));
+            });
+            Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
+        }
+
+        cache.Remove("foo");
+
+        {
+            var value = cache.GetOrCreate("foo", () => new SampleValue(), TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value!.Name);
+        }
+        {
+            var hit = cache.TryGet<SampleValue>("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
+        cache.Dispose();
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldGetOrCreateNonNullValueAsync()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        {
+            var factoryCallCount = 0;
+            var value = await cache.GetOrCreateAsync("foo", async () =>
+            {
+                await Task.Delay(1);
+                factoryCallCount++;
+                return "bar";
+            }, TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value);
+            Assert.AreEqual(1, factoryCallCount);
+        }
+        {
+            var factoryCallCount = 0;
+            var value = await cache.GetOrCreateAsync("foo", async () =>
+            {
+                await Task.Delay(1);
+                factoryCallCount++;
+                return "bar";
+            }, TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value);
+            Assert.AreEqual(0, factoryCallCount);
+        }
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value);
+        }
+
+        {
+            var exception = Assert.ThrowsAsync<InvalidCastException>(async () =>
+            {
+                await cache.GetOrCreateAsync("foo", async () =>
+                {
+                    await Task.Delay(1);
+                    return new SampleValue();
+                }, TimeSpan.FromSeconds(10));
+            });
+            Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
+        }
+
+        cache.Remove("foo");
+
+        {
+            var value = await cache.GetOrCreateAsync("foo", async () =>
+            {
+                await Task.Delay(1);
+                return new SampleValue();
+            }, TimeSpan.FromSeconds(10));
+            Assert.AreEqual("bar", value!.Name);
+        }
+        {
+            var hit = cache.TryGet<SampleValue>("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("bar", value!.Name);
+        }
+
+        cache.Dispose();
+    }
+
+    //
+
+    [Test]
+    public void ItShouldGetOrCreateNullValue()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        {
+            var factoryCallCount = 0;
+            var value = cache.GetOrCreate<object?>("foo", () =>
+            {
+                factoryCallCount++;
+                return null;
+            }, TimeSpan.FromSeconds(10));
+            Assert.IsNull(value);
+            Assert.AreEqual(1, factoryCallCount);
+        }
+        {
+            var factoryCallCount = 0;
+            var value = cache.GetOrCreate<object?>("foo", () =>
+            {
+                factoryCallCount++;
+                return null;
+            }, TimeSpan.FromSeconds(10));
+            Assert.IsNull(value);
+            Assert.AreEqual(0, factoryCallCount);
+        }
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.IsNull(value);
+        }
+
+        cache.Dispose();
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldGetOrCreateNullValueAsync()
+    {
+        // Arrange
+        var cache = new GenericMemoryCache();
+
+        {
+            var factoryCallCount = 0;
+            var value = await cache.GetOrCreateAsync<object?>("foo", async () =>
+            {
+                await Task.Delay(1);
+                factoryCallCount++;
+                return null;
+            }, TimeSpan.FromSeconds(10));
+            Assert.IsNull(value);
+            Assert.AreEqual(1, factoryCallCount);
+        }
+        {
+            var factoryCallCount = 0;
+            var value = await cache.GetOrCreateAsync<object?>("foo", async () =>
+            {
+                await Task.Delay(1);
+                factoryCallCount++;
+                return null;
+            }, TimeSpan.FromSeconds(10));
+            Assert.IsNull(value);
+            Assert.AreEqual(0, factoryCallCount);
+        }
+        {
+            var hit = cache.TryGet("foo", out var value);
+            Assert.IsTrue(hit);
+            Assert.IsNull(value);
         }
 
         cache.Dispose();
@@ -134,6 +335,9 @@ public class GenericMemoryCacheTest
             Assert.AreEqual("bar", value!.Name);
         }
 
+        var darth = cache.GetOrCreate("darth", () => "bar", TimeSpan.FromMilliseconds(10));
+        Assert.AreEqual("bar", darth);
+
         Thread.Sleep(200);
 
         {
@@ -156,6 +360,12 @@ public class GenericMemoryCacheTest
 
         {
             var hit = cache.TryGet<SampleValue>(key2, out var value);
+            Assert.IsFalse(hit);
+            Assert.IsNull(value);
+        }
+
+        {
+            var hit = cache.TryGet("darth", out var value);
             Assert.IsFalse(hit);
             Assert.IsNull(value);
         }
