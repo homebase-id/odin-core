@@ -174,7 +174,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         //
 
-        private async ValueTask<YouAuthTokenResponse?> ExchangeDigestForToken(OdinId odinId, string digest)
+        private async Task<YouAuthTokenResponse?> ExchangeDigestForToken(OdinId odinId, string digest)
         {
             var tokenRequest = new YouAuthTokenRequest
             {

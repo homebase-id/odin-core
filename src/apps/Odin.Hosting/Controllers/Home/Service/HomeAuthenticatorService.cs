@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Creates a <see cref="ClientAccessToken"/> for access the Home app via the browser
         /// </summary>
-        public async ValueTask<ClientAccessToken?> RegisterBrowserAccess(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken, IdentityDatabase db)
+        public async Task<ClientAccessToken?> RegisterBrowserAccess(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken, IdentityDatabase db)
         {
             //if the remote identity gave us an ICR token, the remote identity is saying we are connected
             if (remoteClientAuthToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
