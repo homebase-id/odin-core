@@ -307,7 +307,7 @@ public class DriveManager
         }
 
         var result = new PagedResult<StorageDrive>(pageOptions, 1, allDrives.Where(predicate).Select(ToStorageDrive).ToList());
-        return await Task.FromResult(result);
+        return result;
     }
 
     private StorageDrive ToStorageDrive(StorageDriveBase sdb)

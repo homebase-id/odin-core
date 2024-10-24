@@ -130,11 +130,11 @@ namespace Odin.Services.Authentication.Owner
                 throw new OdinClientException("Secrets configuration invalid. Did you initialize a password?");
             }
 
-            return await Task.FromResult(new SaltsPackage()
+            return new SaltsPackage
             {
                 SaltKek64 = Convert.ToBase64String(pk.SaltKek),
                 SaltPassword64 = Convert.ToBase64String(pk.SaltPassword)
-            });
+            };
         }
 
         /// <summary>

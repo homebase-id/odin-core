@@ -270,7 +270,7 @@ namespace Odin.Services.Authorization.Apps
                 return dotYouContext;
             }
 
-            var result = await _cache.GetOrAddContext(token, Creator);
+            var result = await _cache.GetOrAddContextAsync(token, Creator);
             return result;
         }
 

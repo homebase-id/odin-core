@@ -869,7 +869,7 @@ namespace Odin.Services.Membership.Connections
             }
 
             var result = (permissionCtx, enabledCircles);
-            return await Task.FromResult(result);
+            return result;
         }
 
 

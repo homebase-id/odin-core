@@ -202,8 +202,6 @@ public class StaticFileContentService
         };
 
         await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
-
-        await Task.CompletedTask;
     }
 
     public async Task PublishProfileCardAsync(string json)
@@ -225,8 +223,6 @@ public class StaticFileContentService
 
         config.ContentType = MediaTypeNames.Application.Json;
         await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
-
-        await Task.CompletedTask;
     }
 
     private GuidId GetConfigKey(string filename)

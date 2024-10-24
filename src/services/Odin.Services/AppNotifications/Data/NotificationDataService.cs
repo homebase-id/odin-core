@@ -138,8 +138,6 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
                 await _storage.UpdateAsync(record);
             }
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task MarkReadByApp(Guid appId, IOdinContext odinContext)
@@ -161,8 +159,6 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             }).ToList()
         };
 
-        await this.UpdateNotifications(request, odinContext);
-
-        await Task.CompletedTask;
+        await UpdateNotifications(request, odinContext);
     }
 }

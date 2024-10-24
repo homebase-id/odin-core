@@ -65,30 +65,30 @@ namespace Odin.Services.Authorization.Acl
             return false;
         }
 
-        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
+        public async Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             if (caller?.SecurityLevel == SecurityGroupType.System)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             //there must be an acl
             if (acl == null)
             {
-                return Task.FromResult(false);
+                return false;
             }
 
             //if file has required circles, see if caller has at least one
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any() && !requiredCircles.Intersect(caller!.Circles.Select(c => c.Value)).Any())
             {
-                return Task.FromResult(false);
+                return false;
             }
 
             if (acl.GetRequiredIdentities().Any())
@@ -99,16 +99,16 @@ namespace Odin.Services.Authorization.Acl
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
-                    return Task.FromResult(true);
+                    return true;
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
+                    return (int)caller!.SecurityLevel >= (int)SecurityGroupType.Authenticated;
 
                 case SecurityGroupType.Connected:
-                    return CallerIsConnected(odinContext);
+                    return await CallerIsConnected(odinContext);
             }
 
-            return Task.FromResult(false);
+            return false;
         }
 
         private void ThrowWhenFalse(bool eval)
@@ -119,10 +119,10 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private async Task<bool> CallerIsConnected(IOdinContext odinContext)
+        private Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
             //TODO: cache result - 
-            return await Task.FromResult(odinContext.Caller.IsConnected);
+            return Task.FromResult(odinContext.Caller.IsConnected);
         }
     }
 }

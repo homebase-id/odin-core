@@ -104,7 +104,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
                 if (null == permissionContext || callerContext == null)
                 {
-                    return await Task.FromResult<IOdinContext?>(null);
+                    return null;
                 }
 
                 dotYouContext.Caller = callerContext;
@@ -113,7 +113,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 return dotYouContext;
             });
 
-            return await _cache.GetOrAddContext(token, creator);
+            return await _cache.GetOrAddContextAsync(token, creator);
         }
 
         public async Task<bool> DeleteSessionAsync(IOdinContext odinContext, IdentityDatabase db)
@@ -161,7 +161,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
-            return await Task.FromResult(result);
+            return result;
         }
 
         private async Task<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken,

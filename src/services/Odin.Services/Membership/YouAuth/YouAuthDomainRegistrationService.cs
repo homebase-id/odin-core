@@ -226,7 +226,7 @@ namespace Odin.Services.Membership.YouAuth
                 AccessRegistrationClientType = domainClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
-            return await Task.FromResult(resp);
+            return resp;
         }
 
         /// <summary>
@@ -396,7 +396,7 @@ namespace Odin.Services.Membership.YouAuth
                 return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg, currentOdinContext);
             }
 
-            var result = await _cache.GetOrAddContext(token, Creator);
+            var result = await _cache.GetOrAddContextAsync(token, Creator);
             return result;
         }
 

@@ -85,7 +85,7 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
+        protected T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
@@ -98,7 +98,7 @@ namespace Odin.Services.Peer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
+            return OdinSystemSerializer.Deserialize<T>(json);
         }
 
         /// <summary>

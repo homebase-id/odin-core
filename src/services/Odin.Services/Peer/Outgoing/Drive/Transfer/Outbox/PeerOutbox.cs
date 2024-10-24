@@ -74,7 +74,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             
             if (null == record)
             {
-                return await Task.FromResult<OutboxFileItem>(null);
+                return null;
             }
 
             PerformanceCounter.IncrementCounter("Outbox Item Checkout");

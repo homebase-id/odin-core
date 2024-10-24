@@ -195,7 +195,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var tenantContext = CreateTenantContext(request.OdinId, true);
 
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
-            await tc.SaveSslCertificate(
+            tc.SaveSslCertificate(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {

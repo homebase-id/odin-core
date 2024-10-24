@@ -178,7 +178,7 @@ namespace Odin.Services.Authentication.Owner
 
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
             var entry = await _serverTokenStorage.GetAsync<OwnerConsoleToken>(db, sessionTokenId);
-            return await Task.FromResult(IsAuthTokenEntryValid(entry));
+            return IsAuthTokenEntryValid(entry);
         }
 
         /// <summary>
@@ -275,7 +275,7 @@ namespace Odin.Services.Authentication.Owner
                 return dotYouContext;
             });
 
-            return await _cache.GetOrAddContext(token, creator);
+            return await _cache.GetOrAddContextAsync(token, creator);
         }
 
         /// <summary>

@@ -58,8 +58,6 @@ public class RecoveryService
 
         var keyBytes = ByteArrayUtil.GetRndByteArray(16);
         await SaveKeyAsync(keyBytes.ToSensitiveByteArray(), odinContext);
-
-        await Task.CompletedTask;
     }
 
     public async Task<DecryptedRecoveryKey> GetKeyAsync(IOdinContext odinContext)

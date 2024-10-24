@@ -101,7 +101,7 @@ public class ConfigurationController : OdinControllerBase
         await _tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
 
         //todo: map to all the various flags
-        return await Task.FromResult(false);
+        return false;
     }
 
     /// <summary>

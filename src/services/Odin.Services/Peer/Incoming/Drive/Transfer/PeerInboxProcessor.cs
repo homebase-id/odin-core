@@ -250,7 +250,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = inboxItem.DriveId
             };
 
-            var reaction = await DecryptUsingSharedSecret<string>(request.Payload);
+            var reaction = DecryptUsingSharedSecret<string>(request.Payload);
 
             switch (inboxItem.InstructionType)
             {
@@ -264,7 +264,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        private async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
+        private T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
         {
             //TODO: put decryption back in place
             // var t = await ResolveClientAccessToken(caller!.Value, tokenSource);
@@ -274,7 +274,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
+            return OdinSystemSerializer.Deserialize<T>(json);
         }
 
         private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer, InternalDriveFileId tempFile,
