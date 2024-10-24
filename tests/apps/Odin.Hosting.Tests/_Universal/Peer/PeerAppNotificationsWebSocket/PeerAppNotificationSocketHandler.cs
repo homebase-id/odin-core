@@ -7,26 +7,25 @@ using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
+using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 
 public class PeerAppNotificationSocketHandler(int notificationBatchSize, int notificationWaitTime)
 {
     private readonly TestAppWebSocketListener _socketListener = new();
-
-    private OwnerApiClientRedux _client;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileModified;
 
-    public async Task ConnectAsync(OdinId hostIdentity, OwnerApiClientRedux client, List<TargetDrive> targetDrives)
+    public async Task ConnectAsync(OdinId hostIdentity, ClientAccessToken token, List<TargetDrive> targetDrives)
     {
-        this._client = client;
         _socketListener.NotificationReceived += SocketListenerOnNotificationReceived;
 
         // negotiate with the host identity, we need to send a toke
 
-        await _socketListener.ConnectAsync(hostIdentity, _client.GetTokenContext(), new EstablishConnectionOptions()
+        await _socketListener.ConnectAsync(hostIdentity, token, new EstablishConnectionOptions()
         {
             Drives = targetDrives,
             BatchSize = notificationBatchSize,

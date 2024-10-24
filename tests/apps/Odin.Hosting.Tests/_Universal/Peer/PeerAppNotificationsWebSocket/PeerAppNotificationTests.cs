@@ -5,17 +5,20 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Util;
+using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
+using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
@@ -96,9 +99,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-            await PrepareScenario(hostIdentity, frodo, sam, hostCommunityChatDrive);
+            var (frodoAppApi, samAppApi) = await PrepareScenario(hostIdentity, frodo, sam, hostCommunityChatDrive);
 
-            await SetupSockets(hostIdentity, frodo, sam, [hostCommunityChatDrive]);
+            await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [hostCommunityChatDrive]);
 
             // Act
             await SendBarrage(frodo, sam, maxThreads: 5, iterations: 50);
@@ -136,13 +139,27 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             await Shutdown(frodo, sam);
         }
 
-        private async Task SetupSockets(OwnerApiClientRedux hostIdentity, OwnerApiClientRedux frodo, OwnerApiClientRedux sam,
+        private async Task SetupSockets(OwnerApiClientRedux hostIdentity, AppApiClientRedux frodo, AppApiClientRedux sam,
             List<TargetDrive> targetDrives)
         {
-            await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, sam, targetDrives);
+            var getTokenRequest = new GetRemoteTokenRequest()
+            {
+                Identity = hostIdentity.Identity.OdinId
+            };
+
+            //create remote tokens for listening to peer app notifications
+            var frodoGetTokenResponse = await frodo.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
+            var frodoToken = frodoGetTokenResponse.Content.Token;
+            Assert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
+
+            var samGetTokenResponse = await sam.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
+            var samToken = frodoGetTokenResponse.Content.Token;
+            Assert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
+
+            await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);
             _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;
 
-            await _frodoSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodo, targetDrives);
+            await _frodoSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, samToken, targetDrives);
             _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
         }
 
@@ -288,7 +305,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         }
 
 
-        private async Task PrepareScenario(OwnerApiClientRedux hostIdentity,
+        private async Task<(AppApiClientRedux frodoAppApi, AppApiClientRedux samAppApi)> PrepareScenario(OwnerApiClientRedux hostIdentity,
             OwnerApiClientRedux frodo,
             OwnerApiClientRedux sam,
             TargetDrive groupChannelDrive)
@@ -307,7 +324,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
                 attributes: isCollaborativeChannel);
 
             var memberCircleId = Guid.NewGuid();
-            ;
+
             await hostIdentity.Network.CreateCircle(memberCircleId, "group members", new PermissionSetGrantRequest()
                 {
                     Drives = new List<DriveGrantRequest>()
@@ -332,6 +349,26 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             await frodo.Connections.AcceptConnectionRequest(hostIdentity.Identity.OdinId);
             await sam.Connections.AcceptConnectionRequest(hostIdentity.Identity.OdinId);
+
+            // Create an app to receive the notifications
+
+            Guid communityAppId = Guid.NewGuid();
+            var permissions = new PermissionSetGrantRequest
+            {
+                Drives = [],
+                PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead)
+            };
+
+            var frodoAppClientAccessToken = await frodo.AppManager.RegisterAppAndClient(communityAppId, permissions);
+            var samAppClientAccessToken = await sam.AppManager.RegisterAppAndClient(communityAppId, permissions);
+
+
+            // now the app client is going to call to the identity to
+            // request a CAT to receive app notifications from the peer identity
+            var frodoAppApiClient = _scaffold.CreateAppApiClientRedux(frodo.Identity.OdinId, frodoAppClientAccessToken);
+            var samAppApiClient = _scaffold.CreateAppApiClientRedux(sam.Identity.OdinId, samAppClientAccessToken);
+
+            return (frodoAppApiClient, samAppApiClient);
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)

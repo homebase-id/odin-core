@@ -3,15 +3,12 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.YouAuth;
 using Odin.Services.Util;
 using Refit;
 
@@ -30,7 +27,7 @@ public class PeerAppNotificationService(
 {
     public async Task<SharedSecretEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
     {
-        var token = await circleNetworkService.CreatePeerIcrClientForCaller(odinContext);
+        var token = await CircleNetworkService.CreatePeerIcrClientForCaller(odinContext);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         return SharedSecretEncryptedPayload.Encrypt(token.ToPortableBytes(), sharedSecret);
