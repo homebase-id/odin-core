@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -9,13 +10,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     public class TableConnectionsTests
     {
         [Test]
-        public void ExampleTest()
+        public async Task ExampleTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableConnectionsTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
                 var g3 = Guid.NewGuid();
@@ -28,7 +29,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 1,
                     data = g1.ToByteArray()
                 };
-                db.tblConnections.Upsert(item1);
+                await db.tblConnections.UpsertAsync(item1);
 
                 var item2 = new ConnectionsRecord()
                 {
@@ -38,7 +39,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g2.ToByteArray()
                 };
-                db.tblConnections.Upsert(item2);
+                await db.tblConnections.UpsertAsync(item2);
 
                 var item3 = new ConnectionsRecord()
                 {
@@ -48,33 +49,33 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g3.ToByteArray()
                 };
-                db.tblConnections.Upsert(item3);
+                await db.tblConnections.UpsertAsync(item3);
 
                 // We have three connections, get the first two in the first page, then the last page of one
                 //
-                var r = db.tblConnections.PagingByIdentity(2, null, out var outCursor);
+                var (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, null);
                 Debug.Assert(r.Count == 2);
 
-                r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, outCursor);
                 Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
                 Debug.Assert(outCursor == null);
 
 
                 // Try the filter ones
-                r = db.tblConnections.PagingByIdentity(2, 42, null, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, 42, null);
                 Debug.Assert(r.Count == 1);
             }
         }
 
 
         [Test]
-        public void InsertValidConnectionTest()
+        public async Task InsertValidConnectionTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableConnectionsTest002");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var g1 = Guid.NewGuid();
 
                 // This is OK {odin.vahalla.com, driveid}
@@ -87,9 +88,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     data = g1.ToByteArray()
                 };
 
-                db.tblConnections.Upsert(item);
+                await db.tblConnections.UpsertAsync(item);
 
-                var r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+                var r = await db.tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
                 Debug.Assert(r.identity == "frodo.baggins.me");
                 Debug.Assert(r.displayName == "Frodo Baggins");
                 Debug.Assert(r.status == 42);
@@ -100,12 +101,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void DeleteValidConnectionTest()
+        public async Task DeleteValidConnectionTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableConnectionsTest003");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var g1 = Guid.NewGuid();
 
                 // This is OK {odin.vahalla.com, driveid}
@@ -118,10 +119,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     data = g1.ToByteArray()
                 };
 
-                var r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+                var r = await db.tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
                 Debug.Assert(r == null);
-                db.tblConnections.Upsert(item);
-                r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+                await db.tblConnections.UpsertAsync(item);
+                r = await db.tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
                 Debug.Assert(r.identity == "frodo.baggins.me");
                 Debug.Assert(r.displayName == "");
                 Debug.Assert(r.status == 42);
@@ -132,13 +133,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void PagingByCreatedBothTest()
+        public async Task PagingByCreatedBothTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableConnectionsTest004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
                 var g3 = Guid.NewGuid();
@@ -151,7 +152,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 1,
                     data = g1.ToByteArray()
                 };
-                db.tblConnections.Upsert(item1);
+                await db.tblConnections.UpsertAsync(item1);
 
                 var item2 = new ConnectionsRecord()
                 {
@@ -161,7 +162,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g2.ToByteArray()
                 };
-                db.tblConnections.Upsert(item2);
+                await db.tblConnections.UpsertAsync(item2);
 
                 var item3 = new ConnectionsRecord()
                 {
@@ -171,29 +172,29 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g3.ToByteArray()
                 };
-                db.tblConnections.Upsert(item3);
+                await db.tblConnections.UpsertAsync(item3);
 
 
                 // Test the CRUD 
 
                 // Get most recent (will be a different order)
-                var r = db.tblConnections.PagingByCreated(2, null, out var timeCursor);
+                var (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(r[1].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor != null);
-                r = db.tblConnections.PagingByCreated(2, timeCursor, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, timeCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(timeCursor == null);
 
 
                 // TEST THE HANDCODED
-                r = db.tblConnections.PagingByCreated(1, 42, null, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(1, 42, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(timeCursor != null);
-                r = db.tblConnections.PagingByCreated(2, 42, timeCursor, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, 42, timeCursor);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(timeCursor == null);
@@ -202,13 +203,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void GetConnectionsValidConnectionsTest()
+        public async Task GetConnectionsValidConnectionsTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableConnectionsTest005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var g1 = Guid.NewGuid();
                 var g2 = Guid.NewGuid();
                 var g3 = Guid.NewGuid();
@@ -221,7 +222,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 1,
                     data = g1.ToByteArray()
                 };
-                db.tblConnections.Upsert(item1);
+                await db.tblConnections.UpsertAsync(item1);
 
                 var item2 = new ConnectionsRecord()
                 {
@@ -231,7 +232,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g2.ToByteArray()
                 };
-                db.tblConnections.Upsert(item2);
+                await db.tblConnections.UpsertAsync(item2);
 
                 var item3 = new ConnectionsRecord()
                 {
@@ -241,39 +242,39 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     accessIsRevoked = 0,
                     data = g3.ToByteArray()
                 };
-                db.tblConnections.Upsert(item3);
+                await db.tblConnections.UpsertAsync(item3);
 
 
-                var r = db.tblConnections.PagingByIdentity(2, null, out var outCursor);
+                var (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(r[1].identity == "gandalf.white.me");
 
-                r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(2, outCursor);
                 Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
                 Debug.Assert(r[0].identity == "samwise.gamgee.me");
                 Debug.Assert(outCursor == null);
 
                 // TEST HAND CODED STATUS FILTER
-                r = db.tblConnections.PagingByIdentity(1, 42, null, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(1, 42, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "frodo.baggins.me");
                 Debug.Assert(outCursor != null);
-                r = db.tblConnections.PagingByIdentity(1, 42, outCursor, out outCursor);
+                (r, outCursor) = await db.tblConnections.PagingByIdentityAsync(1, 42, outCursor);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(outCursor == null);
 
 
 
                 // Get most recent (will be a different order)
-                r = db.tblConnections.PagingByCreated(2, null, out var timeCursor);
+                (r, var timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, null);
                 Debug.Assert(r.Count == 2);
                 Debug.Assert(r[0].identity == "gandalf.white.me");
                 Debug.Assert(r[1].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor != null);
 
                 // TEST THE HANDCODED
-                r = db.tblConnections.PagingByCreated(2, 43, null, out timeCursor);
+                (r, timeCursor) = await db.tblConnections.PagingByCreatedAsync(2, 43, null);
                 Debug.Assert(r.Count == 1);
                 Debug.Assert(r[0].identity == "samwise.gamgee.me");
                 Debug.Assert(timeCursor == null);

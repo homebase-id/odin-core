@@ -6,6 +6,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 
 /*
@@ -97,84 +98,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _identityId = identityId;
         }
 
-
-        ~IdentityDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
         public override void ClearCache()
         {
             _cache.ClearCache();
         }
 
-
-        public override void Dispose()
-        {
-            Serilog.Log.Information("IdentityDatabase Dispose() called {_databaseSource}.", _databaseSource);
-
-            // Drives
-            tblDriveMainIndex.Dispose();
-            tblDriveAclIndex.Dispose();
-            tblDriveTagIndex.Dispose();
-            tblDriveReactions.Dispose();
-
-            // Identity
-            tblAppGrants.Dispose();
-            tblKeyValue.Dispose();
-            tblKeyTwoValue.Dispose();
-            TblKeyThreeValue.Dispose();
-            tblInbox.Dispose();
-            tblOutbox.Dispose();
-            tblCircle.Dispose();
-            tblImFollowing.Dispose();
-            tblFollowsMe.Dispose();
-            tblCircleMember.Dispose();
-            tblConnections.Dispose();
-            tblAppNotificationsTable.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            using (var conn = this.CreateDisposableConnection())
+            using var conn = this.CreateDisposableConnection();
+            
+            // Drives
+            await tblDriveMainIndex.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblDriveAclIndex.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblDriveTagIndex.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblDriveReactions.EnsureTableExistsAsync(conn, dropExistingTables);
+
+            // Identity
+            await tblAppGrants.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblKeyValue.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblKeyTwoValue.EnsureTableExistsAsync(conn, dropExistingTables);
+            await TblKeyThreeValue.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblInbox.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblOutbox.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblCircle.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblCircleMember.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblImFollowing.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblFollowsMe.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblConnections.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblAppNotificationsTable.EnsureTableExistsAsync(conn, dropExistingTables);
+
+            if (dropExistingTables)
             {
-                // Drives
-                tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
-                tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
-                tblDriveTagIndex.EnsureTableExists(conn, dropExistingTables);
-                tblDriveReactions.EnsureTableExists(conn, dropExistingTables);
-
-                // Identity
-                tblAppGrants.EnsureTableExists(conn, dropExistingTables);
-                tblKeyValue.EnsureTableExists(conn, dropExistingTables);
-                tblKeyTwoValue.EnsureTableExists(conn, dropExistingTables);
-                TblKeyThreeValue.EnsureTableExists(conn, dropExistingTables);
-                // TblKeyUniqueThreeValue.EnsureTableExists(conn, dropExistingTables);
-                tblInbox.EnsureTableExists(conn, dropExistingTables);
-                tblOutbox.EnsureTableExists(conn, dropExistingTables);
-                tblCircle.EnsureTableExists(conn, dropExistingTables);
-                tblCircleMember.EnsureTableExists(conn, dropExistingTables);
-                tblImFollowing.EnsureTableExists(conn, dropExistingTables);
-                tblFollowsMe.EnsureTableExists(conn, dropExistingTables);
-                tblConnections.EnsureTableExists(conn, dropExistingTables);
-                tblAppNotificationsTable.EnsureTableExists(conn, dropExistingTables);
-
-                if (dropExistingTables)
-                    conn.Vacuum();
+                await conn.VacuumAsync(); 
             }
         }
 

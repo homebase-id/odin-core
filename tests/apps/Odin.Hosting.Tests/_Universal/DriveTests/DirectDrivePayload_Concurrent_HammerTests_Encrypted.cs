@@ -34,7 +34,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
     }

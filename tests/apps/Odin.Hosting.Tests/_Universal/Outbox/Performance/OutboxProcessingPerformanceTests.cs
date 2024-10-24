@@ -39,7 +39,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             var fixedSubPath = "logme";
             _scaffold = new WebScaffold(folder, fixedSubPath);
 

@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, db);
+            await circleNetworkRequestService.ReceiveConnectionRequestAsync(payload, WebOdinContext, db);
             return new JsonResult(new NoResultResponse(true));
         }
 

@@ -1,9 +1,12 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using System.Runtime.CompilerServices;
+
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -97,7 +100,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableAppNotificationsCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableAppNotificationsCRUD(CacheHelper cache) : base("AppNotifications")
@@ -105,25 +107,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableAppNotificationsCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableAppNotificationsCRUD Not disposed properly");
-        }
 
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
-
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
-                       conn.ExecuteNonQuery(cmd);
+                       await conn.ExecuteNonQueryAsync(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS AppNotifications("
@@ -139,53 +131,53 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                    await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
-        internal virtual int Insert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@notificationId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@unread";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@senderId";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@timestamp";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam8);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.notificationId.ToByteArray();
-                _insertParam3.Value = item.unread;
-                _insertParam4.Value = item.senderId ?? (object)DBNull.Value;
-                _insertParam5.Value = item.timestamp.milliseconds;
-                _insertParam6.Value = item.data ?? (object)DBNull.Value;
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@notificationId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@unread";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@senderId";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@timestamp";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam8);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.notificationId.ToByteArray();
+                insertParam3.Value = item.unread;
+                insertParam4.Value = item.senderId ?? (object)DBNull.Value;
+                insertParam5.Value = item.timestamp.milliseconds;
+                insertParam6.Value = item.data ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam7.Value = now.uniqueTime;
+                insertParam7.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam8.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam8.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                      item.created = now;
@@ -195,49 +187,49 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int TryInsert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
+                insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@notificationId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@unread";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@senderId";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@timestamp";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam8);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.notificationId.ToByteArray();
-                _insertParam3.Value = item.unread;
-                _insertParam4.Value = item.senderId ?? (object)DBNull.Value;
-                _insertParam5.Value = item.timestamp.milliseconds;
-                _insertParam6.Value = item.data ?? (object)DBNull.Value;
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@notificationId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@unread";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@senderId";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@timestamp";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam8);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.notificationId.ToByteArray();
+                insertParam3.Value = item.unread;
+                insertParam4.Value = item.senderId ?? (object)DBNull.Value;
+                insertParam5.Value = item.timestamp.milliseconds;
+                insertParam6.Value = item.data ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam7.Value = now.uniqueTime;
+                insertParam7.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam8.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam8.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                     item.created = now;
@@ -247,51 +239,51 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _upsertCommand = conn.db.CreateCommand())
+            using (var upsertCommand = conn.db.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
+                upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created)"+
                                              "ON CONFLICT (identityId,notificationId) DO UPDATE "+
                                              "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
                                              "RETURNING created, modified;";
-                var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "@identityId";
-                _upsertCommand.Parameters.Add(_upsertParam1);
-                var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "@notificationId";
-                _upsertCommand.Parameters.Add(_upsertParam2);
-                var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "@unread";
-                _upsertCommand.Parameters.Add(_upsertParam3);
-                var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "@senderId";
-                _upsertCommand.Parameters.Add(_upsertParam4);
-                var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "@timestamp";
-                _upsertCommand.Parameters.Add(_upsertParam5);
-                var _upsertParam6 = _upsertCommand.CreateParameter();
-                _upsertParam6.ParameterName = "@data";
-                _upsertCommand.Parameters.Add(_upsertParam6);
-                var _upsertParam7 = _upsertCommand.CreateParameter();
-                _upsertParam7.ParameterName = "@created";
-                _upsertCommand.Parameters.Add(_upsertParam7);
-                var _upsertParam8 = _upsertCommand.CreateParameter();
-                _upsertParam8.ParameterName = "@modified";
-                _upsertCommand.Parameters.Add(_upsertParam8);
+                var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.ParameterName = "@identityId";
+                upsertCommand.Parameters.Add(upsertParam1);
+                var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.ParameterName = "@notificationId";
+                upsertCommand.Parameters.Add(upsertParam2);
+                var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.ParameterName = "@unread";
+                upsertCommand.Parameters.Add(upsertParam3);
+                var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.ParameterName = "@senderId";
+                upsertCommand.Parameters.Add(upsertParam4);
+                var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.ParameterName = "@timestamp";
+                upsertCommand.Parameters.Add(upsertParam5);
+                var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.ParameterName = "@data";
+                upsertCommand.Parameters.Add(upsertParam6);
+                var upsertParam7 = upsertCommand.CreateParameter();
+                upsertParam7.ParameterName = "@created";
+                upsertCommand.Parameters.Add(upsertParam7);
+                var upsertParam8 = upsertCommand.CreateParameter();
+                upsertParam8.ParameterName = "@modified";
+                upsertCommand.Parameters.Add(upsertParam8);
                 var now = UnixTimeUtcUnique.Now();
-                _upsertParam1.Value = item.identityId.ToByteArray();
-                _upsertParam2.Value = item.notificationId.ToByteArray();
-                _upsertParam3.Value = item.unread;
-                _upsertParam4.Value = item.senderId ?? (object)DBNull.Value;
-                _upsertParam5.Value = item.timestamp.milliseconds;
-                _upsertParam6.Value = item.data ?? (object)DBNull.Value;
-                _upsertParam7.Value = now.uniqueTime;
-                _upsertParam8.Value = now.uniqueTime;
-                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam2.Value = item.notificationId.ToByteArray();
+                upsertParam3.Value = item.unread;
+                upsertParam4.Value = item.senderId ?? (object)DBNull.Value;
+                upsertParam5.Value = item.timestamp.milliseconds;
+                upsertParam6.Value = item.data ?? (object)DBNull.Value;
+                upsertParam7.Value = now.uniqueTime;
+                upsertParam8.Value = now.uniqueTime;
+                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -310,49 +302,49 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Update(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, AppNotificationsRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.notificationId, "Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var _updateCommand = conn.db.CreateCommand())
+            using (var updateCommand = conn.db.CreateCommand())
             {
-                _updateCommand.CommandText = "UPDATE AppNotifications " +
+                updateCommand.CommandText = "UPDATE AppNotifications " +
                                              "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
                                              "WHERE (identityId = @identityId AND notificationId = @notificationId)";
-                var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "@identityId";
-                _updateCommand.Parameters.Add(_updateParam1);
-                var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "@notificationId";
-                _updateCommand.Parameters.Add(_updateParam2);
-                var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "@unread";
-                _updateCommand.Parameters.Add(_updateParam3);
-                var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "@senderId";
-                _updateCommand.Parameters.Add(_updateParam4);
-                var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "@timestamp";
-                _updateCommand.Parameters.Add(_updateParam5);
-                var _updateParam6 = _updateCommand.CreateParameter();
-                _updateParam6.ParameterName = "@data";
-                _updateCommand.Parameters.Add(_updateParam6);
-                var _updateParam7 = _updateCommand.CreateParameter();
-                _updateParam7.ParameterName = "@created";
-                _updateCommand.Parameters.Add(_updateParam7);
-                var _updateParam8 = _updateCommand.CreateParameter();
-                _updateParam8.ParameterName = "@modified";
-                _updateCommand.Parameters.Add(_updateParam8);
+                var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.ParameterName = "@identityId";
+                updateCommand.Parameters.Add(updateParam1);
+                var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.ParameterName = "@notificationId";
+                updateCommand.Parameters.Add(updateParam2);
+                var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.ParameterName = "@unread";
+                updateCommand.Parameters.Add(updateParam3);
+                var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.ParameterName = "@senderId";
+                updateCommand.Parameters.Add(updateParam4);
+                var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.ParameterName = "@timestamp";
+                updateCommand.Parameters.Add(updateParam5);
+                var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.ParameterName = "@data";
+                updateCommand.Parameters.Add(updateParam6);
+                var updateParam7 = updateCommand.CreateParameter();
+                updateParam7.ParameterName = "@created";
+                updateCommand.Parameters.Add(updateParam7);
+                var updateParam8 = updateCommand.CreateParameter();
+                updateParam8.ParameterName = "@modified";
+                updateCommand.Parameters.Add(updateParam8);
              var now = UnixTimeUtcUnique.Now();
-                _updateParam1.Value = item.identityId.ToByteArray();
-                _updateParam2.Value = item.notificationId.ToByteArray();
-                _updateParam3.Value = item.unread;
-                _updateParam4.Value = item.senderId ?? (object)DBNull.Value;
-                _updateParam5.Value = item.timestamp.milliseconds;
-                _updateParam6.Value = item.data ?? (object)DBNull.Value;
-                _updateParam7.Value = now.uniqueTime;
-                _updateParam8.Value = now.uniqueTime;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam2.Value = item.notificationId.ToByteArray();
+                updateParam3.Value = item.unread;
+                updateParam4.Value = item.senderId ?? (object)DBNull.Value;
+                updateParam5.Value = item.timestamp.milliseconds;
+                updateParam6.Value = item.data ?? (object)DBNull.Value;
+                updateParam7.Value = now.uniqueTime;
+                updateParam8.Value = now.uniqueTime;
+                var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -362,12 +354,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            using (var _getCountCommand = conn.db.CreateCommand())
+            using (var getCountCommand = conn.db.CreateCommand())
             {
-                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
-                var count = conn.ExecuteScalar(_getCountCommand);
+                 // TODO: this is SQLite specific
+                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -393,31 +386,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new AppNotificationsRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(_guid);
+                item.identityId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in notificationId...");
-                item.notificationId = new Guid(_guid);
+                item.notificationId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(2))
@@ -445,13 +438,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65000+1);
+                bytesRead = rdr.GetBytes(5, 0, tmpbuf, 0, 65000+1);
                 if (bytesRead > 65000)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(6))
@@ -470,22 +463,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal int Delete(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid notificationId)
         {
-            using (var _delete0Command = conn.db.CreateCommand())
+            using (var delete0Command = conn.db.CreateCommand())
             {
-                _delete0Command.CommandText = "DELETE FROM AppNotifications " +
+                delete0Command.CommandText = "DELETE FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId";
-                var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "@identityId";
-                _delete0Command.Parameters.Add(_delete0Param1);
-                var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "@notificationId";
-                _delete0Command.Parameters.Add(_delete0Param2);
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@identityId";
+                delete0Command.Parameters.Add(delete0Param1);
+                var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.ParameterName = "@notificationId";
+                delete0Command.Parameters.Add(delete0Param2);
 
-                _delete0Param1.Value = identityId.ToByteArray();
-                _delete0Param2.Value = notificationId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param2.Value = notificationId.ToByteArray();
+                var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
                 return count;
@@ -495,11 +488,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new AppNotificationsRecord();
             item.identityId = identityId;
             item.notificationId = notificationId;
@@ -529,13 +522,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65000+1);
+                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65000+1);
                 if (bytesRead > 65000)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(4))
@@ -554,29 +547,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal AppNotificationsRecord Get(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal async Task<AppNotificationsRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
                 return (AppNotificationsRecord)cacheObject;
-            using (var _get0Command = conn.db.CreateCommand())
+            using (var get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                get0Command.CommandText = "SELECT unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
-                var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "@identityId";
-                _get0Command.Parameters.Add(_get0Param1);
-                var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "@notificationId";
-                _get0Command.Parameters.Add(_get0Param2);
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@notificationId";
+                get0Command.Parameters.Add(get0Param2);
 
-                _get0Param1.Value = identityId.ToByteArray();
-                _get0Param2.Value = notificationId.ToByteArray();
-                lock (conn._lock)
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = notificationId.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), null);
                             return null;
@@ -585,47 +577,47 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), r);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 
-        internal List<AppNotificationsRecord> PagingByCreated(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        internal async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
-            using (var _getPaging7Command = conn.db.CreateCommand())
+            using (var getPaging7Command = conn.db.CreateCommand())
             {
-                _getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                             "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
-                var _getPaging7Param1 = _getPaging7Command.CreateParameter();
-                _getPaging7Param1.ParameterName = "@created";
-                _getPaging7Command.Parameters.Add(_getPaging7Param1);
-                var _getPaging7Param2 = _getPaging7Command.CreateParameter();
-                _getPaging7Param2.ParameterName = "$_count";
-                _getPaging7Command.Parameters.Add(_getPaging7Param2);
-                var _getPaging7Param3 = _getPaging7Command.CreateParameter();
-                _getPaging7Param3.ParameterName = "@identityId";
-                _getPaging7Command.Parameters.Add(_getPaging7Param3);
+                var getPaging7Param1 = getPaging7Command.CreateParameter();
+                getPaging7Param1.ParameterName = "@created";
+                getPaging7Command.Parameters.Add(getPaging7Param1);
+                var getPaging7Param2 = getPaging7Command.CreateParameter();
+                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Command.Parameters.Add(getPaging7Param2);
+                var getPaging7Param3 = getPaging7Command.CreateParameter();
+                getPaging7Param3.ParameterName = "@identityId";
+                getPaging7Command.Parameters.Add(getPaging7Param3);
 
-                _getPaging7Param1.Value = inCursor?.uniqueTime;
-                _getPaging7Param2.Value = count+1;
-                _getPaging7Param3.Value = identityId.ToByteArray();
+                getPaging7Param1.Value = inCursor?.uniqueTime;
+                getPaging7Param2.Value = count+1;
+                getPaging7Param3.Value = identityId.ToByteArray();
 
-                lock (conn._lock)
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_getPaging7Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AppNotificationsRecord>();
+                        UnixTimeUtcUnique? nextCursor;
                         int n = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             result.Add(ReadRecordFromReaderAll(rdr));
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].created;
                         }
@@ -633,9 +625,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         {
                             nextCursor = null;
                         }
-                        return result;
+                        return (result, nextCursor);
                     } // using
-                } // Lock
+                } //
             } // using 
         } // PagingGet
 

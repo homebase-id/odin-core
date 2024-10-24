@@ -74,7 +74,7 @@ namespace Odin.Services.Registry
         /// </summary>
         /// <param name="domain"></param>
         /// <returns></returns>
-        Task<IdentityRegistration> Get(string domain);
+        Task<IdentityRegistration> GetAsync(string domain);
 
         Task MarkRegistrationComplete(Guid firstRunToken);
 
@@ -92,8 +92,8 @@ namespace Odin.Services.Registry
         /// <summary>
         /// Marks an account for deletion as of now(); returns the date on which it will be deleted based on registry config
         /// </summary>
-        Task<UnixTimeUtc> MarkForDeletion(string domain);
+        Task<UnixTimeUtc> MarkForDeletionAsync(string domain);
 
-        Task UnmarkForDeletion(string domain);
+        Task UnmarkForDeletionAsync(string domain);
     }
 }

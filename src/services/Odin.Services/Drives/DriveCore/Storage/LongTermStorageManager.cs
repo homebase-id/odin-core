@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
@@ -62,7 +61,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             var mgr = await GetDbManager(db);
-            await mgr.SaveFileHeader(header, db);
+            await mgr.SaveFileHeaderAsync(header, db);
         }
 
         public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
@@ -76,13 +75,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             OdinValidationUtils.AssertNotNull(history, nameof(history));
             var mgr = await GetDbManager(db);
-            await mgr.SaveTransferHistory(fileId, history, db);
+            await mgr.SaveTransferHistoryAsync(fileId, history, db);
         }
 
         public async Task DeleteTransferHistory(Guid fileId, IdentityDatabase db)
         {
             var mgr = await GetDbManager(db);
-            await mgr.SaveTransferHistory(fileId, null, db);
+            await mgr.SaveTransferHistoryAsync(fileId, null, db);
         }
 
         public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
@@ -101,35 +100,35 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task DeleteThumbnailFile(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height, int width)
         {
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
-            string dir = await GetFilePath(fileId, FilePart.Thumb);
+            string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
 
-            await _driveFileReaderWriter.DeleteFile(path);
+            await _driveFileReaderWriter.DeleteFileAsync(path);
         }
 
         public async Task DeletePayloadFile(Guid fileId, PayloadDescriptor descriptor)
         {
-            string path = await GetPayloadFilePath(fileId, descriptor);
-            await _driveFileReaderWriter.DeleteFile(path);
+            string path = GetPayloadFilePath(fileId, descriptor);
+            await _driveFileReaderWriter.DeleteFileAsync(path);
         }
 
         public async Task DeleteAllPayloadFiles(Guid fileId)
         {
             var searchPattern = this.GetFilename(fileId, "-*", FilePart.Payload);
-            string dir = await GetFilePath(fileId, FilePart.Payload);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            string dir = GetFilePath(fileId, FilePart.Payload);
+            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
         }
 
         public async Task<Int64> GetPayloadDiskUsage(Guid fileId)
         {
-            string payloadFilePath = await GetPayloadPath(fileId);
+            string payloadFilePath = GetPayloadPath(fileId);
             if (!await _driveFileReaderWriter.DirectoryExists(payloadFilePath))
             {
                 return 0;
             }
 
             Int64 usage = 0;
-            var filePaths = await _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
+            var filePaths = _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
             foreach (var filePath in filePaths)
             {
                 var info = new FileInfo(filePath);
@@ -141,7 +140,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task<Stream> GetPayloadStream(Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
-            var path = await GetPayloadFilePath(fileId, descriptor);
+            var path = GetPayloadFilePath(fileId, descriptor);
             _logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
 
             Stream fileStream;
@@ -198,7 +197,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<Stream> GetThumbnailStream(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
-            string dir = await GetFilePath(fileId, FilePart.Thumb);
+            string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
 
             try
@@ -241,7 +240,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await DeleteAllPayloadFiles(fileId);
 
             var mgr = await GetDbManager(db);
-            await mgr.HardDeleteFileHeader(GetInternalFile(fileId), db);
+            await mgr.HardDeleteFileHeaderAsync(GetInternalFile(fileId), db);
         }
 
         /// <summary>
@@ -259,22 +258,22 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task MovePayloadToLongTerm(Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
-            var destinationFile = await GetPayloadFilePath(targetFileId, descriptor, ensureExists: true);
+            var destinationFile = GetPayloadFilePath(targetFileId, descriptor, ensureExists: true);
             await _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
         }
 
-        public async Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnailFilePath, PayloadDescriptor payloadDescriptor,
+        public async Task MoveThumbnailToLongTermAsync(Guid targetFileId, string sourceThumbnailFilePath, PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
             var payloadKey = payloadDescriptor.Key;
 
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
-            var destinationFile = await GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey,
+            var destinationFile = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey,
                 payloadDescriptor.Uid);
 
             string dir = Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null");
             _logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-            await _driveFileReaderWriter.CreateDirectory(dir);
+            _driveFileReaderWriter.CreateDirectory(dir);
 
             await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
@@ -283,23 +282,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, IdentityDatabase db)
         {
             var mgr = await GetDbManager(db);
-            var header = await mgr.GetFileHeader(fileId, _fileSystemType);
+            var header = await mgr.GetFileHeaderAsync(fileId, _fileSystemType);
             return header;
         }
 
         /// <summary>
         /// Removes any payloads that are not in the provided list
         /// </summary>
-        public async Task DeleteMissingPayloads(Guid fileId, List<PayloadDescriptor> payloadsToKeep)
+        public async Task DeleteMissingPayloadsAsync(Guid fileId, List<PayloadDescriptor> payloadsToKeep)
         {
             //get all payloads in the path
-            var payloadFileDirectory = await this.GetPayloadPath(fileId);
+            var payloadFileDirectory = GetPayloadPath(fileId);
 
             if (await _driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
             {
                 var searchPattern = string.Format(DriveFileUtility.PayloadExtensionSpecifier, "*");
 
-                var files = await _driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+                var files = _driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
                 foreach (var payloadFilePath in files)
                 {
                     // get the payload key from the filepath
@@ -311,7 +310,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     var keepPayload = payloadsToKeep.Exists(p => p.Key == payloadKeyOnDisk);
                     if (!keepPayload)
                     {
-                        await _driveFileReaderWriter.DeleteFile(payloadFilePath);
+                        await _driveFileReaderWriter.DeleteFileAsync(payloadFilePath);
                     }
                 }
             }
@@ -320,18 +319,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
-        public async Task DeleteMissingThumbnailFiles(Guid fileId, IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
+        public async Task DeleteMissingThumbnailFilesAsync(Guid fileId, IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
         {
             var list = thumbnailsToKeep?.ToList() ?? [];
 
-            string dir = await GetFilePath(fileId, FilePart.Thumb);
+            var dir = GetFilePath(fileId, FilePart.Thumb);
 
             if (await _driveFileReaderWriter.DirectoryExists(dir))
             {
                 var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
                 var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
 
-                var files = await _driveFileReaderWriter.GetFilesInDirectory(dir, seekPath);
+                var files = _driveFileReaderWriter.GetFilesInDirectory(dir, seekPath);
                 foreach (var thumbnailFilePath in files)
                 {
                     // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"
@@ -343,7 +342,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
                     if (!keepThumbnail)
                     {
-                        await _driveFileReaderWriter.DeleteFile(thumbnailFilePath);
+                        await _driveFileReaderWriter.DeleteFileAsync(thumbnailFilePath);
                     }
                 }
             }
@@ -355,15 +354,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
         }
 
-        private async Task<string> GetThumbnailPath(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
+        private string GetThumbnailPath(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var thumbnailFileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
-            var filePath = await GetFilePath(fileId, FilePart.Thumb);
+            var filePath = GetFilePath(fileId, FilePart.Thumb);
             var thumbnailPath = Path.Combine(filePath, thumbnailFileName);
             return thumbnailPath;
         }
 
-        private async Task<string> GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
+        private string GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
         {
             var path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : throw new OdinSystemException($"Invalid FilePart {filePart}");
 
@@ -384,7 +383,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             if (ensureExists)
             {
-                await _driveFileReaderWriter.CreateDirectory(dir);
+                _driveFileReaderWriter.CreateDirectory(dir);
             }
 
             return dir;
@@ -396,30 +395,30 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return $"{fn}{suffix}.{part.ToString().ToLower()}";
         }
 
-        private async Task<string> GetFilenameAndPath(Guid fileId, FilePart part, bool ensureDirectoryExists = false)
+        private string GetFilenameAndPath(Guid fileId, FilePart part, bool ensureDirectoryExists = false)
         {
-            string dir = await GetFilePath(fileId, part, ensureDirectoryExists);
+            var dir = GetFilePath(fileId, part, ensureDirectoryExists);
             return Path.Combine(dir, GetFilename(fileId, string.Empty, part));
         }
 
-        private async Task<string> GetPayloadPath(Guid fileId, bool ensureExists = false)
+        private string GetPayloadPath(Guid fileId, bool ensureExists = false)
         {
-            return await GetFilePath(fileId, FilePart.Payload, ensureExists);
+            return GetFilePath(fileId, FilePart.Payload, ensureExists);
         }
 
-        private async Task<string> GetPayloadFilePath(Guid fileId, PayloadDescriptor descriptor, bool ensureExists = false)
+        private string GetPayloadFilePath(Guid fileId, PayloadDescriptor descriptor, bool ensureExists = false)
         {
             var extension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
             var payloadFileName = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
-            return Path.Combine(await GetPayloadPath(fileId, ensureExists), $"{payloadFileName}");
+            return Path.Combine(GetPayloadPath(fileId, ensureExists), $"{payloadFileName}");
         }
 
         private async Task DeleteAllThumbnails(Guid fileId)
         {
             var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
             var searchPattern = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
-            string dir = await GetFilePath(fileId, FilePart.Thumb);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            string dir = GetFilePath(fileId, FilePart.Thumb);
+            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
         }
 
         private async Task<IDriveDatabaseManager> GetDbManager(IdentityDatabase db)

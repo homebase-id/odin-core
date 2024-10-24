@@ -233,7 +233,7 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task DeleteFile(string path)
+    public async Task DeleteFileAsync(string path)
     {
         try
         {
@@ -260,11 +260,11 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task DeleteFiles(string[] paths)
+    public async Task DeleteFilesAsync(string[] paths)
     {
         foreach (var path in paths)
         {
-            await this.DeleteFile(path);
+            await DeleteFileAsync(path);
         }
     }
 
@@ -278,26 +278,23 @@ public sealed class DriveFileReaderWriter(
         return Task.FromResult(Directory.Exists(dir));
     }
 
-    public async Task DeleteFilesInDirectory(string dir, string searchPattern)
+    public async Task DeleteFilesInDirectoryAsync(string dir, string searchPattern)
     {
         if (Directory.Exists(dir))
         {
             var files = Directory.GetFiles(dir, searchPattern);
-            await this.DeleteFiles(files);
+            await DeleteFilesAsync(files);
         }
     }
 
-    public Task<string[]> GetFilesInDirectory(string dir, string searchPattern = "*")
+    public string[] GetFilesInDirectory(string dir, string searchPattern = "*")
     {
-        return Task.FromResult(Directory.GetFiles(dir!, searchPattern));
+        return Directory.GetFiles(dir!, searchPattern);
     }
 
-    public Task CreateDirectory(string dir)
+    public void CreateDirectory(string dir)
     {
         Directory.CreateDirectory(dir);
-
         logger.LogDebug("Created Directory [{dir}]", dir);
-
-        return Task.CompletedTask;
     }
 }

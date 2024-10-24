@@ -10,9 +10,9 @@ namespace Odin.Attestation
         /// Need to set drop to false in production
         /// </summary>
         /// <param name="_db"></param>
-        public static void InitializeDatabase(AttestationDatabase _db, DatabaseConnection conn)
+        public static async Task InitializeDatabaseAsync(AttestationDatabase _db, DatabaseConnection conn)
         {
-            _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
+            await _db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
         }
     }
 }

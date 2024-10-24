@@ -211,7 +211,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.AddAsync(item, db);
 
             return new PeerTransferResponse()
             {
@@ -239,7 +239,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.AddAsync(item, db);
 
             await _mediator.Publish(new InboxItemReceivedNotification
             {
@@ -352,7 +352,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
-            await _transitInboxBoxStorage.Add(item, db);
+            await _transitInboxBoxStorage.AddAsync(item, db);
             await _mediator.Publish(new InboxItemReceivedNotification()
             {
                 TargetDrive = _driveManager.GetDrive(item.DriveId, db).Result.TargetDriveInfo,

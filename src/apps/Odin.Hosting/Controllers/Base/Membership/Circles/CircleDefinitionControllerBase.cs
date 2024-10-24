@@ -36,9 +36,9 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         }
 
         [HttpPost("get")]
-        public CircleDefinition GetCircle([FromBody] Guid id)
+        public async Task<CircleDefinition> GetCircle([FromBody] Guid id)
         {
-            return _circleMembershipService.GetCircle(id, WebOdinContext);
+            return await _circleMembershipService.GetCircleAsync(id, WebOdinContext);
         }
 
         [HttpPost("create")]
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            await _dbs.UpdateCircleDefinition(circleDefinition, WebOdinContext);
+            await _dbs.UpdateCircleDefinitionAsync(circleDefinition, WebOdinContext);
             return true;
         }
 
@@ -69,14 +69,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.EnableCircle(new GuidId(id), WebOdinContext);
+            await _circleMembershipService.EnableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.DisableCircle(new GuidId(id), WebOdinContext);
+            await _circleMembershipService.DisableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
     }

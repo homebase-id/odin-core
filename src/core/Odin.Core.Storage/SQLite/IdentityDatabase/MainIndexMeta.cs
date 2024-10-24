@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
+using Nito.AsyncEx;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 
@@ -10,34 +12,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class MainIndexMeta
     {
         private readonly IdentityDatabase _db;
-        private object _dbLock = new object();
+        private AsyncLock _dbLock = new (); // SEB:TODO delete this non-scalable lock
 
         public MainIndexMeta(IdentityDatabase db)
         {
             _db = db;
         }
 
-
-        ~MainIndexMeta()
-        {
-        }
-
-
-        public int DeleteEntry(Guid driveId, Guid fileId)
+        public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                int n = 0;
-                conn.CreateCommitUnitOfWork(() =>
+                var n = 0;
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveId, fileId);
-                    _db.tblDriveTagIndex.DeleteAllRows(conn, _db._identityId, driveId, fileId);
-                    n = _db.tblDriveMainIndex.Delete(conn, _db._identityId, driveId, fileId);
+                    await _db.tblDriveAclIndex.DeleteAllRowsAsync(conn, _db._identityId, driveId, fileId);
+                    await _db.tblDriveTagIndex.DeleteAllRowsAsync(conn, _db._identityId, driveId, fileId);
+                    n = await _db.tblDriveMainIndex.DeleteAsync(conn, _db._identityId, driveId, fileId);
                 });
                 return n;
             }
         }
-
 
 
         /// <summary>
@@ -48,25 +43,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="accessControlList"></param>
         /// <param name="tagIdList"></param>
         /// <returns></returns>
-        public int BaseUpsertEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
+        public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
             driveMainIndexRecord.identityId = _db._identityId;
 
-            lock (_dbLock)
+            using (await _dbLock.LockAsync())
             {
                 using (var conn = _db.CreateDisposableConnection())
                 {
                     int n = 0;
-                    conn.CreateCommitUnitOfWork(() =>
+                    await conn.CreateCommitUnitOfWorkAsync(async () =>
                     {
-                        n = _db.tblDriveMainIndex.UpsertAllButReactionsAndTransfer(conn, driveMainIndexRecord);
+                        n = await _db.tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(conn, driveMainIndexRecord);
 
-                        _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                        _db.tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                        _db.tblDriveTagIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                        _db.tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+                        await _db.tblDriveAclIndex.DeleteAllRowsAsync(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        await _db.tblDriveAclIndex.InsertRowsAsync(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                        await _db.tblDriveTagIndex.DeleteAllRowsAsync(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                        await _db.tblDriveTagIndex.InsertRowsAsync(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
                         // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                         //
@@ -78,7 +73,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int BaseUpdateEntryZapZap(DriveMainIndexRecord driveMainIndexRecord,
+        public async Task<int> BaseUpdateEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
@@ -87,14 +82,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             using (var conn = _db.CreateDisposableConnection())
             {
                 int n = 0;
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    n = _db.tblDriveMainIndex.Update(conn, driveMainIndexRecord);
+                    n = await _db.tblDriveMainIndex.UpdateAsync(conn, driveMainIndexRecord);
 
-                    _db.tblDriveAclIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    _db.tblDriveAclIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-                    _db.tblDriveTagIndex.DeleteAllRows(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-                    _db.tblDriveTagIndex.InsertRows(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
+                    await _db.tblDriveAclIndex.DeleteAllRowsAsync(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    await _db.tblDriveAclIndex.InsertRowsAsync(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
+                    await _db.tblDriveTagIndex.DeleteAllRowsAsync(conn, _db._identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    await _db.tblDriveTagIndex.InsertRowsAsync(conn, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
                     // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                     //
@@ -223,9 +218,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
-        public (List<Guid>, bool moreRows) QueryBatch(Guid driveId,
+        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
             int noOfItems,
-            ref QueryBatchCursor cursor,
+            QueryBatchCursor cursor,
             bool newestFirstOrder,
             bool fileIdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -347,14 +342,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(cmd, CommandBehavior.Default))
                     {
                         var result = new List<Guid>();
                         var _fileId = new byte[16];
                         long _userDate = 0;
 
                         int i = 0;
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             rdr.GetBytes(0, 0, _fileId, 0, 16);
                             result.Add(new Guid(_fileId));
@@ -374,11 +369,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                                 cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
                         }
 
-                        bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+                        bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
 
-                        return (result, HasMoreRows);
+                        return (result, hasMoreRows, cursor);
                     } // using rdr
-                } // lock
+                }
             } // using command
         }
 
@@ -399,9 +394,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryBatchAuto(Guid driveId,
+        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAutoAsync(Guid driveId,
             int noOfItems,
-            ref QueryBatchCursor cursor,
+            QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -419,9 +414,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
-            var (result, moreRows) =
-                QueryBatch(driveId, noOfItems,
-                    ref cursor,
+            var (result, moreRows, refCursor) = await
+                QueryBatchAsync(driveId, noOfItems,
+                    cursor,
                     newestFirstOrder: true,
                     fileIdSort: true,
                     fileSystemType,
@@ -451,22 +446,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    cursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
+                    refCursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
 
                 if (result.Count < noOfItems)
                 {
                     if (moreRows == false) // Advance the cursor
                     {
-                        if (cursor.nextBoundaryCursor != null)
+                        if (refCursor.nextBoundaryCursor != null)
                         {
-                            cursor.stopAtBoundary = cursor.nextBoundaryCursor;
-                            cursor.nextBoundaryCursor = null;
-                            cursor.pagingCursor = null;
+                            refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
+                            refCursor.nextBoundaryCursor = null;
+                            refCursor.pagingCursor = null;
                         }
                         else
                         {
-                            cursor.nextBoundaryCursor = null;
-                            cursor.pagingCursor = null;
+                            refCursor.nextBoundaryCursor = null;
+                            refCursor.pagingCursor = null;
                         }
                     }
 
@@ -477,7 +472,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2) = QueryBatchAuto(driveId, noOfItems - result.Count, ref cursor,
+                    var (r2, moreRows2, refCursor2) = await QueryBatchAutoAsync(driveId, noOfItems - result.Count, refCursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -498,18 +493,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         // The r2 result set should be newer than the result set
                         r2.AddRange(result);
-                        return (r2, moreRows2);
+                        return (r2, moreRows2, refCursor2);
                     }
                 }
             }
             else
             {
-                if (cursor.nextBoundaryCursor != null)
+                if (refCursor.nextBoundaryCursor != null)
                 {
-                    cursor.stopAtBoundary = cursor.nextBoundaryCursor;
-                    cursor.nextBoundaryCursor = null;
-                    cursor.pagingCursor = null;
-                    return QueryBatchAuto(driveId, noOfItems, ref cursor,
+                    refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
+                    refCursor.nextBoundaryCursor = null;
+                    refCursor.pagingCursor = null;
+                    return await QueryBatchAutoAsync(driveId, noOfItems, refCursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -525,12 +520,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 else
                 {
-                    cursor.nextBoundaryCursor = null;
-                    cursor.pagingCursor = null;
+                    refCursor.nextBoundaryCursor = null;
+                    refCursor.pagingCursor = null;
                 }
             }
 
-            return (result, moreRows);
+            return (result, moreRows, refCursor);
         }
 
         /// <summary>
@@ -542,8 +537,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryModified(Guid driveId, int noOfItems,
-            ref UnixTimeUtcUnique cursor,
+        public async Task<(List<Guid>, bool moreRows, UnixTimeUtcUnique cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+            UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
@@ -594,7 +589,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(cmd, CommandBehavior.Default))
                     {
                         var result = new List<Guid>();
                         var fileId = new byte[16];
@@ -602,7 +597,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         int i = 0;
                         long ts = 0;
 
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             rdr.GetBytes(0, 0, fileId, 0, 16);
                             result.Add(new Guid(fileId));
@@ -615,9 +610,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (i > 0)
                             cursor = new UnixTimeUtcUnique(ts);
 
-                        return (result, rdr.Read());
+                        return (result, await rdr.ReadAsync(), cursor);
                     } // using rdr
-                } // lock
+                } 
             } // using command
         }
 
@@ -739,7 +734,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal void AddEntryPassalongToUpsert(Guid driveId, Guid fileId,
+        internal async Task AddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -785,14 +780,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
             };
-            BaseUpsertEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
+            await BaseUpsertEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
         }
 
 
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal int UpdateEntryZapZapPassAlong(Guid driveId, Guid fileId,
+        internal async Task<int> UpdateEntryZapZapPassAlongAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
@@ -836,7 +831,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
             };
-            BaseUpdateEntryZapZap(r, accessControlList: accessControlList, tagIdList: tagIdList);
+            await BaseUpdateEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
 
             return n;
         }

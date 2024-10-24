@@ -1,6 +1,7 @@
 using Odin.Core.Time;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -13,45 +14,35 @@ public class TableAppNotifications: TableAppNotificationsCRUD
         _db = db;
     }
 
-    public AppNotificationsRecord Get(Guid notificationId)
+    public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.Get(myc, _db._identityId, notificationId);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.GetAsync(myc, _db._identityId, notificationId);
     }
 
-    public int Insert(AppNotificationsRecord item)
+    public async Task<int> InsertAsync(AppNotificationsRecord item)
     {
         item.identityId = _db._identityId;
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.Insert(myc, item);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.InsertAsync(myc, item);
     }
 
-    public int Update(AppNotificationsRecord item)
+    public async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
         item.identityId = _db._identityId;
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.Update(myc, item);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.UpdateAsync(myc, item);
     }
 
-    public List<AppNotificationsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+    public async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
     {
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.PagingByCreated(myc, count, _db._identityId, inCursor, out nextCursor);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.PagingByCreatedAsync(myc, count, _db._identityId, inCursor);
     }
 
-    public int Delete(Guid notificationId)
+    public async Task<int> DeleteAsync(Guid notificationId)
     {
-        using (var myc = _db.CreateDisposableConnection())
-        {
-            return base.Delete(myc, _db._identityId, notificationId);
-        }
+        using var myc = _db.CreateDisposableConnection();
+        return await base.DeleteAsync(myc, _db._identityId, notificationId);
     }
 }

@@ -35,7 +35,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
-        public async Task<ExchangeGrant> CreateExchangeGrant(
+        public async Task<ExchangeGrant> CreateExchangeGrantAsync(
             IdentityDatabase db,
             SensitiveByteArray grantKeyStoreKey, PermissionSet permissionSet,
             IEnumerable<DriveGrantRequest>? driveGrantRequests,

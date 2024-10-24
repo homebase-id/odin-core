@@ -31,8 +31,8 @@ public class InboxOutboxReconciliationBackgroundService(
             var recoveredOutboxItems = 0;
             var recoveredInboxItems = 0;
 
-            recoveredOutboxItems = await outbox.RecoverDead(time, tenantSystemStorage.IdentityDatabase);
-            recoveredInboxItems = await inbox.RecoverDead(time, tenantSystemStorage.IdentityDatabase);
+            recoveredOutboxItems = await outbox.RecoverDeadAsync(time, tenantSystemStorage.IdentityDatabase);
+            recoveredInboxItems = await inbox.RecoverDeadAsync(time, tenantSystemStorage.IdentityDatabase);
 
             if (recoveredOutboxItems > 0)
             {

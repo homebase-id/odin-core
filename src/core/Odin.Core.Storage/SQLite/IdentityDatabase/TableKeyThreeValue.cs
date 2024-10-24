@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -12,74 +13,55 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableKeyThreeValue()
+        public async Task<KeyThreeValueRecord> GetAsync(byte[] key1)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, key1);
         }
 
-        public KeyThreeValueRecord Get(byte[] key1)
+        public async Task<List<byte[]>> GetByKeyTwoAsync(byte[] key2)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, key1);
-            }
-        }
-
-        public List<byte[]> GetByKeyTwo(byte[] key2)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.GetByKeyTwo(conn, _db._identityId, key2);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetByKeyTwoAsync(conn, _db._identityId, key2);
         }
         
-        public List<byte[]> GetByKeyThree(byte[] key3)
+        public async Task<List<byte[]>> GetByKeyThreeAsync(byte[] key3)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.GetByKeyThree(conn, _db._identityId, key3);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetByKeyThreeAsync(conn, _db._identityId, key3);
         }
-        public List<KeyThreeValueRecord> GetByKeyTwoThree(byte[] key2, byte[] key3)
+        
+        public async Task<List<KeyThreeValueRecord>> GetByKeyTwoThreeAsync(byte[] key2, byte[] key3)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.GetByKeyTwoThree(conn, _db._identityId, key2, key3);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetByKeyTwoThreeAsync(conn, _db._identityId, key2, key3);
         }
 
-        public int Upsert(KeyThreeValueRecord item)
+        public async Task<int> UpsertAsync(KeyThreeValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Upsert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpsertAsync(conn, item);
         }
 
-        public int Insert(KeyThreeValueRecord item)
+        public async Task<int> InsertAsync(KeyThreeValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int Delete(byte[] key1)
+        public async Task<int> DeleteAsync(byte[] key1)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, key1);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, key1);
         }
 
-        public int Update(KeyThreeValueRecord item)
+        public async Task<int> UpdateAsync(KeyThreeValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Update(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpdateAsync(conn, item);
         }
 
     }

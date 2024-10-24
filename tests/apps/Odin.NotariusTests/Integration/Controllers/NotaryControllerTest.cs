@@ -194,7 +194,7 @@ public class NotaryControllerTest
         };
         using (var myc = db.CreateDisposableConnection())
         {
-            db.tblNotaryChain.Insert(myc, r);
+            db.tblNotaryChain.InsertAsync(myc, r).Wait();
         }
     }
 }

@@ -41,7 +41,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        _storage.Insert(record);
+        await _storage.InsertAsync(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -59,11 +59,11 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         };
     }
 
-    public Task<NotificationsListResult> GetList(GetNotificationListRequest request, IOdinContext odinContext)
+    public async Task<NotificationsListResult> GetList(GetNotificationListRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
+        var (results, cursor) = await _storage.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -88,17 +88,17 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             Results = list.ToList()
         };
 
-        return Task.FromResult(nr);
+        return nr;
     }
 
-    public Task<NotificationsCountResult> GetUnreadCounts(IOdinContext odinContext)
+    public async Task<NotificationsCountResult> GetUnreadCounts(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var results = _storage.PagingByCreated(int.MaxValue, null, out _);
+        var (results, _) = await _storage.PagingByCreatedAsync(int.MaxValue, null);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -109,22 +109,20 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 
-        return Task.FromResult(new NotificationsCountResult()
+        return new NotificationsCountResult()
         {
             UnreadCounts = list.GroupBy(n => (n.Options?.AppId).GetValueOrDefault()).ToDictionary(g => g.Key, g => g.Count(n => n.Unread))
-        });
+        };
     }
 
-    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
+    public async Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var id in request.IdList)
         {
-            _storage.Delete(id);
+            await _storage.DeleteAsync(id);
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
@@ -133,15 +131,13 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var update in request.Updates)
         {
-            var record = _storage.Get(update.Id);
+            var record = await _storage.GetAsync(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                _storage.Update(record);
+                await _storage.UpdateAsync(record);
             }
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task MarkReadByApp(Guid appId, IOdinContext odinContext)
@@ -163,8 +159,6 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             }).ToList()
         };
 
-        await this.UpdateNotifications(request, odinContext);
-
-        await Task.CompletedTask;
+        await UpdateNotifications(request, odinContext);
     }
 }

@@ -24,7 +24,7 @@ internal class NotaryWebApplicationFactory : WebApplicationFactory<Program>
             var db = new NotaryDatabase("DataSource=ondiskfornow.db");
             using (var conn = db.CreateDisposableConnection())
             {
-                NotaryDatabaseUtil.InitializeDatabase(db, conn);
+                NotaryDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait();
             }
             services.AddSingleton(db);
         });

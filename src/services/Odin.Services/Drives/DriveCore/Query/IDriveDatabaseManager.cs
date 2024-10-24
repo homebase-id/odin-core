@@ -24,7 +24,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCoreAsync(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryModifiedResultOptions options, IdentityDatabase db);
 
 
@@ -34,13 +34,13 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCoreAsync(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryBatchResultOptions options, IdentityDatabase db);
 
         /// <summary>
         /// Saves the file to the database
         /// </summary>
-        Task SaveFileHeader(ServerFileHeader metadata, IdentityDatabase db);
+        Task SaveFileHeaderAsync(ServerFileHeader metadata, IdentityDatabase db);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is
@@ -51,35 +51,35 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
-        Task HardDeleteFileHeader(InternalDriveFileId file, IdentityDatabase db);
+        Task HardDeleteFileHeaderAsync(InternalDriveFileId file, IdentityDatabase db);
 
-        Task LoadLatestIndex(IdentityDatabase db);
+        Task LoadLatestIndexAsync(IdentityDatabase db);
 
-        void AddReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db);
+        Task AddReactionAsync(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db);
 
-        void DeleteReactions(OdinId odinId, Guid fileId, IdentityDatabase db);
+        Task DeleteReactionsAsync(OdinId odinId, Guid fileId, IdentityDatabase db);
 
-        void DeleteReaction(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db);
+        Task DeleteReactionAsync(OdinId odinId, Guid fileId, string reaction, IdentityDatabase db);
 
-        (List<string>, int) GetReactions(Guid fileId, IdentityDatabase db);
+        Task<(List<string>, int)> GetReactionsAsync(Guid fileId, IdentityDatabase db);
 
-        (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, IdentityDatabase db);
+        Task<(List<ReactionCount> reactions, int total)> GetReactionSummaryByFileAsync(Guid fileId, IdentityDatabase db);
 
-        List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, IdentityDatabase db);
+        Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity, Guid fileId, IdentityDatabase db);
 
-        int GetReactionCountByIdentity(OdinId odinId, Guid fileId, IdentityDatabase db);
+        Task<int> GetReactionCountByIdentityAsync(OdinId odinId, Guid fileId, IdentityDatabase db);
 
-        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, IdentityDatabase db);
+        Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(int maxCount, int cursor, Guid fileId, IdentityDatabase db);
 
-        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(IdentityDatabase db);
+        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(IdentityDatabase db);
 
-        Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db);
+        Task<Guid?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IdentityDatabase db);
 
-        Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db);
+        Task<Guid?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, IdentityDatabase db);
 
-        Task<ServerFileHeader> GetFileHeader(Guid fileId, FileSystemType fileSystemType);
+        Task<ServerFileHeader> GetFileHeaderAsync(Guid fileId, FileSystemType fileSystemType);
         
-        Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db);
+        Task SaveTransferHistoryAsync(Guid fileId, RecipientTransferHistory history, IdentityDatabase db);
         
         Task SaveReactionSummary(Guid fileId, ReactionSummary summary, IdentityDatabase db);
     }

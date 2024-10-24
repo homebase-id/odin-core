@@ -13,13 +13,13 @@ namespace Odin.KeyChainTests
         }
 
         [Test]
-        public void Test1()
+        public async Task Test1()
         {
             using var db = new KeyChainDatabase("KeyChainTest001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -35,14 +35,14 @@ namespace Odin.KeyChainTests
                     publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                     recordHash = hash
                 };
-                db.tblKeyChain.Insert(myc, r);
+                await db.tblKeyChain.InsertAsync(myc, r);
 
                 Assert.Pass();
             }
         }
 
         [Test]
-        public void Test2()
+        public async Task Test2()
         {
             using var db = new KeyChainDatabase("KeyChainTest002");
 
@@ -51,7 +51,7 @@ namespace Odin.KeyChainTests
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
 
                 var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
                 var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
@@ -65,11 +65,11 @@ namespace Odin.KeyChainTests
                     publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                     recordHash = hash
                 };
-                db.tblKeyChain.Insert(myc, r);
+                await db.tblKeyChain.InsertAsync(myc, r);
 
                 try
                 {
-                    db.tblKeyChain.Insert(myc, r);
+                    await db.tblKeyChain.InsertAsync(myc, r);
                     Assert.Fail();
                 }
                 catch (Exception)
@@ -80,13 +80,13 @@ namespace Odin.KeyChainTests
         }
 
         [Test]
-        public void Test3()
+        public async Task Test3()
         {
             using var db = new KeyChainDatabase("KeyChainTest003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -103,13 +103,13 @@ namespace Odin.KeyChainTests
                     recordHash = hash
                 };
 
-                db.tblKeyChain.Insert(myc, r);
+                await db.tblKeyChain.InsertAsync(myc, r);
 
                 // Make sure we can read a record even if we're in the semaphore lock 
 
-                myc.CreateCommitUnitOfWork(() =>
+                await myc.CreateCommitUnitOfWorkAsync(async () =>
                 {
-                    var r2 = db.tblKeyChain.GetOldest(myc, r.identity);
+                    var r2 = await db.tblKeyChain.GetOldestAsync(myc, r.identity);
                 });
 
                 Assert.Pass();

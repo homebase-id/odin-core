@@ -64,7 +64,7 @@ namespace Odin.Keychain
         /// <param name="identity">An Odin identity</param>
         /// <returns>200 and seconds since Unix Epoch if successful, or NotFound or BadRequest</returns>
         [HttpGet("Verify")]
-        public ActionResult GetVerify(string identity)
+        public async Task<ActionResult> GetVerify(string identity)
         {
             try
             {
@@ -77,7 +77,7 @@ namespace Odin.Keychain
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                var r = _db.tblKeyChain.GetOldest(conn, identity);
+                var r = await _db.tblKeyChain.GetOldestAsync(conn, identity);
                 if (r == null)
                 {
                     return NotFound("No such identity found.");
@@ -107,7 +107,7 @@ namespace Odin.Keychain
         /// <param name="PublicKeyJwkBase64Url"></param>
         /// <returns>200 OK and key age in seconds since Unix Epoch, or Bad Request or Not Found</returns>
         [HttpGet("VerifyKey")]
-        public ActionResult GetVerifyKey(string identity, string PublicKeyJwkBase64Url)
+        public async Task<ActionResult> GetVerifyKey(string identity, string PublicKeyJwkBase64Url)
         {
             AsciiDomainName id;
             try
@@ -134,7 +134,7 @@ namespace Odin.Keychain
             {
                 // TODO some snowy day... have multiple entries and find the range
                 // for the given key {creationTime to replaceTime}. 
-                var list = _db.tblKeyChain.GetIdentity(conn, id.DomainName);
+                var list = await _db.tblKeyChain.GetIdentityAsync(conn, id.DomainName);
 
                 for (int i = 0; i < list.Count; i++)
                 {
@@ -152,14 +152,14 @@ namespace Odin.Keychain
             }
         }
 
-        private KeyChainRecord TryGetLastLinkOrThrow()
+        private async Task<KeyChainRecord> TryGetLastLinkOrThrowAsync()
         {
             try
             {
                 using (var conn = _db.CreateDisposableConnection())
                 {
 
-                    KeyChainRecord? record = _db.tblKeyChain.GetLastLink(conn);
+                    KeyChainRecord? record = await _db.tblKeyChain.GetLastLinkAsync(conn);
 
                     if (record == null)
                         throw new Exception("Block chain appears to be empty");
@@ -278,7 +278,7 @@ namespace Odin.Keychain
                 //
                 // 050 We check that an idenity cannot insert too many public keys, e.g. max one per month
                 //
-                var r = _db.tblKeyChain.GetOldest(conn, domain.DomainName);
+                var r = await _db.tblKeyChain.GetOldestAsync(conn, domain.DomainName);
                 if (r != null)
                 {
                     var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
@@ -291,7 +291,7 @@ namespace Odin.Keychain
                 KeyChainRecord lastRowRecord;
                 try
                 {
-                    lastRowRecord = TryGetLastLinkOrThrow();
+                    lastRowRecord = await TryGetLastLinkOrThrowAsync();
                 }
                 catch (Exception ex)
                 {
@@ -371,7 +371,7 @@ namespace Odin.Keychain
                 KeyChainRecord lastRowRecord;
                 try
                 {
-                    lastRowRecord = TryGetLastLinkOrThrow();
+                    lastRowRecord = await TryGetLastLinkOrThrowAsync();
                 }
                 catch (Exception ex)
                 {
@@ -413,7 +413,7 @@ namespace Odin.Keychain
                     // 150 write row
                     try
                     {
-                        _db.tblKeyChain.Insert(conn, newRecordToInsert);
+                        await _db.tblKeyChain.InsertAsync(conn, newRecordToInsert);
                     }
                     catch (Exception e)
                     {

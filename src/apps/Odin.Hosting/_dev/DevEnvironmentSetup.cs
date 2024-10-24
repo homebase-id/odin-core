@@ -13,7 +13,7 @@ namespace Odin.Hosting._dev
 {
     public static class DevEnvironmentSetup
     {
-        public static void RegisterPreconfiguredDomains(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
+        public static void RegisterPreconfiguredDomainsAsync(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
         {
             Dictionary<Guid, string> certificates = new();
             if (odinConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
@@ -27,7 +27,7 @@ namespace Odin.Hosting._dev
 
             foreach (var (id, domain) in certificates)
             {
-                if (identityRegistry.Get(domain).GetAwaiter().GetResult() != null)
+                if (identityRegistry.GetAsync(domain).GetAwaiter().GetResult() != null)
                 {
                     continue;
                 }
@@ -71,7 +71,7 @@ namespace Odin.Hosting._dev
             if (odinConfiguration.Development != null)
             {
                 ConfigureSystemSsl(odinConfiguration);
-                RegisterPreconfiguredDomains(logger, odinConfiguration, registry);
+                RegisterPreconfiguredDomainsAsync(logger, odinConfiguration, registry);
             }
         }
 

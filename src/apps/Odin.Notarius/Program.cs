@@ -18,7 +18,7 @@ builder.Services.AddSwaggerGen();
 using var db = new NotaryDatabase("notarychain.db");
 using (var conn = db.CreateDisposableConnection())
 {
-    NotaryDatabaseUtil.InitializeDatabase(db, conn); // Only do this once per boot
+    NotaryDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait(); // Only do this once per boot
 }
 
 builder.Services.AddSingleton((NotaryDatabase)db);

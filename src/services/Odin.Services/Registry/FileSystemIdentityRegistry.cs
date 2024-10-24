@@ -158,7 +158,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             return false;
         }
-        var registration = await Get(domain);
+        var registration = await GetAsync(domain);
         return registration == null;
     }
 
@@ -195,7 +195,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var tenantContext = CreateTenantContext(request.OdinId, true);
 
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
-            await tc.SaveSslCertificate(
+            tc.SaveSslCertificate(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {
@@ -212,7 +212,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task DeleteRegistration(string domain)
     {
-        var registration = await Get(domain);
+        var registration = await GetAsync(domain);
 
         if (null != registration)
         {
@@ -227,7 +227,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     // Copy registration and payloads
     public async Task<string> CopyRegistration(string domain, string targetRootPath)
     {
-        var registration = await Get(domain);
+        var registration = await GetAsync(domain);
         if (registration == null)
         {
             return "";
@@ -348,7 +348,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(list);
     }
 
-    public Task<IdentityRegistration> Get(string domain)
+    public Task<IdentityRegistration> GetAsync(string domain)
     {
         var reg = _trie.LookupExactName(domain);
         return Task.FromResult(reg);
@@ -371,7 +371,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return result;
     }
 
-    public async Task<UnixTimeUtc> MarkForDeletion(string domain)
+    public async Task<UnixTimeUtc> MarkForDeletionAsync(string domain)
     {
         var reg = _trie.LookupExactName(domain);
         if (reg == null)
@@ -386,7 +386,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
     }
 
-    public async Task UnmarkForDeletion(string domain)
+    public async Task UnmarkForDeletionAsync(string domain)
     {
         var reg = _trie.LookupExactName(domain);
         if (reg == null)

@@ -27,8 +27,8 @@ public abstract class DriveStatusControllerBase(
         var db = tenantSystemStorage.IdentityDatabase;
         var status = new DriveStatus()
         {
-            Inbox = await peerInbox.GetStatus(driveId, db),
-            Outbox = await peerOutbox.GetOutboxStatus(driveId, db),
+            Inbox = await peerInbox.GetStatusAsync(driveId, db),
+            Outbox = await peerOutbox.GetOutboxStatusAsync(driveId, db),
             SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext, db)
         };
 

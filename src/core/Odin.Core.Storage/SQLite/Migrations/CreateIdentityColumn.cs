@@ -1,3 +1,4 @@
+#if DAPPER
 using System;
 using System.IO;
 using Dapper;
@@ -565,3 +566,4 @@ public static class CreateIdentityColumn
         newCn.Connection.Query("PRAGMA integrity_check");
     }
 }
+#endif

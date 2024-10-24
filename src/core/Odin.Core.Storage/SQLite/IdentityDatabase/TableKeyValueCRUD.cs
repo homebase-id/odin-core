@@ -1,9 +1,12 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using System.Runtime.CompilerServices;
+
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 [assembly: InternalsVisibleTo("DatabaseConnectionTests")]
@@ -51,7 +54,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableKeyValueCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableKeyValueCRUD(CacheHelper cache) : base("keyValue")
@@ -59,25 +61,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableKeyValueCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableKeyValueCRUD Not disposed properly");
-        }
 
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
-
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
-                       conn.ExecuteNonQuery(cmd);
+                       await conn.ExecuteNonQueryAsync(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyValue("
@@ -87,30 +79,30 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (identityId,key)"
                      +");"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                    await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
-        internal virtual int Insert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
+                insertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@key";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam3);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.key;
-                _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@key";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam3);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.key;
+                insertParam3.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -119,26 +111,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int TryInsert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO keyValue (identityId,key,data) " +
+                insertCommand.CommandText = "INSERT OR IGNORE INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@key";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam3);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.key;
-                _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@key";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam3);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.key;
+                insertParam3.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -147,55 +139,55 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Upsert(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _upsertCommand = conn.db.CreateCommand())
+            using (var upsertCommand = conn.db.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
+                upsertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)"+
                                              "ON CONFLICT (identityId,key) DO UPDATE "+
                                              "SET data = @data "+
                                              ";";
-                var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "@identityId";
-                _upsertCommand.Parameters.Add(_upsertParam1);
-                var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "@key";
-                _upsertCommand.Parameters.Add(_upsertParam2);
-                var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "@data";
-                _upsertCommand.Parameters.Add(_upsertParam3);
-                _upsertParam1.Value = item.identityId.ToByteArray();
-                _upsertParam2.Value = item.key;
-                _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_upsertCommand);
+                var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.ParameterName = "@identityId";
+                upsertCommand.Parameters.Add(upsertParam1);
+                var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.ParameterName = "@key";
+                upsertCommand.Parameters.Add(upsertParam2);
+                var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.ParameterName = "@data";
+                upsertCommand.Parameters.Add(upsertParam3);
+                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam2.Value = item.key;
+                upsertParam3.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                 return count;
             } // Using
         }
-        internal virtual int Update(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyValueRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            using (var _updateCommand = conn.db.CreateCommand())
+            using (var updateCommand = conn.db.CreateCommand())
             {
-                _updateCommand.CommandText = "UPDATE keyValue " +
+                updateCommand.CommandText = "UPDATE keyValue " +
                                              "SET data = @data "+
                                              "WHERE (identityId = @identityId AND key = @key)";
-                var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "@identityId";
-                _updateCommand.Parameters.Add(_updateParam1);
-                var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "@key";
-                _updateCommand.Parameters.Add(_updateParam2);
-                var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "@data";
-                _updateCommand.Parameters.Add(_updateParam3);
-                _updateParam1.Value = item.identityId.ToByteArray();
-                _updateParam2.Value = item.key;
-                _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.ParameterName = "@identityId";
+                updateCommand.Parameters.Add(updateParam1);
+                var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.ParameterName = "@key";
+                updateCommand.Parameters.Add(updateParam2);
+                var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.ParameterName = "@data";
+                updateCommand.Parameters.Add(updateParam3);
+                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam2.Value = item.key;
+                updateParam3.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -204,12 +196,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            using (var _getCountCommand = conn.db.CreateCommand())
+            using (var getCountCommand = conn.db.CreateCommand())
             {
-                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyValue; PRAGMA read_uncommitted = 0;";
-                var count = conn.ExecuteScalar(_getCountCommand);
+                 // TODO: this is SQLite specific
+                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyValue; PRAGMA read_uncommitted = 0;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -230,70 +223,70 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
-            byte[] _tmpbuf = new byte[1048576+1];
+            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new KeyValueRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(_guid);
+                item.identityId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 48+1);
+                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 48+1);
                 if (bytesRead > 48)
                     throw new Exception("Too much data in key...");
                 if (bytesRead < 16)
                     throw new Exception("Too little data in key...");
                 item.key = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.key, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.key, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(2))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 1048576+1);
+                bytesRead = rdr.GetBytes(2, 0, tmpbuf, 0, 1048576+1);
                 if (bytesRead > 1048576)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal int Delete(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
-            using (var _delete0Command = conn.db.CreateCommand())
+            using (var delete0Command = conn.db.CreateCommand())
             {
-                _delete0Command.CommandText = "DELETE FROM keyValue " +
+                delete0Command.CommandText = "DELETE FROM keyValue " +
                                              "WHERE identityId = @identityId AND key = @key";
-                var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "@identityId";
-                _delete0Command.Parameters.Add(_delete0Param1);
-                var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "@key";
-                _delete0Command.Parameters.Add(_delete0Param2);
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@identityId";
+                delete0Command.Parameters.Add(delete0Param1);
+                var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.ParameterName = "@key";
+                delete0Command.Parameters.Add(delete0Param2);
 
-                _delete0Param1.Value = identityId.ToByteArray();
-                _delete0Param2.Value = key;
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param2.Value = key;
+                var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 if (count > 0)
                     _cache.Remove("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
                 return count;
@@ -306,11 +299,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
             var result = new List<KeyValueRecord>();
-            byte[] _tmpbuf = new byte[1048576+1];
+            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new KeyValueRecord();
             item.identityId = identityId;
             item.key = key;
@@ -319,18 +312,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 1048576+1);
+                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
                 if (bytesRead > 1048576)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal KeyValueRecord Get(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal async Task<KeyValueRecord> GetAsync(DatabaseConnection conn, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -338,24 +331,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
             if (hit)
                 return (KeyValueRecord)cacheObject;
-            using (var _get0Command = conn.db.CreateCommand())
+            using (var get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT data FROM keyValue " +
+                get0Command.CommandText = "SELECT data FROM keyValue " +
                                              "WHERE identityId = @identityId AND key = @key LIMIT 1;";
-                var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "@identityId";
-                _get0Command.Parameters.Add(_get0Param1);
-                var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "@key";
-                _get0Command.Parameters.Add(_get0Param2);
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@key";
+                get0Command.Parameters.Add(get0Param2);
 
-                _get0Param1.Value = identityId.ToByteArray();
-                _get0Param2.Value = key;
-                lock (conn._lock)
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = key;
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), null);
                             return null;
@@ -364,7 +356,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), r);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 

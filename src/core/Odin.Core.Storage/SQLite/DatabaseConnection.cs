@@ -1,16 +1,15 @@
 ﻿using Microsoft.Data.Sqlite;
 using System;
 using System.Data;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Odin.Core.Tasks;
 using System.Data.Common;
+using Nito.AsyncEx;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
+// SEB:TODO make sure we don't need locks in here
 namespace Odin.Core.Storage.SQLite
 {
     public class DatabaseConnection : IDisposable
@@ -19,18 +18,18 @@ namespace Odin.Core.Storage.SQLite
         public readonly DatabaseBase db;
 
         private DbConnection _connection;
-        private SqliteTransaction _transaction = null;
+        private DbTransaction _transaction = null;
         private int _transactionCount = 0;
-        public object _lock = new ();
+        private readonly AsyncLock _lock = new ();
         internal int _nestedCounter = 0;
 
-        public DbConnection Connection { get { return _connection; } }
+        public DbConnection Connection { get { return _connection; } } // SEB:TODO make internal
 
         public DatabaseConnection(DatabaseBase db, string connectionString)
         {
             this.db = db;
             _connection = new SqliteConnection(connectionString);
-            _connection.Open();
+            _connection.Open(); // SEB:TODO move out of the ctor and make async
         }
 
         ~DatabaseConnection()
@@ -42,25 +41,20 @@ namespace Odin.Core.Storage.SQLite
 #endif
         }
 
-        public void Vacuum()
+        public async Task VacuumAsync()
         {
-            lock (_lock)
-            {
-                using (var cmd = db.CreateCommand())
-                {
-                    cmd.CommandText = "VACUUM;";
-                    cmd.Connection = (SqliteConnection) Connection;
-                    ExecuteNonQuery(cmd);
-                }
-            }
+            await using var cmd = db.CreateCommand();
+            cmd.CommandText = "VACUUM;";
+            cmd.Connection = (SqliteConnection) Connection;
+            await ExecuteNonQueryAsync(cmd);
         }
 
-        private void BeginTransaction()
+        private async Task BeginTransactionAsync()
         {
             ArgumentNullException.ThrowIfNull(_connection);
             if (_transaction != null)
                 throw new ArgumentException("transaction already in use on this connection.");
-            _transaction = ((SqliteConnection)_connection).BeginTransaction();
+            _transaction = await _connection.BeginTransactionAsync();
         }
 
 
@@ -74,7 +68,7 @@ namespace Odin.Core.Storage.SQLite
         /// Don't call this function directly, use using (CreateCommitUnitOfWork()) instead
         /// </summary>
         /// <returns>True if transaction was committed</returns>
-        private bool EndTransaction(bool commit)
+        private async Task<bool> EndTransactionAsync(bool commit)
         {
             try
             {
@@ -87,18 +81,19 @@ namespace Odin.Core.Storage.SQLite
 
                 if (commit)
                 {
-                    _transaction.Commit();
+                    await _transaction.CommitAsync();
                 }
                 else
                 {
-                    _transaction.Rollback();
+                    await _transaction.RollbackAsync();
+                    db.ClearCache();
                 }
 
                 return true;
             }
             finally
             {
-                _transaction?.Dispose();
+                await _transaction!.DisposeAsync();
                 _transaction = null;
             }
         }
@@ -118,19 +113,6 @@ namespace Odin.Core.Storage.SQLite
         /// </summary>
         /// <returns>LogicCommitUnit disposable object</returns>
 
-        [SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
-        public void CreateCommitUnitOfWork(Action actions,
-            [CallerMemberName] string caller = null,
-            [CallerFilePath] string filePath = null,
-            [CallerLineNumber] int lineNumber = 0)
-        {
-            CreateCommitUnitOfWorkAsync(() =>
-            {
-                actions();
-                return Task.CompletedTask;
-            }, caller, filePath, lineNumber).BlockingWait();
-        }
-
         //
 
         public async Task CreateCommitUnitOfWorkAsync(
@@ -143,7 +125,7 @@ namespace Odin.Core.Storage.SQLite
 
             try
             {
-                lock (_lock)
+                using (await _lock.LockAsync())
                 {
                     if (++_nestedCounter == 1)
                     {
@@ -153,7 +135,7 @@ namespace Odin.Core.Storage.SQLite
                                 "CreateCommitUnitOfWorkAsync: {caller} BeginTransaction ({filePath}:{lineNumber})",
                                 caller, Path.GetFileName(filePath), lineNumber);
                         }
-                        BeginTransaction();
+                        await BeginTransactionAsync();
                     }
                 }
 
@@ -162,11 +144,11 @@ namespace Odin.Core.Storage.SQLite
             }
             finally
             {
-                lock (_lock)
+                using (await _lock.LockAsync())
                 {
                     if (--_nestedCounter == 0)
                     {
-                        EndTransaction(commit);
+                        await EndTransactionAsync(commit);
                         if (Serilog.Log.IsEnabled(Serilog.Events.LogEventLevel.Verbose))
                         {
                             Serilog.Log.Verbose(
@@ -184,25 +166,25 @@ namespace Odin.Core.Storage.SQLite
         }
 
 
-        public int ExecuteNonQuery(DbCommand command)
+        public async Task<int> ExecuteNonQueryAsync(DbCommand command)
         {
-            lock (_lock) // SEB:TODO lock review
+            using (await _lock.LockAsync()) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
-                var r = command.ExecuteNonQuery();
+                var r = await command.ExecuteNonQueryAsync();
                 command.Transaction = null;
                 return r;
             }
         }
 
-        public object ExecuteScalar(DbCommand command)
+        public async Task<object>ExecuteScalarAsync(DbCommand command)
         {
-            lock (_lock) // SEB:TODO lock review
+            using (await _lock.LockAsync()) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
-                var r = command.ExecuteScalar();
+                var r = await command.ExecuteScalarAsync();
                 command.Transaction = null;
                 return r;
             }
@@ -216,13 +198,13 @@ namespace Odin.Core.Storage.SQLite
         /// <param name="behavior"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public DbDataReader ExecuteReader(DbCommand command, CommandBehavior behavior)
+        public async Task<DbDataReader> ExecuteReaderAsync(DbCommand command, CommandBehavior behavior)
         {
-            lock (_lock) // SEB:TODO lock review
+            using (await _lock.LockAsync()) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
-                var r = command.ExecuteReader();
+                var r = await command.ExecuteReaderAsync();
                 command.Transaction = null;
                 return r;
             }
@@ -234,7 +216,7 @@ namespace Odin.Core.Storage.SQLite
 
         public void Dispose()
         {
-            lock (_lock)
+            using (_lock.Lock())
             {
                 if (_disposed)
                     return;

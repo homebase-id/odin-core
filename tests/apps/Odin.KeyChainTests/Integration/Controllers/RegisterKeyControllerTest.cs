@@ -261,7 +261,7 @@ public class RegisterKeyControllerTest
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
         using (var conn = db.CreateDisposableConnection())
         {
-            Assert.IsTrue(KeyChainDatabaseUtil.VerifyEntireBlockChain(db, conn));
+            Assert.IsTrue(await KeyChainDatabaseUtil.VerifyEntireBlockChainAsync(db, conn));
         }
     }
 
@@ -424,7 +424,7 @@ public class RegisterKeyControllerTest
         };
         using (var myc = db.CreateDisposableConnection())
         {
-            db.tblKeyChain.Insert(myc, r);
+            db.tblKeyChain.InsertAsync(myc, r).Wait();
         }
     }
 

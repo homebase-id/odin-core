@@ -12,13 +12,13 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("ItShouldCountJobs");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase();
+        await db.CreateDatabaseAsync();
         
         var count = await db.tblJobs.GetCountAsync(cn);
         Assert.That(count, Is.EqualTo(0));
 
         var record = NewJobsRecord();
-        db.tblJobs.Insert(cn, record);
+        await db.tblJobs.InsertAsync(cn, record);
         
         count = await db.tblJobs.GetCountAsync(cn);
         Assert.That(count, Is.EqualTo(1));
@@ -31,9 +31,9 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("ItShouldGetTheNextJob");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase();
+        await db.CreateDatabaseAsync();
         
-        var nextRun = await db.tblJobs.GetNextRunTime(cn);
+        var nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.Null);
         
         var fiveInTheFuture = DateTimeOffset.Now.AddSeconds(5).ToUnixTimeMilliseconds();
@@ -45,83 +45,83 @@ public class TableJobsTests
         var r4 = NewJobsRecord();
         r4.name = "plus 5";
         r4.nextRun = fiveInTheFuture;
-        db.tblJobs.Insert(cn, r4);
+        await db.tblJobs.InsertAsync(cn, r4);
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(fiveInTheFuture));
         
         var r1 = NewJobsRecord();
         r1.name = "minus 10";
         r1.nextRun = tenInThePast;
-        db.tblJobs.Insert(cn, r1);
+        await db.tblJobs.InsertAsync(cn, r1);
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(tenInThePast));
         
         var r2 = NewJobsRecord();
         r2.name = "zero";
         r2.nextRun = zeroInThePast;
-        db.tblJobs.Insert(cn, r2);
+        await db.tblJobs.InsertAsync(cn, r2);
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(tenInThePast));
 
         var r3 = NewJobsRecord();
         r3.name = "minus 20";
         r3.nextRun = twentyInThePast;
-        db.tblJobs.Insert(cn, r3);
+        await db.tblJobs.InsertAsync(cn, r3);
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(twentyInThePast));
         
         var r5 = NewJobsRecord();
         r5.name = "minus 15";
         r5.nextRun = fifteenInThePast;
         r5.priority = 0; // TOP!
-        db.tblJobs.Insert(cn, r5);
+        await db.tblJobs.InsertAsync(cn, r5);
 
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(twentyInThePast));
 
         {
-            var nextJob = await db.tblJobs.GetNextScheduledJob(cn);
+            var nextJob = await db.tblJobs.GetNextScheduledJobAsync(cn);
             Assert.That(nextJob, Is.Not.Null);
             Assert.That(nextJob!.name, Is.EqualTo("minus 15")); // because it has higher priority than minus 20
             Assert.That(nextJob!.state, Is.EqualTo((int)JobState.Preflight));
         }
         
         {
-            var nextJob = await db.tblJobs.GetNextScheduledJob(cn);
+            var nextJob = await db.tblJobs.GetNextScheduledJobAsync(cn);
             Assert.That(nextJob, Is.Not.Null);
             Assert.That(nextJob!.name, Is.EqualTo("minus 20"));
             Assert.That(nextJob!.state, Is.EqualTo((int)JobState.Preflight));
         }
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(tenInThePast));
         
         {
-            var nextJob = await db.tblJobs.GetNextScheduledJob(cn);
+            var nextJob = await db.tblJobs.GetNextScheduledJobAsync(cn);
             Assert.That(nextJob, Is.Not.Null);
             Assert.That(nextJob!.name, Is.EqualTo("minus 10"));
             Assert.That(nextJob!.state, Is.EqualTo((int)JobState.Preflight));
         }
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(zeroInThePast));
         
         {
-            var nextJob = await db.tblJobs.GetNextScheduledJob(cn);
+            var nextJob = await db.tblJobs.GetNextScheduledJobAsync(cn);
             Assert.That(nextJob, Is.Not.Null);
             Assert.That(nextJob!.name, Is.EqualTo("zero"));
             Assert.That(nextJob!.state, Is.EqualTo((int)JobState.Preflight));
         }
         
-        nextRun = await db.tblJobs.GetNextRunTime(cn);
+        nextRun = await db.tblJobs.GetNextRunTimeAsync(cn);
         Assert.That(nextRun, Is.EqualTo(fiveInTheFuture));
         
         {
-            var nextJob = await db.tblJobs.GetNextScheduledJob(cn);
+            var nextJob = await db.tblJobs.GetNextScheduledJobAsync(cn);
             Assert.That(nextJob, Is.Null);
         }
         
@@ -135,17 +135,17 @@ public class TableJobsTests
     {
         using var db = new ServerDatabase("ItShouldGetJobByHash");
         using var cn = db.CreateDisposableConnection();
-        db.CreateDatabase();
+        await db.CreateDatabaseAsync();
 
         var record = NewJobsRecord();
         record.jobHash = "my unique hash value";
-        db.tblJobs.Insert(cn, record);
+        await db.tblJobs.InsertAsync(cn, record);
 
-        var job = await db.tblJobs.GetJobByHash(cn, record.jobHash);
+        var job = await db.tblJobs.GetJobByHashAsync(cn, record.jobHash);
         Assert.That(job, Is.Not.Null);
         Assert.That(job!.id, Is.EqualTo(record.id));
 
-        job = await db.tblJobs.GetJobByHash(cn, "non-existing-hash");
+        job = await db.tblJobs.GetJobByHashAsync(cn, "non-existing-hash");
         Assert.That(job, Is.Null);
     }
 

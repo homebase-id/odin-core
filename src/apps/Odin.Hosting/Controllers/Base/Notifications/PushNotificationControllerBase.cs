@@ -44,7 +44,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             }
 
             var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.AddDevice(subscription, WebOdinContext, db);
+            await notificationService.AddDeviceAsync(subscription, WebOdinContext, db);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -74,7 +74,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             }
 
             var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.AddDevice(subscription, WebOdinContext, db);
+            await notificationService.AddDeviceAsync(subscription, WebOdinContext, db);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -85,7 +85,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> GetSubscriptionDetails()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            var subscription = await notificationService.GetDeviceSubscription(WebOdinContext, db);
+            var subscription = await notificationService.GetDeviceSubscriptionAsync(WebOdinContext, db);
             if (null == subscription)
             {
                 return NotFound();
@@ -98,7 +98,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> GetAllSubscriptions()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            var allSubscriptions = await notificationService.GetAllSubscriptions(WebOdinContext, db);
+            var allSubscriptions = await notificationService.GetAllSubscriptionsAsync(WebOdinContext, db);
             if (null == allSubscriptions)
             {
                 return NotFound();
@@ -111,7 +111,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> RemoveDevice()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveDevice(WebOdinContext, db);
+            await notificationService.RemoveDeviceAsync(WebOdinContext, db);
             return Ok();
         }
 
@@ -119,7 +119,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> RemoveDevice(Guid key)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveDevice(key, WebOdinContext, db);
+            await notificationService.RemoveDeviceAsync(key, WebOdinContext, db);
             return Ok();
         }
 
@@ -127,7 +127,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> RemoveAllDevices()
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveAllDevices(WebOdinContext, db);
+            await notificationService.RemoveAllDevicesAsync(WebOdinContext, db);
             return Ok();
         }
 

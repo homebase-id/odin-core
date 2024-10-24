@@ -540,7 +540,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
-                        await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await storageManager.MoveThumbnailToLongTermAsync(targetFile.FileId, sourceThumbnail, descriptor, thumb);
                     }
                 }
             }
@@ -611,7 +611,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             bool metadataSaysThisFileHasPayloads = newMetadata.Payloads?.Any() ?? false;
 
-            await longTermStorageManager.DeleteMissingPayloads(newMetadata.File.FileId, newMetadata.Payloads);
+            await longTermStorageManager.DeleteMissingPayloadsAsync(newMetadata.File.FileId, newMetadata.Payloads);
 
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
@@ -625,13 +625,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                     // Process thumbnails
                     var thumbs = descriptor.Thumbnails;
 
-                    await longTermStorageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
+                    await longTermStorageManager.DeleteMissingThumbnailFilesAsync(targetFile.FileId, thumbs);
                     foreach (var thumb in thumbs)
                     {
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(targetFile.FileId, sourceThumbnail, descriptor, thumb);
                     }
                 }
             }
@@ -693,14 +693,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor, sourceFilePath);
 
                 // Delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
-                await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, descriptor.Thumbnails); //clean up
+                await storageManager.DeleteMissingThumbnailFilesAsync(targetFile.FileId, descriptor.Thumbnails); //clean up
 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                         thumb.PixelHeight);
                     var sourceThumbnail = await tempStorageManager.GetPath(tempSourceFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                    await storageManager.MoveThumbnailToLongTermAsync(targetFile.FileId, sourceThumbnail, descriptor, thumb);
                 }
             }
 

@@ -32,7 +32,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpGet("list")]
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
-            var apps = await _appRegistrationService.GetRegisteredApps(WebOdinContext);
+            var apps = await _appRegistrationService.GetRegisteredAppsAsync(WebOdinContext);
             return apps;
         }
 
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             OdinValidationUtils.AssertNotNull(appRegistration, nameof(appRegistration));
             OdinValidationUtils.AssertIsTrue(appRegistration.IsValid(), "The app registration is invalid");
 
-            var reg = await _appRegistrationService.RegisterApp(appRegistration, WebOdinContext);
+            var reg = await _appRegistrationService.RegisterAppAsync(appRegistration, WebOdinContext);
             return reg;
         }
 
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task UpdateAppPermissions([FromBody] UpdateAppPermissionsRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.UpdateAppPermissions(request, WebOdinContext);
+            await _appRegistrationService.UpdateAppPermissionsAsync(request, WebOdinContext);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.UpdateAuthorizedCircles(request, WebOdinContext);
+            await _appRegistrationService.UpdateAuthorizedCirclesAsync(request, WebOdinContext);
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeApp([FromBody] GetAppRequest request)
         {
-            await _appRegistrationService.RevokeApp(request.AppId, WebOdinContext);
+            await _appRegistrationService.RevokeAppAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<NoResultResponse> AllowApp([FromBody] GetAppRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.RemoveAppRevocation(request.AppId, WebOdinContext);
+            await _appRegistrationService.RemoveAppRevocationAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -117,7 +117,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.DeleteApp(request.AppId, WebOdinContext);
+            await _appRegistrationService.DeleteAppAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -129,7 +129,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("clients")]
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients([FromBody] GetAppRequest request)
         {
-            var result = await _appRegistrationService.GetRegisteredClients(request.AppId, WebOdinContext);
+            var result = await _appRegistrationService.GetRegisteredClientsAsync(request.AppId, WebOdinContext);
             return result;
         }
 
@@ -140,7 +140,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task RevokeClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.RevokeClient(request.AccessRegistrationId, WebOdinContext);
+            await _appRegistrationService.RevokeClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task EnableClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.AllowClient(request.AccessRegistrationId, WebOdinContext);
+            await _appRegistrationService.AllowClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task DeleteClient(GetAppClientRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _appRegistrationService.DeleteClient(request.AccessRegistrationId, WebOdinContext);
+            await _appRegistrationService.DeleteClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -189,7 +189,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            var (reg, _) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName, WebOdinContext);
+            var (reg, _) = await _appRegistrationService.RegisterClientPkAsync(request.AppId, clientPublicKey, request.ClientFriendlyName, WebOdinContext);
             return reg;
         }
     }

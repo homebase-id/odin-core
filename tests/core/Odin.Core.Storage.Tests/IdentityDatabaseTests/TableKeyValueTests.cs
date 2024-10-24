@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -13,25 +14,25 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     {
 
         [Test]
-        public void InsertTest()
+        public async Task InsertTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests001");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
             }
@@ -40,26 +41,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
         // Test that inserting a duplicate throws an exception
         [Test]
-        public void InsertDuplicateTest()
+        public async Task InsertDuplicateTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests002");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
 
                 bool ok = false;
 
                 try
                 {
-                    db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v2 });
+                    await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v2 });
                     ok = true;
                 }
                 catch
@@ -69,7 +70,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 Debug.Assert(ok == false);
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
             }
@@ -77,25 +78,25 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void UpdateTest()
+        public async Task UpdateTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests003");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Update(new KeyValueRecord() { key = k1, data = v2 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.UpdateAsync(new KeyValueRecord() { key = k1, data = v2 });
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                     Assert.Fail();
             }
@@ -104,28 +105,28 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
         // Test updating non existing row just continues
         [Test]
-        public void Update2Test()
+        public async Task Update2Test()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests004");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
 
                 bool ok = false;
 
                 try
                 {
-                    db.tblKeyValue.Update(new KeyValueRecord() { key = k2, data = v2 });
+                    await db.tblKeyValue.UpdateAsync(new KeyValueRecord() { key = k2, data = v2 });
                     ok = true;
                 }
                 catch
@@ -140,66 +141,66 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void DeleteTest()
+        public async Task DeleteTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests005");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
 
-                db.tblKeyValue.Delete(k1);
-                r = db.tblKeyValue.Get(k1);
+                await db.tblKeyValue.DeleteAsync(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
             }
         }
 
 
         [Test]
-        public void UpsertTest()
+        public async Task UpsertTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests006");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
                 var v3 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 Debug.Assert(r == null);
 
-                db.tblKeyValue.Upsert(new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Upsert(new KeyValueRecord() { key = k2, data = v2 });
+                await db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
 
-                r = db.tblKeyValue.Get(k2);
+                r = await db.tblKeyValue.GetAsync(k2);
                 if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                     Assert.Fail();
 
-                db.tblKeyValue.Upsert(new KeyValueRecord() { key = k2, data = v3 });
+                await db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = k2, data = v3 });
 
-                r = db.tblKeyValue.Get(k2);
+                r = await db.tblKeyValue.GetAsync(k2);
                 if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
                     Assert.Fail();
             }
@@ -208,30 +209,30 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 
         [Test]
-        public void LockingTest()
+        public async Task LockingTest()
         {
             List<byte[]> Rows = new List<byte[]>();
 
             void writeDB(DatabaseConnection conn, IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
-                    db.tblKeyValue.Update(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.UpdateAsync(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() }).Wait();
             }
 
             void readDB(DatabaseConnection conn, IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
-                    db.tblKeyValue.Get(Rows[i]);
+                    db.tblKeyValue.GetAsync(Rows[i]).Wait();
             }
 
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests007");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 for (int i = 0; i < 100; i++)
                 {
                     Rows.Add(Guid.NewGuid().ToByteArray());
-                    db.tblKeyValue.Insert(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                    await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
                 }
 
                 Thread tw = new Thread(() => writeDB(myc, db));
@@ -246,47 +247,47 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
         [Test]
-        public void CreateTableTest()
+        public async Task CreateTableTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests008");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
 
-                var r = db.tblKeyValue.Get(k1);
-
-                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                    Assert.Fail();
-
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
-
-                r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
 
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
 
-                r = db.tblKeyValue.Get(k2);
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
+
+                r = await db.tblKeyValue.GetAsync(k1);
+
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
+
+                r = await db.tblKeyValue.GetAsync(k2);
 
                 if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                     Assert.Fail();
 
-                db.tblKeyValue.Update(new KeyValueRecord() { key = k2, data = v1 });
+                await db.tblKeyValue.UpdateAsync(new KeyValueRecord() { key = k2, data = v1 });
 
-                r = db.tblKeyValue.Get(k2);
+                r = await db.tblKeyValue.GetAsync(k2);
 
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
 
-                db.tblKeyValue.Delete(k2);
+                await db.tblKeyValue.DeleteAsync(k2);
 
-                r = db.tblKeyValue.Get(k2);
+                r = await db.tblKeyValue.GetAsync(k2);
 
                 if (r != null)
                     Assert.Fail();
@@ -296,28 +297,28 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
         // Test inserting two row´s in a transaction and reading their values
         [Test]
-        public void CommitTest()
+        public async Task CommitTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableKeyValueTests009");
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
+                await db.CreateDatabaseAsync();
                 var k1 = Guid.NewGuid().ToByteArray();
                 var k2 = Guid.NewGuid().ToByteArray();
                 var v1 = Guid.NewGuid().ToByteArray();
                 var v2 = Guid.NewGuid().ToByteArray();
 
-                var r = db.tblKeyValue.Get(k1);
+                var r = await db.tblKeyValue.GetAsync(k1);
                 if (r != null)
                     Assert.Fail();
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
-                db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
+                await db.tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
 
-                r = db.tblKeyValue.Get(k1);
+                r = await db.tblKeyValue.GetAsync(k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                     Assert.Fail();
-                r = db.tblKeyValue.Get(k2);
+                r = await db.tblKeyValue.GetAsync(k2);
                 if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                     Assert.Fail();
             }

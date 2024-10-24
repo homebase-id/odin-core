@@ -368,7 +368,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     if (d != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase);
+                        await peerInboxProcessor.ProcessInboxAsync(d.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase);
                     }
                 }
                     break;
@@ -378,7 +378,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase, request.BatchSize);
+                        await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, odinContext, tenantSystemStorage.IdentityDatabase, request.BatchSize);
                     }
                 }
                     break;

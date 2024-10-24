@@ -19,11 +19,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
         }
         
         [HttpPost("list")]
-        public Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
+        public async Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, WebOdinContext);
-            return Task.FromResult(result);
+            var result = await _circleMembershipService.GetDomainsInCircleAsync(request.CircleId, WebOdinContext);
+            return result;
         }
     }
 }

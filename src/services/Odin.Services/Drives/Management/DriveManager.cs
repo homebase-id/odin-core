@@ -50,10 +50,10 @@ public class DriveManager
 
         const string driveContextKey = "4cca76c6-3432-4372-bef8-5f05313c0376";
         _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(driveContextKey));
-        LoadCache(tenantSystemStorage.IdentityDatabase);
+        LoadCacheAsync(tenantSystemStorage.IdentityDatabase).Wait(); // SEB:TODO move out of ctor and make async
     }
 
-    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext, IdentityDatabase db)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -108,7 +108,7 @@ public class DriveManager
 
             storageKey.Wipe();
 
-            _driveStorage.Upsert(db, sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
+            await _driveStorage.UpsertAsync(db, sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
@@ -129,7 +129,7 @@ public class DriveManager
         return storageDrive;
     }
 
-    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous, IOdinContext odinContext, IdentityDatabase db)
+    public async Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDrive(driveId, db);
@@ -149,7 +149,7 @@ public class DriveManager
         {
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
-            _driveStorage.Upsert(db, driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+            await _driveStorage.UpsertAsync(db, driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
 
             CacheDrive(storageDrive);
 
@@ -163,29 +163,27 @@ public class DriveManager
         }
     }
 
-    public Task UpdateMetadata(Guid driveId, string metadata, IOdinContext odinContext, IdentityDatabase db)
+    public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var sdb = _driveStorage.Get<StorageDriveBase>(db, driveId);
+        var sdb = await _driveStorage.GetAsync<StorageDriveBase>(db, driveId);
         sdb.Metadata = metadata;
 
-        _driveStorage.Upsert(db, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+        await _driveStorage.UpsertAsync(db, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
-        return Task.CompletedTask;
     }
 
-    public Task UpdateAttributes(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext, IdentityDatabase db)
+    public async Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var sdb = _driveStorage.Get<StorageDriveBase>(db, driveId);
+        var sdb = await _driveStorage.GetAsync<StorageDriveBase>(db, driveId);
         sdb.Attributes = attributes;
 
-        _driveStorage.Upsert(db, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+        await _driveStorage.UpsertAsync(db, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
-        return Task.CompletedTask;
     }
 
     public async Task<StorageDrive> GetDrive(Guid driveId, IdentityDatabase db, bool failIfInvalid = false)
@@ -195,7 +193,7 @@ public class DriveManager
             return cachedDrive;
         }
 
-        var sdb = _driveStorage.Get<StorageDriveBase>(db, driveId);
+        var sdb = await _driveStorage.GetAsync<StorageDriveBase>(db, driveId);
         if (null == sdb)
         {
             if (failIfInvalid)
@@ -208,7 +206,7 @@ public class DriveManager
 
         var drive = ToStorageDrive(sdb);
         CacheDrive(drive);
-        return await Task.FromResult(drive);
+        return drive;
     }
 
     public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, IdentityDatabase db, bool failIfInvalid = false)
@@ -219,7 +217,7 @@ public class DriveManager
             return cachedDrive.Id;
         }
 
-        var list = _driveStorage.GetByDataType<StorageDriveBase>(db, targetDrive.ToKey());
+        var list = await _driveStorage.GetByDataTypeAsync<StorageDriveBase>(db, targetDrive.ToKey());
         var drives = list as StorageDriveBase[] ?? list.ToArray();
         if (!drives.Any())
         {
@@ -233,7 +231,7 @@ public class DriveManager
 
         var drive = ToStorageDrive(drives.Single());
         CacheDrive(drive);
-        return await Task.FromResult(drive.Id);
+        return drive.Id;
     }
 
     public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions, IOdinContext odinContext, IdentityDatabase db)
@@ -244,7 +242,7 @@ public class DriveManager
             predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternal(false, pageOptions, odinContext, db);
+        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext, db);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -261,7 +259,7 @@ public class DriveManager
             predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternal(false, pageOptions, odinContext, db);
+        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext, db);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -269,7 +267,7 @@ public class DriveManager
 
     public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions, IOdinContext odinContext, IdentityDatabase db)
     {
-        var page = await this.GetDrivesInternal(false, pageOptions, odinContext, db);
+        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext, db);
         var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -277,7 +275,7 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext, IdentityDatabase db)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext, IdentityDatabase db)
     {
         List<StorageDrive> allDrives;
 
@@ -288,10 +286,8 @@ public class DriveManager
         }
         else
         {
-            allDrives = _driveStorage
-                .GetByCategory<StorageDriveBase>(db, _driveDataType)
-                .Select(ToStorageDrive).ToList();
-
+            var d = await _driveStorage.GetByCategoryAsync<StorageDriveBase>(db, _driveDataType);
+            allDrives = d.Select(ToStorageDrive).ToList();
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
@@ -311,7 +307,7 @@ public class DriveManager
         }
 
         var result = new PagedResult<StorageDrive>(pageOptions, 1, allDrives.Where(predicate).Select(ToStorageDrive).ToList());
-        return await Task.FromResult(result);
+        return result;
     }
 
     private StorageDrive ToStorageDrive(StorageDriveBase sdb)
@@ -329,9 +325,9 @@ public class DriveManager
         _driveCache[drive.Id] = drive;
     }
 
-    private void LoadCache(IdentityDatabase db)
+    private async Task LoadCacheAsync(IdentityDatabase db)
     {
-        var storageDrives = _driveStorage.GetByCategory<StorageDriveBase>(db, _driveDataType);
+        var storageDrives = await _driveStorage.GetByCategoryAsync<StorageDriveBase>(db, _driveDataType);
         foreach (var drive in storageDrives.Select(ToStorageDrive).ToList())
         {
             CacheDrive(drive);

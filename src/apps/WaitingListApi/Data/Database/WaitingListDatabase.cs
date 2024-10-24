@@ -25,20 +25,13 @@ namespace WaitingListApi.Data.Database
             WaitingListTable = new WaitingListTable(this);
         }
 
-
-        public override void Dispose()
-        {
-            WaitingListTable?.Dispose();;
-            base.Dispose();
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            WaitingListTable?.EnsureTableExists(dropExistingTables);
+            // SEB:NOTE Can't be bothered. This is a temporary class.
+            await WaitingListTable!.EnsureTableExistsAsync(dropExistingTables);
         }
     }
 }

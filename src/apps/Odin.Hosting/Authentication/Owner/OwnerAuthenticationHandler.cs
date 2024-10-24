@@ -117,19 +117,17 @@ namespace Odin.Hosting.Authentication.Owner
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext);
+            return await authService.UpdateOdinContextAsync(token, odinContext);
         }
 
-        public Task SignOutAsync(AuthenticationProperties? properties)
+        public async Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
                 var db = _tenantSystemStorage.IdentityDatabase;
-                authService.ExpireToken(result.Id);
+                await authService.ExpireTokenAsync(result.Id);
             }
-
-            return Task.CompletedTask;
         }
 
         public Task SignInAsync(ClaimsPrincipal user, AuthenticationProperties? properties)

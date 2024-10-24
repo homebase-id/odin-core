@@ -21,36 +21,36 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             
             // TODO CONNECTIONS
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
             // {
                 foreach (var identity in allIdentities.Results)
                 {
-                    await FixIdentity(identity, odinContext);
+                    await FixIdentityAsync(identity, odinContext);
                 }
             
-                var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
+                var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
                 foreach (var app in allApps)
                 {
                     logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
-                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
+                    await circleNetworkService.ReconcileAuthorizedCirclesAsync(oldAppRegistration: null, app, odinContext);
                 }
             // });
         }
 
-        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext)
+        private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {
                 var circleId = circleGrant.Value.CircleId;
                 
-                var def = circleDefinitionService.GetCircle(circleId);
+                var def = await circleDefinitionService.GetCircleAsync(circleId);
                 logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
                 
-                await circleNetworkService.RevokeCircleAccess(circleId, icr.OdinId, odinContext);
-                await circleNetworkService.GrantCircle(circleId, icr.OdinId, odinContext);
+                await circleNetworkService.RevokeCircleAccessAsync(circleId, icr.OdinId, odinContext);
+                await circleNetworkService.GrantCircleAsync(circleId, icr.OdinId, odinContext);
             }
         }
     }

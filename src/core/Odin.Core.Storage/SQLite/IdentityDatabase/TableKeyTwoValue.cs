@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -12,59 +13,43 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableKeyTwoValue()
+        public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetByKeyTwoAsync(conn, _db._identityId, key2);
         }
 
-        public List<KeyTwoValueRecord> GetByKeyTwo(byte[] key2)
+        public async Task<KeyTwoValueRecord> GetAsync(byte[] key1)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.GetByKeyTwo(conn, _db._identityId, key2);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, key1);
         }
 
-        public KeyTwoValueRecord Get(byte[] key1)
+        public async Task<int> DeleteAsync(byte[] key1)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, key1);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, key1);
         }
 
-        public int Delete(byte[] key1)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, key1);
-            }
-        }
-
-        public int Insert(KeyTwoValueRecord item)
+        public async Task<int> InsertAsync(KeyTwoValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int Upsert(KeyTwoValueRecord item)
+        public async Task<int> UpsertAsync(KeyTwoValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Upsert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpsertAsync(conn, item);
         }
 
-        public int Update(KeyTwoValueRecord item)
+        public async Task<int> UpdateAsync(KeyTwoValueRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Update(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpdateAsync(conn, item);
         }
     }
 }

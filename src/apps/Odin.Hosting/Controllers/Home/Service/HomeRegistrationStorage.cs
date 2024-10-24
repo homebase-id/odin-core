@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
@@ -22,14 +23,14 @@ namespace Odin.Hosting.Controllers.Home.Service
             _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
-        public HomeAppClient? GetClient(Guid id)
+        public async Task<HomeAppClient?> GetClientAsync(Guid id)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var client = _clientStorage.Get<HomeAppClient>(db, id);
+            var client = await _clientStorage.GetAsync<HomeAppClient>(db, id);
             return client;
         }
 
-        public void SaveClient(HomeAppClient client)
+        public async Task SaveClientAsync(HomeAppClient client)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             if (null == client?.AccessRegistration?.Id)
@@ -37,13 +38,13 @@ namespace Odin.Hosting.Controllers.Home.Service
                 throw new OdinClientException("Invalid client id");
             }
 
-            _clientStorage.Upsert(db, client.AccessRegistration.Id, client);
+            await _clientStorage.UpsertAsync(db, client.AccessRegistration.Id, client);
         }
 
-        public void DeleteClient(GuidId accessRegistrationId)
+        public async Task DeleteClientAsync(GuidId accessRegistrationId)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            _clientStorage.Delete(db, accessRegistrationId);
+            await _clientStorage.DeleteAsync(db, accessRegistrationId);
         }
     }
 }

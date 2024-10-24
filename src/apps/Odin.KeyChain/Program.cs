@@ -17,7 +17,7 @@ using var db = new KeyChainDatabase(@"blockchain.db");
 
 using (var conn = db.CreateDisposableConnection())
 {
-    KeyChainDatabaseUtil.InitializeDatabase(db, conn); // Only do this once per boot
+    KeyChainDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait(); // Only do this once per boot
 }
 
 builder.Services.AddSingleton<KeyChainDatabase>(db);

@@ -182,7 +182,7 @@ namespace Odin.Services.Certificate
                     }
                 }
 
-                await SaveSslCertificate(domain, pems);
+                SaveSslCertificate(domain, pems);
                 var x509 = ResolveCertificate(domain);
                 if (x509 != null)
                 {
@@ -242,13 +242,10 @@ namespace Odin.Services.Certificate
         
         //
         
-        public async Task SaveSslCertificate(string domain, KeysAndCertificates pems)
+        public void SaveSslCertificate(string domain, KeysAndCertificates pems)
         {
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
-        
             _certificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
-
-            await Task.CompletedTask;
         }
         
         //

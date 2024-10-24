@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 using Odin.Core.Time;
@@ -15,84 +16,62 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableConnections()
+        public async Task<ConnectionsRecord> GetAsync(OdinId identity)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetAsync(conn, _db._identityId, identity);
         }
 
-        public ConnectionsRecord Get(OdinId identity)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Get(conn, _db._identityId, identity);
-            }
-        }
-
-        public int Insert(ConnectionsRecord item)
+        public async Task<int> InsertAsync(ConnectionsRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int Upsert(ConnectionsRecord item)
+        public async Task<int> UpsertAsync(ConnectionsRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Upsert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpsertAsync(conn, item);
         }
 
-        public int Update(ConnectionsRecord item)
+        public async Task<int> UpdateAsync(ConnectionsRecord item)
         {
             item.identityId = _db._identityId;
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Update(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.UpdateAsync(conn, item);
         }
 
-        public int Delete(OdinId identity)
+        public async Task<int> DeleteAsync(OdinId identity)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, identity);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, identity);
         }
 
-        public List<ConnectionsRecord> PagingByIdentity(int count, string inCursor, out string nextCursor)
+        public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, string inCursor)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.PagingByIdentity(conn, count, _db._identityId, inCursor, out nextCursor);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.PagingByIdentityAsync(conn, count, _db._identityId, inCursor);
         }
 
-        public List<ConnectionsRecord> PagingByIdentity(int count, Int32 status, string inCursor, out string nextCursor)
+        public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Int32 status, string inCursor)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.PagingByIdentity(conn, count, _db._identityId, status, inCursor, out nextCursor);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.PagingByIdentityAsync(conn, count, _db._identityId, status, inCursor);
         }
 
 
-        public List<ConnectionsRecord> PagingByCreated(int count, Int32 status, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique?)> PagingByCreatedAsync(int count, Int32 status, UnixTimeUtcUnique? inCursor)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.PagingByCreated(conn, count, _db._identityId, status, inCursor, out nextCursor);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.PagingByCreatedAsync(conn, count, _db._identityId, status, inCursor);
         }
 
-        public List<ConnectionsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique?)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.PagingByCreated(conn, count, _db._identityId, inCursor, out nextCursor);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.PagingByCreatedAsync(conn, count, _db._identityId, inCursor);
         }
     }
 }

@@ -65,7 +65,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         private async Task<IActionResult> SendStream(string filename)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
-            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStream(filename, GetIfModifiedSince());
+            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
 
             if (fileExists && stream == Stream.Null)
             {

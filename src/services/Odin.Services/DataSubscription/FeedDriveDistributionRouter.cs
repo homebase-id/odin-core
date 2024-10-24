@@ -223,7 +223,7 @@ namespace Odin.Services.DataSubscription
                         };
 
                         //TODO: encryption - need to convert to the online key
-                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
+                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipientAsync(
                             PublicPrivateKeyType.OfflineKey,
                             recipient,
                             OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
@@ -278,8 +278,8 @@ namespace Odin.Services.DataSubscription
             // Get followers for this drive and merge with followers who want everything
             //
             var td = odinContext.PermissionsContext.GetTargetDrive(driveId);
-            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "", odinContext);
-            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "", odinContext);
+            var driveFollowers = await _followerService.GetFollowersAsync(td, maxRecords, cursor: "", odinContext);
+            var allDriveFollowers = await _followerService.GetFollowersOfAllNotificationsAsync(maxRecords, cursor: "", odinContext);
 
             var recipients = new List<OdinId>();
             recipients.AddRange(driveFollowers.Results);
@@ -378,7 +378,7 @@ namespace Odin.Services.DataSubscription
                 }
             };
 
-            await _peerOutbox.AddItem(item, db, useUpsert: true);
+            await _peerOutbox.AddItemAsync(item, db, useUpsert: true);
         }
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,
@@ -391,7 +391,7 @@ namespace Odin.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,

@@ -44,7 +44,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanReadOrWriteToDrive(driveId, odinContext, db);
             var queryManager = await TryGetOrLoadQueryManager(driveId, db);
-            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo(db);
+            var (fileCount, bytes) = await queryManager.GetDriveSizeInfoAsync(db);
 
             return new DriveSizeInfo()
             {
@@ -64,7 +64,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModifiedCore(odinContext, GetFileSystemType(), qp, o, db);
+                    await queryManager.GetModifiedCoreAsync(odinContext, GetFileSystemType(), qp, o, db);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, o, odinContext, db);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -97,7 +97,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByClientUniqueId(driveId, clientUniqueId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -225,7 +225,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 };
 
                 var queryManager = await TryGetOrLoadQueryManager(drive!.Id, db);
-                var (_, fileIdList, _) = await queryManager.GetBatchCore(odinContext,
+                var (_, fileIdList, _) = await queryManager.GetBatchCoreAsync(odinContext,
                     GetFileSystemType(),
                     query.QueryParams,
                     options,
@@ -252,7 +252,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByGlobalTransitId(driveId, globalTransitId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByGlobalTransitIdAsync(driveId, globalTransitId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -282,7 +282,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByGlobalTransitId(driveId, file.GlobalTransitId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -432,7 +432,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(odinContext,
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCoreAsync(odinContext,
                     GetFileSystemType(),
                     qp,
                     options,
