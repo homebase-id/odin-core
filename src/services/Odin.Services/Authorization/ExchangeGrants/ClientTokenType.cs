@@ -32,5 +32,5 @@ public enum ClientTokenType
     /// <summary>
     /// The bearer is granted this when s/he is listening to app notifications from a remote identity 
     /// </summary>
-    RemoteNotificationSubscriber = 307
+    RemoteNotificationSubscriber = 254
 }

@@ -7,9 +7,9 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
@@ -47,7 +47,7 @@ public sealed class TestAppWebSocketListener
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{OwnerApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{AppApiPathConstants.PeerNotificationsV1}/ws");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
         //

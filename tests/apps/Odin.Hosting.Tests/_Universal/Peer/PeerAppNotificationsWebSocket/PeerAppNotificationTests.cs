@@ -149,11 +149,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             //create remote tokens for listening to peer app notifications
             var frodoGetTokenResponse = await frodo.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var frodoToken = frodoGetTokenResponse.Content.Token;
+            var frodoToken = ClientAccessToken.FromPortableBytes(frodoGetTokenResponse.Content.ClientAccessTokenBytes);
             Assert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
 
             var samGetTokenResponse = await sam.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var samToken = frodoGetTokenResponse.Content.Token;
+            var samToken = ClientAccessToken.FromPortableBytes(samGetTokenResponse.Content.ClientAccessTokenBytes);
             Assert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
 
             await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);

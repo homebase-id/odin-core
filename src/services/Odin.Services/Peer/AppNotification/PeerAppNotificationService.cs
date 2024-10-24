@@ -32,7 +32,7 @@ public class PeerAppNotificationService(
 
         return SharedSecretEncryptedPayload.Encrypt(token.ToPortableBytes(), sharedSecret);
     }
-    
+
     /// <summary>
     /// Calls to a remote identity to get an <see cref="ClientAccessToken"/> 
     /// </summary>
@@ -61,11 +61,12 @@ public class PeerAppNotificationService(
 
         AssertValidResponse(response);
 
-        var bytes = response.Content.Decrypt(targetIdentityCat.SharedSecret);
-        
+        var portableBytes = response.Content.Decrypt(targetIdentityCat.SharedSecret);
+
         return new AppNotificationTokenResponse()
         {
-            Token = ClientAccessToken.FromPortableBytes(bytes)
+            // ClientAccessTokenBytes = ClientAccessToken.FromPortableBytes(portableBytes).ToPortableBytes()
+            ClientAccessTokenBytes = portableBytes
         };
     }
 

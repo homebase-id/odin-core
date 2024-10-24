@@ -1,8 +1,6 @@
-using Odin.Services.Authorization.ExchangeGrants;
-
 namespace Odin.Services.Peer.AppNotification;
 
 public class AppNotificationTokenResponse
 {
-    public ClientAccessToken Token { get; set; }
+    public byte[] ClientAccessTokenBytes { get; init; }
 }

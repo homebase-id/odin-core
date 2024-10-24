@@ -672,8 +672,9 @@ namespace Odin.Services.Membership.Connections
             var caller = odinContext.GetCallerOdinIdOrFail();
             var icr = await this.GetIdentityConnectionRegistration(caller, odinContext);
 
-            var encryptedKeyStoreKey = icr.AccessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey;
-            var grantKeyStoreKey = odinContext.PermissionsContext.DecryptUsingKeyStoreKey(encryptedKeyStoreKey);
+            // var encryptedKeyStoreKey = icr.AccessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey;
+            // var grantKeyStoreKey = odinContext.PermissionsContext.DecryptUsingKeyStoreKey(encryptedKeyStoreKey);
+            var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();
             var (accessRegistration, token) =
                 await exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.RemoteNotificationSubscriber);
 

@@ -62,7 +62,20 @@ namespace Odin.Services.Base
             
             return encryptedKeyStoreKey.DecryptKeyClone(groupWithKey.GetKeyStoreKey());
         }
+        public SensitiveByteArray GetKeyStoreKey()
+        {
+            // TODO: need to move the key store key storage to this
+            // upper class rather than having to hunt thru the permission groups
+            
+            var groupWithKey = PermissionGroups.Values.FirstOrDefault(group => group.GetKeyStoreKey()?.IsSet() ?? false);
 
+            if (null == groupWithKey)
+            {
+                throw new OdinSecurityException($"No key store key found");
+            }
+
+            return groupWithKey.GetKeyStoreKey();
+        }
         public SensitiveByteArray GetIcrKey()
         {
             foreach (var group in PermissionGroups.Values)
