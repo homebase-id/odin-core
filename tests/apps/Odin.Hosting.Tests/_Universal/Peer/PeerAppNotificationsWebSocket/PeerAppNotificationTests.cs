@@ -92,22 +92,22 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
              */
 
             // Setup
-            var hostCommunityChatDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+            var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
 
             var hostIdentity = _scaffold.CreateOwnerApiClientRedux(TestIdentities.TomBombadil); //todo: change to collab identity
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-            var (frodoAppApi, samAppApi) = await PrepareScenario(hostIdentity, frodo, sam, hostCommunityChatDrive);
+            var (frodoAppApi, samAppApi) = await PrepareScenario(hostIdentity, frodo, sam, targetDrive);
 
-            await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [hostCommunityChatDrive]);
+            await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [targetDrive]);
 
             // Act
-            await SendBarrage(frodo, sam, maxThreads: 5, iterations: 50);
+            await SendBarrage(hostIdentity, frodo, sam, targetDrive, maxThreads: 5, iterations: 50);
 
-            await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
+            await WaitForEmptyOutboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(60));
 
-            await WaitForEmptyInboxes(frodo, sam, TimeSpan.FromSeconds(90));
+            await WaitForEmptyInboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(90));
 
             Console.WriteLine("Parameters:");
 
@@ -135,7 +135,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
 
-            await Shutdown(frodo, sam);
+            await Shutdown(hostIdentity, frodo, sam);
         }
 
         private async Task SetupSockets(OwnerApiClientRedux hostIdentity, AppApiClientRedux frodo, AppApiClientRedux sam,
@@ -193,14 +193,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         }
 
 
-        private async Task Shutdown(OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
+        private async Task Shutdown(OwnerApiClientRedux hostIdentity, OwnerApiClientRedux frodo, OwnerApiClientRedux sam)
         {
-            await this.DeleteScenario(sender, recipient);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(hostIdentity.Identity.OdinId, frodo.Identity.OdinId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(hostIdentity.Identity.OdinId, sam.Identity.OdinId);
+
             await this._frodoSocketHandler.DisconnectAsync();
             await this._samSocketHandler.DisconnectAsync();
         }
 
-        private async Task SendBarrage(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations)
+        private async Task SendBarrage(OwnerApiClientRedux hostIdentity, OwnerApiClientRedux frodo, OwnerApiClientRedux sam,
+            TargetDrive targetDrive,
+            int maxThreads, int iterations)
         {
             async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
             {
@@ -212,13 +216,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
                     sw.Restart();
 
                     string message = "hi";
-                    // var bytes = message.ToUtf8ByteArray().Length;
-                    var result = await SendChatMessage(message, sender, recipient, true);
-                    if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
+                    var result = await SendChatMessage(message, frodo, hostIdentity, targetDrive, true);
+                    if (result!.RecipientStatus[hostIdentity.Identity.OdinId] == TransferStatus.Enqueued)
                     {
                         lock (_lock)
                         {
-                            _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                            // _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                            _filesSentByFrodo.Add(result.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
                         }
                     }
 
@@ -233,25 +237,36 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
         }
 
-        private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        private async Task WaitForEmptyOutboxes(OwnerApiClientRedux hostIdentity, OwnerApiClientRedux frodo, OwnerApiClientRedux sam,
+            TargetDrive targetDrive,
+            TimeSpan timeout)
         {
-            var senderWaitTime = await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            var senderWaitTime = await frodo.DriveRedux.WaitForEmptyOutbox(targetDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
-            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
+            var hostWaitTime = await hostIdentity.DriveRedux.WaitForEmptyOutbox(targetDrive, timeout);
+            Console.WriteLine($"Sender Outbox Wait time: {hostWaitTime.TotalSeconds}sec");
+            
+            var recipientWaitTime = await sam.DriveRedux.WaitForEmptyOutbox(targetDrive, timeout);
             Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
-        private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
+        private async Task WaitForEmptyInboxes(OwnerApiClientRedux hostIdentity, OwnerApiClientRedux sender, OwnerApiClientRedux recipient,
+            TargetDrive targetDrive,
+            TimeSpan timeout)
         {
-            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            var hostWaitTime = await hostIdentity.DriveRedux.WaitForEmptyInbox(targetDrive, timeout);
+            Console.WriteLine($"Sender Inbox Wait time: {hostWaitTime.TotalSeconds}sec");
+            
+            var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(targetDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
-            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
+            var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(targetDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
-        private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient,
+        private async Task<TransitResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient,
+            TargetDrive targetDrive,
             bool allowDistribution)
         {
             var fileMetadata = new UploadFileMetadata()
@@ -268,23 +283,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
                 AccessControlList = AccessControlList.Connected
             };
 
-            var storageOptions = new StorageOptions()
-            {
-                Drive = SystemDriveConstants.ChatDrive
-            };
-
-            var transitOptions = new TransitOptions()
-            {
-                Recipients = [recipient.Identity.OdinId]
-            };
-
-            var (uploadResponse, _) = await sender.DriveRedux.UploadNewEncryptedMetadata(
+            var response = await sender.PeerDirect.TransferMetadata(
+                targetDrive,
                 fileMetadata,
-                storageOptions,
-                transitOptions
+                [recipient.Identity.OdinId],
+                null
             );
 
-            return uploadResponse.Content;
+            return response.Content;
         }
 
         public async Task ValidateFileDelivered(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, ExternalFileIdentifier file)
@@ -368,11 +374,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             var samAppApiClient = _scaffold.CreateAppApiClientRedux(sam.Identity.OdinId, samAppClientAccessToken);
 
             return (frodoAppApiClient, samAppApiClient);
-        }
-
-        private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
-        {
-            await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.Identity.OdinId);
         }
     }
 }

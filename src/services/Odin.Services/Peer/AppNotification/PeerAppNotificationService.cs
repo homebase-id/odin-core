@@ -97,7 +97,8 @@ public class PeerAppNotificationService : PeerServiceBase
             }
 
             var accessReg = peerIcrClient.AccessRegistration;
-            var odinContext = await CircleNetworkService.TryCreateConnectedYouAuthContext(peerIcrClient.Identity, token, accessReg, currentOdinContext);
+            var odinContext =
+                await CircleNetworkService.TryCreateConnectedYouAuthContext(peerIcrClient.Identity, token, accessReg, currentOdinContext);
             return odinContext;
         }
 
@@ -114,7 +115,7 @@ public class PeerAppNotificationService : PeerServiceBase
             return (false, null);
         }
 
-        var icr = await CircleNetworkService.GetIdentityConnectionRegistration(peerIcrClient.Identity, odinContext);
+        var icr = await CircleNetworkService.GetIdentityConnectionRegistration(peerIcrClient.Identity, odinContext, overrideHack: true);
 
         if (!icr.IsConnected())
         {
