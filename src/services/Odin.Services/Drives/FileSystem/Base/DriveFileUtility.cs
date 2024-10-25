@@ -11,6 +11,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.FileSystem.Base;
@@ -40,7 +41,8 @@ public static class DriveFileUtility
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
+            sharedSecretEncryptedKeyHeader =
+                EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
         }
         else
         {
@@ -184,7 +186,8 @@ public static class DriveFileUtility
             var lastModifiedValue = values.FirstOrDefault();
 
             const string dateTimePattern = "ddd, dd MMM yyyy HH:mm:ss 'GMT'";
-            if (DateTimeOffset.TryParseExact(lastModifiedValue, dateTimePattern, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var result))
+            if (DateTimeOffset.TryParseExact(lastModifiedValue, dateTimePattern, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal, out var result))
             {
                 Instant instant = Instant.FromDateTimeOffset(result);
                 lastModified = new UnixTimeUtc(instant);
@@ -259,5 +262,16 @@ public static class DriveFileUtility
     {
         var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+    }
+
+    public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)
+    {
+        var deletedNotification = notification as DriveFileDeletedNotification;
+        if (deletedNotification == null)
+        {
+            return null;
+        }
+
+        return CreateClientFileHeader(deletedNotification.PreviousServerFileHeader, deviceOdinContext);
     }
 }
