@@ -46,7 +46,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContext(token, creator);
+        return await _cache.GetOrAddContextAsync(token, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,

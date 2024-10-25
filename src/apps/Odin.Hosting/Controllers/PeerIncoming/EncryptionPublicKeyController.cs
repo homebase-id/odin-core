@@ -25,7 +25,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType, db);
+            var key = await publicPrivateKeyService.GetPublicRsaKeyAsync(keyType, db);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
@@ -38,7 +38,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         public async Task<GetPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicPrivateKeyService.GetPublicEccKey(keyType, db);
+            var key = await publicPrivateKeyService.GetPublicEccKeyAsync(keyType, db);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.PublicKeyJwk().ToUtf8ByteArray(),

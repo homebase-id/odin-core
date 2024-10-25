@@ -4,6 +4,8 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase;
 
+// SEB:TODO remove DatabaseConnection cn parameters from all methods
+
 #nullable enable
 
 public enum JobState
@@ -27,19 +29,68 @@ public class TableJobs : TableJobsCRUD
     
     //
 
-    public Task<long> GetCountAsync(DatabaseConnection cn)
+    public async Task<JobsRecord> GetAsync(Guid id)
     {
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM jobs;";
-        var result = (long)(cn.ExecuteScalar(cmd) ?? 0L); 
-        return Task.FromResult(result); 
+        using var cn = _db.CreateDisposableConnection();
+        return await GetAsync(cn, id);
+    }
+    
+    //
+
+    public async Task<int> InsertAsync(JobsRecord item)
+    {
+        using var cn = _db.CreateDisposableConnection();
+        return await InsertAsync(cn, item);
+    }
+    
+    //
+
+    public async Task<int> TryInsertAsync(JobsRecord item)
+    {
+        using var cn = _db.CreateDisposableConnection();
+        return await TryInsertAsync(cn, item);
     }
     
     //
     
-    public Task<bool> JobIdExists(DatabaseConnection cn, Guid jobId)
+    public async Task<int> DeleteAsync(Guid id)
     {
-        using var cmd = _db.CreateCommand();
+        using var cn = _db.CreateDisposableConnection();
+        return await DeleteAsync(cn, id);
+    }
+    
+    //
+
+    public async Task<int> UpdateAsync(JobsRecord item)
+    {
+        using var cn = _db.CreateDisposableConnection();
+        return await UpdateAsync(cn, item);
+    }
+    
+    //
+
+    public async Task<int> UpsertAsync(JobsRecord item)
+    {
+        using var cn = _db.CreateDisposableConnection();
+        return await UpsertAsync(cn, item);
+    }
+    
+    //
+
+    public async Task<long> GetCountAsync()
+    {
+        await using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM jobs;";
+        using var cn = _db.CreateDisposableConnection();
+        var count = (long)(await cn.ExecuteScalarAsync(cmd) ?? 0L);
+        return count;
+    }
+    
+    //
+    
+    public async Task<bool> JobIdExistsAsync(Guid jobId)
+    {
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText = "SELECT 1 FROM jobs WHERE id = @id;";
         
         var idParam = cmd.CreateParameter();
@@ -47,15 +98,16 @@ public class TableJobs : TableJobsCRUD
         idParam.Value = jobId.ToByteArray();
         cmd.Parameters.Add(idParam);
         
-        var result = (long)(cn.ExecuteScalar(cmd) ?? 0L) != 0L;
-        return Task.FromResult(result);
+        using var cn = _db.CreateDisposableConnection();
+        var count = (long)(await cn.ExecuteScalarAsync(cmd) ?? 0L);
+        return count > 0L;
     }
     
     //
 
-    public Task<long?> GetNextRunTime(DatabaseConnection cn)
+    public async Task<long?> GetNextRunTimeAsync()
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText =
             """
             SELECT nextRun
@@ -70,15 +122,16 @@ public class TableJobs : TableJobsCRUD
         scheduled.Value = (int)JobState.Scheduled;
         cmd.Parameters.Add(scheduled);
 
-        var nextRun = (long?)cn.ExecuteScalar(cmd);
-        return Task.FromResult(nextRun);
+        using var cn = _db.CreateDisposableConnection();
+        var nextRun = (long?)await cn.ExecuteScalarAsync(cmd);
+        return nextRun;
     }
     
     //
     
-    public Task<JobsRecord?> GetNextScheduledJob(DatabaseConnection cn)
+    public async Task<JobsRecord?> GetNextScheduledJobAsync()
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText =
             """
             -- sqlite: According to chatgpt, "immediate" is needed to help the atomic update
@@ -119,22 +172,24 @@ public class TableJobs : TableJobsCRUD
         preflight.ParameterName = "@preflight";
         preflight.Value = (int)JobState.Preflight;
         cmd.Parameters.Add(preflight);
+        
+        using var cn = _db.CreateDisposableConnection();
 
         JobsRecord? result = null;
-        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
-        if (rdr.Read())
+        await using var rdr = await cn.ExecuteReaderAsync(cmd, System.Data.CommandBehavior.Default);
+        if (await rdr.ReadAsync())
         {
             result = ReadRecordFromReaderAll(rdr);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
     
     //
 
-    public Task<JobsRecord?> GetJobByHash(DatabaseConnection cn, string jobHash)
+    public async Task<JobsRecord?> GetJobByHashAsync(string jobHash)
     {
-        using var cmd = _db.CreateCommand();
+        await using var cmd = _db.CreateCommand();
         cmd.CommandText = "SELECT * FROM jobs WHERE jobHash = @jobHash;";
 
         var jobHashParam = cmd.CreateParameter();
@@ -142,19 +197,21 @@ public class TableJobs : TableJobsCRUD
         jobHashParam.Value = jobHash;
         cmd.Parameters.Add(jobHashParam);
 
+        using var cn = _db.CreateDisposableConnection();
+        
         JobsRecord? result = null;
-        using var rdr = cn.ExecuteReader(cmd, System.Data.CommandBehavior.Default);
-        if (rdr.Read())
+        await using var rdr = await cn.ExecuteReaderAsync(cmd, System.Data.CommandBehavior.Default);
+        if (await rdr.ReadAsync())
         {
             result = ReadRecordFromReaderAll(rdr);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
     //
 
-    public Task DeleteExpiredJobs(DatabaseConnection cn)
+    public async Task DeleteExpiredJobsAsync()
     {
         using var cmd = _db.CreateCommand();
         cmd.CommandText =
@@ -162,14 +219,14 @@ public class TableJobs : TableJobsCRUD
             DELETE FROM jobs 
             WHERE @now > expiresAt
             """;
-
+        
         var now = cmd.CreateParameter();
         now.ParameterName = "@now";
         now.Value = UnixTimeUtc.Now().milliseconds;
         cmd.Parameters.Add(now);
-
-        cn.ExecuteNonQuery(cmd);
-        return Task.CompletedTask;
+        
+        using var cn = _db.CreateDisposableConnection();
+        await cn.ExecuteNonQueryAsync(cmd);
     }
 
     //

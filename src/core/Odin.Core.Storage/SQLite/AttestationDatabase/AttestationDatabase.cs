@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 /*
 =====
@@ -33,41 +34,25 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _line = line;
         }
 
-
-        ~AttestationDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
-        public override void Dispose()
-        {
-            tblAttestationRequest.Dispose();
-            tblAttestationStatus.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            using (var conn = this.CreateDisposableConnection())
+            using var conn = CreateDisposableConnection();
+            await tblAttestationRequest.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblAttestationStatus.EnsureTableExistsAsync(conn, dropExistingTables);
+            if (dropExistingTables)
             {
-                tblAttestationRequest.EnsureTableExists(conn, dropExistingTables);
-                tblAttestationStatus.EnsureTableExists(conn, dropExistingTables);
-                if (dropExistingTables)
-                    conn.Vacuum();
+                await conn.VacuumAsync();
             }
         }
+        
+        // SEB:NOTE this is a temporary hack while we refactor the database code
+        public new DatabaseConnection CreateDisposableConnection() 
+        {
+            return base.CreateDisposableConnection();
+        }
+        
     }
 }

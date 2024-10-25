@@ -104,7 +104,6 @@ public abstract class FileSystemStreamWriterBase
         }
 
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
-        await Task.CompletedTask;
     }
 
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, IdentityDatabase db)

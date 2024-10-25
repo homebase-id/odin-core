@@ -26,10 +26,7 @@ public sealed class TenantSystemStorage : IDisposable
         var finalPath = PathUtil.Combine(dbPath, dbName);
 
         IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
-        using (var conn = IdentityDatabase.CreateDisposableConnection())
-        {
-            IdentityDatabase.CreateDatabase(false);
-        }
+        IdentityDatabase.CreateDatabaseAsync(false).Wait(); // SEB:TODO move out of ctor and make async
 
         Connections = IdentityDatabase.tblConnections;
         CircleMemberStorage = IdentityDatabase.tblCircleMember;

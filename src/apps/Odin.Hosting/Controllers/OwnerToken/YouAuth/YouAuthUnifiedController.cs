@@ -280,7 +280,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // [140] Return client access token to client
             //
-            return await Task.FromResult(result);
+            return result;
         }
 
         //

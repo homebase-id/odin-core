@@ -44,7 +44,7 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext, IdentityDatabase db,
+        protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext, IdentityDatabase db,
             bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
@@ -53,7 +53,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await CircleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, overrideHack: true);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistrationAsync(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -71,7 +71,7 @@ namespace Odin.Services.Peer
             IdentityDatabase db,
             FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, odinContext, db, false);
+            var token = await ResolveClientAccessTokenAsync(odinId, odinContext, db, false);
 
             if (token == null)
             {
@@ -114,7 +114,7 @@ namespace Odin.Services.Peer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
+            return OdinSystemSerializer.Deserialize<T>(json);
         }
 
         /// <summary>

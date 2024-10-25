@@ -75,32 +75,29 @@ public class JobManager(
             lastError = null,
         };
         
-        using (var cn = await CreateConnectionAsync())
+        if (record.jobHash == null)
         {
-            if (record.jobHash == null)
+            logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
+                jobId, job.Name, schedule.RunAt.ToString("O"));
+            await _tblJobs.InsertAsync(record);
+        }
+        else
+        {
+            logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
+                jobId, job.Name, schedule.RunAt.ToString("O"));
+            var inserted = await _tblJobs.TryInsertAsync(record);
+            if (inserted == 0)
             {
-                logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
-                    jobId, job.Name, schedule.RunAt.ToString("O"));
-                _tblJobs.Insert(cn, record);
-            }
-            else
-            {
-                logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
-                    jobId, job.Name, schedule.RunAt.ToString("O"));
-                var inserted = _tblJobs.TryInsert(cn, record);
-                if (inserted == 0)
+                // Job already exists, lets look it up using the jobHash
+                var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
+                if (existingRecord != null)
                 {
-                    // Job already exists, lets look it up using the jobHash
-                    var existingRecord = await _tblJobs.GetJobByHash(cn, record.jobHash);
-                    if (existingRecord != null)
-                    {
-                        logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
-                            existingRecord.id, existingRecord.name);
-                        return existingRecord.id;
-                    }
-                    logger.LogError("Could not find job with hash {hash}", record.jobHash);
-                    throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
+                    logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
+                        existingRecord.id, existingRecord.name);
+                    return existingRecord.id;
                 }
+                logger.LogError("Could not find job with hash {hash}", record.jobHash);
+                throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
             }
         }
         
@@ -262,11 +259,7 @@ public class JobManager(
 
     public async Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
     {
-        JobsRecord record;
-        using (var cn = await CreateConnectionAsync())
-        {
-            record = _tblJobs.Get(cn, jobId);
-        }
+        var record = await _tblJobs.GetAsync(jobId);
     
         if (record == null)
         {
@@ -282,8 +275,7 @@ public class JobManager(
     
     public async Task<long> CountJobsAsync()
     {
-        using var cn = await CreateConnectionAsync();
-        var result = await _tblJobs.GetCountAsync(cn);
+        var result = await _tblJobs.GetCountAsync();
         return result;
     }
     
@@ -291,8 +283,7 @@ public class JobManager(
     
     public async Task<bool> JobExistsAsync(Guid jobId)
     {
-        using var cn = await CreateConnectionAsync();
-        var result = await _tblJobs.JobIdExists(cn, jobId);
+        var result = await _tblJobs.JobIdExistsAsync(jobId);
         return result;
     }
     
@@ -300,8 +291,7 @@ public class JobManager(
 
     public async Task<bool> DeleteJobAsync(Guid jobId)
     {
-        using var cn = await CreateConnectionAsync();
-        var result = _tblJobs.Delete(cn, jobId);
+        var result = await _tblJobs.DeleteAsync(jobId);
         return result > 0;
     }
     
@@ -309,23 +299,14 @@ public class JobManager(
 
     public async Task DeleteExpiredJobsAsync()
     {
-        using var cn = await CreateConnectionAsync();
-        await _tblJobs.DeleteExpiredJobs(cn);
+        await _tblJobs.DeleteExpiredJobsAsync();
     }
 
     //
 
-    private Task<DatabaseConnection> CreateConnectionAsync()
-    {
-        return Task.FromResult(serverSystemStorage.CreateConnection());
-    } 
-    
-    //
-
     private async Task<int> UpdateAsync(JobsRecord record)
     {
-        using var cn = await CreateConnectionAsync();
-        var updated = _tblJobs.Update(cn, record);
+        var updated = await _tblJobs.UpdateAsync(record);
         jobRunnerBackgroundService.PulseBackgroundProcessor();
         return updated;
     }
@@ -334,8 +315,7 @@ public class JobManager(
 
     private async Task<int> UpsertAsync(JobsRecord record)
     {
-        using var cn = await CreateConnectionAsync();
-        var updated = _tblJobs.Upsert(cn, record);
+        var updated = await _tblJobs.UpsertAsync(record);
         jobRunnerBackgroundService.PulseBackgroundProcessor();       
         return updated;
     }
@@ -344,8 +324,7 @@ public class JobManager(
     
     private async Task<int> DeleteAsync(JobsRecord record)
     {
-        using var cn = await CreateConnectionAsync();
-        var deleted = _tblJobs.Delete(cn, record.id);
+        var deleted = await _tblJobs.DeleteAsync(record.id);
         jobRunnerBackgroundService.PulseBackgroundProcessor();
         return deleted;
     } 

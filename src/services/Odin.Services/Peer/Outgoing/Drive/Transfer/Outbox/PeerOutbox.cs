@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task AddItem(OutboxFileItem fileItem, IdentityDatabase db, bool useUpsert = false)
+        public async Task AddItemAsync(OutboxFileItem fileItem, IdentityDatabase db, bool useUpsert = false)
         {
             var record = new OutboxRecord()
             {
@@ -36,55 +36,45 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             if (useUpsert)
             {
-                tenantSystemStorage.Outbox.Upsert(record);
+                await tenantSystemStorage.Outbox.UpsertAsync(record);
             }
             else
             {
-                tenantSystemStorage.Outbox.Insert(record);
+                await tenantSystemStorage.Outbox.InsertAsync(record);
             }
             
             PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
-            
-            return Task.CompletedTask;
         }
 
-        public Task MarkComplete(Guid marker, IdentityDatabase db)
+        public async Task MarkCompleteAsync(Guid marker, IdentityDatabase db)
         {
-            tenantSystemStorage.Outbox.CompleteAndRemove(marker);
-            
+            await tenantSystemStorage.Outbox.CompleteAndRemoveAsync(marker);
             PerformanceCounter.IncrementCounter("Outbox Mark Complete");
-
-            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun, IdentityDatabase db)
+        public async Task MarkFailureAsync(Guid marker, UnixTimeUtc nextRun, IdentityDatabase db)
         {
-            tenantSystemStorage.Outbox.CheckInAsCancelled(marker, nextRun);
-            
+            await tenantSystemStorage.Outbox.CheckInAsCancelledAsync(marker, nextRun);
             PerformanceCounter.IncrementCounter("Outbox Mark Failure");
-
-            return Task.CompletedTask;
         }
 
-        public Task<int> RecoverDead(UnixTimeUtc time, IdentityDatabase db)
+        public async Task<int> RecoverDeadAsync(UnixTimeUtc time, IdentityDatabase db)
         {
-            var recovered = tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(time);
-            
+            var recovered = await tenantSystemStorage.Outbox.RecoverCheckedOutDeadItemsAsync(time);
             PerformanceCounter.IncrementCounter("Outbox Recover Dead");
-
-            return Task.FromResult(recovered);
+            return recovered;
         }
 
-        public async Task<OutboxFileItem> GetNextItem(IdentityDatabase db)
+        public async Task<OutboxFileItem> GetNextItemAsync(IdentityDatabase db)
         {
-            var record = tenantSystemStorage.Outbox.CheckOutItem();
+            var record = await tenantSystemStorage.Outbox.CheckOutItemAsync();
             
             if (null == record)
             {
-                return await Task.FromResult<OutboxFileItem>(null);
+                return null;
             }
 
             PerformanceCounter.IncrementCounter("Outbox Item Checkout");
@@ -110,37 +100,37 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 State = state
             };
 
-            return await Task.FromResult(item);
+            return item;
         }
 
-        public Task<bool> HasOutboxFileItem(OutboxFileItem fileItem, IdentityDatabase db)
+        public async Task<bool> HasOutboxFileItemAsync(OutboxFileItem fileItem, IdentityDatabase db)
         {
-            var records = tenantSystemStorage.Outbox.Get(fileItem.File.DriveId, fileItem.File.FileId);
+            var records = await tenantSystemStorage.Outbox.GetAsync(fileItem.File.DriveId, fileItem.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
-            return Task.FromResult(hasRecord);
+            return hasRecord;
         }
 
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxDriveStatus> GetOutboxStatus(Guid driveId, IdentityDatabase db)
+        public async Task<OutboxDriveStatus> GetOutboxStatusAsync(Guid driveId, IdentityDatabase db)
         {
-            var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(driveId);
-            return await Task.FromResult(new OutboxDriveStatus()
+            var (totalCount, poppedCount, utc) = await tenantSystemStorage.Outbox.OutboxStatusDriveAsync(driveId);
+            return new OutboxDriveStatus
             {
                 CheckedOutCount = poppedCount,
                 TotalItems = totalCount,
                 NextItemRun = utc
-            });
+            };
         }
 
         
         /// <summary>
         /// Get time until the next scheduled item should run (if any).
         /// </summary>
-        public async Task<TimeSpan?> NextRun(IdentityDatabase db)
+        public async Task<TimeSpan?> NextRunAsync(IdentityDatabase db)
         {
-            var nextRun = tenantSystemStorage.Outbox.NextScheduledItem();
+            var nextRun = await tenantSystemStorage.Outbox.NextScheduledItemAsync();
             if (nextRun == null)
             {
                 return null;
@@ -150,10 +140,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var now = DateTimeOffset.Now;
             if (dt < now)
             {
-                return await Task.FromResult(TimeSpan.Zero);
+                return TimeSpan.Zero;
             }
             
-            return await Task.FromResult(dt - now);
+            return dt - now;
         }
     }
 }

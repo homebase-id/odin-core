@@ -1,3 +1,4 @@
+#if DAPPER
 using Dapper;
 using System;
 using System.Data;
@@ -72,3 +73,4 @@ public static class DapperExtensions
         SqlMapper.AddTypeHandler(new StringHandler());
     }
 }
+#endif

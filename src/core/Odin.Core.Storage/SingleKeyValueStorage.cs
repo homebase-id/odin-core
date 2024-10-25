@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
@@ -28,9 +29,9 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(IdentityDatabase db, Guid key) where T : class
+    public async Task<T> GetAsync<T>(IdentityDatabase db, Guid key) where T : class
     {
-        var item = db.tblKeyValue.Get(MakeStorageKey(key));
+        var item = await db.tblKeyValue.GetAsync(MakeStorageKey(key));
 
         if (null == item)
         {
@@ -45,7 +46,7 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void UpsertMany<T>(IdentityDatabase db, List<(Guid key, T value)> keyValuePairs)
+    public async Task UpsertManyAsync<T>(IdentityDatabase db, List<(Guid key, T value)> keyValuePairs)
     {
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
         {
@@ -54,18 +55,18 @@ public class SingleKeyValueStorage
             identityId = db._identityId
         }).ToList();
 
-        db.tblKeyValue.UpsertMany(keyValueRecords);
+        await db.tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
-    public void Upsert<T>(IdentityDatabase db, Guid key, T value)
+    public async Task UpsertAsync<T>(IdentityDatabase db, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyValue.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        await db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(IdentityDatabase db, Guid key)
+    public async Task DeleteAsync(IdentityDatabase db, Guid key)
     {
-        db.tblKeyValue.Delete(MakeStorageKey(key));
+        await db.tblKeyValue.DeleteAsync(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

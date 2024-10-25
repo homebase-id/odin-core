@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }

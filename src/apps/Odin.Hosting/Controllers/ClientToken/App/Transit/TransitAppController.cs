@@ -19,7 +19,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             var db = tenantSystemStorage.IdentityDatabase;
-            var result = await peerInboxProcessor.ProcessInbox(request.TargetDrive, WebOdinContext, db, request.BatchSize);
+            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, db, request.BatchSize);
             return result;
         }
     }

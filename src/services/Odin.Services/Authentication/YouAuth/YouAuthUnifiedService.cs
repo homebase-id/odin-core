@@ -113,11 +113,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                await _domainRegistrationService.RegisterDomain(request, odinContext);
+                await _domainRegistrationService.RegisterDomainAsync(request, odinContext);
             }
             else
             {
-                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext);
+                await _domainRegistrationService.UpdateConsentRequirementsAsync(domain, consentRequirements, odinContext);
             }
 
             //so for now i'll just use this dictionary
@@ -153,7 +153,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)domain, odinContext);
+            var info = await _circleNetwork.GetIdentityConnectionRegistrationAsync((OdinId)domain, odinContext);
             if (info.IsConnected())
             {
                 var icrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -169,7 +169,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request, odinContext);
+                (token, _) = await _domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
             }
         }
         else

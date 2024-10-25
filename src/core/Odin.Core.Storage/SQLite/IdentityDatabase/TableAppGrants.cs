@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using static Odin.Core.Storage.SQLite.DatabaseBase;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
@@ -15,52 +16,40 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableAppGrants()
-        {
-        }
-
-        public int Insert(AppGrantsRecord item)
+        public async Task<int> InsertAsync(AppGrantsRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public int Upsert(AppGrantsRecord item)
+        public async Task<int> UpsertAsync(AppGrantsRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public List<AppGrantsRecord> GetByOdinHashId(Guid odinHashId)
+        public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId)
+        {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.GetByOdinHashIdAsync(conn, _db._identityId, odinHashId);
+        }
+
+        public async Task DeleteByIdentityAsync(Guid odinHashId)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                return base.GetByOdinHashId(conn, _db._identityId, odinHashId);
-            }
-        }
-
-        public void DeleteByIdentity(Guid odinHashId)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = GetByOdinHashId(conn, _db._identityId, odinHashId);
+                var r = await GetByOdinHashIdAsync(conn, _db._identityId, odinHashId);
 
                 if (r == null)
                     return;
 
-                conn.CreateCommitUnitOfWork(() =>
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     for (int i = 0; i < r.Count; i++)
                     {
-                        Delete(conn, _db._identityId, odinHashId, r[i].appId, r[i].circleId);
+                        await DeleteAsync(conn, _db._identityId, odinHashId, r[i].appId, r[i].circleId);
                     }
                 });
             }

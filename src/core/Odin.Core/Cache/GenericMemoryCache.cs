@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Threading;
 
 namespace Odin.Core.Cache;
 
@@ -41,6 +42,7 @@ public sealed class GenericMemoryCache : IGenericMemoryCache, IDisposable
 {
     private static readonly object NullValue = new();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
+    private readonly KeyedAsyncLock _factoryLock = new();
 
     public void Dispose()
     {
@@ -153,26 +155,30 @@ public sealed class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     public T? GetOrCreate<T>(string key, Func<T?> factory, DateTimeOffset absoluteExpiration)
     {
-        var result = _cache.GetOrCreate<object>(key, entry =>
+        if (TryGet<T?>(key, out var existingValue))
         {
-            entry.AbsoluteExpiration = absoluteExpiration;
+            return existingValue;
+        }
+
+        using (_factoryLock.Lock(key))
+        {
+            // Double-check if the value was added while waiting for the lock
+            if (TryGet<T?>(key, out existingValue))
+            {
+                return existingValue;
+            }
+
+            // Execute the factory function and store the result
             var value = factory();
-            return value ?? NullValue;
-        });
+            var options = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpiration = absoluteExpiration
+            };
+            _cache.Set(key, value ?? NullValue, options);
 
-        if (ReferenceEquals(result, NullValue))
-        {
-            return default;
+            return value;
         }
-
-        if (result is T actual)
-        {
-            return actual;
-        }
-
-        throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
     }
-
     //
 
     public T? GetOrCreate<T>(string key, Func<T?> factory, TimeSpan lifespan)
@@ -198,24 +204,29 @@ public sealed class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, DateTimeOffset absoluteExpiration)
     {
-        var result = await _cache.GetOrCreateAsync<object>(key, async entry =>
+        if (TryGet<T?>(key, out var existingValue))
         {
-            entry.AbsoluteExpiration = absoluteExpiration;
-            var value = await factory();
-            return value ?? NullValue;
-        });
-
-        if (ReferenceEquals(result, NullValue))
-        {
-            return default;
+            return existingValue;
         }
 
-        if (result is T actual)
+        using (await _factoryLock.LockAsync(key))
         {
-            return actual;
-        }
+            // Double-check if the value was added while waiting for the lock
+            if (TryGet<T?>(key, out existingValue))
+            {
+                return existingValue;
+            }
 
-        throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
+            // Execute the factory function and store the result
+            var value = await factory().ConfigureAwait(false);
+            var options = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpiration = absoluteExpiration
+            };
+            _cache.Set(key, value ?? NullValue, options);
+
+            return value;
+        }
     }
 
     //
