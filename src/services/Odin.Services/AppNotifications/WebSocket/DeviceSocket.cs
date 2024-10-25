@@ -9,6 +9,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using SQLitePCL;
 
 namespace Odin.Services.AppNotifications.WebSocket;
 
@@ -27,6 +28,12 @@ public class EstablishConnectionOptions
     /// Milliseconds to wait between pushes
     /// </summary>
     public int WaitTimeMs { get; init; }
+
+    /// <summary>
+    /// List of Ids specified by the client that should receive a socket notification
+    /// when another client with the same key establishes a connection  
+    /// </summary>
+    public List<Guid> OtherOnlineIdentityKeys { get; init; } = new();
 }
 
 public class DeviceSocket
@@ -56,6 +63,12 @@ public class DeviceSocket
     /// Milliseconds interval to push the batch even if it's not reached the batchsize
     /// </summary>
     public TimeSpan ForcePushInterval { get; set; }
+
+    /// <summary>
+    /// List of Ids specified by the client that should receive a socket notification
+    /// when another client with the same key establishes a connection  
+    /// </summary>
+    public List<Guid> OtherOnlineIdentityKeys { get; set; } = new();
 
     private bool LongTimeNoSee()
     {
