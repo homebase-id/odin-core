@@ -14,7 +14,6 @@ public class TwoKeyValueStorageTests
     {
         var finalPath = "TwoKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
-        using var myc = db.CreateDisposableConnection();
         await db.CreateDatabaseAsync(false);
         Assert.Throws<OdinSystemException>(() => { new TwoKeyValueStorage(Guid.Empty); });
     }
