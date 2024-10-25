@@ -9,5 +9,10 @@
         
         public const string YouAuthScheme = "youauth-token";
         
+        
+        public const string SubscriberCookieName = "SUB32";
+        public const string AppNotificationSubscriberScheme = "app-subscriber-token";
+
+        
     }
 }

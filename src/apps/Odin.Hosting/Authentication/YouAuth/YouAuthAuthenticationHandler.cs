@@ -26,6 +26,7 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -42,13 +43,15 @@ namespace Odin.Hosting.Authentication.YouAuth
         {
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-            bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isAppPath =
+                this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
                 return await HandleAppAuth(dotYouContext);
             }
 
-            bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isYouAuthPath =
+                this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
                 return await HandleYouAuth(dotYouContext);
@@ -83,16 +86,6 @@ namespace Odin.Hosting.Authentication.YouAuth
                 return AuthenticateResult.Fail("Invalid App Token");
             }
 
-            if (authToken.ClientTokenType == ClientTokenType.RemoteNotificationSubscriber)
-            {
-                // authToken comes from ICR, not the app registration
-                // because it's a caller wanting to get peer app notifications
-                // so I need to create the context accordingly
-
-                string x = "";
-
-            }
-
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
@@ -123,9 +116,25 @@ namespace Odin.Hosting.Authentication.YouAuth
             return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
         }
 
+
         private async Task<AuthenticateResult> HandleYouAuth(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+
+            if (TryGetClientAuthToken(YouAuthConstants.SubscriberCookieName, out var subscriberToken, true))
+            {
+                if (subscriberToken.ClientTokenType != ClientTokenType.RemoteNotificationSubscriber)
+                {
+                    return AuthenticateResult.Fail("Invalid client token type");
+                }
+                
+                // authToken comes from ICR, not the app registration
+                // because it's a caller wanting to get peer app notifications
+
+                return await HandleRemoteNotificationSubscriberAuth(subscriberToken, odinContext);
+
+            }
+            
+            /////
             odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
@@ -146,7 +155,32 @@ namespace Odin.Hosting.Authentication.YouAuth
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
+        private async Task<AuthenticateResult> HandleRemoteNotificationSubscriberAuth(ClientAuthenticationToken authToken,
+            IOdinContext odinContext)
+        {
+
+            var peerAppNotificationService = this.Context.RequestServices.GetRequiredService<PeerAppNotificationService>();
+            var ctx = await peerAppNotificationService.GetDotYouContext(authToken, odinContext);
+            if (null == ctx)
+            {
+                return AuthenticateResult.Fail("Invalid subscriber token");
+            }
+
+            odinContext.SetAuthContext(YouAuthConstants.AppNotificationSubscriberScheme);
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
+
+            // Steal this path from the http controller because here we have the client auth token
+            if (Context.Request.Path.StartsWithSegments($"{GuestApiPathConstants.PeerNotificationsV1}/preauth"))
+            {
+                AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken);
+            }
+
+            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
+        }
+
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken,
+            IOdinContext odinContext)
         {
             var db = tenantSystemStorage.IdentityDatabase;
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
@@ -211,7 +245,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new OdinClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                throw new OdinClientException(
+                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
                     OdinClientErrorCode.NotInitialized);
             }
 
@@ -257,8 +292,10 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             var claims = new[]
             {
-                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
+                    OdinClaimTypes.YouFoundationIssuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
+                    OdinClaimTypes.YouFoundationIssuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);

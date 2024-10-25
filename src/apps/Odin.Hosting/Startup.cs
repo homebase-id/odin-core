@@ -61,7 +61,10 @@ namespace Odin.Hosting
             services.AddSingleton(config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-            services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
+            services.Configure<HostOptions>(options =>
+            {
+                options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
+            });
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
@@ -161,6 +164,7 @@ namespace Odin.Hosting
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
+                .AddAppNotificationSubscriberAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
@@ -235,7 +239,7 @@ namespace Odin.Hosting
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
-            services.AddIpRateLimiter(config.Host.IpRateLimitRequestsPerSecond); 
+            services.AddIpRateLimiter(config.Host.IpRateLimitRequestsPerSecond);
         }
 
         // ConfigureContainer is where you can register things directly
@@ -497,7 +501,7 @@ namespace Odin.Hosting
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
                 {
-                    services.StartSystemBackgroundServices().BlockingWait();                    
+                    services.StartSystemBackgroundServices().BlockingWait();
                 }
             });
 
@@ -514,8 +518,8 @@ namespace Odin.Hosting
                 //
                 // Shutdown all tenant background services
                 //
-                services.ShutdownTenantBackgroundServices().BlockingWait();                
-                
+                services.ShutdownTenantBackgroundServices().BlockingWait();
+
                 //
                 // Shutdown system background services
                 //

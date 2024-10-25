@@ -3,11 +3,11 @@ using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared;
 
-public class AuthorizeValidGuestTokenAttribute : AuthorizeAttribute
+public class AuthorizeValidAppNotificationSubscriberTokenAttribute : AuthorizeAttribute
 {
-    public AuthorizeValidGuestTokenAttribute()
+    public AuthorizeValidAppNotificationSubscriberTokenAttribute()
     {
-        AuthenticationSchemes = YouAuthConstants.YouAuthScheme;
+        AuthenticationSchemes = YouAuthConstants.AppNotificationSubscriberScheme;
         // Policy = OwnerPolicies.IsAuthorizedApp;
     }
 }
