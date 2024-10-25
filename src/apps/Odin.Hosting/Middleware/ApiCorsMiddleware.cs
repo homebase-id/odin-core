@@ -50,8 +50,10 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
-            // TODO Stef/Todd: Only Add SubscriberCookieName if it is needed/allowed
-            allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
+            if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
+            {
+                allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
+            }
 
             if (shouldSetHeaders)
             {
