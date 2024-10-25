@@ -6,20 +6,17 @@ namespace Odin.Services.Peer.AppNotification;
 
 public class AppNotificationTokenResponse
 {
-    public Guid Id { get; init; }
-    public byte[] AccessTokenHalfKey { get; init; }
-
-    public ClientTokenType ClientTokenType { get; init; }
-
     public byte[] SharedSecret { get; init; }
+    public string AuthenticationToken64 { get; set; }
 
     public ClientAccessToken ToCat()
     {
+        var authToken = ClientAuthenticationToken.FromPortableBytes64(this.AuthenticationToken64);
         return new ClientAccessToken()
         {
-            Id = Id,
-            AccessTokenHalfKey = AccessTokenHalfKey.ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType,
+            Id = authToken.Id,
+            AccessTokenHalfKey = authToken.AccessTokenHalfKey,
+            ClientTokenType = authToken.ClientTokenType,
             SharedSecret = SharedSecret.ToSensitiveByteArray()
         };
     }
