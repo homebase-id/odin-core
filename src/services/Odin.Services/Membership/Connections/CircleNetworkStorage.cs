@@ -95,55 +95,6 @@ public class CircleNetworkStorage
         //);
     }
 
-    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-    public void UpsertUoW(IdentityConnectionRegistration icr, IOdinContext odinContext)
-    {
-        var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
-
-        var db = _tenantSystemStorage.IdentityDatabase;
-        using var conn = db.CreateDisposableConnection();
-
-        //TODO CONNECTIONS
-        conn.CreateCommitUnitOfWork(() =>
-        {
-            var odinHashId = icr.OdinId.ToHashId();
-
-            //Reconcile circle grants in the table
-            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity, conn);
-            foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
-            {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true, conn);
-                var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
-
-                if (!isMember)
-                {
-                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant, DomainType.Identity, conn);
-                }
-            }
-
-            // remove all app grants, 
-            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinHashId, conn);
-
-            // Now write the latest
-            foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
-            {
-                foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
-                {
-                    _tenantSystemStorage.AppGrants.Upsert(new AppGrantsRecord()
-                    {
-                        odinHashId = odinHashId,
-                        appId = appId,
-                        circleId = circleId,
-                        data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
-                    }, conn);
-                }
-            }
-
-            var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-            _tenantSystemStorage.Connections.Upsert(record, conn);
-        });
-    }
-
     public void UpdateKeyStoreKey(OdinId identity, ConnectionStatus status, SymmetricKeyEncryptedAes masterKeyEncryptedKsk)
     {
         var existingRecord = this.Get(identity);

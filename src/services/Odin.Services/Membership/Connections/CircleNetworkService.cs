@@ -1140,8 +1140,8 @@ namespace Odin.Services.Membership.Connections
                 }
                 else
                 {
-                    // _storage.Upsert(icr, odinContext);
-                    _storage.UpsertUoW(icr, odinContext);
+                    _storage.Upsert(icr, odinContext);
+                    // _storage.UpsertUoW(icr, odinContext);
                 }
             }
         }

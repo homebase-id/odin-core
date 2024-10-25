@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using static Odin.Core.Storage.SQLite.DatabaseBase;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -29,19 +26,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Upsert(AppGrantsRecord item, DatabaseConnection connection = null)
+        public int Upsert(AppGrantsRecord item)
         {
             item.identityId = _db._identityId;
 
-            if (null == connection)
+            using (var conn = _db.CreateDisposableConnection())
             {
-                using (var conn = _db.CreateDisposableConnection())
-                {
-                    return base.Insert(conn, item);
-                }
+                return base.Insert(conn, item);
             }
-
-            return base.Insert(connection, item);
         }
 
         public List<AppGrantsRecord> GetByOdinHashId(Guid odinHashId)
@@ -52,7 +44,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void DeleteByIdentity(Guid odinHashId, DatabaseConnection connection = null)
+        public void DeleteByIdentity(Guid odinHashId)
         {
             void DoDelete(DatabaseConnection conn)
             {
@@ -70,16 +62,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 });
             }
 
-            if (connection == null)
+            using (var conn = _db.CreateDisposableConnection())
             {
-                using (var conn = _db.CreateDisposableConnection())
-                {
-                    DoDelete(conn);
-                }
-            }
-            else
-            {
-                DoDelete(connection);
+                DoDelete(conn);
             }
         }
     }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 
@@ -36,19 +35,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Upsert(ConnectionsRecord item, DatabaseConnection connection = null)
+        public int Upsert(ConnectionsRecord item)
         {
             item.identityId = _db._identityId;
 
-            if (connection == null)
+            using (var conn = _db.CreateDisposableConnection())
             {
-                using (var conn = _db.CreateDisposableConnection())
-                {
-                    return base.Upsert(conn, item);
-                }
+                return base.Upsert(conn, item);
             }
-
-            return base.Upsert(connection, item);
         }
 
         public int Update(ConnectionsRecord item)

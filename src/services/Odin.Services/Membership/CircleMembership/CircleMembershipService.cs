@@ -31,11 +31,11 @@ public class CircleMembershipService(
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger)
 {
-    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType, DatabaseConnection connection = null)
+    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
-        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId, connection);
+        var circleMemberRecords = tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
 
         // TODO CONNECTIONS
         //db.CreateCommitUnitOfWork(() => {
@@ -45,7 +45,7 @@ public class CircleMembershipService(
                 .ToStringFromUtf8Bytes());
             if (sd.DomainType == domainType)
             {
-                tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId, connection);
+                tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
             }
         }
         // }); TODO CONNECTIONS
@@ -61,8 +61,7 @@ public class CircleMembershipService(
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
-    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, IOdinContext odinContext, bool overrideHack = false,
-        DatabaseConnection connection = null)
+    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, IOdinContext odinContext, bool overrideHack = false)
     {
         //TODO: need to figure out how to enforce this even when the call is
         //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
@@ -76,7 +75,7 @@ public class CircleMembershipService(
             }
         }
 
-        var memberBytesList = tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId, connection);
+        var memberBytesList = tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
@@ -91,7 +90,7 @@ public class CircleMembershipService(
         return result;
     }
 
-    public void AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType, DatabaseConnection connection = null)
+    public void AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
         var circleMemberRecord = new CircleMemberRecord()
         {
@@ -106,7 +105,7 @@ public class CircleMembershipService(
         };
 
         // tenantSystemStorage.CircleMemberStorage.Insert(circleMemberRecord);
-        tenantSystemStorage.CircleMemberStorage.Upsert(circleMemberRecord, connection);
+        tenantSystemStorage.CircleMemberStorage.Upsert(circleMemberRecord);
         // tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers([circleMemberRecord]);
     }
 
