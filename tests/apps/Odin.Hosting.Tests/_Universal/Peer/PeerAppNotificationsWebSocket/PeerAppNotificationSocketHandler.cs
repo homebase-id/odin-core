@@ -4,12 +4,10 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Tests._Universal.ApiClient;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
-using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 

@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
     /// <summary>
     /// Tests that we can receive app notifications from a remote identity via peer
     /// </summary>
-    public class PeerAppNotificationTests
+    public class PeerAppNotificationChatSpamTests
     {
         private WebScaffold _scaffold;
 
@@ -81,8 +81,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             _scaffold.AssertLogEvents();
         }
 
-        [Test]
-        public async Task CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity()
+        [Test, Explicit]
+        public async Task CommunityChatSpamTestEndToEnd_OnlySuccessScenarios()
         {
             /*
              * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
@@ -103,8 +103,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [targetDrive]);
 
             // Act
-            // Note just keep these numbers low since we run this test in CI
-            await SendBarrage(hostIdentity, frodo, sam, targetDrive, maxThreads: 2, iterations: 10);
+            await SendBarrage(hostIdentity, frodo, sam, targetDrive, maxThreads: 5, iterations: 50);
 
             await WaitForEmptyOutboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(60));
 
