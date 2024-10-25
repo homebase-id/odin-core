@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             Response.Headers.Append("Access-Control-Allow-Headers",
                 new[]
                 {
-                    "Content-Type", "Accept", YouAuthConstants.AppCookieName,
+                    "Content-Type", "Accept", YouAuthConstants.AppCookieName, YouAuthConstants.SubscriberCookieName,
                     OdinHeaderNames.FileSystemTypeHeader
                 });
             Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
