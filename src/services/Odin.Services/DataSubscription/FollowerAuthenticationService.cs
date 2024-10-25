@@ -63,7 +63,7 @@ public class FollowerAuthenticationService
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContext(tempToken, creator);
+        return await _cache.GetOrAddContextAsync(tempToken, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)

@@ -205,7 +205,7 @@ namespace Odin.Notarius
             if (signedEnvelope == null)
                 throw new Exception("can't deserialize result");
 
-            var r4 = webApi.GetVerifyNotarizedDocument(signedEnvelope.NotariusPublicus.Signature.ToBase64());
+            var r4 = await webApi.GetVerifyNotarizedDocument(signedEnvelope.NotariusPublicus.Signature.ToBase64());
 
             return r4; 
         }

@@ -54,7 +54,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task EnsureDeleted(Guid fileId, string extension)
         {
             string filePath = GetTempFilenameAndPath(fileId, extension);
-            await _driveFileReaderWriter.DeleteFile(filePath);
+            await _driveFileReaderWriter.DeleteFileAsync(filePath);
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             // var dir = new DirectoryInfo(GetFileDirectory(fileId));
             var dir = GetFileDirectory(fileId);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern: GetFilename(fileId, "*"));
+            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
         }
 
         /// <summary>

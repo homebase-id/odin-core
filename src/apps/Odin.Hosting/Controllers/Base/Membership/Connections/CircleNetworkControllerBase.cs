@@ -23,21 +23,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.UnblockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("block")]
         public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Block((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.BlockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
@@ -51,7 +51,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.GetIdentityConnectionRegistrationAsync((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 
@@ -59,7 +59,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext);
+            var result = await _circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -71,7 +71,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext);
+            var result = await _circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -82,21 +82,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("circles/list")]
         public async Task<IEnumerable<OdinId>> GetCircleMembers([FromBody] GetCircleMembersRequest request)
         {
-            var result = await _circleNetwork.GetCircleMembers(request.CircleId, WebOdinContext);
+            var result = await _circleNetwork.GetCircleMembersAsync(request.CircleId, WebOdinContext);
             return result;
         }
 
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            await _circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await _circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            await _circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await _circleNetwork.RevokeCircleAccessAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
     }

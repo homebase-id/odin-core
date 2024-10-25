@@ -30,13 +30,13 @@ public class JobRunnerBackgroundService(
             TimeSpan sleepDuration;
             using (var cn = serverSystemStorage.CreateConnection())
             {
-                while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJob(cn) is { } job)
+                while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJobAsync(cn) is { } job)
                 {
                     var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
                     tasks.Add(task);
                 }
             
-                sleepDuration = CalculateSleepDuration(await jobs.GetNextRunTime(cn));
+                sleepDuration = CalculateSleepDuration(await jobs.GetNextRunTimeAsync(cn));
             }
         
             tasks.RemoveAll(t => t.IsCompleted);

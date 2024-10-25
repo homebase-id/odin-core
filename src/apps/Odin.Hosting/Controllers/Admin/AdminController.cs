@@ -46,7 +46,7 @@ public class AdminController : ControllerBase
     public async Task<ActionResult<TenantModel>> GetTenant(
         string domain, [FromQuery(Name = "include-payload")] bool includePayload = false)
     {
-        var tenant = await _tenantAdmin.GetTenant(domain, includePayload);
+        var tenant = await _tenantAdmin.GetTenantAsync(domain, includePayload);
         if (tenant == null)
         {
             return NotFound();

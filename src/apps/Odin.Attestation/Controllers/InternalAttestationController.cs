@@ -40,13 +40,13 @@ namespace Odin.Attestation.Controllers
         /// </summary>
         /// <param name="identity"></param>
         /// <returns></returns>
-        private ActionResult DeleteRequest(string nonceBase64)
+        private async Task<ActionResult> DeleteRequest(string nonceBase64)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
                 try
                 {
-                    var n = _db.tblAttestationRequest.Delete(conn, nonceBase64);
+                    var n = await _db.tblAttestationRequest.DeleteAsync(conn, nonceBase64);
 
                     if (n < 1)
                         return BadRequest($"No such record found");
@@ -68,9 +68,9 @@ namespace Odin.Attestation.Controllers
         /// <param name="identity"></param>
         /// <returns></returns>
         [HttpGet("DeleteRequest")]
-        public ActionResult GetDeleteRequest(string attestationIdBase64)
+        public async Task<ActionResult> GetDeleteRequest(string attestationIdBase64)
         {
-            return DeleteRequest(attestationIdBase64);
+            return await DeleteRequest(attestationIdBase64);
         }
 
 
@@ -90,7 +90,7 @@ namespace Odin.Attestation.Controllers
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                var r = _db.tblAttestationStatus.Get(conn, attestationId);
+                var r = await _db.tblAttestationStatus.GetAsync(conn, attestationId);
 
                 if (r == null)
                     return NotFound();
@@ -100,7 +100,7 @@ namespace Odin.Attestation.Controllers
 
                 r.status = 0;
 
-                _db.tblAttestationStatus.Update(conn, r);
+                await _db.tblAttestationStatus.UpdateAsync(conn, r);
 
                 await Task.Delay(1);
 
@@ -267,14 +267,14 @@ namespace Odin.Attestation.Controllers
         /// <param name="attestationIdBase64"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public ActionResult GetApproveRequest(string attestationIdBase64)
+        public async Task<ActionResult> GetApproveRequest(string attestationIdBase64)
         {
             using (var conn = _db.CreateDisposableConnection())
             {
                 //
                 // First get the request from the database
                 // 
-                var r = _db.tblAttestationRequest.Get(conn, attestationIdBase64);
+                var r = await _db.tblAttestationRequest.GetAsync(conn, attestationIdBase64);
 
                 if (r == null)
                     return BadRequest("No such request present");
@@ -343,19 +343,19 @@ namespace Odin.Attestation.Controllers
                 // Now store it in the database
                 //
 
-                conn.CreateCommitUnitOfWork(() => 
+                await conn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     //
                     // Now we are fully ready to insert the block chain records, we have all the data needed
                     //
 
                     var record = new AttestationStatusRecord() { attestationId = Convert.FromBase64String(attestationIdBase64), status = 1 };
-                    _db.tblAttestationStatus.Insert(conn, record);
+                    await _db.tblAttestationStatus.InsertAsync(conn, record);
 
                     //
                     // Finally, delete the pending request
                     //
-                    GetDeleteRequest(attestationIdBase64);
+                    await GetDeleteRequest(attestationIdBase64);
                 });
 
                 return Ok();
@@ -367,7 +367,7 @@ namespace Odin.Attestation.Controllers
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                var r = _db.tblAttestationRequest.PagingByAttestationId(conn, 100, null, out var nextCursor);
+                var (r, nextCursor) = await _db.tblAttestationRequest.PagingByAttestationIdAsync(conn, 100, null);
 
                 // Using LINQ to convert the list of requests to a list of identities
                 var identities = r.Select(request => request.attestationId).ToList();

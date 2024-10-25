@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 /*
 =====
@@ -30,38 +31,16 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             _line = line;
         }
 
-
-        ~NotaryDatabase()
-        {
-#if DEBUG
-            if (!_wasDisposed)
-                throw new Exception($"NotaryChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#else
-            if (!_wasDisposed)
-               Serilog.Log.Error($"NotaryChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
-#endif
-        }
-
-
-        public override void Dispose()
-        {
-            tblNotaryChain.Dispose();
-
-            base.Dispose();
-            GC.SuppressFinalize(this);
-        }
-
-
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
-            using (var conn = this.CreateDisposableConnection())
+            using var conn = CreateDisposableConnection();
+            await tblNotaryChain.EnsureTableExistsAsync(conn, dropExistingTables);
+            if (dropExistingTables)
             {
-                tblNotaryChain.EnsureTableExists(conn, dropExistingTables);
-                if (dropExistingTables)
-                    conn.Vacuum();
+                await conn.VacuumAsync();
             }
         }
     }

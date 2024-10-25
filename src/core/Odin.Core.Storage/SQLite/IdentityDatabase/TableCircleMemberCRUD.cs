@@ -1,9 +1,12 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using System.Runtime.CompilerServices;
+
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -55,7 +58,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableCircleMemberCRUD : TableBase
     {
-        private bool _disposed = false;
         private readonly CacheHelper _cache;
 
         public TableCircleMemberCRUD(CacheHelper cache) : base("circleMember")
@@ -63,25 +65,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _cache = cache;
         }
 
-        ~TableCircleMemberCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableCircleMemberCRUD Not disposed properly");
-        }
 
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
-
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
-                       conn.ExecuteNonQuery(cmd);
+                       await conn.ExecuteNonQueryAsync(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circleMember("
@@ -92,36 +84,36 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (identityId,circleId,memberId)"
                      +");"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                    await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
-        internal virtual int Insert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@circleId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@memberId";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam4);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.circleId.ToByteArray();
-                _insertParam3.Value = item.memberId.ToByteArray();
-                _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@circleId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@memberId";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam4);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.circleId.ToByteArray();
+                insertParam3.Value = item.memberId.ToByteArray();
+                insertParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
@@ -130,32 +122,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int TryInsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO circleMember (identityId,circleId,memberId,data) " +
+                insertCommand.CommandText = "INSERT OR IGNORE INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@circleId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@memberId";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@data";
-                _insertCommand.Parameters.Add(_insertParam4);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.circleId.ToByteArray();
-                _insertParam3.Value = item.memberId.ToByteArray();
-                _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@circleId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@memberId";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@data";
+                insertCommand.Parameters.Add(insertParam4);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.circleId.ToByteArray();
+                insertParam3.Value = item.memberId.ToByteArray();
+                insertParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
@@ -164,67 +156,67 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Upsert(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _upsertCommand = conn.db.CreateCommand())
+            using (var upsertCommand = conn.db.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                upsertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)"+
                                              "ON CONFLICT (identityId,circleId,memberId) DO UPDATE "+
                                              "SET data = @data "+
                                              ";";
-                var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "@identityId";
-                _upsertCommand.Parameters.Add(_upsertParam1);
-                var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "@circleId";
-                _upsertCommand.Parameters.Add(_upsertParam2);
-                var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "@memberId";
-                _upsertCommand.Parameters.Add(_upsertParam3);
-                var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "@data";
-                _upsertCommand.Parameters.Add(_upsertParam4);
-                _upsertParam1.Value = item.identityId.ToByteArray();
-                _upsertParam2.Value = item.circleId.ToByteArray();
-                _upsertParam3.Value = item.memberId.ToByteArray();
-                _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_upsertCommand);
+                var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.ParameterName = "@identityId";
+                upsertCommand.Parameters.Add(upsertParam1);
+                var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.ParameterName = "@circleId";
+                upsertCommand.Parameters.Add(upsertParam2);
+                var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.ParameterName = "@memberId";
+                upsertCommand.Parameters.Add(upsertParam3);
+                var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.ParameterName = "@data";
+                upsertCommand.Parameters.Add(upsertParam4);
+                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam2.Value = item.circleId.ToByteArray();
+                upsertParam3.Value = item.memberId.ToByteArray();
+                upsertParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                 return count;
             } // Using
         }
-        internal virtual int Update(DatabaseConnection conn, CircleMemberRecord item)
+        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, CircleMemberRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.circleId, "Guid parameter circleId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.memberId, "Guid parameter memberId cannot be set to Empty GUID.");
-            using (var _updateCommand = conn.db.CreateCommand())
+            using (var updateCommand = conn.db.CreateCommand())
             {
-                _updateCommand.CommandText = "UPDATE circleMember " +
+                updateCommand.CommandText = "UPDATE circleMember " +
                                              "SET data = @data "+
                                              "WHERE (identityId = @identityId AND circleId = @circleId AND memberId = @memberId)";
-                var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "@identityId";
-                _updateCommand.Parameters.Add(_updateParam1);
-                var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "@circleId";
-                _updateCommand.Parameters.Add(_updateParam2);
-                var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "@memberId";
-                _updateCommand.Parameters.Add(_updateParam3);
-                var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "@data";
-                _updateCommand.Parameters.Add(_updateParam4);
-                _updateParam1.Value = item.identityId.ToByteArray();
-                _updateParam2.Value = item.circleId.ToByteArray();
-                _updateParam3.Value = item.memberId.ToByteArray();
-                _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.ParameterName = "@identityId";
+                updateCommand.Parameters.Add(updateParam1);
+                var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.ParameterName = "@circleId";
+                updateCommand.Parameters.Add(updateParam2);
+                var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.ParameterName = "@memberId";
+                updateCommand.Parameters.Add(updateParam3);
+                var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.ParameterName = "@data";
+                updateCommand.Parameters.Add(updateParam4);
+                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam2.Value = item.circleId.ToByteArray();
+                updateParam3.Value = item.memberId.ToByteArray();
+                updateParam4.Value = item.data ?? (object)DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
@@ -233,12 +225,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            using (var _getCountCommand = conn.db.CreateCommand())
+            using (var getCountCommand = conn.db.CreateCommand())
             {
-                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circleMember; PRAGMA read_uncommitted = 0;";
-                var count = conn.ExecuteScalar(_getCountCommand);
+                 // TODO: this is SQLite specific
+                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circleMember; PRAGMA read_uncommitted = 0;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -260,78 +253,78 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal CircleMemberRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleMemberRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new CircleMemberRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(_guid);
+                item.identityId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(_guid);
+                item.circleId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in memberId...");
-                item.memberId = new Guid(_guid);
+                item.memberId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(3))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal int Delete(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
-            using (var _delete0Command = conn.db.CreateCommand())
+            using (var delete0Command = conn.db.CreateCommand())
             {
-                _delete0Command.CommandText = "DELETE FROM circleMember " +
+                delete0Command.CommandText = "DELETE FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId";
-                var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "@identityId";
-                _delete0Command.Parameters.Add(_delete0Param1);
-                var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "@circleId";
-                _delete0Command.Parameters.Add(_delete0Param2);
-                var _delete0Param3 = _delete0Command.CreateParameter();
-                _delete0Param3.ParameterName = "@memberId";
-                _delete0Command.Parameters.Add(_delete0Param3);
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@identityId";
+                delete0Command.Parameters.Add(delete0Param1);
+                var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.ParameterName = "@circleId";
+                delete0Command.Parameters.Add(delete0Param2);
+                var delete0Param3 = delete0Command.CreateParameter();
+                delete0Param3.ParameterName = "@memberId";
+                delete0Command.Parameters.Add(delete0Param3);
 
-                _delete0Param1.Value = identityId.ToByteArray();
-                _delete0Param2.Value = circleId.ToByteArray();
-                _delete0Param3.Value = memberId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param2.Value = circleId.ToByteArray();
+                delete0Param3.Value = memberId.ToByteArray();
+                var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 if (count > 0)
                     _cache.Remove("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
                 return count;
@@ -341,11 +334,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new CircleMemberRecord();
             item.identityId = identityId;
             item.circleId = circleId;
@@ -355,44 +348,43 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal CircleMemberRecord Get(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
+        internal async Task<CircleMemberRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid circleId,Guid memberId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
             if (hit)
                 return (CircleMemberRecord)cacheObject;
-            using (var _get0Command = conn.db.CreateCommand())
+            using (var get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT data FROM circleMember " +
+                get0Command.CommandText = "SELECT data FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;";
-                var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "@identityId";
-                _get0Command.Parameters.Add(_get0Param1);
-                var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "@circleId";
-                _get0Command.Parameters.Add(_get0Param2);
-                var _get0Param3 = _get0Command.CreateParameter();
-                _get0Param3.ParameterName = "@memberId";
-                _get0Command.Parameters.Add(_get0Param3);
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@circleId";
+                get0Command.Parameters.Add(get0Param2);
+                var get0Param3 = get0Command.CreateParameter();
+                get0Param3.ParameterName = "@memberId";
+                get0Command.Parameters.Add(get0Param3);
 
-                _get0Param1.Value = identityId.ToByteArray();
-                _get0Param2.Value = circleId.ToByteArray();
-                _get0Param3.Value = memberId.ToByteArray();
-                lock (conn._lock)
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = circleId.ToByteArray();
+                get0Param3.Value = memberId.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), null);
                             return null;
@@ -401,18 +393,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), r);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 
         internal CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleMemberRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new CircleMemberRecord();
             item.identityId = identityId;
             item.circleId = circleId;
@@ -421,47 +413,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in memberId...");
-                item.memberId = new Guid(_guid);
+                item.memberId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid identityId,Guid circleId)
+        internal async Task<List<CircleMemberRecord>> GetCircleMembersAsync(DatabaseConnection conn, Guid identityId,Guid circleId)
         {
-            using (var _get1Command = conn.db.CreateCommand())
+            using (var get1Command = conn.db.CreateCommand())
             {
-                _get1Command.CommandText = "SELECT memberId,data FROM circleMember " +
+                get1Command.CommandText = "SELECT memberId,data FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId;";
-                var _get1Param1 = _get1Command.CreateParameter();
-                _get1Param1.ParameterName = "@identityId";
-                _get1Command.Parameters.Add(_get1Param1);
-                var _get1Param2 = _get1Command.CreateParameter();
-                _get1Param2.ParameterName = "@circleId";
-                _get1Command.Parameters.Add(_get1Param2);
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@circleId";
+                get1Command.Parameters.Add(get1Param2);
 
-                _get1Param1.Value = identityId.ToByteArray();
-                _get1Param2.Value = circleId.ToByteArray();
-                lock (conn._lock)
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = circleId.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.Default))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
                             return new List<CircleMemberRecord>();
@@ -475,18 +466,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         }
                         return result;
                     } // using
-                } // lock
+                } //
             } // using
         }
 
         internal CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
-            byte[] _tmpbuf = new byte[65535+1];
+            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new CircleMemberRecord();
             item.identityId = identityId;
             item.memberId = memberId;
@@ -495,47 +486,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(_guid);
+                item.circleId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in data...");
                 item.data = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
             }
             return item;
        }
 
-        internal List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid identityId,Guid memberId)
+        internal async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(DatabaseConnection conn, Guid identityId,Guid memberId)
         {
-            using (var _get2Command = conn.db.CreateCommand())
+            using (var get2Command = conn.db.CreateCommand())
             {
-                _get2Command.CommandText = "SELECT circleId,data FROM circleMember " +
+                get2Command.CommandText = "SELECT circleId,data FROM circleMember " +
                                              "WHERE identityId = @identityId AND memberId = @memberId;";
-                var _get2Param1 = _get2Command.CreateParameter();
-                _get2Param1.ParameterName = "@identityId";
-                _get2Command.Parameters.Add(_get2Param1);
-                var _get2Param2 = _get2Command.CreateParameter();
-                _get2Param2.ParameterName = "@memberId";
-                _get2Command.Parameters.Add(_get2Param2);
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@memberId";
+                get2Command.Parameters.Add(get2Param2);
 
-                _get2Param1.Value = identityId.ToByteArray();
-                _get2Param2.Value = memberId.ToByteArray();
-                lock (conn._lock)
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = memberId.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(get2Command, System.Data.CommandBehavior.Default))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
                             return new List<CircleMemberRecord>();
@@ -549,7 +539,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         }
                         return result;
                     } // using
-                } // lock
+                } //
             } // using
         }
 

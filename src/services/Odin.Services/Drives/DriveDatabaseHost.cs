@@ -29,7 +29,7 @@ namespace Odin.Services.Drives
                 var logger = loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
                 var manager = new SqliteDatabaseManager(tenantSystemStorage, drive, logger);
-                await manager.LoadLatestIndex(db);
+                await manager.LoadLatestIndexAsync(db);
 
                 return manager;
             }));

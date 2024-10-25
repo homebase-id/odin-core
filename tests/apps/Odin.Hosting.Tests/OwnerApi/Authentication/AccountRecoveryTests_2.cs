@@ -22,7 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
 
             var dict = new Dictionary<string, string>()

@@ -18,13 +18,13 @@ builder.Services.AddSwaggerGen();
 SensitiveByteArray eccPwd = new SensitiveByteArray(new Guid("86d6e007-cf89-468c-acc5-66bfa14b9ce7").ToByteArray());
 EccFullKeyData eccKey = EccKeyStorage.LoadKey(eccPwd);
 
-var _db = new AttestationDatabase(@"attestation.db");
-using (var conn = _db.CreateDisposableConnection())
+var db = new AttestationDatabase(@"attestation.db");
+using (var conn = db.CreateDisposableConnection())
 {
-    AttestationDatabaseUtil.InitializeDatabase(_db, conn); // Only do this once per boot
+    AttestationDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait(); // Only do this once per boot
 }
 
-builder.Services.AddSingleton<AttestationDatabase>(_db);
+builder.Services.AddSingleton<AttestationDatabase>(db);
 builder.Services.AddSingleton<SensitiveByteArray>(eccPwd);
 builder.Services.AddSingleton<EccFullKeyData>(eccKey);
 

@@ -260,9 +260,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomain(string domain, string email, string planId)
+    public async Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId)
     {
-        var identity = await _registry.Get(domain);
+        var identity = await _registry.GetAsync(domain);
         if (identity != null)
         {
             throw new OdinSystemException($"Identity {domain} already exists");

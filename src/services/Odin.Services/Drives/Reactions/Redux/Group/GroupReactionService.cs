@@ -42,7 +42,7 @@ public class GroupReactionService(
 
         var result = new AddReactionResult();
 
-        await reactionContentService.AddReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -70,7 +70,7 @@ public class GroupReactionService(
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -94,7 +94,7 @@ public class GroupReactionService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionCountsByFile(file, odinContext, db);
+        return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext, db);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
@@ -106,7 +106,7 @@ public class GroupReactionService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionsByIdentityAndFile(identity, file, odinContext, db);
+        return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext, db);
     }
 
     public async Task<GetReactionsResponse> GetReactions(FileIdentifier fileId, int cursor, int maxCount, IOdinContext odinContext,
@@ -116,7 +116,7 @@ public class GroupReactionService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactions(file, cursor, maxCount, odinContext, db);
+        return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext, db);
     }
 
     //
@@ -144,7 +144,7 @@ public class GroupReactionService(
         IdentityDatabase db,
         FileSystemType fileSystemType)
     {
-        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, db, false);
+        var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, db, false);
         if (null == clientAuthToken)
         {
             return TransferStatus.EnqueuedFailed;
@@ -175,7 +175,7 @@ public class GroupReactionService(
             }
         };
 
-        await peerOutbox.AddItem(outboxItem, db, useUpsert: true);
+        await peerOutbox.AddItemAsync(outboxItem, db, useUpsert: true);
         return TransferStatus.Enqueued;
     }
 }

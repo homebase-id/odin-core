@@ -37,7 +37,7 @@ namespace Odin.Hosting.Authentication.System
             return Task.CompletedTask;
         }
 
-        protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             if (GetToken(out var token))
             {
@@ -82,11 +82,11 @@ namespace Odin.Hosting.Authentication.System
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, SystemAuthConstants.SchemeName);
-                    return await Task.FromResult(AuthenticateResult.Success(ticket));
+                    return Task.FromResult(AuthenticateResult.Success(ticket));
                 }
             }
 
-            return await Task.FromResult(AuthenticateResult.Fail("Invalid or missing token"));
+            return Task.FromResult(AuthenticateResult.Fail("Invalid or missing token"));
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

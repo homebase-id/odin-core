@@ -1,33 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.SQLite
 {
-    public class TableBase : IDisposable
+    public abstract class TableBase(string tableName)
     {
-        public readonly string _tableName;
-        public TableBase(string tableName)
-        {
-            _tableName = tableName;
-        }
-
-        ~TableBase()
-        {
-        }
-
-        public virtual void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
-        public virtual void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
-        {
-            throw new NotImplementedException();
-        }
-
-        public virtual List<string> GetColumnNames()
-        {
-            throw new NotImplementedException();
-        }
+        protected readonly string TableName = tableName;
+        public abstract Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false);
+        public abstract List<string> GetColumnNames();
     }
 } 
