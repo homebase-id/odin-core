@@ -33,5 +33,12 @@ namespace WaitingListApi.Data.Database
             // SEB:NOTE Can't be bothered. This is a temporary class.
             await WaitingListTable!.EnsureTableExistsAsync(dropExistingTables);
         }
+        
+        // SEB:NOTE this is a temporary hack while we refactor the database code
+        public DatabaseConnection CreateDisposableConnection() 
+        {
+            return new DatabaseConnection(this, _connectionString);
+        }
+        
     }
 }

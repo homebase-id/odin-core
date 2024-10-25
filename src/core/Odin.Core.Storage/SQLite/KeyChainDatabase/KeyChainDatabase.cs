@@ -43,5 +43,12 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 await conn.VacuumAsync();
             }
         }
+        
+        // SEB:NOTE this is a temporary hack while we refactor the database code
+        public new DatabaseConnection CreateDisposableConnection() 
+        {
+            return base.CreateDisposableConnection();
+        }
+        
     }
 }

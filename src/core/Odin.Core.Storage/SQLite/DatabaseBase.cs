@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.SQLite
         {
         }
 
-        public DatabaseConnection CreateDisposableConnection() // SEB:TODO make async and internal
+        internal DatabaseConnection CreateDisposableConnection() // SEB:TODO make async
         {
             if (_wasDisposed)
             {

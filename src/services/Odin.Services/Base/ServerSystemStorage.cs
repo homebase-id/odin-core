@@ -25,18 +25,12 @@ public sealed class ServerSystemStorage : IDisposable
 
         var finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new ServerDatabase(finalPath);
-        using var cn = _db.CreateDisposableConnection();
         _db.CreateDatabaseAsync(false).Wait(); // SEB:TODOMove out of ctor and make async
     }
 
     public void Dispose()
     {
         _db.Dispose();
-    }
-
-    public DatabaseConnection CreateConnection()
-    {
-        return _db.CreateDisposableConnection();
     }
 
     public TableJobs Jobs => _db.tblJobs;

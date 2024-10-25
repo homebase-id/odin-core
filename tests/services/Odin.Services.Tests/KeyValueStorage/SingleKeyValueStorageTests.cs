@@ -14,7 +14,6 @@ public class SingleKeyValueStorageTests
     {
         var finalPath = "SingleKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
-        using var myc = db.CreateDisposableConnection();
         await db.CreateDatabaseAsync(true);
         Assert.Throws<OdinSystemException>(() => { new SingleKeyValueStorage(Guid.Empty); });
     }
@@ -23,7 +22,6 @@ public class SingleKeyValueStorageTests
     public async Task CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         using var db = new IdentityDatabase(Guid.NewGuid(), "SingleKeyValueStorageTests002");
-        using var myc = db.CreateDisposableConnection();
         await db.CreateDatabaseAsync(true);
 
         var contextKey1 = Guid.NewGuid();
