@@ -9,9 +9,5 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public TableAttestationStatus(CacheHelper cache) : base(cache)
         {
         }
-
-        ~TableAttestationStatus()
-        {
-        }
     }
 }

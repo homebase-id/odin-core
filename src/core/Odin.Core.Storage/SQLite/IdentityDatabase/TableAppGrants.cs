@@ -16,10 +16,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableAppGrants()
-        {
-        }
-
         public async Task<int> InsertAsync(AppGrantsRecord item)
         {
             item.identityId = _db._identityId;
