@@ -159,10 +159,6 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
-            var shouldEncrypt =
-                !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted
-                    or ClientNotificationType.ConnectionRequestReceived);
-
             var json = OdinSystemSerializer.Serialize(new
             {
                 notification.NotificationType,
@@ -172,7 +168,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             var sockets = _deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
-                await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
+                await SendMessageAsync(deviceSocket, json, cancellationToken);
             }
         }
 

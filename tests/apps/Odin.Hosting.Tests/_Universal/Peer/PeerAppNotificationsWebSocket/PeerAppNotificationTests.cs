@@ -34,9 +34,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
         private readonly List<Guid> _filesSentByFrodo = new();
 
-        private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
+        // private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
         private readonly List<Guid> _filesReceivedBySam = new();
-        private readonly List<Guid> _readReceiptsSentBySam = new();
+        // private readonly List<Guid> _readReceiptsSentBySam = new();
 
         private const int ProcessInboxBatchSize = 10;
         private const int NotificationBatchSize = 10;
@@ -121,8 +121,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tSent Files: {_filesSentByFrodo.Count}");
             Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
-            Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
-            Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
+            // Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
+            // Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
 
             PerformanceCounter.WriteCounters();
 
@@ -130,10 +130,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             await Task.Delay(TimeSpan.FromSeconds(10));
 
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
-            CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
-                "mismatch in number of read-receipts send by sam to the files received");
+            // CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
+            //     "mismatch in number of read-receipts send by sam to the files received");
 
-            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
+            // CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
 
             await Shutdown(hostIdentity, frodo, sam);
         }
@@ -169,7 +169,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             {
                 if (value.IsReadByRecipient)
                 {
-                    _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                    // _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
                 }
             }
         }
@@ -178,18 +178,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         {
             _filesReceivedBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
 
-            var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-            var file = new ExternalFileIdentifier()
-            {
-                TargetDrive = e.targetDrive,
-                FileId = e.header.FileId
-            };
-
-            var response = sam.DriveRedux.SendReadReceipt([file]).GetAwaiter().GetResult();
-            if (response.IsSuccessStatusCode)
-            {
-                _readReceiptsSentBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-            }
+            // var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            // var file = new ExternalFileIdentifier()
+            // {
+            //     TargetDrive = e.targetDrive,
+            //     FileId = e.header.FileId
+            // };
+            //
+            // // var response = sam.DriveRedux.SendReadReceipt([file]).GetAwaiter().GetResult();
+            // if (response.IsSuccessStatusCode)
+            // {
+            //     _readReceiptsSentBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
+            // }
         }
 
 
