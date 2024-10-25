@@ -143,7 +143,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         [HttpGet(HomeApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsYouAuthAuthorized)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -166,7 +166,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         [HttpGet(HomeApiPathConstants.PingMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsYouAuthAuthorized)]
         public string GetPing([FromQuery] string text)
         {
             return $"ping from {_currentTenant}: {text}";

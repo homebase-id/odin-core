@@ -49,8 +49,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            var fixedSubPath = "logme";
-            _scaffold = new WebScaffold(folder, fixedSubPath);
+            _scaffold = new WebScaffold(folder);
 
             var env = new Dictionary<string, string>
             {
@@ -149,11 +148,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             //create remote tokens for listening to peer app notifications
             var frodoGetTokenResponse = await frodo.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var frodoToken = ClientAccessToken.FromPortableBytes(frodoGetTokenResponse.Content.ClientAccessTokenBytes);
+            var frodoToken = ClientAccessToken.FromPortableBytes(frodoGetTokenResponse.Content!.ClientAccessTokenBytes);
             Assert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
 
             var samGetTokenResponse = await sam.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var samToken = ClientAccessToken.FromPortableBytes(samGetTokenResponse.Content.ClientAccessTokenBytes);
+            var samToken = ClientAccessToken.FromPortableBytes(samGetTokenResponse.Content!.ClientAccessTokenBytes);
             Assert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
 
             await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);

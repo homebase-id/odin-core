@@ -26,7 +26,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
     }
 
     /// <summary>
-    /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+    /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
     public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
     {

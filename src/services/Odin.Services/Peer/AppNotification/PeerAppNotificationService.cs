@@ -1,19 +1,14 @@
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Util;
-using Odin.Services.Authorization.Acl;
-using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.YouAuth;
 using Odin.Services.Util;
 using Refit;
 
@@ -27,7 +22,6 @@ public class PeerAppNotificationService : PeerServiceBase
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
     private readonly TenantSystemStorage _tenantSystemStorage;
-    private readonly ExchangeGrantService _exchangeGrantService;
 
     /// <summary>
     /// Handles incoming reactions and queries from followers
@@ -36,14 +30,11 @@ public class PeerAppNotificationService : PeerServiceBase
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
         TenantSystemStorage tenantSystemStorage,
-        ExchangeGrantService exchangeGrantService,
-        TenantContext tenantContext,
         OdinConfiguration config,
         FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         _odinConfiguration = odinConfiguration;
         _tenantSystemStorage = tenantSystemStorage;
-        _exchangeGrantService = exchangeGrantService;
 
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
@@ -98,102 +89,44 @@ public class PeerAppNotificationService : PeerServiceBase
     {
         async Task<IOdinContext> Creator()
         {
-            var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token, currentOdinContext);
+            var (isValid, peerIcrClient) = await ValidateClientAuthToken(token, currentOdinContext);
 
-            if (!isValid || null == domainRegistration || accessReg == null)
+            if (!isValid || null == peerIcrClient)
             {
-                throw new OdinSecurityException("Invalid token");
+                return null;
             }
 
-            var odinId = (OdinId)domainRegistration.Domain.DomainName;
-            var odinContext = await CircleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg, currentOdinContext);
-            if (null != odinContext)
-            {
-                return odinContext;
-            }
-            
-            // TODO: should i use create transit permissions instead?
-//            CircleNetworkService.CreateTransitPermissionContext(odinId,???)
-
-            return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg, currentOdinContext);
+            var accessReg = peerIcrClient.AccessRegistration;
+            var odinContext = await CircleNetworkService.TryCreateConnectedYouAuthContext(peerIcrClient.Identity, token, accessReg, currentOdinContext);
+            return odinContext;
         }
 
         var result = await _cache.GetOrAddContext(token, Creator);
         return result;
     }
 
-    private async Task<(bool isValid, AccessRegistration? accessReg, PeerIcrClient? youAuthDomainRegistration)>
-        ValidateClientAuthToken(ClientAuthenticationToken authToken, IOdinContext odinContext)
+    private async Task<(bool isValid, PeerIcrClient icrClient)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
+        IOdinContext odinContext)
     {
         var peerIcrClient = await CircleNetworkService.GetPeerIcrClient(authToken.Id);
         if (null == peerIcrClient)
         {
-            return (false, null, null);
+            return (false, null);
         }
-        //
-        // var reg = await CircleNetworkService.GetIdentityConnectionRegistration(peerIcrClient.Identity, odinContext);
-        //
-        // if (null == reg)
-        // {
-        //     return (false, null, null);
-        // }
+
+        var icr = await CircleNetworkService.GetIdentityConnectionRegistration(peerIcrClient.Identity, odinContext);
+
+        if (!icr.IsConnected())
+        {
+            return (false, null);
+        }
 
         if (peerIcrClient.AccessRegistration.IsRevoked) // || reg.IsRevoked
         {
-            return (false, null, null);
+            return (false, null);
         }
 
-        return (true, peerIcrClient.AccessRegistration, null);
-    }
-
-    private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomain(
-        ClientAuthenticationToken authToken,
-        YouAuthDomainRegistration domainRegistration,
-        AccessRegistration accessReg,
-        IOdinContext odinContext)
-    {
-        if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
-        {
-            //just in case something changed in the db record
-            AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
-        }
-
-        var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
-        var anonymousDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
-
-        var (grants, enabledCircles) =
-            _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.Domain,
-                domainRegistration.CircleGrants.Values.ToList(),
-                odinContext);
-
-        var permissionContext = await _exchangeGrantService.CreatePermissionContext(
-            authToken: authToken,
-            grants: grants,
-            accessReg: accessReg,
-            odinContext: odinContext,
-            db: _tenantSystemStorage.IdentityDatabase,
-            additionalPermissionKeys: permissionKeys,
-            includeAnonymousDrives: true,
-            anonymousDrivePermission: anonymousDrivePermissions);
-
-        var dotYouContext = new OdinContext()
-        {
-            Caller = new CallerContext(
-                odinId: new OdinId(domainRegistration.Domain.DomainName),
-                masterKey: null,
-                securityLevel: SecurityGroupType.Authenticated,
-                circleIds: enabledCircles,
-                odinClientContext: new OdinClientContext()
-                {
-                    ClientIdOrDomain = domainRegistration.Domain.DomainName,
-                    CorsHostName = domainRegistration.CorsHostName,
-                    AccessRegistrationId = accessReg.Id,
-                    DevicePushNotificationKey = null
-                })
-        };
-
-        dotYouContext.SetPermissionContext(permissionContext);
-        return dotYouContext;
+        return (true, peerIcrClient);
     }
 
     private void HandleTryRetryException(TryRetryException ex)

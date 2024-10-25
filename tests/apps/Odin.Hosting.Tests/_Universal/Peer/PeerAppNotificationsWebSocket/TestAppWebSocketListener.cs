@@ -8,6 +8,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -36,7 +37,7 @@ public sealed class TestAppWebSocketListener
         _token = token;
         _clientWebSocket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(YouAuthConstants.AppCookieName, token.ToAuthenticationToken().ToString())
+        var cookie = new Cookie(YouAuthConstants.SubscriberCookieName, token.ToAuthenticationToken().ToString())
         {
             Domain = identity
         };
@@ -47,7 +48,7 @@ public sealed class TestAppWebSocketListener
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{AppApiPathConstants.PeerNotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{GuestApiPathConstants.PeerNotificationsV1}/ws");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
         //

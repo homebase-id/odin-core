@@ -101,13 +101,14 @@ namespace Odin.Services.Membership.Connections
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
             var icr = await GetIdentityConnectionRegistrationInternal(odinId);
-            bool isValid = icr.AccessGrant?.IsValid() ?? false;
-            bool isConnected = icr.IsConnected();
 
             if (icr.Status == ConnectionStatus.Blocked)
             {
                 return null;
             }
+
+            bool isValid = icr.AccessGrant?.IsValid() ?? false;
+            bool isConnected = icr.IsConnected();
 
             // Only return the permissions if the identity is connected.
             if (isValid && isConnected)
@@ -131,8 +132,6 @@ namespace Odin.Services.Membership.Connections
                 context.SetPermissionContext(permissionContext);
                 return context;
             }
-
-            //TODO: what about blocked??
 
             return null;
         }

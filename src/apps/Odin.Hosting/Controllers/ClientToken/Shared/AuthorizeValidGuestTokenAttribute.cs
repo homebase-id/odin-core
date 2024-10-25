@@ -8,6 +8,6 @@ public class AuthorizeValidAppNotificationSubscriberTokenAttribute : AuthorizeAt
     public AuthorizeValidAppNotificationSubscriberTokenAttribute()
     {
         AuthenticationSchemes = YouAuthConstants.AppNotificationSubscriberScheme;
-        // Policy = OwnerPolicies.IsAuthorizedApp;
+        Policy = YouAuthPolicies.IsAppNotificationSubscriber;
     }
 }
