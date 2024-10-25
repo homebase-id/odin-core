@@ -12,6 +12,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -178,7 +179,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
-
+            
             foreach (var deviceSocket in sockets)
             {
                 if (!cancellationToken.IsCancellationRequested)
@@ -191,6 +192,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                         TargetDrive = (await driveManager.GetDrive(notification.File.DriveId, notification.db)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
+                            : null,
+                        PreviousServerFileHeader = hasSharedSecret
+                            ? DriveFileUtility.AddIfDeletedNotification(notification, deviceOdinContext!)
                             : null
                     };
 
