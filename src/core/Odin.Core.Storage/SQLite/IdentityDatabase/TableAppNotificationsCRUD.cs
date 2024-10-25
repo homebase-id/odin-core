@@ -98,17 +98,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class AppNotificationsRecord
 
-    public class TableAppNotificationsCRUD : TableBase
+    public class TableAppNotificationsCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableAppNotificationsCRUD(CacheHelper cache) : base("AppNotifications")
+        public TableAppNotificationsCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -368,7 +368,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

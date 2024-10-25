@@ -59,17 +59,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class CircleRecord
 
-    public class TableCircleCRUD : TableBase
+    public class TableCircleCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableCircleCRUD(CacheHelper cache) : base("circle")
+        public TableCircleCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

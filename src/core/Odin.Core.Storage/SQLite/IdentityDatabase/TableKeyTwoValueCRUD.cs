@@ -61,17 +61,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class KeyTwoValueRecord
 
-    public class TableKeyTwoValueCRUD : TableBase
+    public class TableKeyTwoValueCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableKeyTwoValueCRUD(CacheHelper cache) : base("keyTwoValue")
+        public TableKeyTwoValueCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -237,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

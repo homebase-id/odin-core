@@ -99,17 +99,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class ConnectionsRecord
 
-    public class TableConnectionsCRUD : TableBase
+    public class TableConnectionsCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableConnectionsCRUD(CacheHelper cache) : base("connections")
+        public TableConnectionsCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -365,7 +365,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

@@ -54,15 +54,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class DriveAclIndexRecord
 
-    public class TableDriveAclIndexCRUD : TableBase
+    public class TableDriveAclIndexCRUD
     {
 
-        public TableDriveAclIndexCRUD(CacheHelper cache) : base("driveAclIndex")
+        public TableDriveAclIndexCRUD(CacheHelper cache)
         {
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -235,7 +235,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

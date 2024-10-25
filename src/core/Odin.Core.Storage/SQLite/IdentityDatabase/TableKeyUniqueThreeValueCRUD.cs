@@ -75,17 +75,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class KeyUniqueThreeValueRecord
 
-    public class TableKeyUniqueThreeValueCRUD : TableBase
+    public class TableKeyUniqueThreeValueCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableKeyUniqueThreeValueCRUD(CacheHelper cache) : base("keyUniqueThreeValue")
+        public TableKeyUniqueThreeValueCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -270,7 +270,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");

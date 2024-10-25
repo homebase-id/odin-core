@@ -10,25 +10,13 @@ namespace WaitingListApi.Data.Database
         public string? JsonData { get; set; }
     }
 
-    public class WaitingListTableCrud : TableBase
+    public class WaitingListTableCrud
     {
         private readonly WaitingListDatabase _db;
 
-        public WaitingListTableCrud(WaitingListDatabase db) : base("waiting_list")
+        public WaitingListTableCrud(WaitingListDatabase db)
         {
             _db = db;
-        }
-
-        public override Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
-        {
-            // SEB:NOTE Can't be bothered. This is a temporary class.
-            throw new NotImplementedException();
-        }
-
-        public override List<string> GetColumnNames()
-        {
-            // SEB:NOTE Can't be bothered. This is a temporary class.
-            throw new NotImplementedException();
         }
 
         public async Task EnsureTableExistsAsync(bool dropExisting = false)
@@ -50,7 +38,6 @@ namespace WaitingListApi.Data.Database
                     + ", PRIMARY KEY (emailAddress)"
                     + ");";
                 await cn.ExecuteNonQueryAsync(cmd);
-                await cn.VacuumAsync();
             }
         }
 

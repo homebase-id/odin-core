@@ -159,15 +159,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
     } // End of class OutboxRecord
 
-    public class TableOutboxCRUD : TableBase
+    public class TableOutboxCRUD
     {
 
-        public TableOutboxCRUD(CacheHelper cache) : base("outbox")
+        public TableOutboxCRUD(CacheHelper cache)
         {
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -520,7 +520,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowid");

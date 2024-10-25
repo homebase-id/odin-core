@@ -219,15 +219,15 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         }
     } // End of class JobsRecord
 
-    public class TableJobsCRUD : TableBase
+    public class TableJobsCRUD
     {
 
-        public TableJobsCRUD(CacheHelper cache) : base("jobs")
+        public TableJobsCRUD(CacheHelper cache)
         {
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -669,7 +669,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("id");

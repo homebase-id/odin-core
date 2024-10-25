@@ -57,17 +57,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
     } // End of class AttestationStatusRecord
 
-    public class TableAttestationStatusCRUD : TableBase
+    public class TableAttestationStatusCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableAttestationStatusCRUD(CacheHelper cache) : base("attestationStatus")
+        public TableAttestationStatusCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
@@ -250,7 +250,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("attestationId");
