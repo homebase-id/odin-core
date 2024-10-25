@@ -148,11 +148,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             //create remote tokens for listening to peer app notifications
             var frodoGetTokenResponse = await frodo.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var frodoToken = ClientAccessToken.FromPortableBytes(frodoGetTokenResponse.Content!.ClientAccessTokenBytes);
+            var frodoToken = frodoGetTokenResponse.Content!.ToCat();
             Assert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
 
             var samGetTokenResponse = await sam.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
-            var samToken = ClientAccessToken.FromPortableBytes(samGetTokenResponse.Content!.ClientAccessTokenBytes);
+            var samToken = samGetTokenResponse.Content!.ToCat();
             Assert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
 
             await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);
@@ -257,7 +257,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         {
             var hostWaitTime = await hostIdentity.DriveRedux.WaitForEmptyInbox(targetDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {hostWaitTime.TotalSeconds}sec");
-            
+
             // var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(targetDrive, timeout);
             // Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
 

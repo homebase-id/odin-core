@@ -78,10 +78,13 @@ public class PeerAppNotificationService : PeerServiceBase
 
         var portableBytes = response.Content.Decrypt(targetIdentityCat.SharedSecret);
 
-        return new AppNotificationTokenResponse()
+        var clientAccessToken = ClientAccessToken.FromPortableBytes(portableBytes);
+        return new AppNotificationTokenResponse
         {
-            // ClientAccessTokenBytes = ClientAccessToken.FromPortableBytes(portableBytes).ToPortableBytes()
-            ClientAccessTokenBytes = portableBytes
+            Id = clientAccessToken.Id,
+            AccessTokenHalfKey = clientAccessToken.AccessTokenHalfKey.GetKey(),
+            ClientTokenType = clientAccessToken.ClientTokenType,
+            SharedSecret = clientAccessToken.SharedSecret.GetKey()
         };
     }
 
