@@ -53,7 +53,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIdentityConnectionRegistrationAsync(recipient, odinContext, overrideHack: true);
+            var icr = await CircleNetworkService.GetIdentityConnectionRegistrationAsync(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -92,7 +92,7 @@ namespace Odin.Services.Peer
             IOdinContext odinContext)
         {
 
-            var token = await ResolveClientAccessToken(odinId, odinContext, db);
+            var token = await ResolveClientAccessTokenAsync(odinId, odinContext, db);
 
             var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<T>(
                 odinId,
@@ -114,6 +114,7 @@ namespace Odin.Services.Peer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
+            await Task.CompletedTask;
             return OdinSystemSerializer.Deserialize<T>(json);
         }
 

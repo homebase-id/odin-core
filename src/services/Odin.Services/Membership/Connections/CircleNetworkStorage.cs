@@ -126,28 +126,30 @@ public class CircleNetworkStorage
     {
         // TODO CONNECTIONS
         //db.CreateCommitUnitOfWork(() =>  {
-            await _tenantSystemStorage.Connections.DeleteAsync(odinId);
-            await _tenantSystemStorage.AppGrants.DeleteByIdentityAsync(odinId.ToHashId());
-            await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
+        await _tenantSystemStorage.Connections.DeleteAsync(odinId);
+        await _tenantSystemStorage.AppGrants.DeleteByIdentityAsync(odinId.ToHashId());
+        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
         // });
     }
 
-    public void SavePeerIcrClient(PeerIcrClient client)
+    public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        _peerIcrClientStorage.Upsert(db, client.AccessRegistration.Id, client);
+        await _peerIcrClientStorage.UpsertAsync(db, client.AccessRegistration.Id, client);
     }
 
-    public PeerIcrClient GetPeerIcrClient(Guid accessRegId)
+    public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        return _peerIcrClientStorage.Get<PeerIcrClient>(db, accessRegId);
+        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(db, accessRegId);
     }
-  
-    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtcUnique? nextCursor)> GetListAsync(int count, UnixTimeUtcUnique? cursor, ConnectionStatus connectionStatus)
+
+    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtcUnique? nextCursor)> GetListAsync(int count,
+        UnixTimeUtcUnique? cursor, ConnectionStatus connectionStatus)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var (records, nextCursor) = await _tenantSystemStorage.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
+        var (records, nextCursor) =
+            await _tenantSystemStorage.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
         var mappedRecords = await Task.WhenAll(records.Select(record => MapFromStorageAsync(record)));
         return (mappedRecords, nextCursor);
         // WAS: return (records.Select(record => MapFromStorageAsync(record)), nextCursor);

@@ -103,7 +103,7 @@ public class PeerAppNotificationService : PeerServiceBase
             return odinContext;
         }
 
-        var result = await _cache.GetOrAddContext(token, Creator);
+        var result = await _cache.GetOrAddContextAsync(token, Creator);
         return result;
     }
 
@@ -116,7 +116,7 @@ public class PeerAppNotificationService : PeerServiceBase
             return (false, null);
         }
 
-        var icr = await CircleNetworkService.GetIdentityConnectionRegistration(peerIcrClient.Identity, odinContext, overrideHack: true);
+        var icr = await CircleNetworkService.GetIdentityConnectionRegistrationAsync(peerIcrClient.Identity, odinContext, overrideHack: true);
 
         if (!icr.IsConnected())
         {
