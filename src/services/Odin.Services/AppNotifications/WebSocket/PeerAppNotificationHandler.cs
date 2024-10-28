@@ -191,7 +191,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var o = new ClientDriveNotification
                     {
-                        TargetDrive = (await driveManager.GetDrive(notification.File.DriveId, notification.db)).TargetDriveInfo,
+                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId, notification.db)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null,

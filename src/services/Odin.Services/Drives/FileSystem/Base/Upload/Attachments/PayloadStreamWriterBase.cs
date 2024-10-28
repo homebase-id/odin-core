@@ -49,15 +49,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
-        if (instructionSet.Manifest?.PayloadDescriptors != null)
-        {
-            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
-            {
-                //These are created in advance to ensure we can
-                //upload thumbnails and payloads in any order
-                pd.PayloadUid = UnixTimeUtcUnique.Now();
-            }
-        }
+        instructionSet.Manifest?.ResetPayloadUiDs();
 
         this._package = new PayloadOnlyPackage(file, instructionSet!);
     }
@@ -80,21 +72,12 @@ public abstract class PayloadStreamWriterBase
         var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext, db);
         if (bytesWritten > 0)
         {
-            _package.Payloads.Add(new PackagePayloadDescriptor()
-            {
-                Iv = descriptor.Iv,
-                PayloadKey = key,
-                Uid = descriptor.PayloadUid,
-                ContentType = string.IsNullOrEmpty(descriptor.ContentType?.Trim()) ? contentTypeFromMultipartSection : descriptor.ContentType,
-                LastModified = UnixTimeUtc.Now(),
-                BytesWritten = bytesWritten,
-                DescriptorContent = descriptor.DescriptorContent,
-                PreviewThumbnail = descriptor.PreviewThumbnail
-            });
+            _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext,
+        IdentityDatabase db)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -138,7 +121,9 @@ public abstract class PayloadStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim()) ? contentTypeFromMultipartSection : result.ThumbnailDescriptor.ContentType,
+            ContentType = string.IsNullOrEmpty(result.ThumbnailDescriptor.ContentType?.Trim())
+                ? contentTypeFromMultipartSection
+                : result.ThumbnailDescriptor.ContentType,
             PayloadKey = result.PayloadKey,
             BytesWritten = bytesWritten
         });

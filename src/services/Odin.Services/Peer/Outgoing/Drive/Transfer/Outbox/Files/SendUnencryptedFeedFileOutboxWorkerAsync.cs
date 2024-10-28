@@ -31,7 +31,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory,
     IDriveAclAuthorizationService driveAcl
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null)
 
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 
             logger.LogDebug("SendFeedItem -> Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
-            var (versionTag, globalTransitId) = await HandleFeedItem(FileItem, odinContext, db, cancellationToken);
+            var (versionTag, globalTransitId) = await HandleFeedItemAsync(FileItem, odinContext, db, cancellationToken);
 
             logger.LogDebug("SendFeedItem -> Successful transfer of {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
@@ -83,7 +83,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> HandleFeedItem(OutboxFileItem outboxFileItem, IOdinContext odinContext,
+    private async Task<(Guid versionTag, Guid globalTransitId)> HandleFeedItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
         IdentityDatabase db, CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -101,7 +101,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var versionTag = header.FileMetadata.VersionTag;
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
-        var authorized = await driveAcl.IdentityHasPermission(recipient,
+        var authorized = await driveAcl.IdentityHasPermissionAsync(recipient,
             header.ServerMetadata.AccessControlList, odinContext, db);
 
         if (!authorized)

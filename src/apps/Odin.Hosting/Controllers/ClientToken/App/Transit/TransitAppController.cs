@@ -10,16 +10,13 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerV1 + "/app")]
     [AuthorizeValidAppToken]
-    public class TransitAppController(
-        PeerInboxProcessor peerInboxProcessor,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public class TransitAppController(PeerInboxProcessor peerInboxProcessor) : OdinControllerBase
     {
         [HttpPost("process")]
         public async Task<InboxStatus> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, db, request.BatchSize);
+            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, request.BatchSize);
             return result;
         }
     }

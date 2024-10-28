@@ -74,7 +74,7 @@ namespace Odin.Services.Base
 
             AuthContext = authContext;
         }
-        
+
         public void AssertCanManageConnections()
         {
             if (Caller.IsOwner && Caller.HasMasterKey)
@@ -97,7 +97,7 @@ namespace Odin.Services.Base
 
         private string DebugDisplay => $"{Caller.OdinId} is calling {Tenant} with security {Caller.SecurityLevel}";
     }
-    
+
     public class RedactedOdinContext
     {
         public RedactedCallerContext Caller { get; set; }

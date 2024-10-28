@@ -40,6 +40,8 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         _encryptedIcrKey = other._encryptedIcrKey?.Clone();
     }
 
+    internal int DriveGrantCount => this._driveGrants?.Count() ?? 0;
+
     public PermissionGroup Clone()
     {
         return new PermissionGroup(this);

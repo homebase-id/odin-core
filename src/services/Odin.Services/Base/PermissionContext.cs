@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
@@ -11,11 +12,22 @@ using Serilog;
 
 namespace Odin.Services.Base
 {
+    [DebuggerDisplay("{Stats}")]
     public class PermissionContext : IGenericCloneable<PermissionContext>
     {
         private readonly bool _isSystem = false;
         public SensitiveByteArray SharedSecretKey { get; private set; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
+
+        internal string Stats
+        {
+            get
+            {
+                var c1 = this.PermissionGroups.Keys.Count;
+                var c2 = this.PermissionGroups.Values.Sum(g => g.DriveGrantCount);
+                return $"{c2} drive grants across {c1} permission groups";
+            }
+        }
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
@@ -111,7 +123,6 @@ namespace Odin.Services.Base
             return false;
         }
 
-
         public void AssertHasAtLeastOneDrivePermission(Guid driveId, params DrivePermission[] permissions)
         {
             if (!permissions.Any(p => HasDrivePermission(driveId, p)))
@@ -137,7 +148,7 @@ namespace Odin.Services.Base
             }
         }
 
-        private bool HasPermission(int permissionKey)
+        public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
             {
@@ -159,10 +170,15 @@ namespace Odin.Services.Base
 
         public void AssertHasAtLeastOnePermission(params int[] permissionKeys)
         {
-            if (!permissionKeys.Any(HasPermission))
+            if (!HasAtLeastOnePermission(permissionKeys))
             {
                 throw new OdinSecurityException("Does not have permission");
             }
+        }
+
+        public bool HasAtLeastOnePermission(params int[] permissionKeys)
+        {
+            return permissionKeys.Any(HasPermission);
         }
 
         public void AssertHasPermission(int permissionKey)

@@ -44,6 +44,8 @@
 
         public const string CirclesV1 = BasePathV1 + "/circles";
 
+        public const string DataConversion = BasePathV1 + "/data-conversion";
+
         public const string CirclesDefinitionsV1 = CirclesV1 + "/definitions";
 
         public const string FollowersV1 = BasePathV1 + "/followers";

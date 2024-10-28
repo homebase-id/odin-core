@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
@@ -69,7 +67,63 @@ public class TenantConfigService
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
-        _tenantContext.UpdateSystemConfig(GetTenantSettingsAsync().Result); // SEB:TODO move out of ctor and make async
+        _tenantContext.UpdateSystemConfig(GetTenantSettingsAsync().Result); // SEB:TODO move async call out of constructor 
+    }
+
+    public async Task<TenantVersionInfo> ForceVersionNumberAsync(int version)
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = new TenantVersionInfo()
+        {
+            DataVersionNumber = version,
+            LastUpgraded = UnixTimeUtc.Now().milliseconds
+        };
+
+        await _configStorage.UpsertAsync(db, TenantVersionInfo.Key, newVersion);
+
+        return newVersion;
+    }
+
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public async Task<TenantVersionInfo> IncrementVersionAsync()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+
+        TenantVersionInfo newVersion = null;
+        //TODO CONNECTIONS
+        // cn.CreateCommitUnitOfWork(() =>
+        {
+            var currentVersion = await _configStorage.GetAsync<TenantVersionInfo>(db, TenantVersionInfo.Key) ?? new TenantVersionInfo()
+            {
+                DataVersionNumber = 0,
+                LastUpgraded = 0
+            };
+
+            newVersion = new TenantVersionInfo()
+            {
+                DataVersionNumber = ++currentVersion.DataVersionNumber,
+                LastUpgraded = UnixTimeUtc.Now().milliseconds
+            };
+
+            await _configStorage.UpsertAsync(db, TenantVersionInfo.Key, newVersion);
+        }
+        //);
+
+        return newVersion;
+    }
+
+    public async Task<TenantVersionInfo> GetVersionInfoAsync()
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        var info = await _configStorage.GetAsync<TenantVersionInfo>(db, TenantVersionInfo.Key);
+        return info ?? new TenantVersionInfo
+        {
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
     }
 
     public async Task<bool> IsIdentityServerConfiguredAsync()
@@ -145,13 +199,10 @@ public class TenantConfigService
 
     public async Task CreateInitialKeysAsync(IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-
         odinContext.Caller.AssertHasMasterKey();
-
         await _recoverService.CreateInitialKeyAsync(odinContext);
-        await _publicPrivateKeyService.CreateInitialKeysAsync(odinContext, db);
         await _icrKeyService.CreateInitialKeysAsync(odinContext);
+        await _publicPrivateKeyService.CreateInitialKeysAsync(odinContext);
     }
 
     /// <summary>
@@ -168,7 +219,7 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCircleAsync(odinContext);
+        await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
@@ -193,17 +244,10 @@ public class TenantConfigService
         }
 
         await this.RegisterBuiltInApps(odinContext);
-
         var db = _tenantSystemStorage.IdentityDatabase;
 
         // TODO CONNECTIONS
         // db.CreateCommitUnitOfWork(() => {
-        // _configStorage.Upsert(db, TenantSettings.ConfigKey, TenantSettings.Default);
-        // _configStorage.Upsert(db, FirstRunInfo.Key, new FirstRunInfo()
-        // {
-        //    FirstRunDate = UnixTimeUtc.Now().milliseconds
-        // });
-        // });
 
         var keyValuePairs = new List<(Guid key, object value)>
         {
@@ -252,7 +296,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext);
+                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -271,6 +316,10 @@ public class TenantConfigService
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
+            case TenantConfigFlagNames.DisableAutoAcceptIntroductions:
+                cfg.DisableAutoAcceptIntroductions = bool.Parse(request.Value);
+                break;
+
             default:
                 throw new OdinClientException("Flag name is valid but not handled",
                     OdinClientErrorCode.UnknownFlagName);
@@ -282,6 +331,7 @@ public class TenantConfigService
         _tenantContext.UpdateSystemConfig(cfg);
     }
 
+
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
         var db = _tenantSystemStorage.IdentityDatabase;
@@ -291,6 +341,7 @@ public class TenantConfigService
     public async Task<OwnerAppSettings> GetOwnerAppSettingsAsync(IOdinContext odinContext)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.Caller.AssertHasMasterKey();
         return await _configStorage.GetAsync<OwnerAppSettings>(db, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
@@ -307,12 +358,12 @@ public class TenantConfigService
     private async Task RegisterBuiltInApps(IOdinContext odinContext)
     {
         await RegisterChatAppAsync(odinContext);
-        await RegisterMailApp(odinContext);
-        await RegisterFeedAppAsync(odinContext);
+        await RegisterMailAppAsync(odinContext);
+        await RegisterFeedApp(odinContext);
         // await RegisterPhotosApp();
     }
 
-    private async Task RegisterFeedAppAsync(IOdinContext odinContext)
+    private async Task RegisterFeedApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -378,137 +429,15 @@ public class TenantConfigService
 
         await _appRegistrationService.RegisterAppAsync(request, odinContext);
     }
-
-
+    
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.ChatAppId,
-            Name = "Homebase - Chat",
-            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-            {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
-            },
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
-            {
-                Drives =
-                [
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive()
-                        {
-                            Drive = SystemDriveConstants.ChatDrive,
-                            Permission = DrivePermission.Write  | DrivePermission.React
-                        }
-                    }
-                ],
-                PermissionSet = new PermissionSet()
-
-                // PermissionSet = new PermissionSet(
-                //     PermissionKeys.ReadConnections,
-                //     PermissionKeys.SendPushNotifications,
-                //     PermissionKeys.UseTransitRead,
-                //     PermissionKeys.UseTransitWrite)
-            },
-            Drives =
-            [
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ChatDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                }
-            ],
-            PermissionSet = new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                // PermissionKeys.UseTransitRead,
-                PermissionKeys.UseTransitWrite)
-        };
-
-        await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
     }
 
-    private async Task RegisterMailApp(IOdinContext odinContext)
+    private async Task RegisterMailAppAsync(IOdinContext odinContext)
     {
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.MailAppId,
-            Name = "Homebase - Mail",
-            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
-            {
-                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
-            },
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
-            {
-                Drives =
-                [
-                    new()
-                    {
-                        PermissionedDrive = new PermissionedDrive()
-                        {
-                            Drive = SystemDriveConstants.MailDrive,
-                            Permission = DrivePermission.Write
-                        }
-                    }
-                ],
-                PermissionSet = new PermissionSet()
-            },
-            Drives =
-            [
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.MailDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                }
-            ],
-            PermissionSet = new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.UseTransitWrite)
-        };
-
-        await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
     }
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
@@ -516,7 +445,7 @@ public class TenantConfigService
         var existingCircleDef = await _circleMembershipService.GetCircleAsync(request.Id, odinContext);
         if (null == existingCircleDef)
         {
-            await _circleMembershipService.CreateCircleDefinition(request, odinContext);
+            await _circleMembershipService.CreateCircleDefinitionAsync(request, odinContext);
             return true;
         }
 
@@ -527,7 +456,7 @@ public class TenantConfigService
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
-        var drive = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, false);
+        var drive = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, false);
 
         if (null == drive)
         {
@@ -540,7 +469,7 @@ public class TenantConfigService
 
     private async Task UpdateSystemCirclePermissionAsync(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
-        var systemCircle = await _circleMembershipService.GetCircleAsync(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
+        var systemCircle = await _circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
 
         if (shouldGrantKey)
         {

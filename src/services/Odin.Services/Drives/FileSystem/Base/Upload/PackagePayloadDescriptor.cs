@@ -22,6 +22,8 @@ public class PackagePayloadDescriptor
     public ThumbnailContent PreviewThumbnail { get; set; }
 
     public UnixTimeUtcUnique Uid { get; set; }
+    
+    public PayloadUpdateOperationType UpdateOperationType { get; set; }
 
     public bool HasIv()
     {

@@ -45,7 +45,7 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
                 break;
 
             case ClientNotificationType.FileAdded:
-                await HandleFileAdded(notification);
+                HandleFileAdded(notification);
                 break;
 
             case ClientNotificationType.FileModified:
@@ -60,10 +60,9 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
         this.FileModified?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
     }
 
-    private async Task HandleFileAdded(TestClientNotification notification)
+    private void HandleFileAdded(TestClientNotification notification)
     {
         var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(notification.Data);
         this.FileAdded?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
-        await Task.CompletedTask;
     }
 }

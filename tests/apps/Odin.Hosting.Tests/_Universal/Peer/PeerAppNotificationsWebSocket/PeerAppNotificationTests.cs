@@ -318,7 +318,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         {
             // TODO: change when we upgrade the drive to support settings a read-acl
             Dictionary<string, string> isCollaborativeChannel =
-                new() { { FeedDriveDistributionRouter.IsCollaborativeChannel, bool.TrueString } };
+                new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
 
             // Setup host identity with community-chat drive
 

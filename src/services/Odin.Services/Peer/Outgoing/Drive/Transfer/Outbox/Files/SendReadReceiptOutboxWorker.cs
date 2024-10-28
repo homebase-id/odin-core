@@ -23,7 +23,7 @@ public class SendReadReceiptOutboxWorker(
     ILogger<SendReadReceiptOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
@@ -83,7 +83,7 @@ public class SendReadReceiptOutboxWorker(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {

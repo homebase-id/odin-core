@@ -8,7 +8,6 @@ using Odin.Services.Configuration.Eula;
 using Odin.Services.Drives;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 
@@ -18,16 +17,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 [ApiController]
 [AuthorizeValidOwnerToken]
 [Route(OwnerApiPathConstants.ConfigurationV1)]
-public class ConfigurationController : OdinControllerBase
+public class OwnerConfigurationController : OdinControllerBase
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
 
+    public const string InitialSetupEndpoint = "system/initialize";
+    
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, TenantSystemStorage tenantSystemStorage)
+    public OwnerConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _tenantSystemStorage = tenantSystemStorage;
     }
 
     /// <summary>
@@ -37,7 +36,6 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("system/isconfigured")]
     public async Task<bool> IsIdentityServerConfigured()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var result = await _tenantConfigService.IsIdentityServerConfiguredAsync();
         return result;
     }
@@ -46,7 +44,6 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("system/IsEulaSignatureRequired")]
     public async Task<bool> IsEulaSignatureRequired()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var result = await _tenantConfigService.IsEulaSignatureRequiredAsync(WebOdinContext);
         return result;
     }
@@ -61,7 +58,6 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("system/GetEulaSignatureHistory")]
     public async Task<List<EulaSignature>> GetEulaSignatureHistory()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var result = await _tenantConfigService.GetEulaSignatureHistoryAsync(WebOdinContext);
         return result;
     }
@@ -70,19 +66,17 @@ public class ConfigurationController : OdinControllerBase
     public async Task<IActionResult> MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        var db = _tenantSystemStorage.IdentityDatabase;
         await _tenantConfigService.MarkEulaSignedAsync(request, WebOdinContext);
         return Ok();
     }
 
     /// <summary>
-    /// Ensures all new configuration is setup when a new tenant is configured.
+    /// Ensures all new configuration is set up when a new tenant is configured.
     /// </summary>
-    [HttpPost("system/initialize")]
+    [HttpPost(InitialSetupEndpoint)]
     public async Task<bool> InitializeIdentity([FromBody] InitialSetupRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        var db = _tenantSystemStorage.IdentityDatabase;
         await _tenantConfigService.EnsureInitialOwnerSetupAsync(request, WebOdinContext);
         return true;
     }
@@ -97,7 +91,6 @@ public class ConfigurationController : OdinControllerBase
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
-        var db = _tenantSystemStorage.IdentityDatabase;
         await _tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
 
         //todo: map to all the various flags
@@ -110,7 +103,6 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("system/flags")]
     public async Task<TenantSettings> GetTenantSettings()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var settings = await _tenantConfigService.GetTenantSettingsAsync();
         return settings;
     }
@@ -120,7 +112,7 @@ public class ConfigurationController : OdinControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet("system/driveinfo")]
-    public Dictionary<string, TargetDrive> GetSystemDrives()
+    public Task<Dictionary<string, TargetDrive>> GetSystemDrives()
     {
         var d = new Dictionary<string, TargetDrive>()
         {
@@ -130,7 +122,7 @@ public class ConfigurationController : OdinControllerBase
             { "chat", SystemDriveConstants.ChatDrive }
         };
 
-        return d;
+        return Task.FromResult(d);
     }
 
     /// <summary>
@@ -140,7 +132,6 @@ public class ConfigurationController : OdinControllerBase
     public async Task<bool> UpdateOwnerAppSetting([FromBody] OwnerAppSettings settings)
     {
         OdinValidationUtils.AssertNotNull(settings?.Settings, nameof(settings.Settings));
-        var db = _tenantSystemStorage.IdentityDatabase;
         await _tenantConfigService.UpdateOwnerAppSettingsAsync(settings, WebOdinContext);
         return true;
     }
@@ -151,7 +142,6 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("ownerapp/settings/list")]
     public async Task<OwnerAppSettings> GetOwnerSettings()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         var settings = await _tenantConfigService.GetOwnerAppSettingsAsync(WebOdinContext);
         return settings;
     }
@@ -161,9 +151,9 @@ public class ConfigurationController : OdinControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet("registration/finalize")]
-    public async Task<IActionResult> Finalize(Guid frid)
+    public IActionResult Finalize(Guid frid)
     {
         //TODO: how do i finalize from here with teh first run token?
-        return await Task.FromResult(Ok());
+        return Ok();
     }
 }

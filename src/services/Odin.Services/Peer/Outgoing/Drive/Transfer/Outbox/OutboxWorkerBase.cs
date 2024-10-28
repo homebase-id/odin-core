@@ -1,20 +1,27 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
+public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, FileSystemResolver fileSystemResolver)
 {
     protected OutboxFileItem FileItem => fileItem;
+    protected FileSystemResolver FileSystemResolver => fileSystemResolver;
 
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
@@ -66,6 +73,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
 
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
+            logger.LogDebug("BadRequest received: [{data}]", response.Error?.Content);
             return LatestTransferStatus.RecipientIdentityReturnedBadRequest;
         }
 
@@ -85,5 +93,105 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger)
             default:
                 return UnixTimeUtc.Now().AddSeconds(30);
         }
+    }
+
+    protected async Task<(StreamPart metadataStream, List<StreamPart> payloadStreams)> PackageFileStreamsAsync(
+        ServerFileHeader header,
+        bool includePayloads,
+        IOdinContext odinContext,
+        IdentityDatabase db,
+        Guid? overrideGlobalTransitId = null
+    )
+    {
+        var sourceMetadata = header.FileMetadata;
+
+        var file = header.FileMetadata.File;
+        var fileSystem = FileSystemResolver.ResolveFileSystem(header.ServerMetadata.FileSystemType);
+
+        //redact the info by explicitly stating what we will keep
+        //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
+        var redactedMetadata = new FileMetadata()
+        {
+            //TODO: here I am removing the file and drive id from the stream but we need
+            // to resolve this by moving the file information to the server header
+            File = InternalDriveFileId.Redacted(),
+            Created = sourceMetadata.Created,
+            Updated = sourceMetadata.Updated,
+            AppData = sourceMetadata.AppData,
+            IsEncrypted = sourceMetadata.IsEncrypted,
+            GlobalTransitId = overrideGlobalTransitId.GetValueOrDefault(header.FileMetadata.GlobalTransitId.GetValueOrDefault()),
+            ReactionPreview = sourceMetadata.ReactionPreview,
+            SenderOdinId = sourceMetadata.SenderOdinId,
+            OriginalAuthor = sourceMetadata.OriginalAuthor,
+            ReferencedFile = sourceMetadata.ReferencedFile,
+            VersionTag = sourceMetadata.VersionTag,
+            Payloads = sourceMetadata.Payloads,
+            FileState = sourceMetadata.FileState,
+        };
+
+        var json = OdinSystemSerializer.Serialize(redactedMetadata);
+        var stream = new MemoryStream(json.ToUtf8ByteArray());
+        var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
+
+        var payloadStreams = new List<StreamPart>();
+
+        if (includePayloads)
+        {
+            foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
+            {
+                var payloadKey = descriptor.Key;
+
+                string contentType = "application/unknown";
+
+                //TODO: consider what happens if the payload has been delete from disk
+                var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext, db);
+                var payloadStream = p.Stream;
+
+                var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
+                payloadStreams.Add(payload);
+
+                foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
+                {
+                    var (thumbStream, thumbHeader) =
+                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                            odinContext, db);
+
+                    var thumbnailKey =
+                        $"{payloadKey}" +
+                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                        $"{thumb.PixelWidth}" +
+                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                        $"{thumb.PixelHeight}";
+
+                    payloadStreams.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
+            }
+        }
+
+        return (metaDataStream, payloadStreams);
+    }
+
+    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, IdentityDatabase db)
+    {
+        logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = false,
+            IsReadByRecipient = false,
+            LatestTransferStatus = LatestTransferStatus.Delivered,
+            VersionTag = versionTag
+        };
+
+        logger.LogDebug("Start: UpdateTransferHistory: {file} to {recipient} " +
+                        "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+
+        var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
+
+        logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
+                        "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+        
     }
 }

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -21,7 +20,7 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
         {
             //there must be an acl
             if (acl == null)
@@ -65,30 +64,30 @@ namespace Odin.Services.Authorization.Acl
             return false;
         }
 
-        public async Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
+        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
-                return true;
+                return Task.FromResult(true);
             }
 
             if (caller?.SecurityLevel == SecurityGroupType.System)
             {
-                return true;
+                return Task.FromResult(true);
             }
 
             //there must be an acl
             if (acl == null)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             //if file has required circles, see if caller has at least one
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any() && !requiredCircles.Intersect(caller!.Circles.Select(c => c.Value)).Any())
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             if (acl.GetRequiredIdentities().Any())
@@ -99,16 +98,17 @@ namespace Odin.Services.Authorization.Acl
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
-                    return true;
+                    return Task.FromResult(true);
 
                 case SecurityGroupType.Authenticated:
-                    return (int)caller!.SecurityLevel >= (int)SecurityGroupType.Authenticated;
+                    return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
+                case SecurityGroupType.AutoConnected:
                 case SecurityGroupType.Connected:
-                    return await CallerIsConnected(odinContext);
+                    return CallerIsConnected(odinContext);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
 
         private void ThrowWhenFalse(bool eval)

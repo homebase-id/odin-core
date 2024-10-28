@@ -21,8 +21,7 @@ public class DriveManagementApiClient
         _identity = identity;
     }
 
-    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
-        bool ownerOnly = false,
+    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
         bool allowSubscriptions = false, Dictionary<string, string> attributes = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

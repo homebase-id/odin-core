@@ -8,8 +8,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
@@ -63,7 +61,6 @@ namespace Odin.Services.Membership.YouAuth
         /// </summary>
         public async Task<RedactedYouAuthDomainRegistration> RegisterDomainAsync(YouAuthDomainRegistrationRequest request, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
 
@@ -82,7 +79,7 @@ namespace Odin.Services.Membership.YouAuth
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var grants = await _circleMembershipService.CreateCircleGrantListAsync(request.CircleIds ?? new List<GuidId>(), keyStoreKey, odinContext);
+            var grants = await _circleMembershipService.CreateCircleGrantListAsync(keyStoreKey, request.CircleIds ?? new List<GuidId>(), masterKey, odinContext);
 
             request.ConsentRequirements?.Validate();
 
@@ -109,7 +106,6 @@ namespace Odin.Services.Membership.YouAuth
             YouAuthDomainRegistrationRequest? request,
             IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             OdinValidationUtils.AssertNotNullOrEmpty(friendlyName, nameof(friendlyName));
             odinContext.Caller.AssertHasMasterKey();
 
@@ -121,8 +117,8 @@ namespace Odin.Services.Membership.YouAuth
                     throw new OdinClientException($"{domain} not registered");
                 }
 
-                await this.RegisterDomainAsync(request, odinContext);
-                reg = await this.GetDomainRegistrationInternalAsync(domain);
+                await RegisterDomainAsync(request, odinContext);
+                reg = await GetDomainRegistrationInternalAsync(domain);
             }
 
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -145,9 +141,8 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Determines if the specified domain requires consent from the owner before ...
         /// </summary>
-        public async Task<bool> IsConsentRequired(AsciiDomainName domain, IOdinContext odinContext)
+        public async Task<bool> IsConsentRequiredAsync(AsciiDomainName domain, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
             if (await _circleNetworkService.IsConnectedAsync((OdinId)domain.DomainName, odinContext))
@@ -160,7 +155,7 @@ namespace Odin.Services.Membership.YouAuth
             return reg?.ConsentRequirements?.IsRequired() ?? true;
         }
 
-        public async Task UpdateConsentRequirementsAsync(AsciiDomainName domain, ConsentRequirements consentRequirements, IOdinContext odinContext)
+        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -312,10 +307,9 @@ namespace Odin.Services.Membership.YouAuth
         /// </summary>
         public async Task GrantCircleAsync(GuidId circleId, AsciiDomainName domainName, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
-            var registration = await GetDomainRegistrationInternalAsync(domainName);
+            var registration = await this.GetDomainRegistrationInternalAsync(domainName);
 
             if (registration == null)
             {
@@ -331,7 +325,7 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = await _circleMembershipService.GetCircleAsync(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrantAsync(circleDefinition, keyStoreKey, masterKey, odinContext);
+            var circleGrant = await _circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -370,10 +364,8 @@ namespace Odin.Services.Membership.YouAuth
 
         // 
 
-        public async Task<IOdinContext?> GetDotYouContext(ClientAuthenticationToken token, IOdinContext currentOdinContext)
+        public async Task<IOdinContext?> GetDotYouContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-
             async Task<IOdinContext> Creator()
             {
                 var (isValid, accessReg, domainRegistration) = await ValidateClientAuthTokenAsync(token);
@@ -393,7 +385,7 @@ namespace Odin.Services.Membership.YouAuth
                     return odinContext;
                 }
 
-                return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg, currentOdinContext);
+                return await CreateAuthenticatedContextForYouAuthDomainAsync(token, domainRegistration, accessReg, currentOdinContext);
             }
 
             var result = await _cache.GetOrAddContextAsync(token, Creator);
@@ -480,8 +472,8 @@ namespace Odin.Services.Membership.YouAuth
 
             foreach (var (circleId, circleGrant) in registration.CircleGrants)
             {
-                var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext);
-                circleMembers = circleMembers.Where(d => d.DomainType == DomainType.YouAuth).ToList();
+                var circleMembers = (await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext))
+                    .Where(d => d.DomainType == DomainType.YouAuth);
                 var isMember = circleMembers.Any(d =>
                     OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
 
@@ -503,7 +495,7 @@ namespace Odin.Services.Membership.YouAuth
             // });
         }
 
-        private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomain(
+        private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
             AccessRegistration accessReg,

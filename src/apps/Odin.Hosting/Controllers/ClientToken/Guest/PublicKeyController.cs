@@ -8,14 +8,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
     [Route(GuestApiPathConstants.PublicKeysV1)]
-    public class PublicKeyController(PublicPrivateKeyService publicKeyService, TenantSystemStorage tenantSystemStorage)
-        : ControllerBase
+    public class PublicKeyController(PublicPrivateKeyService publicKeyService) : ControllerBase
     {
         [HttpGet("signing")]
         public async Task<GetPublicKeyResponse> GetSigningKey()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicKeyService.GetSigningPublicKeyAsync(db);
+            
+            var key = await publicKeyService.GetSigningPublicKeyAsync();
 
             return new GetPublicKeyResponse()
             {
@@ -27,8 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("online")]
         public async Task<GetPublicKeyResponse> GetOnlineKey()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicKeyService.GetOnlineRsaPublicKeyAsync(db);
+            var key = await publicKeyService.GetOnlineRsaPublicKeyPublic();
 
             return new GetPublicKeyResponse()
             {
@@ -40,8 +38,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("online_ecc")]
         public async Task<GetPublicKeyResponse> GetOnlineEccKey()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicKeyService.GetOnlineEccPublicKeyAsync(db);
+            
+            var key = await publicKeyService.GetOnlineEccPublicKeyAsync();
 
             return new GetPublicKeyResponse()
             {
@@ -54,8 +52,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("offline_ecc")]
         public async Task<string> GetOfflineEccPublicKey()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicKeyService.GetOfflineEccPublicKeyAsync(db);
+            var key = await publicKeyService.GetOfflineEccPublicKeyAsync();
             var expiration = Math.Min(key.expiration.seconds, 3600);
             Response.Headers.CacheControl = $"public,max-age={expiration}";
             return key?.PublicKeyJwkBase64Url();
@@ -66,9 +63,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         {
             // var key = await _publicKeyService.GetNotificationsPublicKey();
             // return key.GenerateEcdsaBase64Url();
-
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await publicKeyService.GetNotificationsEccPublicKeyAsync(db);
+            
+            return await publicKeyService.GetNotificationsEccPublicKeyAsync();
 
             // return new GetPublicKeyResponse()
             // {
@@ -80,8 +76,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var key = await publicKeyService.GetOfflineRsaPublicKeyAsync(db);
+            
+            var key = await publicKeyService.GetOfflineRsaPublicKeyAsync();
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
