@@ -171,14 +171,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
             }
-            catch (LockConflictException lce)
-            {
-                logger.LogWarning(lce,
-                    "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
-                    inboxItem.InstructionType,
-                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
-            }
             catch (OdinAcquireLockException te)
             {
                 logger.LogWarning(te,
