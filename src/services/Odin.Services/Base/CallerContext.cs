@@ -90,7 +90,7 @@ namespace Odin.Services.Base
             }
         }
 
-        public void AssertIsConnected()
+        public void AssertCallerIsConnected()
         {
             if (!IsConnected)
             {

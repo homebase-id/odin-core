@@ -89,7 +89,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Tries to create caller and permission context for the given OdinId if is connected
         /// </summary>
-        public async Task<IOdinContext> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken,
+        public async Task<IOdinContext> TryCreateConnectedYouAuthContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
             IOdinContext odinContext)
         {
@@ -655,7 +655,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
         {
-            odinContext.Caller.AssertIsConnected();
+            odinContext.Caller.AssertCallerIsConnected();
             var caller = odinContext.GetCallerOdinIdOrFail();
 
             var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();

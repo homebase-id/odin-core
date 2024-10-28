@@ -99,7 +99,7 @@ public class PeerAppNotificationService : PeerServiceBase
 
             var accessReg = peerIcrClient.AccessRegistration;
             var odinContext =
-                await CircleNetworkService.TryCreateConnectedYouAuthContext(peerIcrClient.Identity, token, accessReg, currentOdinContext);
+                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg, currentOdinContext);
             return odinContext;
         }
 
