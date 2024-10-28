@@ -13,11 +13,11 @@ public class OwnerClientContext(TargetDrive targetDrive) : IApiClientContext
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission => DrivePermission.All;
 
-    public async Task Initialize(OwnerApiClientRedux ownerApiClient)
+    public Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var t = ownerApiClient.GetTokenContext();
         _factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     public IApiClientFactory GetFactory()

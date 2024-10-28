@@ -53,14 +53,14 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
-        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(
+        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContextAsync(
             OdinId odinId,
             ClientAuthenticationToken remoteIcrToken,
             IOdinContext odinContext)
         {
             logger.LogDebug("Creating transit permission context for [{odinId}]", odinId);
 
-            var icr = await this.GetIcr(odinId, remoteIcrToken);
+            var icr = await this.GetIcrAsync(odinId, remoteIcrToken);
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
@@ -80,7 +80,7 @@ namespace Odin.Services.Membership.Connections
                 };
             }
 
-            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+            var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
                 icr: icr,
                 authToken: remoteIcrToken,
                 accessReg: icr.AccessGrant!.AccessRegistration,
@@ -93,7 +93,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Tries to create caller and permission context for the given OdinId if is connected
         /// </summary>
-        public async Task<IOdinContext> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken,
+        public async Task<IOdinContext> TryCreateConnectedYouAuthContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
             IOdinContext odinContext)
         {
@@ -101,7 +101,7 @@ namespace Odin.Services.Membership.Connections
 
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
-            var icr = await GetIdentityConnectionRegistrationInternal(odinId);
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
             bool isValid = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
@@ -113,7 +113,7 @@ namespace Odin.Services.Membership.Connections
             // Only return the permissions if the identity is connected.
             if (isValid && isConnected)
             {
-                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+                var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
                     icr: icr,
                     authToken: authToken,
                     accessReg: accessReg,
@@ -124,7 +124,7 @@ namespace Odin.Services.Membership.Connections
                 var transientTempDrive = SystemDriveConstants.TransientTempDrive;
                 var transientTempDriveGrant = new DriveGrant()
                 {
-                    DriveId = (await driveManager.GetDriveIdByAlias(transientTempDrive, db)).GetValueOrDefault(),
+                    DriveId = (await driveManager.GetDriveIdByAliasAsync(transientTempDrive, db)).GetValueOrDefault(),
                     PermissionedDrive = new()
                     {
                         Drive = transientTempDrive,
@@ -159,16 +159,16 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
-        public async Task<bool> Disconnect(OdinId odinId, IOdinContext odinContext)
+        public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext)
         {
             var db = tenantSystemStorage.IdentityDatabase;
 
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIcr(odinId, odinContext);
+            var info = await this.GetIcrAsync(odinId, odinContext);
             if (info is { Status: ConnectionStatus.Connected })
             {
-                _storage.Delete(odinId);
+                await _storage.DeleteAsync(odinId);
 
                 await mediator.Publish(new ConnectionDeletedNotification()
                 {
@@ -186,11 +186,11 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Blocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        public async Task<bool> Block(OdinId odinId, IOdinContext odinContext)
+        public async Task<bool> BlockAsync(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIcr(odinId, odinContext);
+            var info = await this.GetIcrAsync(odinId, odinContext);
 
             //TODO: when you block a connection, you must also destroy exchange grant
 
@@ -198,7 +198,7 @@ namespace Odin.Services.Membership.Connections
             {
                 info.Status = ConnectionStatus.Blocked;
                 info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                await this.SaveIcr(info, odinContext);
+                await this.SaveIcrAsync(info, odinContext);
 
                 await mediator.Publish(new ConnectionBlockedNotification
                 {
@@ -215,7 +215,7 @@ namespace Odin.Services.Membership.Connections
                 info.Status = ConnectionStatus.Blocked;
                 info.Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 info.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                await this.SaveIcr(info, odinContext);
+                await this.SaveIcrAsync(info, odinContext);
 
                 await mediator.Publish(new ConnectionBlockedNotification
                 {
@@ -234,30 +234,30 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfilesAsync(int count, long cursor,
             IOdinContext odinContext)
         {
-            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Blocked, odinContext));
+            return await GetConnectionsInternalAsync(count, cursor, ConnectionStatus.Blocked, odinContext);
         }
 
         /// <summary>
         /// Returns a list of identities which are connected to this DI
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentitiesAsync(int count, long cursor,
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
-            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Connected, odinContext));
+            return await GetConnectionsInternalAsync(count, cursor, ConnectionStatus.Connected, odinContext);
         }
 
         /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        public async Task<bool> Unblock(OdinId odinId, IOdinContext odinContext)
+        public async Task<bool> UnblockAsync(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
 
-            var info = await this.GetIcr(odinId, odinContext);
+            var info = await this.GetIcrAsync(odinId, odinContext);
             if (info.Status == ConnectionStatus.Blocked)
             {
                 bool isValid = info.AccessGrant?.IsValid() ?? false;
@@ -265,12 +265,12 @@ namespace Odin.Services.Membership.Connections
                 if (isValid)
                 {
                     info.Status = ConnectionStatus.Connected;
-                    await this.SaveIcr(info, odinContext);
+                    await this.SaveIcrAsync(info, odinContext);
                     return true;
                 }
 
                 info.Status = ConnectionStatus.None;
-                await this.SaveIcr(info, odinContext);
+                await this.SaveIcrAsync(info, odinContext);
                 return true;
             }
 
@@ -281,7 +281,7 @@ namespace Odin.Services.Membership.Connections
         /// Gets the current connection info
         /// </summary>
         /// <returns></returns>
-        public async Task<IdentityConnectionRegistration> GetIcr(OdinId odinId, IOdinContext odinContext, bool overrideHack = false)
+        public async Task<IdentityConnectionRegistration> GetIcrAsync(OdinId odinId, IOdinContext odinContext, bool overrideHack = false)
         {
             //TODO: need to cache here?
             //HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS
@@ -290,17 +290,17 @@ namespace Odin.Services.Membership.Connections
                 odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
-            return await GetIdentityConnectionRegistrationInternal(odinId);
+            return await GetIdentityConnectionRegistrationInternalAsync(odinId);
         }
 
         /// <summary>
         /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">x-token half key</param> is valid
         /// </summary>
-        public async Task<IdentityConnectionRegistration> GetIcr(
+        public async Task<IdentityConnectionRegistration> GetIcrAsync(
             OdinId odinId,
             ClientAuthenticationToken remoteClientAuthenticationToken)
         {
-            var connection = await GetIdentityConnectionRegistrationInternal(odinId);
+            var connection = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             if (connection?.AccessGrant?.AccessRegistration == null)
             {
@@ -316,7 +316,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Determines if the specified odinId is connected 
         /// </summary>
-        public async Task<bool> IsConnected(OdinId odinId, IOdinContext odinContext)
+        public async Task<bool> IsConnectedAsync(OdinId odinId, IOdinContext odinContext)
         {
             //allow the caller to see if s/he is connected, otherwise
             if (odinContext.Caller.OdinId != odinId)
@@ -324,18 +324,18 @@ namespace Odin.Services.Membership.Connections
                 odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
-            var info = await this.GetIcr(odinId, odinContext);
+            var info = await this.GetIcrAsync(odinId, odinContext);
             return info.Status == ConnectionStatus.Connected;
         }
 
-        public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId, IOdinContext odinContext)
+        public async Task<IEnumerable<OdinId>> GetCircleMembersAsync(GuidId circleId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
             //added override:true because PermissionKeys.ReadCircleMembership is present
-            var result = circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true)
+            var result = (await circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true))
                 .Where(d => d.DomainType == DomainType.Identity)
                 .Select(m => new OdinId(m.Domain));
-            return await Task.FromResult(result);
+            return result;
         }
 
         /// <summary>
@@ -344,9 +344,9 @@ namespace Odin.Services.Membership.Connections
         /// <param name="odinId"></param>
         /// <param name="odinContext"></param>
         /// <returns></returns>
-        public async Task AssertConnectionIsNoneOrValid(OdinId odinId, IOdinContext odinContext)
+        public async Task AssertConnectionIsNoneOrValidAsync(OdinId odinId, IOdinContext odinContext)
         {
-            var info = await this.GetIcr(odinId, odinContext);
+            var info = await this.GetIcrAsync(odinId, odinContext);
             this.AssertConnectionIsNoneOrValid(info);
         }
 
@@ -354,7 +354,7 @@ namespace Odin.Services.Membership.Connections
         /// Adds the specified odinId to your network
         /// </summary>
         /// <returns></returns>
-        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant,
+        public async Task ConnectAsync(string odinIdentity, AccessExchangeGrant accessGrant,
             (EncryptedClientAccessToken EncryptedCat, (EccEncryptedPayload Token, EccEncryptedPayload KeyStoreKey) Temp) keys,
             ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
@@ -385,7 +385,7 @@ namespace Odin.Services.Membership.Connections
                 VerificationHash = verificationHash
             };
 
-            await this.SaveIcr(newConnection, odinContext);
+            await this.SaveIcrAsync(newConnection, odinContext);
 
             await mediator.Publish(new ConnectionFinalizedNotification()
             {
@@ -398,11 +398,11 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gives access to all resource granted by the specified circle to the odinId
         /// </summary>
-        public async Task GrantCircle(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             if (icr == null || !icr.IsConnected())
             {
@@ -422,10 +422,10 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
-            var circleDefinition = circleMembershipService.GetCircle(circleId, odinContext);
+            var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await circleMembershipService.CreateCircleGrant(keyStoreKey, circleDefinition, masterKey, odinContext);
+            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
 
             icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -433,27 +433,27 @@ namespace Odin.Services.Membership.Connections
             // Check the apps.  If the circle being granted is authorized by an app
             // ensure the new member gets the permissions given by the app
             //
-            var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
+            var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
             var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
             foreach (var app in appsThatGrantThisCircle)
             {
-                var appCircleGrant = await this.CreateAppCircleGrant(app, keyStoreKey, circleId, masterKey);
+                var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, masterKey);
                 icr.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
             }
 
             keyStoreKey.Wipe();
-            await this.SaveIcr(icr, odinContext);
+            await this.SaveIcrAsync(icr, odinContext);
         }
 
         /// <summary>
         /// Removes drives and permissions of the specified circle from the odinId
         /// </summary>
-        public async Task RevokeCircleAccess(GuidId circleId, OdinId odinId, IOdinContext odinContext)
+        public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
             if (icr.AccessGrant == null)
             {
                 return;
@@ -473,7 +473,7 @@ namespace Odin.Services.Membership.Connections
                 appCircleGrants.Remove(circleId.Value);
             }
 
-            await this.SaveIcr(icr, odinContext);
+            await this.SaveIcrAsync(icr, odinContext);
         }
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(
@@ -498,12 +498,12 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var circleId in circleIds)
             {
-                var appsThatGrantThisCircle = await appRegistrationService.GetAppsGrantingCircle(circleId, odinContext);
+                var appsThatGrantThisCircle = await appRegistrationService.GetAppsGrantingCircleAsync(circleId, odinContext);
 
                 foreach (var app in appsThatGrantThisCircle)
                 {
                     var appKey = app.AppId.Value;
-                    var appCircleGrant = await this.CreateAppCircleGrant(app, keyStoreKey, circleId, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, masterKey);
 
                     if (!appGrants.TryGetValue(appKey, out var appCircleGrantsDictionary))
                     {
@@ -522,17 +522,17 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
         /// </summary>
-        public async Task UpdateCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
+        public async Task UpdateCircleDefinitionAsync(CircleDefinition circleDef, IOdinContext odinContext)
         {
-            await circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
+            await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);
 
-            var members = await GetCircleMembers(circleDef.Id, odinContext);
+            var members = await GetCircleMembersAsync(circleDef.Id, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
 
             // List<OdinId> invalidMembers = new List<OdinId>();
             foreach (var odinId in members)
             {
-                var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
+                var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
                 var circleKey = circleDef.Id;
                 var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
@@ -542,7 +542,7 @@ namespace Odin.Services.Membership.Connections
                     // Re-create the circle grant so 
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] =
-                        await circleMembershipService.CreateCircleGrant(keyStoreKey, circleDef, masterKey, odinContext);
+                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef, masterKey, odinContext);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -552,10 +552,10 @@ namespace Odin.Services.Membership.Connections
                     // invalidMembers.Add(odinId);
                 }
 
-                await this.SaveIcr(icr, odinContext);
+                await this.SaveIcrAsync(icr, odinContext);
             }
 
-            await circleMembershipService.Update(circleDef, odinContext);
+            await circleMembershipService.UpdateAsync(circleDef, odinContext);
 
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
@@ -563,16 +563,16 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Tests if a circle has members and indicates if it can be deleted
         /// </summary>
-        public async Task DeleteCircleDefinition(GuidId circleId, IOdinContext odinContext)
+        public async Task DeleteCircleDefinitionAsync(GuidId circleId, IOdinContext odinContext)
         {
-            var members = await this.GetCircleMembers(circleId, odinContext);
+            var members = await this.GetCircleMembersAsync(circleId, odinContext);
 
             if (members.Any())
             {
                 throw new OdinClientException("Cannot delete a circle with members", OdinClientErrorCode.CannotDeleteCircleWithMembers);
             }
 
-            await circleMembershipService.Delete(circleId, odinContext);
+            await circleMembershipService.DeleteAsync(circleId, odinContext);
         }
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
@@ -595,9 +595,9 @@ namespace Odin.Services.Membership.Connections
                 odinContext);
         }
 
-        public async Task RevokeConnection(OdinId odinId, IOdinContext odinContext)
+        public async Task RevokeConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
-            _storage.Delete(odinId);
+            await _storage.DeleteAsync(odinId);
             await mediator.Publish(new ConnectionDeletedNotification()
             {
                 OdinId = odinId,
@@ -606,7 +606,7 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
-        public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfo(OdinId odinId, IOdinContext odinContext)
+        public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfoAsync(OdinId odinId, IOdinContext odinContext)
         {
             var db = tenantSystemStorage.IdentityDatabase;
 
@@ -617,8 +617,8 @@ namespace Odin.Services.Membership.Connections
             // SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives
 
             var info = new IcrTroubleshootingInfo();
-            var circleDefinitions = (await circleDefinitionService.GetCircles(true)).ToList();
-            var icr = await GetIdentityConnectionRegistrationInternal(odinId);
+            var circleDefinitions = (await circleDefinitionService.GetCirclesAsync(true)).ToList();
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
             ArgumentNullException.ThrowIfNull(icr);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant);
@@ -656,8 +656,8 @@ namespace Odin.Services.Membership.Connections
                 {
                     foreach (var expectedDriveGrant in definition.DriveGrants)
                     {
-                        var driveId = await driveManager.GetDriveIdByAlias(expectedDriveGrant.PermissionedDrive.Drive, db);
-                        var driveInfo = await driveManager.GetDrive(driveId.GetValueOrDefault(), db);
+                        var driveId = await driveManager.GetDriveIdByAliasAsync(expectedDriveGrant.PermissionedDrive.Drive, db);
+                        var driveInfo = await driveManager.GetDriveAsync(driveId.GetValueOrDefault(), db);
 
                         var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
                             dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
@@ -716,15 +716,15 @@ namespace Odin.Services.Membership.Connections
                 foreach (var circleId in circlesToRevoke)
                 {
                     //get all circle members and update their grants
-                    var members = await this.GetCircleMembers(circleId, odinContext);
+                    var members = await this.GetCircleMembersAsync(circleId, odinContext);
 
                     foreach (var odinId in members)
                     {
-                        var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
+                        var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                         var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                         icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
                         keyStoreKey.Wipe();
-                        await this.SaveIcr(icr, odinContext);
+                        await this.SaveIcrAsync(icr, odinContext);
                     }
                 }
             }
@@ -732,14 +732,14 @@ namespace Odin.Services.Membership.Connections
             foreach (var circleId in newAppRegistration.AuthorizedCircles ?? new List<Guid>())
             {
                 //get all circle members and update their grants
-                var members = await this.GetCircleMembers(circleId, odinContext);
+                var members = await this.GetCircleMembersAsync(circleId, odinContext);
 
                 foreach (var odinId in members)
                 {
-                    var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
+                    var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
 
-                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration, keyStoreKey, circleId, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId, masterKey);
 
                     if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
@@ -751,13 +751,13 @@ namespace Odin.Services.Membership.Connections
 
                     keyStoreKey.Wipe();
 
-                    await this.SaveIcr(icr, odinContext);
+                    await this.SaveIcrAsync(icr, odinContext);
                 }
             }
             //
         }
 
-        public async Task<VerifyConnectionResponse> VerifyConnectionCode(IOdinContext odinContext)
+        public async Task<VerifyConnectionResponse> VerifyConnectionCodeAsync(IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsConnected)
             {
@@ -769,7 +769,7 @@ namespace Odin.Services.Membership.Connections
             }
 
             //look up the verification hash on the caller's icr
-            var callerIcr = await this.GetIcr(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
+            var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
 
             if (callerIcr.VerificationHash?.Length == 0)
             {
@@ -788,11 +788,11 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Upgrades a connection which was created automatically (i.e. because of an introduction) to a confirmed connection
         /// </summary>
-        public async Task ConfirmConnection(OdinId odinId, IOdinContext odinContext)
+        public async Task ConfirmConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var icr = await this.GetIcr(odinId, odinContext);
+            var icr = await this.GetIcrAsync(odinId, odinContext);
 
             if (!icr.IsConnected())
             {
@@ -809,16 +809,16 @@ namespace Odin.Services.Membership.Connections
             // TODO CONNECTIONS
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
-                await UpgradeTokenEncryptionIfNeeded(icr, odinContext);
-                await UpgradeKeyStoreKeyEncryptionIfNeeded(icr, odinContext);
+                await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext);
 
-                await this.RevokeCircleAccess(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
-                await this.GrantCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
+                await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
+                await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
             }
             //);
         }
 
-        public async Task<bool> UpdateVerificationHash(OdinId odinId, Guid randomCode, IOdinContext odinContext)
+        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsOwner)
             {
@@ -826,7 +826,7 @@ namespace Odin.Services.Membership.Connections
                 OdinValidationUtils.AssertIsTrue(odinId == odinContext.GetCallerOdinIdOrFail(), "caller does not match target identity");
             }
 
-            var icr = await this.GetIcr(odinId, odinContext);
+            var icr = await this.GetIcrAsync(odinId, odinContext);
 
             if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
             {
@@ -842,7 +842,7 @@ namespace Odin.Services.Membership.Connections
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
-                _storage.UpdateVerificationHash(icr.OdinId, icr.Status, hash);
+                await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
                 return true;
             }
@@ -857,9 +857,9 @@ namespace Odin.Services.Membership.Connections
             return expectedHash;
         }
 
-        public async Task UpgradeWeakClientAccessTokens(IOdinContext odinContext, CancellationToken cancellationToken)
+        public async Task UpgradeWeakClientAccessTokensAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
-            var allIdentities = await this.GetConnectedIdentities(int.MaxValue, 0, odinContext);
+            var allIdentities = await this.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             foreach (var identity in allIdentities.Results)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -870,7 +870,7 @@ namespace Odin.Services.Membership.Connections
 
                 try
                 {
-                    await UpgradeTokenEncryptionIfNeeded(identity, odinContext);
+                    await UpgradeTokenEncryptionIfNeededAsync(identity, odinContext);
                 }
                 catch (Exception e)
                 {
@@ -881,7 +881,7 @@ namespace Odin.Services.Membership.Connections
                 {
                     try
                     {
-                        await UpgradeKeyStoreKeyEncryptionIfNeeded(identity, odinContext);
+                        await UpgradeKeyStoreKeyEncryptionIfNeededAsync(identity, odinContext);
                     }
                     catch (Exception e)
                     {
@@ -891,14 +891,14 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<AppCircleGrant> CreateAppCircleGrant(
+        private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,
             GuidId circleId,
             SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
-            var grant = await exchangeGrantService.CreateExchangeGrant(
+            var grant = await exchangeGrantService.CreateExchangeGrantAsync(
                 tenantSystemStorage.IdentityDatabase,
                 keyStoreKey,
                 appReg.CircleMemberPermissionSetGrantRequest.PermissionSet,
@@ -924,7 +924,7 @@ namespace Odin.Services.Membership.Connections
                 {
                     //remove the drive as it no longer allows anonymous reads
                     def.DriveGrants = def.DriveGrants.Where(dg => dg.PermissionedDrive.Drive != drive.TargetDriveInfo).ToList();
-                    await this.UpdateCircleDefinition(def, odinContext);
+                    await this.UpdateCircleDefinitionAsync(def, odinContext);
                     return;
                 }
 
@@ -935,12 +935,12 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
-            CircleDefinition confirmedCircle =
-                circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+            CircleDefinition confirmedCircle = await
+                circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
             await UpdateIfRequired(confirmedCircle);
 
-            CircleDefinition autoConnectedCircle =
-                circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
+            CircleDefinition autoConnectedCircle = await
+                circleMembershipService.GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
             await UpdateIfRequired(autoConnectedCircle);
         }
 
@@ -968,20 +968,20 @@ namespace Odin.Services.Membership.Connections
                 });
 
                 def.DriveGrants = grants;
-                await this.UpdateCircleDefinition(def, odinContext);
+                await this.UpdateCircleDefinitionAsync(def, odinContext);
             }
 
-            CircleDefinition confirmedCircle =
-                circleMembershipService.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+            CircleDefinition confirmedCircle = await 
+                circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
             await GrantAnonymousRead(confirmedCircle);
 
-            CircleDefinition autoConnectedCircle =
-                circleMembershipService.GetCircle(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
+            CircleDefinition autoConnectedCircle = await 
+                circleMembershipService.GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
             await GrantAnonymousRead(autoConnectedCircle);
         }
 
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
@@ -991,8 +991,8 @@ namespace Odin.Services.Membership.Connections
             // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
 
 
-            var (grants, enabledCircles) =
-                circleMembershipService.MapCircleGrantsToExchangeGrants(icr.OdinId.AsciiDomain,
+            var (grants, enabledCircles) = await 
+                circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
             if (applyAppCircleGrants)
@@ -1005,7 +1005,7 @@ namespace Odin.Services.Membership.Connections
                     foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
-                        if (alreadyEnabledCircle || circleDefinitionService.IsEnabled(appCg.CircleId))
+                        if (alreadyEnabledCircle || await circleDefinitionService.IsEnabledAsync(appCg.CircleId))
                         {
                             if (!alreadyEnabledCircle)
                             {
@@ -1053,7 +1053,7 @@ namespace Odin.Services.Membership.Connections
 
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrant(db, keyStoreKey, new Permissions_PermissionSet(),
+            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrantAsync(db, keyStoreKey, new Permissions_PermissionSet(),
                 new List<DriveGrantRequest>()
                 {
                     new()
@@ -1084,14 +1084,14 @@ namespace Odin.Services.Membership.Connections
                 anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
-            return await Task.FromResult(result);
+            return result;
         }
 
 
-        private CursoredResult<long, IdentityConnectionRegistration> GetConnectionsInternal(int count, long cursor, ConnectionStatus status,
+        private async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor, ConnectionStatus status,
             IOdinContext odinContext)
         {
-            var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status);
+            var (list, nextCursor) = await _storage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
             return new CursoredResult<long, IdentityConnectionRegistration>()
             {
                 Cursor = nextCursor.GetValueOrDefault().uniqueTime,
@@ -1112,9 +1112,9 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
+        private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)
         {
-            var registration = _storage.Get(odinId);
+            var registration = await _storage.GetAsync(odinId);
 
             if (null == registration)
             {
@@ -1126,27 +1126,27 @@ namespace Odin.Services.Membership.Connections
                 };
             }
 
-            return await Task.FromResult(registration);
+            return registration;
         }
 
-        private async Task SaveIcr(IdentityConnectionRegistration icr, IOdinContext odinContext)
+        private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             using (await _lock.LockAsync(icr.OdinId))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
                 {
-                    _storage.Delete(icr.OdinId);
+                    await _storage.DeleteAsync(icr.OdinId);
                 }
                 else
                 {
-                    _storage.Upsert(icr, odinContext);
+                    await _storage.UpsertAsync(icr, odinContext);
                     // _storage.UpsertUoW(icr, odinContext);
                 }
             }
         }
 
-        public async Task UpgradeTokenEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
             if (identity.TemporaryWeakClientAccessToken != null)
             {
@@ -1160,11 +1160,11 @@ namespace Odin.Services.Membership.Connections
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
-                _storage.UpdateClientAccessToken(identity.OdinId, identity.Status, encryptedCat);
+                await _storage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
             }
         }
 
-        private async Task UpgradeKeyStoreKeyEncryptionIfNeeded(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
             if (identity.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
             {
@@ -1176,7 +1176,7 @@ namespace Odin.Services.Membership.Connections
 
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                _storage.UpdateKeyStoreKey(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
+                await _storage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
             }
         }
     }

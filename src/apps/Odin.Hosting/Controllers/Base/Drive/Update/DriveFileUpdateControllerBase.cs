@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
             var db = tenantSystemStorage.IdentityDatabase;
 
-            await updateWriter.StartFileUpdate(instructionSet, fileSystemType, WebOdinContext, db);
+            await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext, db);
 
             //
             // Firstly, collect everything and store in the temp drive

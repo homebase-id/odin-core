@@ -11,38 +11,41 @@ namespace Odin.Hosting.Middleware
 {
     public class VersionUpgradeMiddleware(RequestDelegate next)
     {
-        public Task Invoke(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
+        public async Task InvokeAsync(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
         {
             var path = context.Request.Path.Value;
-
+            
             if (path == null)
             {
-                return next.Invoke(context);
+                await next(context);
+                return;
             }
 
             if (!path.StartsWith("/api"))
             {
-                return next.Invoke(context);
+                await next(context);
+                return;
             }
 
             if (path.Contains(OwnerConfigurationController.InitialSetupEndpoint))
             {
-                return next.Invoke(context);
+                await next(context);
+                return;
             }
 
             if (path.StartsWith(OwnerApiPathConstants.AuthV1))
             {
-                return next.Invoke(context);
+                await next(context);
+                return;
             }
 
-            if (scheduler.RequiresUpgrade())
+            if (await scheduler.RequiresUpgradeAsync())
             {
                 context.Response.Headers.Append(OdinHeaderNames.RequiresUpgrade, bool.TrueString);
                 context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                return Task.CompletedTask;
             }
 
-            return next.Invoke(context);
+            await next(context);
         }
     }
 

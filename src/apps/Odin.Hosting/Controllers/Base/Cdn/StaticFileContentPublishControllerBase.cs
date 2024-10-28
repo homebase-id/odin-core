@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.Base.Cdn
             OdinValidationUtils.AssertNotNull(request.Sections, nameof(request.Sections));
             OdinValidationUtils.AssertIsTrue(request.Sections.Count != 0, "At least one section is needed");
 
-            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, WebOdinContext);
+            var publishResult = await staticFileContentService.PublishAsync(request.Filename, request.Config, request.Sections, WebOdinContext);
             return publishResult;
         }
     }

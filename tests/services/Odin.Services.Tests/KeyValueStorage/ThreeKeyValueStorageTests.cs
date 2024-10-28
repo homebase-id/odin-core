@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
@@ -9,24 +10,22 @@ namespace Odin.Services.Tests.KeyValueStorage;
 public class ThreeKeyValueStorageTests
 {
     [Test]
-    public void RequireNonEmptyContextKey()
+    public async Task RequireNonEmptyContextKey()
     {
         var finalPath = "ThreeKeyValueStorageTests001";
         using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
-        using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(false);
+        await db.CreateDatabaseAsync(false);
 
         Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(Guid.Empty); });
     }
 
     [Test]
-    public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
+    public async Task CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var identity = Guid.NewGuid();
         var finalPath = "ThreeKeyValueStorageTests002";
         using var db = new IdentityDatabase(identity, finalPath);
-        using var myc = db.CreateDisposableConnection();
-        db.CreateDatabase(true);
+        await db.CreateDatabaseAsync(true);
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();
@@ -36,19 +35,19 @@ public class ThreeKeyValueStorageTests
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
         const string expectedValue1 = "some value";
-        kvp1.Upsert(db, pk, dataTypeKey, dataCategoryKey, expectedValue1);
-        Assert.IsTrue(kvp1.Get<string>(db, pk) == expectedValue1);
+        await kvp1.UpsertAsync(db, pk, dataTypeKey, dataCategoryKey, expectedValue1);
+        Assert.IsTrue(await kvp1.GetAsync<string>(db, pk) == expectedValue1);
 
-        kvp1.Delete(db, pk);
-        Assert.IsTrue(kvp1.Get<string>(db, pk) == null);
+        await kvp1.DeleteAsync(db, pk);
+        Assert.IsTrue(await kvp1.GetAsync<string>(db, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
         var kvp2 = new ThreeKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
-        kvp2.Upsert(db, pk, dataTypeKey, dataCategoryKey, expectedValue2);
-        Assert.IsTrue(kvp2.Get<string>(db, pk) == expectedValue2);
+        await kvp2.UpsertAsync(db, pk, dataTypeKey, dataCategoryKey, expectedValue2);
+        Assert.IsTrue(await kvp2.GetAsync<string>(db, pk) == expectedValue2);
 
-        kvp2.Delete(db, pk);
-        Assert.IsTrue(kvp2.Get<string>(db, pk) == null);
+        await kvp2.DeleteAsync(db, pk);
+        Assert.IsTrue(await kvp2.GetAsync<string>(db, pk) == null);
     }
 }

@@ -64,7 +64,7 @@ namespace Odin.Notarius
         public async Task<ActionResult> GetSimulatorVerifyBlockChain()
         {
             await Task.Delay(1);
-            NotaryDatabaseUtil.VerifyEntireBlockChain(_db);
+            await NotaryDatabaseUtil.VerifyEntireBlockChainAsync(_db);
 
             return Ok();
         }
@@ -92,7 +92,7 @@ namespace Odin.Notarius
         /// This service takes a notary public signature and returns a JSON if it exists.
         /// </summary>
         [HttpGet("GetVerifyNotarizedDocument")]
-        public ActionResult GetVerifyNotarizedDocument(string notariusPublicusSignatureBase64)
+        public async Task<ActionResult> GetVerifyNotarizedDocument(string notariusPublicusSignatureBase64)
         {
             byte[] bytes;
             try
@@ -109,7 +109,7 @@ namespace Odin.Notarius
 
             using (var conn = _db.CreateDisposableConnection())
             {
-                var record = _db.tblNotaryChain.Get(conn, bytes);
+                var record = await _db.tblNotaryChain.GetAsync(conn, bytes);
 
                 if (record == null)
                     return NotFound();
@@ -124,11 +124,11 @@ namespace Odin.Notarius
             }
         }
 
-        private NotaryChainRecord TryGetLastLinkOrThrow(DatabaseConnection conn)
+        private async Task<NotaryChainRecord> TryGetLastLinkOrThrowAsync(DatabaseConnection conn)
         {
             try
             {
-                NotaryChainRecord? record = _db.tblNotaryChain.GetLastLink(conn);
+                NotaryChainRecord? record = await _db.tblNotaryChain.GetLastLinkAsync(conn);
 
                 if (record == null)
                     throw new Exception("Block chain appears to be empty");
@@ -261,7 +261,7 @@ namespace Odin.Notarius
             //
             using (var conn = _db.CreateDisposableConnection())
             {
-                var rList = _db.tblNotaryChain.GetIdentity(conn, requestor.DomainName);
+                var rList = await _db.tblNotaryChain.GetIdentityAsync(conn, requestor.DomainName);
                 if ((rList != null) && (rList.Count >= 1))
                 {
                     int count = 0;
@@ -294,7 +294,7 @@ namespace Odin.Notarius
                 NotaryChainRecord lastRowRecord;
                 try
                 {
-                    lastRowRecord = TryGetLastLinkOrThrow(conn);
+                    lastRowRecord = await TryGetLastLinkOrThrowAsync(conn);
                 }
                 catch (Exception ex)
                 {
@@ -377,7 +377,7 @@ namespace Odin.Notarius
                     NotaryChainRecord lastRowRecord;
                     try
                     {
-                        lastRowRecord = TryGetLastLinkOrThrow(conn);
+                        lastRowRecord = await TryGetLastLinkOrThrowAsync(conn);
                     }
                     catch (Exception ex)
                     {
@@ -415,7 +415,7 @@ namespace Odin.Notarius
                     // 150 write row
                     try
                     {
-                        _db.tblNotaryChain.Insert(conn, newRecordToInsert);
+                        await _db.tblNotaryChain.InsertAsync(conn, newRecordToInsert);
                     }
                     catch (Exception e)
                     {

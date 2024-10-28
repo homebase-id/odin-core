@@ -135,7 +135,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             var db = _tenantSystemStorage.IdentityDatabase;
-            return await perimeterService.AcceptDeleteLinkedFileRequest(
+            return await perimeterService.AcceptDeleteLinkedFileRequestAsync(
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 request.FileSystemType,
@@ -152,7 +152,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var perimeterService = GetPerimeterService(fileSystem);
             var db = _tenantSystemStorage.IdentityDatabase;
 
-            return await perimeterService.MarkFileAsRead(
+            return await perimeterService.MarkFileAsReadAsync(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,
                 request.FileSystemType,

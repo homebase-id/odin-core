@@ -94,7 +94,6 @@ public abstract class FileSystemStreamWriterBase
         instructionSet.Manifest?.ResetPayloadUiDs();
 
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
-        await Task.CompletedTask;
     }
 
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext, IdentityDatabase db)
@@ -179,11 +178,11 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadResult> FinalizeUpload(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext, IdentityDatabase db)
     {
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext, db);
 
-        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, db);
+        await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata, db);
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
 
@@ -246,7 +245,7 @@ public abstract class FileSystemStreamWriterBase
             NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
             File = new ExternalFileIdentifier()
             {
-                TargetDrive = _driveManager.GetDrive(Package.InternalFile.DriveId, db).Result.TargetDriveInfo,
+                TargetDrive = (await _driveManager.GetDriveAsync(Package.InternalFile.DriveId, db)).TargetDriveInfo,
                 FileId = Package.InternalFile.FileId
             },
             GlobalTransitId = metadata.GlobalTransitId,
@@ -424,7 +423,7 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
         IdentityDatabase db)
     {
         if (null == serverMetadata.AccessControlList)
@@ -466,7 +465,7 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, db, true);
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, db, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",

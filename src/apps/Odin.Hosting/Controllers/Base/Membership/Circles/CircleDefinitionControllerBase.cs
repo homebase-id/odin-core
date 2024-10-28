@@ -36,9 +36,9 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         }
 
         [HttpPost("get")]
-        public CircleDefinition GetCircle([FromBody] Guid id)
+        public async Task<CircleDefinition> GetCircle([FromBody] Guid id)
         {
-            return _circleMembershipService.GetCircle(id, WebOdinContext);
+            return await _circleMembershipService.GetCircleAsync(id, WebOdinContext);
         }
 
         [HttpPost("create")]
@@ -48,35 +48,35 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotEmptyGuid(request.Id, nameof(request.Id));
 
-            await _circleMembershipService.CreateCircleDefinition(request, WebOdinContext);
+            await _circleMembershipService.CreateCircleDefinitionAsync(request, WebOdinContext);
             return true;
         }
 
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            await _cns.UpdateCircleDefinition(circleDefinition, WebOdinContext);
+            await _cns.UpdateCircleDefinitionAsync(circleDefinition, WebOdinContext);
             return true;
         }
 
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            await _cns.DeleteCircleDefinition(new GuidId(id), WebOdinContext);
+            await _cns.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.EnableCircle(new GuidId(id), WebOdinContext);
+            await _circleMembershipService.EnableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.DisableCircle(new GuidId(id), WebOdinContext);
+            await _circleMembershipService.DisableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
     }

@@ -44,7 +44,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
 
-            await _followerPerimeterService.AcceptFollower(request, WebOdinContext, db);
+            await _followerPerimeterService.AcceptFollowerAsync(request, WebOdinContext, db);
 
             return Ok();
         }
@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext, db);
+            await _followerPerimeterService.AcceptUnfollowRequestAsync(WebOdinContext, db);
             return Ok();
         }
     }

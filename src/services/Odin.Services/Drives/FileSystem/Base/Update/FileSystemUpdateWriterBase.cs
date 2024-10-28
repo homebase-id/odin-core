@@ -42,7 +42,7 @@ public abstract class FileSystemUpdateWriterBase
 
     internal FileUpdatePackage Package { get; private set; }
 
-    public virtual async Task StartFileUpdate(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext,
+    public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext,
         IdentityDatabase db)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
@@ -85,7 +85,7 @@ public abstract class FileSystemUpdateWriterBase
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
-                DriveId = (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive, db, true)).GetValueOrDefault(),
+                DriveId = (await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive, db, true)).GetValueOrDefault(),
                 FileId =  Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
             };
 
@@ -94,8 +94,6 @@ public abstract class FileSystemUpdateWriterBase
                 InstructionSet = instructionSet,
                 FileSystemType = fileSystemType
             };
-
-            await Task.CompletedTask;
             return;
         }
 
@@ -192,7 +190,7 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
-            await ProcessExistingFileUpload(Package, keyHeaderIv, metadata, serverMetadata, odinContext, db);
+            await ProcessExistingFileUploadAsync(Package, keyHeaderIv, metadata, serverMetadata, odinContext, db);
 
             var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext, db);
 
@@ -246,7 +244,7 @@ public abstract class FileSystemUpdateWriterBase
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
-    protected virtual async Task ProcessExistingFileUpload(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected virtual async Task ProcessExistingFileUploadAsync(FileUpdatePackage package, byte[] keyHeaderIv, FileMetadata metadata, ServerMetadata serverMetadata,
         IOdinContext odinContext, IdentityDatabase db)
     {
         var manifest = new BatchUpdateManifest()
@@ -263,7 +261,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatch(package.TempMetadataFile, package.InternalFile, manifest, odinContext, db);
+        await FileSystem.Storage.UpdateBatchAsync(package.TempMetadataFile, package.InternalFile, manifest, odinContext, db);
     }
 
     /// <summary>
@@ -378,7 +376,7 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, db, true);
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, db, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",

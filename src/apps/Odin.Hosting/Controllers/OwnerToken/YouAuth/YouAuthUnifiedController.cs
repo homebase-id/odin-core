@@ -147,7 +147,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Create ECC private/public key pair, random salt and shared secret based on public_key from step 30.
             // Create client access token and store it encrypted with shared secret in cache for later lookup.
             //
-            var (exchangePublicKey, exchangeSalt) = await _youAuthService.CreateClientAccessToken(
+            var (exchangePublicKey, exchangeSalt) = await _youAuthService.CreateClientAccessTokenAsync(
                 authorize.ClientType,
                 authorize.ClientId,
                 authorize.ClientInfo,
@@ -234,7 +234,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext, db);
+            await _youAuthService.StoreConsentAsync(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext, db);
 
             // Redirect back to authorize
             _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);
@@ -280,7 +280,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // [140] Return client access token to client
             //
-            return await Task.FromResult(result);
+            return result;
         }
 
         //

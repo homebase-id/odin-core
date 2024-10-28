@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 
@@ -15,75 +16,57 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _db = db;
         }
 
-        ~TableDriveReactions()
+        public async Task<int> DeleteAsync(Guid driveId, OdinId identity, Guid postId, string singleReaction)
         {
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAsync(conn, _db._identityId, driveId, identity, postId, singleReaction);
         }
 
-        public override void Dispose()
+        public async Task<int> DeleteAllReactionsAsync(Guid driveId, OdinId identity, Guid postId)
         {
-            base.Dispose();
-            GC.SuppressFinalize(this);
+            using var conn = _db.CreateDisposableConnection();
+            return await base.DeleteAllReactionsAsync(conn, _db._identityId, driveId, identity, postId);
         }
 
-
-        public int Delete(Guid driveId, OdinId identity, Guid postId, string singleReaction)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Delete(conn, _db._identityId, driveId, identity, postId, singleReaction);
-            }
-        }
-
-        public int DeleteAllReactions(Guid driveId, OdinId identity, Guid postId)
-        {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.DeleteAllReactions(conn, _db._identityId, driveId, identity, postId);
-            }
-        }
-
-        public int Insert(DriveReactionsRecord item)
+        public async Task<int> InsertAsync(DriveReactionsRecord item)
         {
             item.identityId = _db._identityId;
-
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                return base.Insert(conn, item);
-            }
+            using var conn = _db.CreateDisposableConnection();
+            return await base.InsertAsync(conn, item);
         }
 
-        public (List<string>, int) GetPostReactions(Guid driveId, Guid postId)
+        public async Task<(List<string>, int)> GetPostReactionsAsync(Guid driveId, Guid postId)
         {
             using (var _selectCommand = _db.CreateCommand())
             {
                 _selectCommand.CommandText =
                     $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
-                var _sparam1 = _selectCommand.CreateParameter();
-                var _sparam2 = _selectCommand.CreateParameter();
-                var _sparam3 = _selectCommand.CreateParameter();
+                var sparam1 = _selectCommand.CreateParameter();
+                var sparam2 = _selectCommand.CreateParameter();
+                var sparam3 = _selectCommand.CreateParameter();
 
-                _sparam1.ParameterName = "$postId";
-                _sparam2.ParameterName = "$driveId";
-                _sparam3.ParameterName = "$identityId";
+                sparam1.ParameterName = "$postId";
+                sparam2.ParameterName = "$driveId";
+                sparam3.ParameterName = "$identityId";
 
-                _selectCommand.Parameters.Add(_sparam1);
-                _selectCommand.Parameters.Add(_sparam2);
-                _selectCommand.Parameters.Add(_sparam3);
+                _selectCommand.Parameters.Add(sparam1);
+                _selectCommand.Parameters.Add(sparam2);
+                _selectCommand.Parameters.Add(sparam3);
 
-                _sparam1.Value = postId.ToByteArray();
-                _sparam2.Value = driveId.ToByteArray();
-                _sparam3.Value = _db._identityId.ToByteArray();
+                sparam1.Value = postId.ToByteArray();
+                sparam2.Value = driveId.ToByteArray();
+                sparam3.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(_selectCommand, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         int totalCount = 0;
                         int n = 0;
 
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             // Only return the first five reactions (?)
                             if (n < 5)
@@ -112,38 +95,38 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public int GetIdentityPostReactions(OdinId identity, Guid driveId, Guid postId)
+        public async Task<int> GetIdentityPostReactionsAsync(OdinId identity, Guid driveId, Guid postId)
         {
-            using (var _select2Command = _db.CreateCommand())
+            using (var select2Command = _db.CreateCommand())
             {
-                _select2Command.CommandText =
+                select2Command.CommandText =
                     $"SELECT COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
 
-                var _s2param1 = _select2Command.CreateParameter();
-                var _s2param2 = _select2Command.CreateParameter();
-                var _s2param3 = _select2Command.CreateParameter();
-                var _s2param4 = _select2Command.CreateParameter();
+                var s2param1 = select2Command.CreateParameter();
+                var s2param2 = select2Command.CreateParameter();
+                var s2param3 = select2Command.CreateParameter();
+                var s2param4 = select2Command.CreateParameter();
 
-                _s2param1.ParameterName = "$postId";
-                _s2param2.ParameterName = "$identity";
-                _s2param3.ParameterName = "$driveId";
-                _s2param4.ParameterName = "$identityId";
+                s2param1.ParameterName = "$postId";
+                s2param2.ParameterName = "$identity";
+                s2param3.ParameterName = "$driveId";
+                s2param4.ParameterName = "$identityId";
 
-                _select2Command.Parameters.Add(_s2param1);
-                _select2Command.Parameters.Add(_s2param2);
-                _select2Command.Parameters.Add(_s2param3);
-                _select2Command.Parameters.Add(_s2param4);
+                select2Command.Parameters.Add(s2param1);
+                select2Command.Parameters.Add(s2param2);
+                select2Command.Parameters.Add(s2param3);
+                select2Command.Parameters.Add(s2param4);
 
-                _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.DomainName;
-                _s2param3.Value = driveId.ToByteArray();
-                _s2param4.Value = _db._identityId.ToByteArray();
+                s2param1.Value = postId.ToByteArray();
+                s2param2.Value = identity.DomainName;
+                s2param3.Value = driveId.ToByteArray();
+                s2param4.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(select2Command, System.Data.CommandBehavior.Default))
                     {
-                        if (rdr.Read())
+                        if (await rdr.ReadAsync())
                             return rdr.GetInt32(0);
                         else
                             return 0;
@@ -160,40 +143,40 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public List<string> GetIdentityPostReactionDetails(OdinId identity, Guid driveId, Guid postId)
+        public async Task<List<string>> GetIdentityPostReactionDetailsAsync(OdinId identity, Guid driveId, Guid postId)
         {
-            using (var _select3Command = _db.CreateCommand())
+            using (var select3Command = _db.CreateCommand())
             {
-                _select3Command.CommandText =
+                select3Command.CommandText =
                     $"SELECT singleReaction as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
 
-                var _s3param1 = _select3Command.CreateParameter();
-                var _s3param2 = _select3Command.CreateParameter();
-                var _s3param3 = _select3Command.CreateParameter();
-                var _s3param4 = _select3Command.CreateParameter();
+                var s3param1 = select3Command.CreateParameter();
+                var s3param2 = select3Command.CreateParameter();
+                var s3param3 = select3Command.CreateParameter();
+                var s3param4 = select3Command.CreateParameter();
 
-                _s3param1.ParameterName = "$postId";
-                _s3param2.ParameterName = "$identity";
-                _s3param3.ParameterName = "$driveId";
-                _s3param4.ParameterName = "$identityId";
+                s3param1.ParameterName = "$postId";
+                s3param2.ParameterName = "$identity";
+                s3param3.ParameterName = "$driveId";
+                s3param4.ParameterName = "$identityId";
 
-                _select3Command.Parameters.Add(_s3param1);
-                _select3Command.Parameters.Add(_s3param2);
-                _select3Command.Parameters.Add(_s3param3);
-                _select3Command.Parameters.Add(_s3param4);
+                select3Command.Parameters.Add(s3param1);
+                select3Command.Parameters.Add(s3param2);
+                select3Command.Parameters.Add(s3param3);
+                select3Command.Parameters.Add(s3param4);
 
-                _s3param1.Value = postId.ToByteArray();
-                _s3param2.Value = identity.DomainName;
-                _s3param3.Value = driveId.ToByteArray();
-                _s3param4.Value = _db._identityId.ToByteArray();
+                s3param1.Value = postId.ToByteArray();
+                s3param2.Value = identity.DomainName;
+                s3param3.Value = driveId.ToByteArray();
+                s3param4.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(select3Command, System.Data.CommandBehavior.Default))
                     {
                         var rs = new List<string>();
 
-                        while (rdr.Read())
+                        while (await rdr.ReadAsync())
                         {
                             string s = rdr.GetString(0);
                             rs.Add(s);
@@ -206,32 +189,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public (List<string>, List<int>, int) GetPostReactionsWithDetails(Guid driveId, Guid postId)
+        public async Task<(List<string>, List<int>, int)> GetPostReactionsWithDetailsAsync(Guid driveId, Guid postId)
         {
-            using (var _select4Command = _db.CreateCommand())
+            using (var select4Command = _db.CreateCommand())
             {
-                _select4Command.CommandText =
+                select4Command.CommandText =
                     $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
-                var _s4param1 = _select4Command.CreateParameter();
-                var _s4param2 = _select4Command.CreateParameter();
-                var _s4param3 = _select4Command.CreateParameter();
+                var s4param1 = select4Command.CreateParameter();
+                var s4param2 = select4Command.CreateParameter();
+                var s4param3 = select4Command.CreateParameter();
 
-                _s4param1.ParameterName = "$postId";
-                _s4param2.ParameterName = "$driveId";
-                _s4param3.ParameterName = "$identityId";
+                s4param1.ParameterName = "$postId";
+                s4param2.ParameterName = "$driveId";
+                s4param3.ParameterName = "$identityId";
 
-                _select4Command.Parameters.Add(_s4param1);
-                _select4Command.Parameters.Add(_s4param2);
-                _select4Command.Parameters.Add(_s4param3);
+                select4Command.Parameters.Add(s4param1);
+                select4Command.Parameters.Add(s4param2);
+                select4Command.Parameters.Add(s4param3);
 
-                _s4param1.Value = postId.ToByteArray();
-                _s4param2.Value = driveId.ToByteArray();
-                _s4param3.Value = _db._identityId.ToByteArray();
+                s4param1.Value = postId.ToByteArray();
+                s4param2.Value = driveId.ToByteArray();
+                s4param3.Value = _db._identityId.ToByteArray();
 
                 using (var conn = _db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(select4Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         var iresult = new List<int>();
@@ -257,50 +240,52 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
 
         // Copied and modified from CRUD
-        public List<DriveReactionsRecord> PagingByRowid(IdentityDatabase db, int count, Int32? inCursor, out Int32? nextCursor, Guid driveId, Guid postIdFilter)
+        public async Task<(List<DriveReactionsRecord>, Int32? nextCursor)> PagingByRowidAsync(IdentityDatabase db, int count, Int32? inCursor, Guid driveId, Guid postIdFilter)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
                 inCursor = 0;
 
-            using (var _getPaging0Command = db.CreateCommand())
+            using (var paging0Command = db.CreateCommand())
             {
-                _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM driveReactions " +
+                paging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM driveReactions " +
                                              "WHERE identityId=$identityId AND driveId = $driveId AND postId = $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
 
-                var _getPaging0Param1 = _getPaging0Command.CreateParameter();
-                var _getPaging0Param2 = _getPaging0Command.CreateParameter();
-                var _getPaging0Param3 = _getPaging0Command.CreateParameter();
-                var _getPaging0Param4 = _getPaging0Command.CreateParameter();
-                var _getPaging0Param5 = _getPaging0Command.CreateParameter();
+                var getPaging0Param1 = paging0Command.CreateParameter();
+                var getPaging0Param2 = paging0Command.CreateParameter();
+                var getPaging0Param3 = paging0Command.CreateParameter();
+                var getPaging0Param4 = paging0Command.CreateParameter();
+                var getPaging0Param5 = paging0Command.CreateParameter();
 
-                _getPaging0Param1.ParameterName = "$rowid";
-                _getPaging0Param2.ParameterName = "$_count";
-                _getPaging0Param3.ParameterName = "$postId";
-                _getPaging0Param4.ParameterName = "$driveId";
-                _getPaging0Param5.ParameterName = "$identityId";
+                getPaging0Param1.ParameterName = "$rowid";
+                getPaging0Param2.ParameterName = "$_count";
+                getPaging0Param3.ParameterName = "$postId";
+                getPaging0Param4.ParameterName = "$driveId";
+                getPaging0Param5.ParameterName = "$identityId";
 
-                _getPaging0Command.Parameters.Add(_getPaging0Param1);
-                _getPaging0Command.Parameters.Add(_getPaging0Param2);
-                _getPaging0Command.Parameters.Add(_getPaging0Param3);
-                _getPaging0Command.Parameters.Add(_getPaging0Param4);
-                _getPaging0Command.Parameters.Add(_getPaging0Param5);
+                paging0Command.Parameters.Add(getPaging0Param1);
+                paging0Command.Parameters.Add(getPaging0Param2);
+                paging0Command.Parameters.Add(getPaging0Param3);
+                paging0Command.Parameters.Add(getPaging0Param4);
+                paging0Command.Parameters.Add(getPaging0Param5);
 
-                _getPaging0Param1.Value = inCursor;
-                _getPaging0Param2.Value = count + 1;
-                _getPaging0Param3.Value = postIdFilter.ToByteArray();
-                _getPaging0Param4.Value = driveId.ToByteArray();
-                _getPaging0Param5.Value = db._identityId.ToByteArray();
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count + 1;
+                getPaging0Param3.Value = postIdFilter.ToByteArray();
+                getPaging0Param4.Value = driveId.ToByteArray();
+                getPaging0Param5.Value = db._identityId.ToByteArray();
 
                 using (var conn = db.CreateDisposableConnection())
                 {
-                    using (var rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await conn.ExecuteReaderAsync(paging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<DriveReactionsRecord>();
+                        Int32? nextCursor;
+                        
                         int n = 0;
                         int rowid = 0;
-                        while ((n < count) && rdr.Read())
+                        while ((n < count) && await rdr.ReadAsync())
                         {
                             n++;
                             var item = new DriveReactionsRecord();
@@ -339,7 +324,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                             result.Add(item);
                         } // while
-                        if ((n > 0) && rdr.Read())
+                        if ((n > 0) && await rdr.ReadAsync())
                         {
                             nextCursor = rowid;
                         }
@@ -348,9 +333,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                             nextCursor = null;
                         }
 
-                        return result;
+                        return (result, nextCursor);
                     } // using
-                } // lock
+                }
             } // using
         }
     }

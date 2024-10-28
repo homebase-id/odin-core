@@ -194,7 +194,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var o = new ClientDriveNotification
                     {
-                        TargetDrive = (await driveManager.GetDrive(notification.File.DriveId, notification.db)).TargetDriveInfo,
+                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId, notification.db)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null
@@ -367,7 +367,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     if (d != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext);
+                        await peerInboxProcessor.ProcessInboxAsync(d.TargetDrive, odinContext);
                     }
                 }
                     break;
@@ -377,7 +377,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, request.BatchSize);
+                        await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, odinContext, request.BatchSize);
                     }
                 }
                     break;

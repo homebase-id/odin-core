@@ -31,9 +31,9 @@ public class PeerReactionSenderService(
         circleNetworkService, fileSystemResolver)
 {
     /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
+    public async Task AddReactionAsync(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         ApiResponse<HttpContent> response = null;
@@ -55,10 +55,10 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
+    public async Task<GetReactionsPerimeterResponse> GetReactionsAsync(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
         IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -82,10 +82,10 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
+    public async Task<GetReactionCountsResponse> GetReactionCountsAsync(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext,
         IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -108,10 +108,10 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext,
+    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext,
         IdentityDatabase db)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -134,9 +134,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
+    public async Task DeleteReactionAsync(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         try
         {
@@ -156,9 +156,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
+    public async Task DeleteAllReactionsAsync(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try

@@ -46,7 +46,7 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext,
+        protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext,
             bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
@@ -55,7 +55,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await CircleNetworkService.GetIcr(recipient, odinContext, overrideHack: true);
+            var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -71,11 +71,11 @@ namespace Odin.Services.Peer
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClientAsync(OdinId odinId,
             IOdinContext odinContext,
             FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, odinContext, false);
+            var token = await ResolveClientAccessTokenAsync(odinId, odinContext, false);
 
             if (token == null)
             {
@@ -92,7 +92,7 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
+        protected T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
@@ -105,7 +105,7 @@ namespace Odin.Services.Peer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
+            return OdinSystemSerializer.Deserialize<T>(json);
         }
 
         /// <summary>

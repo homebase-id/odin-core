@@ -24,7 +24,7 @@ public sealed class IcrKeyAvailableScheduler(
     private const int MinWaitTimeBetweenRuns = 10; //TODO: config
 
     
-    public async Task EnsureScheduled(
+    public async Task EnsureScheduledAsync(
         ClientAuthenticationToken token,
         IOdinContext odinContext,
         IcrKeyAvailableJobData.JobTokenType jobTokenType

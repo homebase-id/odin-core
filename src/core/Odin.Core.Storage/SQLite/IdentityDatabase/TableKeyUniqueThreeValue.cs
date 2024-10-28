@@ -5,9 +5,5 @@
         public TableKeyUniqueThreeValue(IdentityDatabase db, CacheHelper cache) : base(cache)
         {
         }
-
-        ~TableKeyUniqueThreeValue()
-        {
-        }
     }
 }

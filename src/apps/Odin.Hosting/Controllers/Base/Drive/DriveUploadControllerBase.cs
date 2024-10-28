@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUpload(WebOdinContext, db);
+            var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext, db);
             return status;
         }
 

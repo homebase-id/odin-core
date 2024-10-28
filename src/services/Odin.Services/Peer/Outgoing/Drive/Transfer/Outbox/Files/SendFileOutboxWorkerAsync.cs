@@ -117,7 +117,7 @@ public class SendFileOutboxWorkerAsync(
             Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-        var (metaDataStream, payloadStreams) = await PackageFileStreams(header, shouldSendPayload, odinContext, db, options.OverrideRemoteGlobalTransitId);
+        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, db, options.OverrideRemoteGlobalTransitId);
 
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);

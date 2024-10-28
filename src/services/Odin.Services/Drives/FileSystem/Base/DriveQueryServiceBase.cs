@@ -42,9 +42,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
         {
-            await AssertCanReadOrWriteToDrive(driveId, odinContext, db);
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
-            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo(db);
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
+            var (fileCount, bytes) = await queryManager.GetDriveSizeInfoAsync(db);
 
             return new DriveSizeInfo()
             {
@@ -57,16 +57,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             IdentityDatabase db)
         {
-            await AssertCanReadDrive(driveId, odinContext, db);
+            await AssertCanReadDriveAsync(driveId, odinContext, db);
 
             var o = options ?? QueryModifiedResultOptions.Default();
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModifiedCore(odinContext, GetFileSystemType(), qp, o, db);
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, o, odinContext, db);
+                    await queryManager.GetModifiedCoreAsync(odinContext, GetFileSystemType(), qp, o, db);
+                var headers = await CreateClientFileHeadersAsync(driveId, fileIdList, o, odinContext, db);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
@@ -86,7 +86,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IdentityDatabase db,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertCanReadDrive(driveId, odinContext, db);
+            await AssertCanReadDriveAsync(driveId, odinContext, db);
             return await GetBatchInternal(driveId, qp, options, odinContext, db, forceIncludeServerMetadata);
         }
 
@@ -95,12 +95,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             IdentityDatabase db,
             bool excludePreviewThumbnail = true)
         {
-            await AssertCanReadOrWriteToDrive(driveId, odinContext, db);
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext, db);
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByClientUniqueId(driveId, clientUniqueId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -114,7 +114,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     ExcludePreviewThumbnail = excludePreviewThumbnail
                 };
 
-                var headers = await CreateClientFileHeaders(driveId, [fileId.GetValueOrDefault()], options, odinContext, db);
+                var headers = await CreateClientFileHeadersAsync(driveId, [fileId.GetValueOrDefault()], options, odinContext, db);
                 return headers.SingleOrDefault();
             }
 
@@ -229,8 +229,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     ExcludePreviewThumbnail = false
                 };
 
-                var queryManager = await TryGetOrLoadQueryManager(drive!.Id, db);
-                var (_, fileIdList, _) = await queryManager.GetBatchCore(odinContext,
+                var queryManager = await TryGetOrLoadQueryManagerAsync(drive!.Id, db);
+                var (_, fileIdList, _) = await queryManager.GetBatchCoreAsync(odinContext,
                     GetFileSystemType(),
                     query.QueryParams,
                     options,
@@ -253,12 +253,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool excludePreviewThumbnail = true,
             bool includeTransferHistory = true)
         {
-            await AssertCanReadOrWriteToDrive(driveId, odinContext, db);
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext, db);
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByGlobalTransitId(driveId, globalTransitId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByGlobalTransitIdAsync(driveId, globalTransitId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -273,7 +273,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     IncludeTransferHistory = includeTransferHistory
                 };
 
-                var headers = await CreateClientFileHeaders(driveId, [fileId.GetValueOrDefault()], options, odinContext, db,
+                var headers = await CreateClientFileHeadersAsync(driveId, [fileId.GetValueOrDefault()], options, odinContext, db,
                     forceIncludeServerMetadata);
                 return headers.SingleOrDefault();
             }
@@ -285,12 +285,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
-            await AssertCanReadOrWriteToDrive(driveId, odinContext, db);
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext, db);
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
             if (queryManager != null)
             {
-                var fileId = await queryManager.GetByGlobalTransitId(driveId, file.GlobalTransitId, GetFileSystemType(), db);
+                var fileId = await queryManager.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType(), db);
 
                 if (null == fileId)
                 {
@@ -307,7 +307,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
+        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeadersAsync(Guid driveId,
             IEnumerable<Guid> fileIdList, ResultOptions options, IOdinContext odinContext, IdentityDatabase db,
             bool forceIncludeServerMetadata = false)
         {
@@ -402,7 +402,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        var drive = await DriveManager.GetDrive(file.DriveId, db);
+                        var drive = await DriveManager.GetDriveAsync(file.DriveId, db);
 
                         // Allow anon will let the user get the file so only log
                         // if this is not the case as it means we have a problem
@@ -428,9 +428,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results;
         }
 
-        private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, IdentityDatabase db)
+        private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManagerAsync(Guid driveId, IdentityDatabase db)
         {
-            return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, db);
+            return await _driveDatabaseHost.TryGetOrLoadQueryManagerAsync(driveId, db);
         }
 
         /// <summary>
@@ -441,11 +441,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             IdentityDatabase db, bool forceIncludeServerMetadata = false)
         {
-            var queryManager = await TryGetOrLoadQueryManager(driveId, db);
+            var queryManager = await TryGetOrLoadQueryManagerAsync(driveId, db);
             if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(odinContext,
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCoreAsync(odinContext,
                     GetFileSystemType(),
                     qp,
                     options,
@@ -453,7 +453,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 _logger.LogInformation("Found {fc} files in db", fileIdList.Count());
 
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, odinContext, db, forceIncludeServerMetadata);
+                var headers = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, db, forceIncludeServerMetadata);
 
                 _logger.LogInformation("Loaded header count {fc}", headers.Count());
 

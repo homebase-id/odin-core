@@ -57,7 +57,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 
         public OwnerAuthTokenContext GetTokenContext()
         {
-            var t = this._ownerApi.GetOwnerAuthContext(_identity.OdinId).ConfigureAwait(false).GetAwaiter().GetResult();
+            var t = this._ownerApi.GetOwnerAuthContext(_identity.OdinId);
             return t;
         }
 

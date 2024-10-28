@@ -31,7 +31,7 @@ public class CircleNetworkVerificationService(
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
-    public async Task<IcrVerificationResult> VerifyConnection(OdinId recipient, IOdinContext odinContext)
+    public async Task<IcrVerificationResult> VerifyConnectionAsync(OdinId recipient, IOdinContext odinContext)
     {
         // so this is a curious issue - 
         // when the odinContext.Caller and the recipient param are the same
@@ -39,7 +39,7 @@ public class CircleNetworkVerificationService(
         // because the ICR is invalid but the ICR's status will show as connected
         // 
 
-        var icr = await CircleNetworkService.GetIcr(recipient, odinContext, overrideHack: true);
+        var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
 
         if (odinContext.Caller.SecurityLevel == SecurityGroupType.Authenticated)
         {
@@ -76,7 +76,7 @@ public class CircleNetworkVerificationService(
         try
         {
             var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
-            var clientAuthToken = await ResolveClientAccessToken(recipient, transitReadContext, failIfNotConnected: false);
+            var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, transitReadContext, failIfNotConnected: false);
 
             if (null == clientAuthToken)
             {
@@ -146,11 +146,11 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHash(OdinId odinId, IOdinContext odinContext)
+    public async Task<bool> SynchronizeVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var icr = await CircleNetworkService.GetIcr(odinId, odinContext);
+        var icr = await CircleNetworkService.GetIcrAsync(odinId, odinContext);
 
         if (icr.Status == ConnectionStatus.Connected)
         {
@@ -159,27 +159,27 @@ public class CircleNetworkVerificationService(
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var success = await UpdateRemoteIdentityVerificationCode(targetIdentity, randomCode, odinContext);
+            var success = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, odinContext);
 
             if (success)
             {
-                return await CircleNetworkService.UpdateVerificationHash(targetIdentity, randomCode, odinContext);
+                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, odinContext);
             }
         }
 
         return false;
     }
 
-    public async Task SynchronizeVerificationHashFromRemote(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
+    public async Task SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHash(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
+        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCode(OdinId recipient, Guid randomCode, IOdinContext odinContext)
+    private async Task<bool> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode, IOdinContext odinContext)
     {
         var request = new UpdateVerificationHashRequest()
         {
@@ -189,7 +189,7 @@ public class CircleNetworkVerificationService(
         bool success = false;
         try
         {
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
+            var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
 
             ApiResponse<HttpContent> response;
             await TryRetry.WithDelayAsync(

@@ -23,18 +23,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleNetworkVerificationService verificationService,
         PublicPrivateKeyService publicPrivateKeyService)
     {
-        public async Task Upgrade(IOdinContext odinContext, CancellationToken cancellationToken)
+        public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             logger.LogDebug("Preparing Introductions Release for Identity [{identity}]", odinContext.Tenant);
-            await PrepareIntroductionsRelease(odinContext, cancellationToken);
+            await PrepareIntroductionsReleaseAsync(odinContext, cancellationToken);
 
-            await AutoFixCircleGrants(odinContext,cancellationToken);
+            await AutoFixCircleGrantsAsync(odinContext,cancellationToken);
         }
 
-        public async Task AutoFixCircleGrants(IOdinContext odinContext, CancellationToken cancellationToken)
+        public async Task AutoFixCircleGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
@@ -43,10 +43,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    await FixIdentity(identity, odinContext);
+                    await FixIdentityAsync(identity, odinContext);
                 }
 
-                var allApps = await appRegistrationService.GetRegisteredApps(odinContext);
+                var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
                 foreach (var app in allApps)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -61,14 +61,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         /// <summary>
         /// Handles the changes to production data required for the introductions feature
         /// </summary>
-        private async Task PrepareIntroductionsRelease(IOdinContext odinContext, CancellationToken cancellationToken)
+        private async Task PrepareIntroductionsReleaseAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
 
             //
             // Clean up old circle (from development)
             //
-            await DeleteOldCircles(odinContext);
+            await DeleteOldCirclesAsync(odinContext);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -76,7 +76,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // Generate new Online Icr Encrypted ECC Key
             //
             logger.LogDebug("Creating new Online Icr Encrypted ECC Key");
-            await publicPrivateKeyService.CreateInitialKeys(odinContext);
+            await publicPrivateKeyService.CreateInitialKeysAsync(odinContext);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -84,7 +84,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // Create new circles, rename existing ones
             //
             logger.LogDebug("Creating new circles; renaming existing ones");
-            await circleDefinitionService.EnsureSystemCirclesExist();
+            await circleDefinitionService.EnsureSystemCirclesExistAsync();
 
             cancellationToken.ThrowIfCancellationRequested();
             
@@ -92,7 +92,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // This will reapply the grants since we added a new permission
             //
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
-            await circleNetworkService.UpdateCircleDefinition(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
+            await circleNetworkService.UpdateCircleDefinitionAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
 
             cancellationToken.ThrowIfCancellationRequested();
             
@@ -108,7 +108,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             // Sync verification hash's across all connections
             //
             logger.LogInformation("Syncing verification hashes");
-            var allIdentities = await circleNetworkService.GetConnectedIdentities(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
             // await db.CreateCommitUnitOfWorkAsync(async () =>
@@ -122,7 +122,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                     //
                     if (identity.VerificationHash?.Length == 0)
                     {
-                        var success = await verificationService.SynchronizeVerificationHash(identity.OdinId, odinContext);
+                        var success = await verificationService.SynchronizeVerificationHashAsync(identity.OdinId, odinContext);
                         logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
                     }
                 }
@@ -130,12 +130,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //);
         }
 
-        private async Task DeleteOldCircles(IOdinContext odinContext)
+        private async Task DeleteOldCirclesAsync(IOdinContext odinContext)
         {
             try
             {
                 Guid confirmedCircleGuid = Guid.Parse("ba4f80d2eac44b31afc1a3dfe7043411");
-                var definition = circleDefinitionService.GetCircle(confirmedCircleGuid);
+                var definition = await circleDefinitionService.GetCircleAsync(confirmedCircleGuid);
                 if (definition == null)
                 {
                     return;
@@ -143,14 +143,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
                 logger.LogDebug("Deleting obsolete circle {name}", definition.Name);
 
-                var members = await circleNetworkService.GetCircleMembers(confirmedCircleGuid, odinContext);
+                var members = await circleNetworkService.GetCircleMembersAsync(confirmedCircleGuid, odinContext);
 
                 foreach (var member in members)
                 {
-                    await circleNetworkService.RevokeCircleAccess(confirmedCircleGuid, member, odinContext);
+                    await circleNetworkService.RevokeCircleAccessAsync(confirmedCircleGuid, member, odinContext);
                 }
 
-                await circleNetworkService.DeleteCircleDefinition(confirmedCircleGuid, odinContext);
+                await circleNetworkService.DeleteCircleDefinitionAsync(confirmedCircleGuid, odinContext);
             }
             catch (Exception e)
             {
@@ -160,14 +160,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
         private async Task UpdateApp(AppRegistrationRequest request, IOdinContext odinContext)
         {
-            await appRegistrationService.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest
+            await appRegistrationService.UpdateAuthorizedCirclesAsync(new UpdateAuthorizedCirclesRequest
             {
                 AppId = request.AppId,
                 AuthorizedCircles = request.AuthorizedCircles,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant
             }, odinContext);
 
-            await appRegistrationService.UpdateAppPermissions(new UpdateAppPermissionsRequest
+            await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
             {
                 AppId = request.AppId,
                 PermissionSet = request.PermissionSet,
@@ -175,17 +175,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             }, odinContext);
         }
 
-        private async Task FixIdentity(IdentityConnectionRegistration icr, IOdinContext odinContext)
+        private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {
                 var circleId = circleGrant.Value.CircleId;
 
-                var def = circleDefinitionService.GetCircle(circleId);
+                var def = await circleDefinitionService.GetCircleAsync(circleId);
                 logger.LogDebug("Fixing Identity {odinId} in {circle}", icr.OdinId, def.Name);
 
-                await circleNetworkService.RevokeCircleAccess(circleId, icr.OdinId, odinContext);
-                await circleNetworkService.GrantCircle(circleId, icr.OdinId, odinContext);
+                await circleNetworkService.RevokeCircleAccessAsync(circleId, icr.OdinId, odinContext);
+                await circleNetworkService.GrantCircleAsync(circleId, icr.OdinId, odinContext);
             }
         }
     }

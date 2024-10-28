@@ -52,7 +52,6 @@ public abstract class PayloadStreamWriterBase
         instructionSet.Manifest?.ResetPayloadUiDs();
 
         this._package = new PayloadOnlyPackage(file, instructionSet!);
-        await Task.CompletedTask;
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
@@ -197,8 +196,6 @@ public abstract class PayloadStreamWriterBase
         {
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
         }
-
-        await Task.CompletedTask;
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)

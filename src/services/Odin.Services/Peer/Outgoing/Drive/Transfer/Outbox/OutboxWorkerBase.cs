@@ -95,7 +95,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
         }
     }
 
-    protected async Task<(StreamPart metadataStream, List<StreamPart> payloadStreams)> PackageFileStreams(
+    protected async Task<(StreamPart metadataStream, List<StreamPart> payloadStreams)> PackageFileStreamsAsync(
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
@@ -144,7 +144,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, db);
+                var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext, db);
                 var payloadStream = p.Stream;
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -153,7 +153,7 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var (thumbStream, thumbHeader) =
-                        await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
                             odinContext, db);
 
                     var thumbnailKey =

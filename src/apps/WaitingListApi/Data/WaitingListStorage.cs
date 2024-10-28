@@ -27,7 +27,7 @@ public class WaitingListStorage : IDisposable
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new WaitingListDatabase(finalPath);
-        _db.CreateDatabase(false);
+        _db.CreateDatabaseAsync(false).Wait(); // SEB:NOTE Can't be bothered. This is a temporary class.
     }
 
     public void Insert(NotificationInfo info)

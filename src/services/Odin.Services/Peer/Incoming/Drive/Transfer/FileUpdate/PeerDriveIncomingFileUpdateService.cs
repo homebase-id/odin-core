@@ -132,7 +132,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await fileSystem.Storage.AssertCanWriteToDrive(_tempFile.DriveId, odinContext, db);
 
-            var directWriteSuccess = await TryDirectWriteFile(fileMetadata, odinContext, db);
+            var directWriteSuccess = await TryDirectWriteFileAsync(fileMetadata, odinContext, db);
 
             if (directWriteSuccess)
             {
@@ -140,10 +140,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             //S1220
-            return await RouteToInbox(odinContext, db);
+            return await RouteToInboxAsync(odinContext, db);
         }
 
-        private async Task<bool> TryDirectWriteFile(FileMetadata metadata, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext, IdentityDatabase db)
         {
             await fileSystem.Storage.AssertCanWriteToDrive(_tempFile.DriveId, odinContext, db);
 
@@ -162,7 +162,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, db);
+                await updateWriter.UpdateFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, db);
                 return true;
             }
 
@@ -176,7 +176,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 if (hasStorageKey)
                 {
                     //S1205
-                    await updateWriter.UpdateFile(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, db);
+                    await updateWriter.UpdateFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, db);
                     return true;
                 }
 
@@ -200,7 +200,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IOdinContext odinContext, IdentityDatabase db)
+        private async Task<PeerResponseCode> RouteToInboxAsync(IOdinContext odinContext, IdentityDatabase db)
         {
             var item = new TransferInboxItem
             {
@@ -223,10 +223,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 SharedSecretEncryptedKeyHeader = null
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.AddAsync(item);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = driveManager.GetDrive(item.DriveId, db).Result.TargetDriveInfo,
+                TargetDrive = (await driveManager.GetDriveAsync(item.DriveId, db)).TargetDriveInfo,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

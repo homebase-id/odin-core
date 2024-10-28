@@ -34,7 +34,7 @@ public class VersionUpgradeJob(
 
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
             var versionUpgradeService = scope.Resolve<VersionUpgradeService>();
-            await versionUpgradeService.Upgrade(Data, cancellationToken);
+            await versionUpgradeService.UpgradeAsync(Data, cancellationToken);
         }
         catch (Exception e)
         {

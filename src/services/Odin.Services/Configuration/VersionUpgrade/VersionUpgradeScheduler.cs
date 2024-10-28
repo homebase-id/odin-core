@@ -19,11 +19,11 @@ public sealed class VersionUpgradeScheduler(
 {
     private readonly IJobManager _jobManager = jobManager;
 
-    public async Task EnsureScheduled(
+    public async Task EnsureScheduledAsync(
         ClientAuthenticationToken token,
         IOdinContext odinContext)
     {
-        if (!odinContext.Caller.HasMasterKey || !RequiresUpgrade())
+        if (!odinContext.Caller.HasMasterKey || await RequiresUpgradeAsync() == false)
         {
             return;
         }
@@ -55,9 +55,9 @@ public sealed class VersionUpgradeScheduler(
         });
     }
 
-    public bool RequiresUpgrade()
+    public async Task<bool> RequiresUpgradeAsync()
     {
-        var currentVersion = configService.GetVersionInfo().DataVersionNumber;
+        var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
         
         logger.LogInformation("Checking Requires Upgrade.  current Version: {cv}, release version: {rv}",
             currentVersion, ReleaseVersionInfo.DataVersionNumber);

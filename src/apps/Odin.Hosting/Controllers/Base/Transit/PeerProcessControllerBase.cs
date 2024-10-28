@@ -7,15 +7,13 @@ using Odin.Services.Util;
 namespace Odin.Hosting.Controllers.Base.Transit
 {
     public abstract class PeerProcessControllerBase(
-        PeerInboxProcessor peerInboxProcessor,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+        PeerInboxProcessor peerInboxProcessor) : OdinControllerBase
     {
         [HttpPost("process")]
         public async Task<IActionResult> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await peerInboxProcessor.ProcessInbox(request.TargetDrive, WebOdinContext, request.BatchSize);
+            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, request.BatchSize);
             return new JsonResult(result);
         }
     }

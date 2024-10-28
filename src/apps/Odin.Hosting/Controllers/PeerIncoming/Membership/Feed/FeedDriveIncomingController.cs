@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         {
             var perimeterService = GetPerimeterService();
             var db = _tenantSystemStorage.IdentityDatabase;
-            return await perimeterService.AcceptUpdatedFileMetadata(payload, WebOdinContext, db);
+            return await perimeterService.AcceptUpdatedFileMetadataAsync(payload, WebOdinContext, db);
         }
 
         [HttpPost("delete")]
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         {
             var perimeterService = GetPerimeterService();
             var db = _tenantSystemStorage.IdentityDatabase;
-            return await perimeterService.Delete(payload, WebOdinContext, db);
+            return await perimeterService.DeleteAsync(payload, WebOdinContext, db);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()

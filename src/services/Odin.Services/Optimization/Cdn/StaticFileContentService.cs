@@ -62,7 +62,7 @@ public class StaticFileContentService
         _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
     }
 
-    public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
+    public async Task<StaticFilePublishResult> PublishAsync(string filename, StaticFileConfiguration config,
         List<QueryParamSection> sections, IOdinContext odinContext)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
@@ -74,7 +74,7 @@ public class StaticFileContentService
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
-        string targetFolder = await EnsurePath();
+        string targetFolder = EnsurePath();
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -91,7 +91,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveManager.GetDriveIdByAlias(qp.TargetDrive, db, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAliasAsync(qp.TargetDrive, db, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {
@@ -130,7 +130,7 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null,odinContext, db);
+                        var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext, db);
                         try
                         {
                             payloads.Add(new PayloadStaticFileResponse()
@@ -178,17 +178,17 @@ public class StaticFileContentService
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
-        _staticFileConfigStorage.Upsert(db, GetConfigKey(filename), config);
+        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
 
         return result;
     }
 
-    public async Task PublishProfileImage(string image64, string contentType)
+    public async Task PublishProfileImageAsync(string image64, string contentType)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
         string filename = StaticFileConstants.ProfileImageFileName;
-        string targetFolder = await EnsurePath();
+        string targetFolder = EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         var imageBytes = Convert.FromBase64String(image64);
@@ -201,17 +201,15 @@ public class StaticFileContentService
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        _staticFileConfigStorage.Upsert(db, GetConfigKey(filename), config);
-
-        await Task.CompletedTask;
+        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
     }
 
-    public async Task PublishProfileCard(string json)
+    public async Task PublishProfileCardAsync(string json)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
         string filename = StaticFileConstants.PublicProfileCardFileName;
-        string targetFolder = await EnsurePath();
+        string targetFolder = EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         await _driveFileReaderWriter.WriteString(finalTargetPath, json);
@@ -224,9 +222,7 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        _staticFileConfigStorage.Upsert(db, GetConfigKey(filename), config);
-
-        await Task.CompletedTask;
+        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
     }
 
     private GuidId GetConfigKey(string filename)
@@ -234,11 +230,11 @@ public class StaticFileContentService
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
-    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename,
+    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStreamAsync(string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(db, GetConfigKey(filename));
+        var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(db, GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 
         if (config == null || !File.Exists(targetFile))
@@ -259,10 +255,10 @@ public class StaticFileContentService
         return (config, fileExists: true, fileStream);
     }
 
-    private async Task<string> EnsurePath()
+    private string EnsurePath()
     {
         string targetFolder = _tenantContext.StorageConfig.StaticFileStoragePath;
-        await _driveFileReaderWriter.CreateDirectory(targetFolder);
+        _driveFileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
 

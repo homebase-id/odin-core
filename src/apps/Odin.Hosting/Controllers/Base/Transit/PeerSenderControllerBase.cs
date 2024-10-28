@@ -87,7 +87,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext, db);
+            var uploadResult = await fileSystemWriter.FinalizeUploadAsync(WebOdinContext, db);
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information

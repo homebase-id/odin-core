@@ -36,11 +36,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         DriveManager driveManager,
         ILogger<FeedDistributionPerimeterService> logger)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
             IdentityDatabase db)
         {
             logger.LogDebug("AcceptUpdatedFileMetadata called");
-            await followerService.AssertTenantFollowsTheCaller(odinContext);
+            await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
 
             var sender = odinContext.GetCallerOdinIdOrFail();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -52,14 +52,14 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             {
                 if (request.FileMetadata.IsEncrypted)
                 {
-                    return await RouteFeedRequestToInbox(request, odinContext, db);
+                    return await RouteFeedRequestToInboxAsync(request, odinContext, db);
                 }
             }
 
             logger.LogDebug("Looking up drive {d}", request.FileId.TargetDrive);
-            var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, db);
+            var driveId2 = await driveManager.GetDriveIdByAliasAsync(request.FileId.TargetDrive, db);
             logger.LogDebug("Found Drive by alias up driveid: {d}", driveId2.GetValueOrDefault());
-            var drive = await driveManager.GetDrive(driveId2.GetValueOrDefault(), db);
+            var drive = await driveManager.GetDriveAsync(driveId2.GetValueOrDefault(), db);
             logger.LogDebug("Found storage drive: {d} (used drive id: {did})", drive.Name, driveId2.GetValueOrDefault());
 
             Log.Debug(
@@ -75,7 +75,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
                 }
 
-                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, db);
+                var fileId = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext, db);
 
                 if (null == fileId)
                 {
@@ -141,12 +141,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<PeerTransferResponse> DeleteAsync(DeleteFeedFileMetadataRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
-            await followerService.AssertTenantFollowsTheCaller(odinContext);
+            await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, db);
+                var fileId = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext, db);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -168,7 +168,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         /// <summary>
         /// Looks up a file by a global transit identifier or uniqueId as a fallback
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, Guid? uid,
+        private async Task<InternalDriveFileId?> ResolveInternalFileAsync(GlobalTransitIdFileIdentifier file, Guid? uid,
             IOdinContext odinContext,
             IdentityDatabase db)
         {
@@ -184,7 +184,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     Log.Debug("Seeking the global transit id: {gtid} (as hex x'{hex}')", file.GlobalTransitId,
                         Convert.ToHexString(file.GlobalTransitId.ToByteArray()));
-                    var allDrives = await driveManager.GetDrives(PageOptions.All, odinContext, db);
+                    var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext, db);
                     var dump = await fs.Query.DumpGlobalTransitId(allDrives.Results.ToList(), file.GlobalTransitId, odinContext, db);
 
                     foreach (var result in dump.Results)
@@ -211,7 +211,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     {
                         Log.Debug("Seeking the uniqueId id: {uid} (as hex x'{hex}')", uid.GetValueOrDefault(),
                             Convert.ToHexString(uid.GetValueOrDefault().ToByteArray()));
-                        var allDrives = await driveManager.GetDrives(PageOptions.All, odinContext, db);
+                        var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext, db);
                         var dump = await fs.Query.DumpUniqueId(allDrives.Results.ToList(), uid.GetValueOrDefault(), odinContext, db);
 
                         foreach (var result in dump.Results)
@@ -268,7 +268,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             return fileId;
         }
 
-        private async Task<PeerTransferResponse> RouteFeedRequestToInbox(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
+        private async Task<PeerTransferResponse> RouteFeedRequestToInboxAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
             IdentityDatabase db)
         {
             try
@@ -313,7 +313,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     EncryptedFeedPayload = request.EncryptedPayload
                 };
 
-                await inboxBoxStorage.Add(item);
+                await inboxBoxStorage.AddAsync(item);
 
                 await mediator.Publish(new InboxItemReceivedNotification()
                 {

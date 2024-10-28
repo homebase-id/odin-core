@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("profileimage")]
         public async Task<IActionResult> PublishPublicProfileImage([FromBody] PublishPublicProfileImageRequest request)
         {
-            await _staticFileContentService.PublishProfileImage(request.Image64, request.ContentType);
+            await _staticFileContentService.PublishProfileImageAsync(request.Image64, request.ContentType);
             return NoContent();
         }
 
@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("profilecard")]
         public async Task<IActionResult> PublishPublicProfileCard([FromBody] PublishPublicProfileCardRequest request)
         {
-            await _staticFileContentService.PublishProfileCard(request.ProfileCardJson);
+            await _staticFileContentService.PublishProfileCardAsync(request.ProfileCardJson);
             return NoContent();
         }
     }

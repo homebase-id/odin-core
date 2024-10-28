@@ -47,7 +47,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                var isValid = await _authService.IsValidToken(result.Id);
+                var isValid = await _authService.IsValidTokenAsync(result.Id);
                 return new JsonResult(isValid);
             }
 
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
             var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
-            var (result, sharedSecret) = await _authService.Authenticate(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
+            var (result, sharedSecret) = await _authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
@@ -67,32 +67,30 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("logout")]
-        public Task<JsonResult> ExpireCookieBasedToken()
+        public async Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
-                var db = _tenantSystemStorage.IdentityDatabase;
-                _authService.ExpireToken(result.Id);
+                await _authService.ExpireTokenAsync(result.Id);
             }
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
-            return Task.FromResult(new JsonResult(true));
+            return new JsonResult(true);
         }
 
         [HttpPost("extend")]
         public async Task<NoResultResponse> Extend(Guid token)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _authService.ExtendTokenLife(token, 100);
+            await _authService.ExtendTokenLifeAsync(token, 100);
             return new NoResultResponse(true);
         }
 
         [HttpPost("expire")]
-        public NoResultResponse Expire(Guid token)
+        public async Task<NoResultResponse> Expire(Guid token)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            _authService.ExpireToken(token);
+            await _authService.ExpireTokenAsync(token);
             return new NoResultResponse(true);
         }
 
@@ -100,7 +98,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<bool> IsValid(Guid token)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var isValid = await _authService.IsValidToken(token);
+            var isValid = await _authService.IsValidTokenAsync(token);
             return isValid;
         }
 
@@ -108,7 +106,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _authService.GenerateAuthenticationNonce();
+            var result = await _authService.GenerateAuthenticationNonceAsync();
             return result;
         }
 
@@ -116,7 +114,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _ss.SetNewPassword(reply, db);
+            await _ss.SetNewPasswordAsync(reply, db);
             return new NoResultResponse(true);
         }
 
@@ -126,7 +124,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             try
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext, db);
+                await _ss.ResetPasswordUsingRecoveryKeyAsync(reply, WebOdinContext, db);
             }
             catch (BIP39Exception e)
             {
@@ -141,14 +139,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<bool> IsMasterPasswordSet()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            return await _ss.IsMasterPasswordSet(db);
+            return await _ss.IsMasterPasswordSetAsync(db);
         }
 
         [HttpGet("getsalts")]
         public async Task<NonceData> GenerateSalts()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var salts = await _ss.GenerateNewSalts(db);
+            var salts = await _ss.GenerateNewSaltsAsync(db);
             return salts;
         }
 

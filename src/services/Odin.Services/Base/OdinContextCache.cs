@@ -22,7 +22,7 @@ public class OdinContextCache
         _dotYouContextCache = new CachingService();
     }
 
-    public async Task<IOdinContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<IOdinContext>> dotYouContextFactory)
+    public async Task<IOdinContext> GetOrAddContextAsync(ClientAuthenticationToken token, Func<Task<IOdinContext>> dotYouContextFactory)
     {
         var key = token.AsKey().ToString().ToLower();
         var policy = new MemoryCacheEntryOptions()

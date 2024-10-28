@@ -38,14 +38,14 @@ public class PeerDriveQueryService(
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
 {
-    public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
+    public async Task<QueryModifiedResult> GetModifiedAsync(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         try
         {
-            var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+            var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
             ApiResponse<QueryModifiedResponse> queryModifiedResponse = null;
 
             await TryRetry.WithDelayAsync(
@@ -54,7 +54,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryModifiedResponse = await httpClient.QueryModified(request); });
 
-            await HandleInvalidResponse(odinId, queryModifiedResponse, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, queryModifiedResponse, odinContext, db);
 
             var response = queryModifiedResponse.Content;
 
@@ -72,13 +72,13 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<QueryBatchCollectionResponse> GetBatchCollection(OdinId odinId, QueryBatchCollectionRequest request,
+    public async Task<QueryBatchCollectionResponse> GetBatchCollectionAsync(OdinId odinId, QueryBatchCollectionRequest request,
         FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (_, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
         try
         {
             ApiResponse<QueryBatchCollectionResponse> queryBatchResponse = null;
@@ -89,7 +89,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatchCollection(request); });
 
-            await HandleInvalidResponse(odinId, queryBatchResponse, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext, db);
 
             var batch = queryBatchResponse.Content;
             return batch;
@@ -101,11 +101,11 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
+    public async Task<QueryBatchResult> GetBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
 
         try
         {
@@ -117,7 +117,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
 
-            await HandleInvalidResponse(odinId, queryBatchResponse, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext, db);
 
             var batch = queryBatchResponse.Content;
             return new QueryBatchResult()
@@ -135,13 +135,13 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file,
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderAsync(OdinId odinId, ExternalFileIdentifier file,
         FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
 
         try
         {
@@ -157,7 +157,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, response, odinContext, db);
 
             var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
@@ -169,7 +169,7 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStream(
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStreamAsync(
         OdinId odinId,
         ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext,
         IdentityDatabase db)
@@ -177,7 +177,7 @@ public class PeerDriveQueryService(
         var permissionContext = odinContext.PermissionsContext;
         permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -190,7 +190,7 @@ public class PeerDriveQueryService(
                     response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk });
                 });
 
-            return await HandlePayloadResponse(odinId, icr, key, response, odinContext, db);
+            return await HandlePayloadResponseAsync(odinId, icr, key, response, odinContext, db);
         }
         catch (TryRetryException t)
         {
@@ -204,13 +204,13 @@ public class PeerDriveQueryService(
         bool payloadIsEncrypted,
         string decryptedContentType,
         UnixTimeUtc? lastModified,
-        Stream thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey,
+        Stream thumbnail)> GetThumbnailAsync(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey,
         FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -229,7 +229,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
-            return await HandleThumbnailResponse(odinId, icr, response, odinContext, db);
+            return await HandleThumbnailResponseAsync(odinId, icr, response, odinContext, db);
         }
         catch (TryRetryException t)
         {
@@ -238,12 +238,12 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType,
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByTypeAsync(OdinId odinId, Guid driveType, FileSystemType fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (_, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
 
         try
         {
@@ -265,7 +265,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, response, odinContext, db);
             return response.Content;
         }
         catch (TryRetryException t)
@@ -275,12 +275,12 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file,
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitIdAsync(OdinId odinId, GlobalTransitIdFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
 
         try
         {
@@ -296,7 +296,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, response, odinContext, db);
 
             var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
@@ -309,13 +309,13 @@ public class PeerDriveQueryService(
     }
 
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
-        GetPayloadByGlobalTransitId(OdinId odinId,
+        GetPayloadByGlobalTransitIdAsync(OdinId odinId,
             GlobalTransitIdFileIdentifier file, string key,
             FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -333,7 +333,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
-            return await HandlePayloadResponse(odinId, icr, key, response, odinContext, db);
+            return await HandlePayloadResponseAsync(odinId, icr, key, response, odinContext, db);
         }
         catch (TryRetryException t)
         {
@@ -348,12 +348,12 @@ public class PeerDriveQueryService(
             string decryptedContentType,
             UnixTimeUtc? lastModified,
             Stream thumbnail)>
-        GetThumbnailByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
+        GetThumbnailByGlobalTransitIdAsync(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
             int width, int height, bool directMatchOnly, FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext, db);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -373,7 +373,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
-            return await HandleThumbnailResponse(odinId, icr, response, odinContext, db);
+            return await HandleThumbnailResponseAsync(odinId, icr, response, odinContext, db);
         }
         catch (TryRetryException t)
         {
@@ -382,12 +382,12 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<RedactedOdinContext> GetRemoteDotYouContext(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<RedactedOdinContext> GetRemoteDotYouContextAsync(OdinId odinId, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
         try
         {
-            var (_, httpClient) = await CreateClient(odinId, null, odinContext, db);
+            var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext, db);
 
             ApiResponse<RedactedOdinContext> response = null;
             await TryRetry.WithDelayAsync(
@@ -396,7 +396,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { response = await httpClient.GetRemoteDotYouContext(); });
 
-            await HandleInvalidResponse(odinId, response, odinContext, db);
+            await HandleInvalidResponseAsync(odinId, response, odinContext, db);
 
             return response.Content;
         }
@@ -407,7 +407,7 @@ public class PeerDriveQueryService(
         }
     }
 
-    private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClient(OdinId odinId,
+    private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClientAsync(OdinId odinId,
         FileSystemType? fileSystemType,
         IOdinContext odinContext, IdentityDatabase db)
     {
@@ -417,13 +417,13 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-        var icr = await circleNetworkService.GetIcr(odinId, odinContext, overrideHack: true);
+        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true);
 
         // there's a chance the icr.EncryptedClientAccessToken has not yet been upgraded so try to upgrade
         if (icr.EncryptedClientAccessToken == null)
         {
-            await circleNetworkService.UpgradeTokenEncryptionIfNeeded(icr, odinContext);
-            icr = await circleNetworkService.GetIcr(odinId, odinContext, overrideHack: true);
+            await circleNetworkService.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+            icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true);
         }
 
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
@@ -486,7 +486,7 @@ public class PeerDriveQueryService(
         return newEncryptedKeyHeader;
     }
 
-    private async Task HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response, IOdinContext odinContext, IdentityDatabase db)
+    private async Task HandleInvalidResponseAsync<T>(OdinId odinId, ApiResponse<T> response, IOdinContext odinContext, IdentityDatabase db)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
@@ -495,7 +495,7 @@ public class PeerDriveQueryService(
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    await circleNetworkService.RevokeConnection(odinId, odinContext);
+                    await circleNetworkService.RevokeConnectionAsync(odinId, odinContext);
                 }
             }
 
@@ -519,7 +519,7 @@ public class PeerDriveQueryService(
             string decryptedContentType,
             UnixTimeUtc? lastModified,
             Stream thumbnail)>
-        HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response,
+        HandleThumbnailResponseAsync(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response,
             IOdinContext odinContext, IdentityDatabase db)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -527,7 +527,7 @@ public class PeerDriveQueryService(
             return (null, default, null, null, Stream.Null);
         }
 
-        await HandleInvalidResponse(odinId, response, odinContext, db);
+        await HandleInvalidResponseAsync(odinId, response, odinContext, db);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -557,7 +557,7 @@ public class PeerDriveQueryService(
     }
 
 
-    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> HandlePayloadResponse(
+    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> HandlePayloadResponseAsync(
         OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext,
         IdentityDatabase db)
     {
@@ -568,7 +568,7 @@ public class PeerDriveQueryService(
             return (null, default, null);
         }
 
-        await HandleInvalidResponse(odinId, response, odinContext, db);
+        await HandleInvalidResponseAsync(odinId, response, odinContext, db);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());

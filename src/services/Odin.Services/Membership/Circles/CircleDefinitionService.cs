@@ -30,18 +30,18 @@ namespace Odin.Services.Membership.Circles
             _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
         }
 
-        public async Task<CircleDefinition> Create(CreateCircleRequest request)
+        public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
         {
-            return await this.CreateCircleInternal(request);
+            return await this.CreateCircleInternalAsync(request);
         }
 
-        public async Task EnsureSystemCirclesExist()
+        public async Task EnsureSystemCirclesExistAsync()
         {
-            var confirmedCircleDefinition = this.GetCircle(SystemCircleConstants.ConfirmedConnectionsCircleId);
+            var confirmedCircleDefinition = await GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId);
             if (null == confirmedCircleDefinition)
             {
                 var def = SystemCircleConstants.ConfirmedConnectionsDefinition;
-                await this.CreateCircleInternal(new CreateCircleRequest
+                await this.CreateCircleInternalAsync(new CreateCircleRequest
                 {
                     Id = def.Id,
                     Name = def.Name,
@@ -54,15 +54,15 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
                 {
-                    await this.Update(SystemCircleConstants.ConfirmedConnectionsDefinition);
+                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition);
                 }
             }
 
-            var autoCircleDef = this.GetCircle(SystemCircleConstants.AutoConnectionsCircleId);
+            var autoCircleDef = await GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId);
             if (null == autoCircleDef)
             {
                 var def = SystemCircleConstants.AutoConnectionsSystemCircleDefinition;
-                await this.CreateCircleInternal(new CreateCircleRequest
+                await CreateCircleInternalAsync(new CreateCircleRequest
                 {
                     Id = def.Id,
                     Name = def.Name,
@@ -75,16 +75,16 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
                 {
-                    await this.Update(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
+                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
                 }
             }
         }
 
-        public async Task Update(CircleDefinition newCircleDefinition)
+        public async Task UpdateAsync(CircleDefinition newCircleDefinition)
         {
-            await AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
 
-            var existingCircle = this.GetCircle(newCircleDefinition.Id);
+            var existingCircle = await GetCircleAsync(newCircleDefinition.Id);
 
             if (null == existingCircle)
             {
@@ -97,35 +97,35 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            _circleValueStorage.Upsert(_tenantSystemStorage.IdentityDatabase, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
+            await _circleValueStorage.UpsertAsync(_tenantSystemStorage.IdentityDatabase, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
         }
 
-        public bool IsEnabled(GuidId circleId)
+        public async Task<bool> IsEnabledAsync(GuidId circleId)
         {
-            var circle = this.GetCircle(circleId);
+            var circle = await GetCircleAsync(circleId);
             return !circle?.Disabled ?? false;
         }
 
-        public CircleDefinition GetCircle(GuidId circleId)
+        public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
-            var def = _circleValueStorage.Get<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, circleId);
+            var def = await _circleValueStorage.GetAsync<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, circleId);
             return def;
         }
         
-        public Task<List<CircleDefinition>> GetCircles(bool includeSystemCircle)
+        public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
-            var circles = (_circleValueStorage.GetByCategory<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType) ?? []).ToList();
+            var circles = (await _circleValueStorage.GetByCategoryAsync<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType) ?? []).ToList();
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
             }
 
-            return Task.FromResult(circles);
+            return circles;
         }
 
-        public Task Delete(GuidId id)
+        public async Task DeleteAsync(GuidId id)
         {
-            var circle = GetCircle(id);
+            var circle = await GetCircleAsync(id);
 
             if (null == circle)
             {
@@ -133,11 +133,10 @@ namespace Odin.Services.Membership.Circles
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            _circleValueStorage.Delete(_tenantSystemStorage.IdentityDatabase, id);
-            return Task.CompletedTask;
+            await _circleValueStorage.DeleteAsync(_tenantSystemStorage.IdentityDatabase, id);
         }
 
-        public async Task AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
+        public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
         {
             if (null == driveGrantRequests)
             {
@@ -147,14 +146,14 @@ namespace Odin.Services.Membership.Circles
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var driveId = await _driveManager.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, _tenantSystemStorage.IdentityDatabase);
+                var driveId = await _driveManager.GetDriveIdByAliasAsync(dgr.PermissionedDrive.Drive, _tenantSystemStorage.IdentityDatabase);
 
                 if (driveId == null)
                 {
                     throw new OdinClientException("Invalid drive specified on DriveGrantRequest", OdinClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
-                var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault(), _tenantSystemStorage.IdentityDatabase);
+                var drive = await _driveManager.GetDriveAsync(driveId.GetValueOrDefault(), _tenantSystemStorage.IdentityDatabase);
 
                 //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
                 var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
@@ -168,7 +167,7 @@ namespace Odin.Services.Membership.Circles
 
         //
 
-        private async Task AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
+        private async Task AssertValidAsync(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
         {
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
@@ -186,7 +185,7 @@ namespace Odin.Services.Membership.Circles
 
             if (hasDrives)
             {
-                await AssertValidDriveGrants(driveGrantRequests);
+                await AssertValidDriveGrantsAsync(driveGrantRequests);
             }
         }
 
@@ -198,14 +197,14 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-        private async Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
+        private async Task<CircleDefinition> CreateCircleInternalAsync(CreateCircleRequest request, bool skipValidation = false)
         {
             if (!skipValidation)
             {
-                await AssertValid(request.Permissions, request.DriveGrants?.ToList());
+                await AssertValidAsync(request.Permissions, request.DriveGrants?.ToList());
             }
 
-            if (null != this.GetCircle(request.Id))
+            if (null != await GetCircleAsync(request.Id))
             {
                 throw new OdinClientException("Circle with Id already exists", OdinClientErrorCode.IdAlreadyExists);
             }
@@ -222,7 +221,7 @@ namespace Odin.Services.Membership.Circles
                 Permissions = request.Permissions
             };
 
-            _circleValueStorage.Upsert(_tenantSystemStorage.IdentityDatabase, circle.Id, GuidId.Empty, _circleDataType, circle);
+            await _circleValueStorage.UpsertAsync(_tenantSystemStorage.IdentityDatabase, circle.Id, GuidId.Empty, _circleDataType, circle);
 
             return circle;
         }

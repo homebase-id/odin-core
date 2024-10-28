@@ -38,7 +38,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         public async Task<IActionResult> GetEccKey(PublicPrivateKeyType keyType)
         {
             logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
-            var key = await publicPrivateKeyService.GetPublicEccKey(keyType);
+            var key = await publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
 
             if (null == key)
             {

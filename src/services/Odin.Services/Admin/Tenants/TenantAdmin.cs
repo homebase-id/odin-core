@@ -46,9 +46,9 @@ public class TenantAdmin : ITenantAdmin
 
     //
 
-    public async Task<TenantModel?> GetTenant(string domain, bool includePayload)
+    public async Task<TenantModel?> GetTenantAsync(string domain, bool includePayload)
     {
-        var identity = await _identityRegistry.Get(domain);
+        var identity = await _identityRegistry.GetAsync(domain);
         return identity == null ? null : await Map(identity, includePayload);
     }
 

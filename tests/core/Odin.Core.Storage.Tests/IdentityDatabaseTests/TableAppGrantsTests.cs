@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -8,7 +9,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     public class TableAppGrantsTest
     {
         [Test]
-        public void InsertTest()
+        public async Task InsertTest()
         {   
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableAppGrantTests001");
 
@@ -20,14 +21,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
-                var i = db.tblAppGrants.Insert(new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                await db.CreateDatabaseAsync();
+                var i = await db.tblAppGrants.InsertAsync(new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
                 Debug.Assert(i == 1);
             }
         }
 
         [Test]
-        public void TryInsertTest()
+        public async Task TryInsertTest()
         {
             using var db = new IdentityDatabase(Guid.NewGuid(), "TableAppGrantTests002");
 
@@ -39,11 +40,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase();
-                var i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                await db.CreateDatabaseAsync();
+                var i = await db.tblAppGrants.TryInsertAsync(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
                 Debug.Assert(i == 1);
 
-                i = db.tblAppGrants.TryInsert(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                i = await db.tblAppGrants.TryInsertAsync(myc, new AppGrantsRecord() { identityId = db._identityId, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
                 Debug.Assert(i == 0);
             }
         }

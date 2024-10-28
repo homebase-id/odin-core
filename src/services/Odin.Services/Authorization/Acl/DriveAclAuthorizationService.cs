@@ -20,7 +20,7 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
         {
             //there must be an acl
             if (acl == null)
@@ -32,7 +32,7 @@ namespace Odin.Services.Authorization.Acl
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIcr(odinId, odinContext, true);
+                var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
                 var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
@@ -58,7 +58,7 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIcr(odinId, odinContext, true)).IsConnected();
+                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
             }
 
             return false;
@@ -119,10 +119,10 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private async Task<bool> CallerIsConnected(IOdinContext odinContext)
+        private Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
             //TODO: cache result - 
-            return await Task.FromResult(odinContext.Caller.IsConnected);
+            return Task.FromResult(odinContext.Caller.IsConnected);
         }
     }
 }

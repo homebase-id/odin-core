@@ -1,9 +1,12 @@
 using System;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using System.Runtime.CompilerServices;
+
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -301,31 +304,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveMainIndexCRUD : TableBase
     {
-        private bool _disposed = false;
 
         public TableDriveMainIndexCRUD(CacheHelper cache) : base("driveMainIndex")
         {
         }
 
-        ~TableDriveMainIndexCRUD()
-        {
-            if (_disposed == false) throw new Exception("TableDriveMainIndexCRUD Not disposed properly");
-        }
 
-        public override void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
-
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = conn.db.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                       conn.ExecuteNonQuery(cmd);
+                       await conn.ExecuteNonQueryAsync(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveMainIndex("
@@ -362,11 +354,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                    await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
-        internal virtual int Insert(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
@@ -377,121 +369,121 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@driveId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@fileId";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@globalTransitId";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@fileState";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@requiredSecurityGroup";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@fileSystemType";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@userDate";
-                _insertCommand.Parameters.Add(_insertParam8);
-                var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "@fileType";
-                _insertCommand.Parameters.Add(_insertParam9);
-                var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "@dataType";
-                _insertCommand.Parameters.Add(_insertParam10);
-                var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "@archivalStatus";
-                _insertCommand.Parameters.Add(_insertParam11);
-                var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "@historyStatus";
-                _insertCommand.Parameters.Add(_insertParam12);
-                var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "@senderId";
-                _insertCommand.Parameters.Add(_insertParam13);
-                var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "@groupId";
-                _insertCommand.Parameters.Add(_insertParam14);
-                var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "@uniqueId";
-                _insertCommand.Parameters.Add(_insertParam15);
-                var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "@byteCount";
-                _insertCommand.Parameters.Add(_insertParam16);
-                var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "@hdrEncryptedKeyHeader";
-                _insertCommand.Parameters.Add(_insertParam17);
-                var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "@hdrVersionTag";
-                _insertCommand.Parameters.Add(_insertParam18);
-                var _insertParam19 = _insertCommand.CreateParameter();
-                _insertParam19.ParameterName = "@hdrAppData";
-                _insertCommand.Parameters.Add(_insertParam19);
-                var _insertParam20 = _insertCommand.CreateParameter();
-                _insertParam20.ParameterName = "@hdrReactionSummary";
-                _insertCommand.Parameters.Add(_insertParam20);
-                var _insertParam21 = _insertCommand.CreateParameter();
-                _insertParam21.ParameterName = "@hdrServerData";
-                _insertCommand.Parameters.Add(_insertParam21);
-                var _insertParam22 = _insertCommand.CreateParameter();
-                _insertParam22.ParameterName = "@hdrTransferHistory";
-                _insertCommand.Parameters.Add(_insertParam22);
-                var _insertParam23 = _insertCommand.CreateParameter();
-                _insertParam23.ParameterName = "@hdrFileMetaData";
-                _insertCommand.Parameters.Add(_insertParam23);
-                var _insertParam24 = _insertCommand.CreateParameter();
-                _insertParam24.ParameterName = "@hdrTmpDriveAlias";
-                _insertCommand.Parameters.Add(_insertParam24);
-                var _insertParam25 = _insertCommand.CreateParameter();
-                _insertParam25.ParameterName = "@hdrTmpDriveType";
-                _insertCommand.Parameters.Add(_insertParam25);
-                var _insertParam26 = _insertCommand.CreateParameter();
-                _insertParam26.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam26);
-                var _insertParam27 = _insertCommand.CreateParameter();
-                _insertParam27.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam27);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.driveId.ToByteArray();
-                _insertParam3.Value = item.fileId.ToByteArray();
-                _insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam5.Value = item.fileState;
-                _insertParam6.Value = item.requiredSecurityGroup;
-                _insertParam7.Value = item.fileSystemType;
-                _insertParam8.Value = item.userDate.milliseconds;
-                _insertParam9.Value = item.fileType;
-                _insertParam10.Value = item.dataType;
-                _insertParam11.Value = item.archivalStatus;
-                _insertParam12.Value = item.historyStatus;
-                _insertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam16.Value = item.byteCount;
-                _insertParam17.Value = item.hdrEncryptedKeyHeader;
-                _insertParam18.Value = item.hdrVersionTag.ToByteArray();
-                _insertParam19.Value = item.hdrAppData;
-                _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _insertParam21.Value = item.hdrServerData;
-                _insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _insertParam23.Value = item.hdrFileMetaData;
-                _insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                _insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@driveId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@fileId";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@globalTransitId";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@fileState";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@requiredSecurityGroup";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@fileSystemType";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@userDate";
+                insertCommand.Parameters.Add(insertParam8);
+                var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.ParameterName = "@fileType";
+                insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@dataType";
+                insertCommand.Parameters.Add(insertParam10);
+                var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.ParameterName = "@archivalStatus";
+                insertCommand.Parameters.Add(insertParam11);
+                var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.ParameterName = "@historyStatus";
+                insertCommand.Parameters.Add(insertParam12);
+                var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.ParameterName = "@senderId";
+                insertCommand.Parameters.Add(insertParam13);
+                var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.ParameterName = "@groupId";
+                insertCommand.Parameters.Add(insertParam14);
+                var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.ParameterName = "@uniqueId";
+                insertCommand.Parameters.Add(insertParam15);
+                var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.ParameterName = "@byteCount";
+                insertCommand.Parameters.Add(insertParam16);
+                var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.ParameterName = "@hdrEncryptedKeyHeader";
+                insertCommand.Parameters.Add(insertParam17);
+                var insertParam18 = insertCommand.CreateParameter();
+                insertParam18.ParameterName = "@hdrVersionTag";
+                insertCommand.Parameters.Add(insertParam18);
+                var insertParam19 = insertCommand.CreateParameter();
+                insertParam19.ParameterName = "@hdrAppData";
+                insertCommand.Parameters.Add(insertParam19);
+                var insertParam20 = insertCommand.CreateParameter();
+                insertParam20.ParameterName = "@hdrReactionSummary";
+                insertCommand.Parameters.Add(insertParam20);
+                var insertParam21 = insertCommand.CreateParameter();
+                insertParam21.ParameterName = "@hdrServerData";
+                insertCommand.Parameters.Add(insertParam21);
+                var insertParam22 = insertCommand.CreateParameter();
+                insertParam22.ParameterName = "@hdrTransferHistory";
+                insertCommand.Parameters.Add(insertParam22);
+                var insertParam23 = insertCommand.CreateParameter();
+                insertParam23.ParameterName = "@hdrFileMetaData";
+                insertCommand.Parameters.Add(insertParam23);
+                var insertParam24 = insertCommand.CreateParameter();
+                insertParam24.ParameterName = "@hdrTmpDriveAlias";
+                insertCommand.Parameters.Add(insertParam24);
+                var insertParam25 = insertCommand.CreateParameter();
+                insertParam25.ParameterName = "@hdrTmpDriveType";
+                insertCommand.Parameters.Add(insertParam25);
+                var insertParam26 = insertCommand.CreateParameter();
+                insertParam26.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam26);
+                var insertParam27 = insertCommand.CreateParameter();
+                insertParam27.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam27);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.driveId.ToByteArray();
+                insertParam3.Value = item.fileId.ToByteArray();
+                insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam5.Value = item.fileState;
+                insertParam6.Value = item.requiredSecurityGroup;
+                insertParam7.Value = item.fileSystemType;
+                insertParam8.Value = item.userDate.milliseconds;
+                insertParam9.Value = item.fileType;
+                insertParam10.Value = item.dataType;
+                insertParam11.Value = item.archivalStatus;
+                insertParam12.Value = item.historyStatus;
+                insertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam16.Value = item.byteCount;
+                insertParam17.Value = item.hdrEncryptedKeyHeader;
+                insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                insertParam19.Value = item.hdrAppData;
+                insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                insertParam21.Value = item.hdrServerData;
+                insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                insertParam23.Value = item.hdrFileMetaData;
+                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam26.Value = now.uniqueTime;
+                insertParam26.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam27.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam27.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                      item.created = now;
@@ -500,7 +492,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int TryInsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
@@ -511,121 +503,121 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var _insertCommand = conn.db.CreateCommand())
+            using (var insertCommand = conn.db.CreateCommand())
             {
-                _insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
-                var _insertParam1 = _insertCommand.CreateParameter();
-                _insertParam1.ParameterName = "@identityId";
-                _insertCommand.Parameters.Add(_insertParam1);
-                var _insertParam2 = _insertCommand.CreateParameter();
-                _insertParam2.ParameterName = "@driveId";
-                _insertCommand.Parameters.Add(_insertParam2);
-                var _insertParam3 = _insertCommand.CreateParameter();
-                _insertParam3.ParameterName = "@fileId";
-                _insertCommand.Parameters.Add(_insertParam3);
-                var _insertParam4 = _insertCommand.CreateParameter();
-                _insertParam4.ParameterName = "@globalTransitId";
-                _insertCommand.Parameters.Add(_insertParam4);
-                var _insertParam5 = _insertCommand.CreateParameter();
-                _insertParam5.ParameterName = "@fileState";
-                _insertCommand.Parameters.Add(_insertParam5);
-                var _insertParam6 = _insertCommand.CreateParameter();
-                _insertParam6.ParameterName = "@requiredSecurityGroup";
-                _insertCommand.Parameters.Add(_insertParam6);
-                var _insertParam7 = _insertCommand.CreateParameter();
-                _insertParam7.ParameterName = "@fileSystemType";
-                _insertCommand.Parameters.Add(_insertParam7);
-                var _insertParam8 = _insertCommand.CreateParameter();
-                _insertParam8.ParameterName = "@userDate";
-                _insertCommand.Parameters.Add(_insertParam8);
-                var _insertParam9 = _insertCommand.CreateParameter();
-                _insertParam9.ParameterName = "@fileType";
-                _insertCommand.Parameters.Add(_insertParam9);
-                var _insertParam10 = _insertCommand.CreateParameter();
-                _insertParam10.ParameterName = "@dataType";
-                _insertCommand.Parameters.Add(_insertParam10);
-                var _insertParam11 = _insertCommand.CreateParameter();
-                _insertParam11.ParameterName = "@archivalStatus";
-                _insertCommand.Parameters.Add(_insertParam11);
-                var _insertParam12 = _insertCommand.CreateParameter();
-                _insertParam12.ParameterName = "@historyStatus";
-                _insertCommand.Parameters.Add(_insertParam12);
-                var _insertParam13 = _insertCommand.CreateParameter();
-                _insertParam13.ParameterName = "@senderId";
-                _insertCommand.Parameters.Add(_insertParam13);
-                var _insertParam14 = _insertCommand.CreateParameter();
-                _insertParam14.ParameterName = "@groupId";
-                _insertCommand.Parameters.Add(_insertParam14);
-                var _insertParam15 = _insertCommand.CreateParameter();
-                _insertParam15.ParameterName = "@uniqueId";
-                _insertCommand.Parameters.Add(_insertParam15);
-                var _insertParam16 = _insertCommand.CreateParameter();
-                _insertParam16.ParameterName = "@byteCount";
-                _insertCommand.Parameters.Add(_insertParam16);
-                var _insertParam17 = _insertCommand.CreateParameter();
-                _insertParam17.ParameterName = "@hdrEncryptedKeyHeader";
-                _insertCommand.Parameters.Add(_insertParam17);
-                var _insertParam18 = _insertCommand.CreateParameter();
-                _insertParam18.ParameterName = "@hdrVersionTag";
-                _insertCommand.Parameters.Add(_insertParam18);
-                var _insertParam19 = _insertCommand.CreateParameter();
-                _insertParam19.ParameterName = "@hdrAppData";
-                _insertCommand.Parameters.Add(_insertParam19);
-                var _insertParam20 = _insertCommand.CreateParameter();
-                _insertParam20.ParameterName = "@hdrReactionSummary";
-                _insertCommand.Parameters.Add(_insertParam20);
-                var _insertParam21 = _insertCommand.CreateParameter();
-                _insertParam21.ParameterName = "@hdrServerData";
-                _insertCommand.Parameters.Add(_insertParam21);
-                var _insertParam22 = _insertCommand.CreateParameter();
-                _insertParam22.ParameterName = "@hdrTransferHistory";
-                _insertCommand.Parameters.Add(_insertParam22);
-                var _insertParam23 = _insertCommand.CreateParameter();
-                _insertParam23.ParameterName = "@hdrFileMetaData";
-                _insertCommand.Parameters.Add(_insertParam23);
-                var _insertParam24 = _insertCommand.CreateParameter();
-                _insertParam24.ParameterName = "@hdrTmpDriveAlias";
-                _insertCommand.Parameters.Add(_insertParam24);
-                var _insertParam25 = _insertCommand.CreateParameter();
-                _insertParam25.ParameterName = "@hdrTmpDriveType";
-                _insertCommand.Parameters.Add(_insertParam25);
-                var _insertParam26 = _insertCommand.CreateParameter();
-                _insertParam26.ParameterName = "@created";
-                _insertCommand.Parameters.Add(_insertParam26);
-                var _insertParam27 = _insertCommand.CreateParameter();
-                _insertParam27.ParameterName = "@modified";
-                _insertCommand.Parameters.Add(_insertParam27);
-                _insertParam1.Value = item.identityId.ToByteArray();
-                _insertParam2.Value = item.driveId.ToByteArray();
-                _insertParam3.Value = item.fileId.ToByteArray();
-                _insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam5.Value = item.fileState;
-                _insertParam6.Value = item.requiredSecurityGroup;
-                _insertParam7.Value = item.fileSystemType;
-                _insertParam8.Value = item.userDate.milliseconds;
-                _insertParam9.Value = item.fileType;
-                _insertParam10.Value = item.dataType;
-                _insertParam11.Value = item.archivalStatus;
-                _insertParam12.Value = item.historyStatus;
-                _insertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                _insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam16.Value = item.byteCount;
-                _insertParam17.Value = item.hdrEncryptedKeyHeader;
-                _insertParam18.Value = item.hdrVersionTag.ToByteArray();
-                _insertParam19.Value = item.hdrAppData;
-                _insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _insertParam21.Value = item.hdrServerData;
-                _insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _insertParam23.Value = item.hdrFileMetaData;
-                _insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                _insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                insertCommand.Parameters.Add(insertParam1);
+                var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.ParameterName = "@driveId";
+                insertCommand.Parameters.Add(insertParam2);
+                var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.ParameterName = "@fileId";
+                insertCommand.Parameters.Add(insertParam3);
+                var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.ParameterName = "@globalTransitId";
+                insertCommand.Parameters.Add(insertParam4);
+                var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.ParameterName = "@fileState";
+                insertCommand.Parameters.Add(insertParam5);
+                var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.ParameterName = "@requiredSecurityGroup";
+                insertCommand.Parameters.Add(insertParam6);
+                var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.ParameterName = "@fileSystemType";
+                insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@userDate";
+                insertCommand.Parameters.Add(insertParam8);
+                var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.ParameterName = "@fileType";
+                insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@dataType";
+                insertCommand.Parameters.Add(insertParam10);
+                var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.ParameterName = "@archivalStatus";
+                insertCommand.Parameters.Add(insertParam11);
+                var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.ParameterName = "@historyStatus";
+                insertCommand.Parameters.Add(insertParam12);
+                var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.ParameterName = "@senderId";
+                insertCommand.Parameters.Add(insertParam13);
+                var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.ParameterName = "@groupId";
+                insertCommand.Parameters.Add(insertParam14);
+                var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.ParameterName = "@uniqueId";
+                insertCommand.Parameters.Add(insertParam15);
+                var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.ParameterName = "@byteCount";
+                insertCommand.Parameters.Add(insertParam16);
+                var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.ParameterName = "@hdrEncryptedKeyHeader";
+                insertCommand.Parameters.Add(insertParam17);
+                var insertParam18 = insertCommand.CreateParameter();
+                insertParam18.ParameterName = "@hdrVersionTag";
+                insertCommand.Parameters.Add(insertParam18);
+                var insertParam19 = insertCommand.CreateParameter();
+                insertParam19.ParameterName = "@hdrAppData";
+                insertCommand.Parameters.Add(insertParam19);
+                var insertParam20 = insertCommand.CreateParameter();
+                insertParam20.ParameterName = "@hdrReactionSummary";
+                insertCommand.Parameters.Add(insertParam20);
+                var insertParam21 = insertCommand.CreateParameter();
+                insertParam21.ParameterName = "@hdrServerData";
+                insertCommand.Parameters.Add(insertParam21);
+                var insertParam22 = insertCommand.CreateParameter();
+                insertParam22.ParameterName = "@hdrTransferHistory";
+                insertCommand.Parameters.Add(insertParam22);
+                var insertParam23 = insertCommand.CreateParameter();
+                insertParam23.ParameterName = "@hdrFileMetaData";
+                insertCommand.Parameters.Add(insertParam23);
+                var insertParam24 = insertCommand.CreateParameter();
+                insertParam24.ParameterName = "@hdrTmpDriveAlias";
+                insertCommand.Parameters.Add(insertParam24);
+                var insertParam25 = insertCommand.CreateParameter();
+                insertParam25.ParameterName = "@hdrTmpDriveType";
+                insertCommand.Parameters.Add(insertParam25);
+                var insertParam26 = insertCommand.CreateParameter();
+                insertParam26.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam26);
+                var insertParam27 = insertCommand.CreateParameter();
+                insertParam27.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam27);
+                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam2.Value = item.driveId.ToByteArray();
+                insertParam3.Value = item.fileId.ToByteArray();
+                insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam5.Value = item.fileState;
+                insertParam6.Value = item.requiredSecurityGroup;
+                insertParam7.Value = item.fileSystemType;
+                insertParam8.Value = item.userDate.milliseconds;
+                insertParam9.Value = item.fileType;
+                insertParam10.Value = item.dataType;
+                insertParam11.Value = item.archivalStatus;
+                insertParam12.Value = item.historyStatus;
+                insertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam16.Value = item.byteCount;
+                insertParam17.Value = item.hdrEncryptedKeyHeader;
+                insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                insertParam19.Value = item.hdrAppData;
+                insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                insertParam21.Value = item.hdrServerData;
+                insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                insertParam23.Value = item.hdrFileMetaData;
+                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam26.Value = now.uniqueTime;
+                insertParam26.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam27.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                insertParam27.Value = DBNull.Value;
+                var count = await conn.ExecuteNonQueryAsync(insertCommand);
                 if (count > 0)
                 {
                     item.created = now;
@@ -634,7 +626,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
@@ -645,123 +637,123 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var _upsertCommand = conn.db.CreateCommand())
+            using (var upsertCommand = conn.db.CreateCommand())
             {
-                _upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+                upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
                                              "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "RETURNING created, modified;";
-                var _upsertParam1 = _upsertCommand.CreateParameter();
-                _upsertParam1.ParameterName = "@identityId";
-                _upsertCommand.Parameters.Add(_upsertParam1);
-                var _upsertParam2 = _upsertCommand.CreateParameter();
-                _upsertParam2.ParameterName = "@driveId";
-                _upsertCommand.Parameters.Add(_upsertParam2);
-                var _upsertParam3 = _upsertCommand.CreateParameter();
-                _upsertParam3.ParameterName = "@fileId";
-                _upsertCommand.Parameters.Add(_upsertParam3);
-                var _upsertParam4 = _upsertCommand.CreateParameter();
-                _upsertParam4.ParameterName = "@globalTransitId";
-                _upsertCommand.Parameters.Add(_upsertParam4);
-                var _upsertParam5 = _upsertCommand.CreateParameter();
-                _upsertParam5.ParameterName = "@fileState";
-                _upsertCommand.Parameters.Add(_upsertParam5);
-                var _upsertParam6 = _upsertCommand.CreateParameter();
-                _upsertParam6.ParameterName = "@requiredSecurityGroup";
-                _upsertCommand.Parameters.Add(_upsertParam6);
-                var _upsertParam7 = _upsertCommand.CreateParameter();
-                _upsertParam7.ParameterName = "@fileSystemType";
-                _upsertCommand.Parameters.Add(_upsertParam7);
-                var _upsertParam8 = _upsertCommand.CreateParameter();
-                _upsertParam8.ParameterName = "@userDate";
-                _upsertCommand.Parameters.Add(_upsertParam8);
-                var _upsertParam9 = _upsertCommand.CreateParameter();
-                _upsertParam9.ParameterName = "@fileType";
-                _upsertCommand.Parameters.Add(_upsertParam9);
-                var _upsertParam10 = _upsertCommand.CreateParameter();
-                _upsertParam10.ParameterName = "@dataType";
-                _upsertCommand.Parameters.Add(_upsertParam10);
-                var _upsertParam11 = _upsertCommand.CreateParameter();
-                _upsertParam11.ParameterName = "@archivalStatus";
-                _upsertCommand.Parameters.Add(_upsertParam11);
-                var _upsertParam12 = _upsertCommand.CreateParameter();
-                _upsertParam12.ParameterName = "@historyStatus";
-                _upsertCommand.Parameters.Add(_upsertParam12);
-                var _upsertParam13 = _upsertCommand.CreateParameter();
-                _upsertParam13.ParameterName = "@senderId";
-                _upsertCommand.Parameters.Add(_upsertParam13);
-                var _upsertParam14 = _upsertCommand.CreateParameter();
-                _upsertParam14.ParameterName = "@groupId";
-                _upsertCommand.Parameters.Add(_upsertParam14);
-                var _upsertParam15 = _upsertCommand.CreateParameter();
-                _upsertParam15.ParameterName = "@uniqueId";
-                _upsertCommand.Parameters.Add(_upsertParam15);
-                var _upsertParam16 = _upsertCommand.CreateParameter();
-                _upsertParam16.ParameterName = "@byteCount";
-                _upsertCommand.Parameters.Add(_upsertParam16);
-                var _upsertParam17 = _upsertCommand.CreateParameter();
-                _upsertParam17.ParameterName = "@hdrEncryptedKeyHeader";
-                _upsertCommand.Parameters.Add(_upsertParam17);
-                var _upsertParam18 = _upsertCommand.CreateParameter();
-                _upsertParam18.ParameterName = "@hdrVersionTag";
-                _upsertCommand.Parameters.Add(_upsertParam18);
-                var _upsertParam19 = _upsertCommand.CreateParameter();
-                _upsertParam19.ParameterName = "@hdrAppData";
-                _upsertCommand.Parameters.Add(_upsertParam19);
-                var _upsertParam20 = _upsertCommand.CreateParameter();
-                _upsertParam20.ParameterName = "@hdrReactionSummary";
-                _upsertCommand.Parameters.Add(_upsertParam20);
-                var _upsertParam21 = _upsertCommand.CreateParameter();
-                _upsertParam21.ParameterName = "@hdrServerData";
-                _upsertCommand.Parameters.Add(_upsertParam21);
-                var _upsertParam22 = _upsertCommand.CreateParameter();
-                _upsertParam22.ParameterName = "@hdrTransferHistory";
-                _upsertCommand.Parameters.Add(_upsertParam22);
-                var _upsertParam23 = _upsertCommand.CreateParameter();
-                _upsertParam23.ParameterName = "@hdrFileMetaData";
-                _upsertCommand.Parameters.Add(_upsertParam23);
-                var _upsertParam24 = _upsertCommand.CreateParameter();
-                _upsertParam24.ParameterName = "@hdrTmpDriveAlias";
-                _upsertCommand.Parameters.Add(_upsertParam24);
-                var _upsertParam25 = _upsertCommand.CreateParameter();
-                _upsertParam25.ParameterName = "@hdrTmpDriveType";
-                _upsertCommand.Parameters.Add(_upsertParam25);
-                var _upsertParam26 = _upsertCommand.CreateParameter();
-                _upsertParam26.ParameterName = "@created";
-                _upsertCommand.Parameters.Add(_upsertParam26);
-                var _upsertParam27 = _upsertCommand.CreateParameter();
-                _upsertParam27.ParameterName = "@modified";
-                _upsertCommand.Parameters.Add(_upsertParam27);
+                var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.ParameterName = "@identityId";
+                upsertCommand.Parameters.Add(upsertParam1);
+                var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.ParameterName = "@driveId";
+                upsertCommand.Parameters.Add(upsertParam2);
+                var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.ParameterName = "@fileId";
+                upsertCommand.Parameters.Add(upsertParam3);
+                var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.ParameterName = "@globalTransitId";
+                upsertCommand.Parameters.Add(upsertParam4);
+                var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.ParameterName = "@fileState";
+                upsertCommand.Parameters.Add(upsertParam5);
+                var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.ParameterName = "@requiredSecurityGroup";
+                upsertCommand.Parameters.Add(upsertParam6);
+                var upsertParam7 = upsertCommand.CreateParameter();
+                upsertParam7.ParameterName = "@fileSystemType";
+                upsertCommand.Parameters.Add(upsertParam7);
+                var upsertParam8 = upsertCommand.CreateParameter();
+                upsertParam8.ParameterName = "@userDate";
+                upsertCommand.Parameters.Add(upsertParam8);
+                var upsertParam9 = upsertCommand.CreateParameter();
+                upsertParam9.ParameterName = "@fileType";
+                upsertCommand.Parameters.Add(upsertParam9);
+                var upsertParam10 = upsertCommand.CreateParameter();
+                upsertParam10.ParameterName = "@dataType";
+                upsertCommand.Parameters.Add(upsertParam10);
+                var upsertParam11 = upsertCommand.CreateParameter();
+                upsertParam11.ParameterName = "@archivalStatus";
+                upsertCommand.Parameters.Add(upsertParam11);
+                var upsertParam12 = upsertCommand.CreateParameter();
+                upsertParam12.ParameterName = "@historyStatus";
+                upsertCommand.Parameters.Add(upsertParam12);
+                var upsertParam13 = upsertCommand.CreateParameter();
+                upsertParam13.ParameterName = "@senderId";
+                upsertCommand.Parameters.Add(upsertParam13);
+                var upsertParam14 = upsertCommand.CreateParameter();
+                upsertParam14.ParameterName = "@groupId";
+                upsertCommand.Parameters.Add(upsertParam14);
+                var upsertParam15 = upsertCommand.CreateParameter();
+                upsertParam15.ParameterName = "@uniqueId";
+                upsertCommand.Parameters.Add(upsertParam15);
+                var upsertParam16 = upsertCommand.CreateParameter();
+                upsertParam16.ParameterName = "@byteCount";
+                upsertCommand.Parameters.Add(upsertParam16);
+                var upsertParam17 = upsertCommand.CreateParameter();
+                upsertParam17.ParameterName = "@hdrEncryptedKeyHeader";
+                upsertCommand.Parameters.Add(upsertParam17);
+                var upsertParam18 = upsertCommand.CreateParameter();
+                upsertParam18.ParameterName = "@hdrVersionTag";
+                upsertCommand.Parameters.Add(upsertParam18);
+                var upsertParam19 = upsertCommand.CreateParameter();
+                upsertParam19.ParameterName = "@hdrAppData";
+                upsertCommand.Parameters.Add(upsertParam19);
+                var upsertParam20 = upsertCommand.CreateParameter();
+                upsertParam20.ParameterName = "@hdrReactionSummary";
+                upsertCommand.Parameters.Add(upsertParam20);
+                var upsertParam21 = upsertCommand.CreateParameter();
+                upsertParam21.ParameterName = "@hdrServerData";
+                upsertCommand.Parameters.Add(upsertParam21);
+                var upsertParam22 = upsertCommand.CreateParameter();
+                upsertParam22.ParameterName = "@hdrTransferHistory";
+                upsertCommand.Parameters.Add(upsertParam22);
+                var upsertParam23 = upsertCommand.CreateParameter();
+                upsertParam23.ParameterName = "@hdrFileMetaData";
+                upsertCommand.Parameters.Add(upsertParam23);
+                var upsertParam24 = upsertCommand.CreateParameter();
+                upsertParam24.ParameterName = "@hdrTmpDriveAlias";
+                upsertCommand.Parameters.Add(upsertParam24);
+                var upsertParam25 = upsertCommand.CreateParameter();
+                upsertParam25.ParameterName = "@hdrTmpDriveType";
+                upsertCommand.Parameters.Add(upsertParam25);
+                var upsertParam26 = upsertCommand.CreateParameter();
+                upsertParam26.ParameterName = "@created";
+                upsertCommand.Parameters.Add(upsertParam26);
+                var upsertParam27 = upsertCommand.CreateParameter();
+                upsertParam27.ParameterName = "@modified";
+                upsertCommand.Parameters.Add(upsertParam27);
                 var now = UnixTimeUtcUnique.Now();
-                _upsertParam1.Value = item.identityId.ToByteArray();
-                _upsertParam2.Value = item.driveId.ToByteArray();
-                _upsertParam3.Value = item.fileId.ToByteArray();
-                _upsertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam5.Value = item.fileState;
-                _upsertParam6.Value = item.requiredSecurityGroup;
-                _upsertParam7.Value = item.fileSystemType;
-                _upsertParam8.Value = item.userDate.milliseconds;
-                _upsertParam9.Value = item.fileType;
-                _upsertParam10.Value = item.dataType;
-                _upsertParam11.Value = item.archivalStatus;
-                _upsertParam12.Value = item.historyStatus;
-                _upsertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                _upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam16.Value = item.byteCount;
-                _upsertParam17.Value = item.hdrEncryptedKeyHeader;
-                _upsertParam18.Value = item.hdrVersionTag.ToByteArray();
-                _upsertParam19.Value = item.hdrAppData;
-                _upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _upsertParam21.Value = item.hdrServerData;
-                _upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _upsertParam23.Value = item.hdrFileMetaData;
-                _upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                _upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
-                _upsertParam26.Value = now.uniqueTime;
-                _upsertParam27.Value = now.uniqueTime;
-                using (DbDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam2.Value = item.driveId.ToByteArray();
+                upsertParam3.Value = item.fileId.ToByteArray();
+                upsertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam5.Value = item.fileState;
+                upsertParam6.Value = item.requiredSecurityGroup;
+                upsertParam7.Value = item.fileSystemType;
+                upsertParam8.Value = item.userDate.milliseconds;
+                upsertParam9.Value = item.fileType;
+                upsertParam10.Value = item.dataType;
+                upsertParam11.Value = item.archivalStatus;
+                upsertParam12.Value = item.historyStatus;
+                upsertParam13.Value = item.senderId ?? (object)DBNull.Value;
+                upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam16.Value = item.byteCount;
+                upsertParam17.Value = item.hdrEncryptedKeyHeader;
+                upsertParam18.Value = item.hdrVersionTag.ToByteArray();
+                upsertParam19.Value = item.hdrAppData;
+                upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                upsertParam21.Value = item.hdrServerData;
+                upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                upsertParam23.Value = item.hdrFileMetaData;
+                upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                upsertParam26.Value = now.uniqueTime;
+                upsertParam27.Value = now.uniqueTime;
+                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -779,7 +771,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
@@ -790,121 +782,121 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var _updateCommand = conn.db.CreateCommand())
+            using (var updateCommand = conn.db.CreateCommand())
             {
-                _updateCommand.CommandText = "UPDATE driveMainIndex " +
+                updateCommand.CommandText = "UPDATE driveMainIndex " +
                                              "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
-                var _updateParam1 = _updateCommand.CreateParameter();
-                _updateParam1.ParameterName = "@identityId";
-                _updateCommand.Parameters.Add(_updateParam1);
-                var _updateParam2 = _updateCommand.CreateParameter();
-                _updateParam2.ParameterName = "@driveId";
-                _updateCommand.Parameters.Add(_updateParam2);
-                var _updateParam3 = _updateCommand.CreateParameter();
-                _updateParam3.ParameterName = "@fileId";
-                _updateCommand.Parameters.Add(_updateParam3);
-                var _updateParam4 = _updateCommand.CreateParameter();
-                _updateParam4.ParameterName = "@globalTransitId";
-                _updateCommand.Parameters.Add(_updateParam4);
-                var _updateParam5 = _updateCommand.CreateParameter();
-                _updateParam5.ParameterName = "@fileState";
-                _updateCommand.Parameters.Add(_updateParam5);
-                var _updateParam6 = _updateCommand.CreateParameter();
-                _updateParam6.ParameterName = "@requiredSecurityGroup";
-                _updateCommand.Parameters.Add(_updateParam6);
-                var _updateParam7 = _updateCommand.CreateParameter();
-                _updateParam7.ParameterName = "@fileSystemType";
-                _updateCommand.Parameters.Add(_updateParam7);
-                var _updateParam8 = _updateCommand.CreateParameter();
-                _updateParam8.ParameterName = "@userDate";
-                _updateCommand.Parameters.Add(_updateParam8);
-                var _updateParam9 = _updateCommand.CreateParameter();
-                _updateParam9.ParameterName = "@fileType";
-                _updateCommand.Parameters.Add(_updateParam9);
-                var _updateParam10 = _updateCommand.CreateParameter();
-                _updateParam10.ParameterName = "@dataType";
-                _updateCommand.Parameters.Add(_updateParam10);
-                var _updateParam11 = _updateCommand.CreateParameter();
-                _updateParam11.ParameterName = "@archivalStatus";
-                _updateCommand.Parameters.Add(_updateParam11);
-                var _updateParam12 = _updateCommand.CreateParameter();
-                _updateParam12.ParameterName = "@historyStatus";
-                _updateCommand.Parameters.Add(_updateParam12);
-                var _updateParam13 = _updateCommand.CreateParameter();
-                _updateParam13.ParameterName = "@senderId";
-                _updateCommand.Parameters.Add(_updateParam13);
-                var _updateParam14 = _updateCommand.CreateParameter();
-                _updateParam14.ParameterName = "@groupId";
-                _updateCommand.Parameters.Add(_updateParam14);
-                var _updateParam15 = _updateCommand.CreateParameter();
-                _updateParam15.ParameterName = "@uniqueId";
-                _updateCommand.Parameters.Add(_updateParam15);
-                var _updateParam16 = _updateCommand.CreateParameter();
-                _updateParam16.ParameterName = "@byteCount";
-                _updateCommand.Parameters.Add(_updateParam16);
-                var _updateParam17 = _updateCommand.CreateParameter();
-                _updateParam17.ParameterName = "@hdrEncryptedKeyHeader";
-                _updateCommand.Parameters.Add(_updateParam17);
-                var _updateParam18 = _updateCommand.CreateParameter();
-                _updateParam18.ParameterName = "@hdrVersionTag";
-                _updateCommand.Parameters.Add(_updateParam18);
-                var _updateParam19 = _updateCommand.CreateParameter();
-                _updateParam19.ParameterName = "@hdrAppData";
-                _updateCommand.Parameters.Add(_updateParam19);
-                var _updateParam20 = _updateCommand.CreateParameter();
-                _updateParam20.ParameterName = "@hdrReactionSummary";
-                _updateCommand.Parameters.Add(_updateParam20);
-                var _updateParam21 = _updateCommand.CreateParameter();
-                _updateParam21.ParameterName = "@hdrServerData";
-                _updateCommand.Parameters.Add(_updateParam21);
-                var _updateParam22 = _updateCommand.CreateParameter();
-                _updateParam22.ParameterName = "@hdrTransferHistory";
-                _updateCommand.Parameters.Add(_updateParam22);
-                var _updateParam23 = _updateCommand.CreateParameter();
-                _updateParam23.ParameterName = "@hdrFileMetaData";
-                _updateCommand.Parameters.Add(_updateParam23);
-                var _updateParam24 = _updateCommand.CreateParameter();
-                _updateParam24.ParameterName = "@hdrTmpDriveAlias";
-                _updateCommand.Parameters.Add(_updateParam24);
-                var _updateParam25 = _updateCommand.CreateParameter();
-                _updateParam25.ParameterName = "@hdrTmpDriveType";
-                _updateCommand.Parameters.Add(_updateParam25);
-                var _updateParam26 = _updateCommand.CreateParameter();
-                _updateParam26.ParameterName = "@created";
-                _updateCommand.Parameters.Add(_updateParam26);
-                var _updateParam27 = _updateCommand.CreateParameter();
-                _updateParam27.ParameterName = "@modified";
-                _updateCommand.Parameters.Add(_updateParam27);
+                var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.ParameterName = "@identityId";
+                updateCommand.Parameters.Add(updateParam1);
+                var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.ParameterName = "@driveId";
+                updateCommand.Parameters.Add(updateParam2);
+                var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.ParameterName = "@fileId";
+                updateCommand.Parameters.Add(updateParam3);
+                var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.ParameterName = "@globalTransitId";
+                updateCommand.Parameters.Add(updateParam4);
+                var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.ParameterName = "@fileState";
+                updateCommand.Parameters.Add(updateParam5);
+                var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.ParameterName = "@requiredSecurityGroup";
+                updateCommand.Parameters.Add(updateParam6);
+                var updateParam7 = updateCommand.CreateParameter();
+                updateParam7.ParameterName = "@fileSystemType";
+                updateCommand.Parameters.Add(updateParam7);
+                var updateParam8 = updateCommand.CreateParameter();
+                updateParam8.ParameterName = "@userDate";
+                updateCommand.Parameters.Add(updateParam8);
+                var updateParam9 = updateCommand.CreateParameter();
+                updateParam9.ParameterName = "@fileType";
+                updateCommand.Parameters.Add(updateParam9);
+                var updateParam10 = updateCommand.CreateParameter();
+                updateParam10.ParameterName = "@dataType";
+                updateCommand.Parameters.Add(updateParam10);
+                var updateParam11 = updateCommand.CreateParameter();
+                updateParam11.ParameterName = "@archivalStatus";
+                updateCommand.Parameters.Add(updateParam11);
+                var updateParam12 = updateCommand.CreateParameter();
+                updateParam12.ParameterName = "@historyStatus";
+                updateCommand.Parameters.Add(updateParam12);
+                var updateParam13 = updateCommand.CreateParameter();
+                updateParam13.ParameterName = "@senderId";
+                updateCommand.Parameters.Add(updateParam13);
+                var updateParam14 = updateCommand.CreateParameter();
+                updateParam14.ParameterName = "@groupId";
+                updateCommand.Parameters.Add(updateParam14);
+                var updateParam15 = updateCommand.CreateParameter();
+                updateParam15.ParameterName = "@uniqueId";
+                updateCommand.Parameters.Add(updateParam15);
+                var updateParam16 = updateCommand.CreateParameter();
+                updateParam16.ParameterName = "@byteCount";
+                updateCommand.Parameters.Add(updateParam16);
+                var updateParam17 = updateCommand.CreateParameter();
+                updateParam17.ParameterName = "@hdrEncryptedKeyHeader";
+                updateCommand.Parameters.Add(updateParam17);
+                var updateParam18 = updateCommand.CreateParameter();
+                updateParam18.ParameterName = "@hdrVersionTag";
+                updateCommand.Parameters.Add(updateParam18);
+                var updateParam19 = updateCommand.CreateParameter();
+                updateParam19.ParameterName = "@hdrAppData";
+                updateCommand.Parameters.Add(updateParam19);
+                var updateParam20 = updateCommand.CreateParameter();
+                updateParam20.ParameterName = "@hdrReactionSummary";
+                updateCommand.Parameters.Add(updateParam20);
+                var updateParam21 = updateCommand.CreateParameter();
+                updateParam21.ParameterName = "@hdrServerData";
+                updateCommand.Parameters.Add(updateParam21);
+                var updateParam22 = updateCommand.CreateParameter();
+                updateParam22.ParameterName = "@hdrTransferHistory";
+                updateCommand.Parameters.Add(updateParam22);
+                var updateParam23 = updateCommand.CreateParameter();
+                updateParam23.ParameterName = "@hdrFileMetaData";
+                updateCommand.Parameters.Add(updateParam23);
+                var updateParam24 = updateCommand.CreateParameter();
+                updateParam24.ParameterName = "@hdrTmpDriveAlias";
+                updateCommand.Parameters.Add(updateParam24);
+                var updateParam25 = updateCommand.CreateParameter();
+                updateParam25.ParameterName = "@hdrTmpDriveType";
+                updateCommand.Parameters.Add(updateParam25);
+                var updateParam26 = updateCommand.CreateParameter();
+                updateParam26.ParameterName = "@created";
+                updateCommand.Parameters.Add(updateParam26);
+                var updateParam27 = updateCommand.CreateParameter();
+                updateParam27.ParameterName = "@modified";
+                updateCommand.Parameters.Add(updateParam27);
              var now = UnixTimeUtcUnique.Now();
-                _updateParam1.Value = item.identityId.ToByteArray();
-                _updateParam2.Value = item.driveId.ToByteArray();
-                _updateParam3.Value = item.fileId.ToByteArray();
-                _updateParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam5.Value = item.fileState;
-                _updateParam6.Value = item.requiredSecurityGroup;
-                _updateParam7.Value = item.fileSystemType;
-                _updateParam8.Value = item.userDate.milliseconds;
-                _updateParam9.Value = item.fileType;
-                _updateParam10.Value = item.dataType;
-                _updateParam11.Value = item.archivalStatus;
-                _updateParam12.Value = item.historyStatus;
-                _updateParam13.Value = item.senderId ?? (object)DBNull.Value;
-                _updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam16.Value = item.byteCount;
-                _updateParam17.Value = item.hdrEncryptedKeyHeader;
-                _updateParam18.Value = item.hdrVersionTag.ToByteArray();
-                _updateParam19.Value = item.hdrAppData;
-                _updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                _updateParam21.Value = item.hdrServerData;
-                _updateParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                _updateParam23.Value = item.hdrFileMetaData;
-                _updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                _updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
-                _updateParam26.Value = now.uniqueTime;
-                _updateParam27.Value = now.uniqueTime;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam2.Value = item.driveId.ToByteArray();
+                updateParam3.Value = item.fileId.ToByteArray();
+                updateParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam5.Value = item.fileState;
+                updateParam6.Value = item.requiredSecurityGroup;
+                updateParam7.Value = item.fileSystemType;
+                updateParam8.Value = item.userDate.milliseconds;
+                updateParam9.Value = item.fileType;
+                updateParam10.Value = item.dataType;
+                updateParam11.Value = item.archivalStatus;
+                updateParam12.Value = item.historyStatus;
+                updateParam13.Value = item.senderId ?? (object)DBNull.Value;
+                updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam16.Value = item.byteCount;
+                updateParam17.Value = item.hdrEncryptedKeyHeader;
+                updateParam18.Value = item.hdrVersionTag.ToByteArray();
+                updateParam19.Value = item.hdrAppData;
+                updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                updateParam21.Value = item.hdrServerData;
+                updateParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                updateParam23.Value = item.hdrFileMetaData;
+                updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
+                updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                updateParam26.Value = now.uniqueTime;
+                updateParam27.Value = now.uniqueTime;
+                var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -913,12 +905,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        internal virtual int GetCountDirty(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
         {
-            using (var _getCountCommand = conn.db.CreateCommand())
+            using (var getCountCommand = conn.db.CreateCommand())
             {
-                _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
-                var count = conn.ExecuteScalar(_getCountCommand);
+                 // TODO: this is SQLite specific
+                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -959,16 +952,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        internal virtual int GetDriveCountDirty(DatabaseConnection conn, Guid driveId)
+        internal virtual async Task<int> GetDriveCountDirtyAsync(DatabaseConnection conn, Guid driveId)
         {
-            using (var _getCountDriveCommand = conn.db.CreateCommand())
+            using (var getCountDriveCommand = conn.db.CreateCommand())
             {
-                _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
-                var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
-                _getCountDriveParam1.ParameterName = "$driveId";
-                _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
-                _getCountDriveParam1.Value = driveId.ToByteArray();
-                var count = conn.ExecuteScalar(_getCountDriveCommand);
+                getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
+                getCountDriveParam1.ParameterName = "$driveId";
+                getCountDriveCommand.Parameters.Add(getCountDriveParam1);
+                getCountDriveParam1.Value = driveId.ToByteArray();
+                var count = await conn.ExecuteScalarAsync(getCountDriveCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -980,51 +973,51 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] _tmpbuf = new byte[65536+1];
+            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new DriveMainIndexRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(_guid);
+                item.identityId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in driveId...");
-                item.driveId = new Guid(_guid);
+                item.driveId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                item.fileId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(3))
                 item.globalTransitId = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(_guid);
+                item.globalTransitId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(4))
@@ -1094,20 +1087,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(13, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(13, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(_guid);
+                item.groupId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(14))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(_guid);
+                item.uniqueId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(15))
@@ -1128,10 +1121,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(17, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(17, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(_guid);
+                item.hdrVersionTag = new Guid(guid);
             }
 
             if (rdr.IsDBNull(18))
@@ -1173,20 +1166,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(23, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(23, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(_guid);
+                item.hdrTmpDriveAlias = new Guid(guid);
             }
 
             if (rdr.IsDBNull(24))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(24, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(24, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(_guid);
+                item.hdrTmpDriveType = new Guid(guid);
             }
 
             if (rdr.IsDBNull(25))
@@ -1205,26 +1198,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal int Delete(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _delete0Command = conn.db.CreateCommand())
+            using (var delete0Command = conn.db.CreateCommand())
             {
-                _delete0Command.CommandText = "DELETE FROM driveMainIndex " +
+                delete0Command.CommandText = "DELETE FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
-                var _delete0Param1 = _delete0Command.CreateParameter();
-                _delete0Param1.ParameterName = "@identityId";
-                _delete0Command.Parameters.Add(_delete0Param1);
-                var _delete0Param2 = _delete0Command.CreateParameter();
-                _delete0Param2.ParameterName = "@driveId";
-                _delete0Command.Parameters.Add(_delete0Param2);
-                var _delete0Param3 = _delete0Command.CreateParameter();
-                _delete0Param3.ParameterName = "@fileId";
-                _delete0Command.Parameters.Add(_delete0Param3);
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@identityId";
+                delete0Command.Parameters.Add(delete0Param1);
+                var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.ParameterName = "@driveId";
+                delete0Command.Parameters.Add(delete0Param2);
+                var delete0Param3 = delete0Command.CreateParameter();
+                delete0Param3.ParameterName = "@fileId";
+                delete0Command.Parameters.Add(delete0Param3);
 
-                _delete0Param1.Value = identityId.ToByteArray();
-                _delete0Param2.Value = driveId.ToByteArray();
-                _delete0Param3.Value = fileId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param2.Value = driveId.ToByteArray();
+                delete0Param3.Value = fileId.ToByteArray();
+                var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 return count;
             } // Using
         }
@@ -1232,11 +1225,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         internal DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] _tmpbuf = new byte[65536+1];
+            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
@@ -1246,20 +1239,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                item.fileId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
                 item.globalTransitId = null;
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(_guid);
+                item.globalTransitId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(2))
@@ -1329,10 +1322,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(_guid);
+                item.groupId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(12))
@@ -1353,10 +1346,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(_guid);
+                item.hdrVersionTag = new Guid(guid);
             }
 
             if (rdr.IsDBNull(15))
@@ -1398,20 +1391,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(_guid);
+                item.hdrTmpDriveAlias = new Guid(guid);
             }
 
             if (rdr.IsDBNull(21))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(_guid);
+                item.hdrTmpDriveType = new Guid(guid);
             }
 
             if (rdr.IsDBNull(22))
@@ -1430,48 +1423,47 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal DriveMainIndexRecord GetByUniqueId(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? uniqueId)
+        internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? uniqueId)
         {
-            using (var _get0Command = conn.db.CreateCommand())
+            using (var get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
-                var _get0Param1 = _get0Command.CreateParameter();
-                _get0Param1.ParameterName = "@identityId";
-                _get0Command.Parameters.Add(_get0Param1);
-                var _get0Param2 = _get0Command.CreateParameter();
-                _get0Param2.ParameterName = "@driveId";
-                _get0Command.Parameters.Add(_get0Param2);
-                var _get0Param3 = _get0Command.CreateParameter();
-                _get0Param3.ParameterName = "@uniqueId";
-                _get0Command.Parameters.Add(_get0Param3);
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@driveId";
+                get0Command.Parameters.Add(get0Param2);
+                var get0Param3 = get0Command.CreateParameter();
+                get0Param3.ParameterName = "@uniqueId";
+                get0Command.Parameters.Add(get0Param3);
 
-                _get0Param1.Value = identityId.ToByteArray();
-                _get0Param2.Value = driveId.ToByteArray();
-                _get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                lock (conn._lock)
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = driveId.ToByteArray();
+                get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr, identityId,driveId,uniqueId);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 
         internal DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] _tmpbuf = new byte[65536+1];
+            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
@@ -1481,10 +1473,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                item.fileId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
@@ -1554,20 +1546,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(10, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(10, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(_guid);
+                item.groupId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(11))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(_guid);
+                item.uniqueId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(12))
@@ -1588,10 +1580,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(_guid);
+                item.hdrVersionTag = new Guid(guid);
             }
 
             if (rdr.IsDBNull(15))
@@ -1633,20 +1625,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(_guid);
+                item.hdrTmpDriveAlias = new Guid(guid);
             }
 
             if (rdr.IsDBNull(21))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(_guid);
+                item.hdrTmpDriveType = new Guid(guid);
             }
 
             if (rdr.IsDBNull(22))
@@ -1665,48 +1657,47 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal DriveMainIndexRecord GetByGlobalTransitId(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? globalTransitId)
+        internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
-            using (var _get1Command = conn.db.CreateCommand())
+            using (var get1Command = conn.db.CreateCommand())
             {
-                _get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
-                var _get1Param1 = _get1Command.CreateParameter();
-                _get1Param1.ParameterName = "@identityId";
-                _get1Command.Parameters.Add(_get1Param1);
-                var _get1Param2 = _get1Command.CreateParameter();
-                _get1Param2.ParameterName = "@driveId";
-                _get1Command.Parameters.Add(_get1Param2);
-                var _get1Param3 = _get1Command.CreateParameter();
-                _get1Param3.ParameterName = "@globalTransitId";
-                _get1Command.Parameters.Add(_get1Param3);
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@driveId";
+                get1Command.Parameters.Add(get1Param2);
+                var get1Param3 = get1Command.CreateParameter();
+                get1Param3.ParameterName = "@globalTransitId";
+                get1Command.Parameters.Add(get1Param3);
 
-                _get1Param1.Value = identityId.ToByteArray();
-                _get1Param2.Value = driveId.ToByteArray();
-                _get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                lock (conn._lock)
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = driveId.ToByteArray();
+                get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
                         var r = ReadRecordFromReader1(rdr, identityId,driveId,globalTransitId);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 
         internal DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] _tmpbuf = new byte[65536+1];
+            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
-            var _guid = new byte[16];
+            var guid = new byte[16];
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
@@ -1716,10 +1707,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.globalTransitId = null;
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(_guid);
+                item.globalTransitId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(1))
@@ -1789,20 +1780,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(10, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(10, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(_guid);
+                item.groupId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(11))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(_guid);
+                item.uniqueId = new Guid(guid);
             }
 
             if (rdr.IsDBNull(12))
@@ -1823,10 +1814,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(14, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(_guid);
+                item.hdrVersionTag = new Guid(guid);
             }
 
             if (rdr.IsDBNull(15))
@@ -1868,20 +1859,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(20, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(_guid);
+                item.hdrTmpDriveAlias = new Guid(guid);
             }
 
             if (rdr.IsDBNull(21))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(21, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(_guid);
+                item.hdrTmpDriveType = new Guid(guid);
             }
 
             if (rdr.IsDBNull(22))
@@ -1900,37 +1891,36 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal DriveMainIndexRecord Get(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<DriveMainIndexRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var _get2Command = conn.db.CreateCommand())
+            using (var get2Command = conn.db.CreateCommand())
             {
-                _get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
-                var _get2Param1 = _get2Command.CreateParameter();
-                _get2Param1.ParameterName = "@identityId";
-                _get2Command.Parameters.Add(_get2Param1);
-                var _get2Param2 = _get2Command.CreateParameter();
-                _get2Param2.ParameterName = "@driveId";
-                _get2Command.Parameters.Add(_get2Param2);
-                var _get2Param3 = _get2Command.CreateParameter();
-                _get2Param3.ParameterName = "@fileId";
-                _get2Command.Parameters.Add(_get2Param3);
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@driveId";
+                get2Command.Parameters.Add(get2Param2);
+                var get2Param3 = get2Command.CreateParameter();
+                get2Param3.ParameterName = "@fileId";
+                get2Command.Parameters.Add(get2Param3);
 
-                _get2Param1.Value = identityId.ToByteArray();
-                _get2Param2.Value = driveId.ToByteArray();
-                _get2Param3.Value = fileId.ToByteArray();
-                lock (conn._lock)
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = driveId.ToByteArray();
+                get2Param3.Value = fileId.ToByteArray();
                 {
-                    using (DbDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await conn.ExecuteReaderAsync(get2Command, System.Data.CommandBehavior.SingleRow))
                     {
-                        if (!rdr.Read())
+                        if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
                         var r = ReadRecordFromReader2(rdr, identityId,driveId,fileId);
                         return r;
                     } // using
-                } // lock
+                } //
             } // using
         }
 

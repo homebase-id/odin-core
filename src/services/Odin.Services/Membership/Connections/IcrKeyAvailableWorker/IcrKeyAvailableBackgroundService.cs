@@ -31,7 +31,7 @@ public class IcrKeyAvailableBackgroundService(
         logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process for {data.Tenant}; token type: {data.TokenType}");
 
         var odinContext = await GetOdinContext(data);
-        var currentVersion = tenantConfigService.GetVersionInfo().DataVersionNumber;
+        var currentVersion = (await tenantConfigService.GetVersionInfoAsync()).DataVersionNumber;
 
         try
         {
@@ -41,8 +41,6 @@ public class IcrKeyAvailableBackgroundService(
         {
             logger.LogError(ex, $"Upgrading from {currentVersion} failed");
         }
-
-        await Task.CompletedTask;
     }
 
     private async Task<IOdinContext> GetOdinContext(IcrKeyAvailableJobData data)
@@ -76,7 +74,7 @@ public class IcrKeyAvailableBackgroundService(
             Caller = null
         };
 
-        var ctx = await appRegService.GetAppPermissionContext(token, odinContext);
+        var ctx = await appRegService.GetAppPermissionContextAsync(token, odinContext);
         return ctx;
     }
 
@@ -97,7 +95,7 @@ public class IcrKeyAvailableBackgroundService(
             ClientIdOrDomain = null
         };
 
-        await authService.UpdateOdinContext(token, clientContext, odinContext);
+        await authService.UpdateOdinContextAsync(token, clientContext, odinContext);
         return odinContext;
     }
 
@@ -108,17 +106,17 @@ public class IcrKeyAvailableBackgroundService(
             if (!tenantContext.Settings.DisableAutoAcceptIntroductions &&
                 odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
             {
-                await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequests(odinContext, cancellationToken);
+                await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequestsAsync(odinContext, cancellationToken);
             }
 
             if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
             {
-                await circleNetworkIntroductionService.SendOutstandingConnectionRequests(odinContext, cancellationToken);
+                await circleNetworkIntroductionService.SendOutstandingConnectionRequestsAsync(odinContext, cancellationToken);
             }
 
             if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
             {
-                await circleNetworkService.UpgradeWeakClientAccessTokens(odinContext, cancellationToken);
+                await circleNetworkService.UpgradeWeakClientAccessTokensAsync(odinContext, cancellationToken);
             }
         }
         catch (Exception ex)

@@ -32,10 +32,10 @@ public interface IYouAuthUnifiedService
         IOdinContext odinContext,
         IdentityDatabase db);
 
-    Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
+    Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
         IOdinContext odinContext, IdentityDatabase db);
 
-    Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
+    Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessTokenAsync(
         ClientType clientType,
         string clientId,
         string clientInfo,

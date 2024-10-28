@@ -20,16 +20,16 @@ namespace Odin.Services.Drives
         private readonly ConcurrentDictionary<Guid, AsyncLazy<IDriveDatabaseManager>> _queryManagers = new();
 
         // SEB:NOTE if this blows up, revert to commit 5a92a50c4d9a5dbe0790a1a15df9c20b6dc1192a
-        public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, IdentityDatabase db)
+        public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManagerAsync(Guid driveId, IdentityDatabase db)
         {
             //  AsyncLazy: https://devblogs.microsoft.com/pfxteam/asynclazyt/
             var manager = _queryManagers.GetOrAdd(driveId, id => new AsyncLazy<IDriveDatabaseManager>(async () =>
             {
-                var drive = await driveManager.GetDrive(id, db, failIfInvalid: true);
+                var drive = await driveManager.GetDriveAsync(id, db, failIfInvalid: true);
                 var logger = loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
                 var manager = new SqliteDatabaseManager(tenantSystemStorage, drive, logger);
-                await manager.LoadLatestIndex(db);
+                await manager.LoadLatestIndexAsync(db);
 
                 return manager;
             }));

@@ -78,7 +78,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDrive(tempFile.DriveId, db);
+            var drive = await driveManager.GetDriveAsync(tempFile.DriveId, db);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
@@ -111,7 +111,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             switch (transferFileType)
             {
                 case TransferFileType.Normal:
-                    await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext,
+                    await StoreNormalFileLongTermAsync(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext,
                         db);
                     break;
 
@@ -281,7 +281,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
-        private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+        private async Task StoreNormalFileLongTermAsync(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext,
             IdentityDatabase db)
         {
@@ -314,7 +314,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             header.AssertFileIsActive();
-            var drive = await driveManager.GetDrive(targetDriveId, db);
+            var drive = await driveManager.GetDriveAsync(targetDriveId, db);
             if (!drive.IsCollaborationDrive())
             {
                 header.AssertOriginalSender((OdinId)newMetadata.SenderOdinId);

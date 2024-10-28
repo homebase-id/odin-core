@@ -21,14 +21,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection()
         {
-            var code = await circleNetwork.VerifyConnectionCode(WebOdinContext);
+            var code = await circleNetwork.VerifyConnectionCodeAsync(WebOdinContext);
             return new JsonResult(code);
         }
 
         [HttpPost("update-remote-verification-hash")]
         public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
         {
-            await verificationService.SynchronizeVerificationHashFromRemote(payload, WebOdinContext);
+            await verificationService.SynchronizeVerificationHashFromRemoteAsync(payload, WebOdinContext);
             return Ok();
         }
     }

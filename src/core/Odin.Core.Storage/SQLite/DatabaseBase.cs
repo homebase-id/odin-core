@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
@@ -77,7 +78,7 @@ namespace Odin.Core.Storage.SQLite
         {
         }
 
-        public DatabaseConnection CreateDisposableConnection()
+        internal DatabaseConnection CreateDisposableConnection() // SEB:TODO make async
         {
             if (_wasDisposed)
             {
@@ -107,16 +108,11 @@ namespace Odin.Core.Storage.SQLite
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public virtual void CreateDatabase(bool dropExistingTables = true)
-        {
-            throw new Exception("Not implemented");
-        }
+        public abstract Task CreateDatabaseAsync(bool dropExistingTables = true);
 
         public DbCommand CreateCommand()
         {
-            DbCommand cmd = new SqliteCommand();
-
-            return cmd;
+            return new SqliteCommand();
         }
 
         private static void InitSqliteJournalModeWal(DbConnection cn)

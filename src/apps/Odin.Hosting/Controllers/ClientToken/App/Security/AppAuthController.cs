@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         {
             // Cookie might have been set by the preauth middleware
             Response.Cookies.Delete(YouAuthConstants.AppCookieName);
-            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext);
+            await appRegistrationService.DeleteCurrentAppClientAsync(WebOdinContext);
         }
     }
 }

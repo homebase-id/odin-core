@@ -17,7 +17,7 @@ public class VersionUpgradeService(
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
-    public async Task Upgrade(VersionUpgradeJobData data, CancellationToken cancellationToken)
+    public async Task UpgradeAsync(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
         logger.LogInformation($"Running Version Upgrade Process for {data.Tenant}");
 
@@ -39,9 +39,9 @@ public class VersionUpgradeService(
             ClientIdOrDomain = null
         };
 
-        await authService.UpdateOdinContext(token, clientContext, odinContext);
+        await authService.UpdateOdinContextAsync(token, clientContext, odinContext);
 
-        var currentVersion = tenantConfigService.GetVersionInfo().DataVersionNumber;
+        var currentVersion = (await tenantConfigService.GetVersionInfoAsync()).DataVersionNumber;
 
         try
         {
@@ -49,8 +49,8 @@ public class VersionUpgradeService(
             {
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
 
-                await v0ToV1VersionMigrationService.Upgrade(odinContext, cancellationToken);
-                currentVersion = tenantConfigService.IncrementVersion().DataVersionNumber;
+                await v0ToV1VersionMigrationService.UpgradeAsync(odinContext, cancellationToken);
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
             }
@@ -75,7 +75,5 @@ public class VersionUpgradeService(
         {
             logger.LogError(ex, $"Upgrading from {currentVersion} failed");
         }
-
-        await Task.CompletedTask;
     }
 }

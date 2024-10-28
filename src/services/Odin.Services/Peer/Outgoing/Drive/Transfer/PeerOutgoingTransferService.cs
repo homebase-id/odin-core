@@ -71,7 +71,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
                 await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
-                await peerOutbox.AddItem(item, useUpsert: true);
+                await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -108,7 +108,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var priority = 100;
 
             var (outboxStatus, outboxItems) =
-                await CreateUpdateOutboxItems(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, db);
+                await CreateUpdateOutboxItemsAsync(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext, db);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -119,7 +119,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
                 }
 
-                await peerOutbox.AddItem(item, useUpsert: true);
+                await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
             outboxProcessorBackgroundService.PulseBackgroundProcessor();
@@ -186,7 +186,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     TargetDrive = odinContext.PermissionsContext.GetTargetDrive(fileId.DriveId)
                 };
 
-                var statusItem = await EnqueueReadReceipt(fileId, odinContext, db, fileSystemType);
+                var statusItem = await EnqueueReadReceiptAsync(fileId, odinContext, db, fileSystemType);
                 intermediateResults.Add((externalFile, statusItem));
             }
 
@@ -211,7 +211,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         // 
 
-        private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceipt(InternalDriveFileId fileId,
+        private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceiptAsync(InternalDriveFileId fileId,
             IOdinContext odinContext,
             IdentityDatabase db,
             FileSystemType fileSystemType)
@@ -258,7 +258,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 };
             }
 
-            var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, false);
+            var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
             if (null == clientAuthToken)
             {
                 return new SendReadReceiptResultRecipientStatusItem()
@@ -295,7 +295,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
             };
 
-            await peerOutbox.AddItem(outboxItem, useUpsert: true);
+            await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
 
             return new SendReadReceiptResultRecipientStatusItem()
             {
@@ -318,7 +318,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var recipient = (OdinId)r;
 
                 //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
+                var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
                 var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                 var item = new OutboxFileItem()
@@ -343,7 +343,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     }
                 };
 
-                await peerOutbox.AddItem(item, useUpsert: true);
+                await peerOutbox.AddItemAsync(item, useUpsert: true);
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
@@ -380,7 +380,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IdentityDatabase db)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
-            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDrive(internalFile.DriveId, db, failIfInvalid: true)).TargetDriveInfo;
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDriveAsync(internalFile.DriveId, db, failIfInvalid: true)).TargetDriveInfo;
 
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -403,7 +403,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     //TODO: apply encryption before storing in the outbox
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
+                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new OutboxFileItem()
@@ -442,7 +442,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return (status, outboxItems);
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)> CreateUpdateOutboxItems(
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)> CreateUpdateOutboxItemsAsync(
             InternalDriveFileId sourceFile,
             byte[] keyHeaderIv,
             UpdateRemoteFileRequest request,
@@ -459,7 +459,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 try
                 {
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
+                    var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext);
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     var iv = ByteArrayUtil.GetRndByteArray(16);

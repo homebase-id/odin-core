@@ -149,7 +149,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             throw new OdinSystemException("Unhandled Routing");
         }
 
-        public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId,
+        public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequestAsync(TargetDrive targetDrive, Guid globalTransitId,
             FileSystemType fileSystemType,
             IOdinContext odinContext, IdentityDatabase db)
         {
@@ -201,7 +201,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.AddAsync(item);
 
             return new PeerTransferResponse()
             {
@@ -209,7 +209,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task<PeerTransferResponse> MarkFileAsRead(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
+        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
             IOdinContext odinContext, IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
@@ -229,7 +229,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.AddAsync(item);
 
             await mediator.Publish(new InboxItemReceivedNotification
             {
@@ -264,7 +264,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             //S1220
-            return await RouteToInbox(stateItem, odinContext, db);
+            return await RouteToInboxAsync(stateItem, odinContext, db);
         }
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext,
@@ -329,7 +329,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext,
+        private async Task<PeerResponseCode> RouteToInboxAsync(IncomingTransferStateItem stateItem, IOdinContext odinContext,
             IdentityDatabase db)
         {
             var item = new TransferInboxItem()
@@ -349,10 +349,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.AddAsync(item);
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = driveManager.GetDrive(item.DriveId, db).Result.TargetDriveInfo,
+                TargetDrive = (await driveManager.GetDriveAsync(item.DriveId, db)).TargetDriveInfo,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

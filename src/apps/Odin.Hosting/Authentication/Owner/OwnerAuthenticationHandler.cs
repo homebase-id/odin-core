@@ -83,13 +83,13 @@ namespace Odin.Hosting.Authentication.Owner
                 try
                 {
                     var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                    if (!await authService.UpdateOdinContext(authResult, clientContext: null, odinContext))
+                    if (!await authService.UpdateOdinContextAsync(authResult, clientContext: null, odinContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
 
-                    await _versionUpgradeScheduler.EnsureScheduled(authResult, odinContext);
-                    await _icrKeyAvailableScheduler.EnsureScheduled(authResult, odinContext, IcrKeyAvailableJobData.JobTokenType.Owner);
+                    await _versionUpgradeScheduler.EnsureScheduledAsync(authResult, odinContext);
+                    await _icrKeyAvailableScheduler.EnsureScheduledAsync(authResult, odinContext, IcrKeyAvailableJobData.JobTokenType.Owner);
                 }
                 catch (OdinSecurityException e)
                 {
@@ -127,15 +127,13 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        public Task SignOutAsync(AuthenticationProperties? properties)
+        public async Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                authService.ExpireToken(result.Id);
+                await authService.ExpireTokenAsync(result.Id);
             }
-
-            return Task.CompletedTask;
         }
 
         public Task SignInAsync(ClaimsPrincipal user, AuthenticationProperties? properties)

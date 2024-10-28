@@ -26,18 +26,14 @@ public class JobRunnerBackgroundService(
         while (!stoppingToken.IsCancellationRequested)
         {
             logger.LogDebug("{service} is running", GetType().Name);
-        
-            TimeSpan sleepDuration;
-            using (var cn = serverSystemStorage.CreateConnection())
+
+            while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJobAsync() is { } job)
             {
-                while (!stoppingToken.IsCancellationRequested && await jobs.GetNextScheduledJob(cn) is { } job)
-                {
-                    var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
-                    tasks.Add(task);
-                }
-            
-                sleepDuration = CalculateSleepDuration(await jobs.GetNextRunTime(cn));
+                var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
+                tasks.Add(task);
             }
+        
+            var sleepDuration = CalculateSleepDuration(await jobs.GetNextRunTimeAsync());
         
             tasks.RemoveAll(t => t.IsCompleted);
             

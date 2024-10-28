@@ -122,7 +122,7 @@ public class UpdateRemoteFileOutboxWorker(
             "transferInstructionSet.encrypted", "application/json",
             Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-        var (metaDataStream, payloadStreams) = await PackageFileStreams(header, true, odinContext, db);
+        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, true, odinContext, db);
 
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
@@ -177,21 +177,19 @@ public class UpdateRemoteFileOutboxWorker(
         }
     }
 
-    protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-        await Task.CompletedTask;
-        return nextRunTime;
+        return Task.FromResult(nextRunTime);
     }
 
-    protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext,
         IdentityDatabase db)
     {
         logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

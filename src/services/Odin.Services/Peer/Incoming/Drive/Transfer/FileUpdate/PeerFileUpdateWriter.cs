@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
-        public async Task UpdateFile(InternalDriveFileId tempFile,
+        public async Task UpdateFileAsync(InternalDriveFileId tempFile,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
@@ -39,7 +39,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, db);
-            var (targetAcl, isCollaborationChannel) = await DetermineAcl(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, db);
+            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, db);
             
             if (!isCollaborationChannel)
             {
@@ -79,7 +79,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatch(tempFile, targetFile, manifest, odinContext, db);
+                await fs.Storage.UpdateBatchAsync(tempFile, targetFile, manifest, odinContext, db);
             });
         }
 
@@ -121,7 +121,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return incomingMetadata;
         }
 
-        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAcl(InternalDriveFileId tempFile,
+        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(InternalDriveFileId tempFile,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             FileSystemType fileSystemType,
             FileMetadata metadata,
@@ -135,7 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDrive(tempFile.DriveId, db);
+            var drive = await driveManager.GetDriveAsync(tempFile.DriveId, db);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage

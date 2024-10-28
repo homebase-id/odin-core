@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             _ownerApi = ownerApi;
             _identity = identity;
 
-            var t = ownerApi.GetOwnerAuthContext(identity.OdinId).GetAwaiter().GetResult();
+            var t = ownerApi.GetOwnerAuthContext(identity.OdinId);
             var factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
 
             AppManager = new AppManagementApiClient(ownerApi, identity);
@@ -61,7 +61,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public OwnerAuthTokenContext GetTokenContext()
         {
-            var t = this._ownerApi.GetOwnerAuthContext(_identity.OdinId).ConfigureAwait(false).GetAwaiter().GetResult();
+            var t = this._ownerApi.GetOwnerAuthContext(_identity.OdinId);
             return t;
         }
 

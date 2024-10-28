@@ -14,7 +14,7 @@ public abstract class RequirePermissionsBase
     /// <summary>
     /// Enforces drive permissions when reading files
     /// </summary>
-    public abstract Task AssertCanReadDrive(Guid driveId, IOdinContext odinContext, IdentityDatabase db);
+    public abstract Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext, IdentityDatabase db);
 
     /// <summary>
     /// Enforces drive permissions when writing files
@@ -24,5 +24,5 @@ public abstract class RequirePermissionsBase
     /// <summary>
     /// Enforces that the caller can read or write to a drive.  Useful basic operations such as file exists
     /// </summary>
-    public abstract Task AssertCanReadOrWriteToDrive(Guid driveId, IOdinContext odinContext, IdentityDatabase db);
+    public abstract Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext, IdentityDatabase db);
 }

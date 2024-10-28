@@ -8,7 +8,6 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Apps;
@@ -69,7 +68,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (clientType == ClientType.domain)
         {
-            return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain), odinContext);
+            return await _domainRegistrationService.IsConsentRequiredAsync(new AsciiDomainName(clientIdOrDomain), odinContext);
         }
 
         // Apps on /owner doesn't need consent
@@ -88,7 +87,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
+    public async Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
         IOdinContext odinContext, IdentityDatabase db)
     {
         if (clientType == ClientType.app)
@@ -113,7 +112,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                await _domainRegistrationService.RegisterDomain(request, odinContext);
+                await _domainRegistrationService.RegisterDomainAsync(request, odinContext);
             }
             else
             {
@@ -127,7 +126,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
+    public async Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessTokenAsync(
         ClientType clientType,
         string clientId,
         string clientInfo,
@@ -147,13 +146,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
 
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await _appRegistrationService.RegisterClient(appId, clientInfo, odinContext);
+            (token, _) = await _appRegistrationService.RegisterClientAsync(appId, clientInfo, odinContext);
         }
         else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIcr((OdinId)domain, odinContext);
+            var info = await _circleNetwork.GetIcrAsync((OdinId)domain, odinContext);
             if (info.IsConnected())
             {
                 var icrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -169,7 +168,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request, odinContext);
+                (token, _) = await _domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
             }
         }
         else

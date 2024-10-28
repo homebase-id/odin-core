@@ -18,49 +18,49 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            var result = await circleNetwork.Unblock((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.UnblockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("block")]
         public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            var result = await circleNetwork.Block((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.BlockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            var result = await circleNetwork.Disconnect((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("confirm-connection")]
         public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
         {
-            await circleNetwork.ConfirmConnection((OdinId)request.OdinId, WebOdinContext);
+            await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
             return Ok();
         }
 
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
-            var result = await verificationService.VerifyConnection((OdinId)request.OdinId, WebOdinContext);
+            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, WebOdinContext);
             return new JsonResult(result);
         }
 
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.GetTroubleshootingInfoAsync((OdinId)request.OdinId, WebOdinContext);
             return new JsonResult(result);
         }
 
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await circleNetwork.GetIcr((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 
@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext);
+            var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await circleNetwork.GetBlockedProfiles(count, cursor, WebOdinContext);
+            var result = await circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -91,21 +91,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("circles/list")]
         public async Task<IEnumerable<OdinId>> GetCircleMembers([FromBody] GetCircleMembersRequest request)
         {
-            var result = await circleNetwork.GetCircleMembers(request.CircleId, WebOdinContext);
+            var result = await circleNetwork.GetCircleMembersAsync(request.CircleId, WebOdinContext);
             return result;
         }
 
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            await circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            await circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await circleNetwork.RevokeCircleAccessAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
     }

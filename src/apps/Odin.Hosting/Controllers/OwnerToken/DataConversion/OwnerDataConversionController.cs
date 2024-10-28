@@ -16,15 +16,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         [HttpPost("autofix-connections")]
         public async Task<IActionResult> RunAutofix()
         {
-            await fixer.AutoFixCircleGrants(WebOdinContext, HttpContext.RequestAborted);
+            await fixer.AutoFixCircleGrantsAsync(WebOdinContext, HttpContext.RequestAborted);
             return Ok();
         }
 
         [HttpPost("force-version-number")]
-        public Task<IActionResult> ForceVersionReset([FromQuery] int version)
+        public async Task<IActionResult> ForceVersionReset([FromQuery] int version)
         {
-            configService.ForceVersionNumber(version);
-            return Task.FromResult(Ok() as IActionResult);
+            await configService.ForceVersionNumberAsync(version);
+            return Ok();
         }
     }
 }
