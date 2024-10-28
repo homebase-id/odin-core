@@ -304,7 +304,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClient(string odinId,
             ClientAuthenticationToken remoteClientAuthToken, IdentityDatabase db)
         {
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistrationAsync(new OdinId(odinId), remoteClientAuthToken);
+            var icr = await _circleNetworkService.GetIcrAsync(new OdinId(odinId), remoteClientAuthToken);
 
             if (!icr.IsConnected())
             {
@@ -349,7 +349,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistrationAsync(client.OdinId, odinContext, true);
+            var icr = await _circleNetworkService.GetIcrAsync(client.OdinId, odinContext, true);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 

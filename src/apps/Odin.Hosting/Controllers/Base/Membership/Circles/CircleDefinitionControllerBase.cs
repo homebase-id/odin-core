@@ -62,7 +62,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            await _dbs.DeleteCircleDefinition(new GuidId(id), WebOdinContext);
+            await _dbs.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 

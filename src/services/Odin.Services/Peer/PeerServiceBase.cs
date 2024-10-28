@@ -53,7 +53,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await CircleNetworkService.GetIdentityConnectionRegistrationAsync(recipient, odinContext, overrideHack: true);
+            var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -67,7 +67,7 @@ namespace Odin.Services.Peer
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClientAsync(OdinId odinId, IOdinContext odinContext,
             IdentityDatabase db,
             FileSystemType? fileSystemType = null)
         {
@@ -86,7 +86,7 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected async Task<(ClientAccessToken token, T client)> CreateHttpClient<T>(
+        protected async Task<(ClientAccessToken token, T client)> CreateHttpClientAsync<T>(
             OdinId odinId,
             IdentityDatabase db,
             IOdinContext odinContext)
@@ -101,7 +101,7 @@ namespace Odin.Services.Peer
             return (token, httpClient);
         }
         
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
+        protected async Task<T> DecryptUsingSharedSecretAsync<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
@@ -121,7 +121,7 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, IdentityDatabase db,
+        protected async Task<InternalDriveFileId?> ResolveInternalFileAsync(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, IdentityDatabase db,
             bool failIfNull = false)
         {
             var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext, db);

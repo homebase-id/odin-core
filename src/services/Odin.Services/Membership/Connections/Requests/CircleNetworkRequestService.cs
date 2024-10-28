@@ -235,7 +235,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext),
-                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
+                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircleAsync(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
                 AccessRegistration = accessRegistration
             };
 
@@ -360,7 +360,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey, odinContext),
-                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
+                AppGrants = await _dbs.CreateAppCircleGrantListWithSystemCircleAsync(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey, odinContext),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();

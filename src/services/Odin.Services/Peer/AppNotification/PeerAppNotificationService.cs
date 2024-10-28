@@ -42,7 +42,7 @@ public class PeerAppNotificationService : PeerServiceBase
 
     public async Task<SharedSecretEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
     {
-        var token = await CircleNetworkService.CreatePeerIcrClientForCaller(odinContext);
+        var token = await CircleNetworkService.CreatePeerIcrClientForCallerAsync(odinContext);
         var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         return SharedSecretEncryptedPayload.Encrypt(token.ToPortableBytes(), sharedSecret);
@@ -57,7 +57,7 @@ public class PeerAppNotificationService : PeerServiceBase
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
-        var (targetIdentityCat, client) = await CreateHttpClient<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try
@@ -110,13 +110,13 @@ public class PeerAppNotificationService : PeerServiceBase
     private async Task<(bool isValid, PeerIcrClient icrClient)> ValidateClientAuthToken(ClientAuthenticationToken authToken,
         IOdinContext odinContext)
     {
-        var peerIcrClient = await CircleNetworkService.GetPeerIcrClient(authToken.Id);
+        var peerIcrClient = await CircleNetworkService.GetPeerIcrClientAsync(authToken.Id);
         if (null == peerIcrClient)
         {
             return (false, null);
         }
 
-        var icr = await CircleNetworkService.GetIdentityConnectionRegistrationAsync(peerIcrClient.Identity, odinContext, overrideHack: true);
+        var icr = await CircleNetworkService.GetIcrAsync(peerIcrClient.Identity, odinContext, overrideHack: true);
 
         if (!icr.IsConnected())
         {

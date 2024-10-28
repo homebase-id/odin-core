@@ -24,49 +24,49 @@ public class PeerIncomingReactionService(
 {
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, odinContext);
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var request = await DecryptUsingSharedSecretAsync<AddRemoteReactionRequest>(payload, odinContext);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         await reactionContentService.AddReactionAsync(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
+        var request = await DecryptUsingSharedSecretAsync<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         await reactionContentService.DeleteReactionAsync(fileId!.Value, request.Reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext,
         IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
+        var request = await DecryptUsingSharedSecretAsync<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         return await reactionContentService.GetReactionCountsByFileAsync(fileId!.Value, odinContext, db);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload, odinContext);
+        var request = await DecryptUsingSharedSecretAsync<PeerGetReactionsByIdentityRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         return await reactionContentService.GetReactionsByIdentityAndFileAsync(request.Identity, fileId!.Value, odinContext, db);
     }
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
+        var request = await DecryptUsingSharedSecretAsync<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         await reactionContentService.DeleteAllReactionsAsync(fileId!.Value, odinContext, db);
     }
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext, IdentityDatabase db)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
+        var request = await DecryptUsingSharedSecretAsync<GetRemoteReactionsRequest>(payload, odinContext);
 
-        var fileId = await ResolveInternalFile(request.File, odinContext, db, failIfNull: true);
+        var fileId = await ResolveInternalFileAsync(request.File, odinContext, db, failIfNull: true);
         
         var list = await reactionContentService.GetReactionsAsync(fileId!.Value, request.Cursor, request.MaxRecords, odinContext, db);
 

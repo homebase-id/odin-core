@@ -44,14 +44,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.GetTroubleshootingInfoAsync((OdinId)request.OdinId, WebOdinContext);
             return new JsonResult(result);
         }
         
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistrationAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await _circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 

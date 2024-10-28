@@ -33,7 +33,7 @@ namespace Odin.Services.Authorization.Acl
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIdentityConnectionRegistrationAsync(odinId, odinContext, true);
+                var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
                 var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
@@ -59,7 +59,7 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIdentityConnectionRegistrationAsync(odinId, odinContext, true)).IsConnected();
+                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
             }
 
             return false;

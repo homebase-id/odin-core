@@ -153,7 +153,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIdentityConnectionRegistrationAsync((OdinId)domain, odinContext);
+            var info = await _circleNetwork.GetIcrAsync((OdinId)domain, odinContext);
             if (info.IsConnected())
             {
                 var icrKey = odinContext.PermissionsContext.GetIcrKey();

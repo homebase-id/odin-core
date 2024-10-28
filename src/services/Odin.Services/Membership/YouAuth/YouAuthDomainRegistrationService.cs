@@ -150,7 +150,7 @@ namespace Odin.Services.Membership.YouAuth
             var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.Caller.AssertHasMasterKey();
 
-            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName, odinContext))
+            if (await _circleNetworkService.IsConnectedAsync((OdinId)domain.DomainName, odinContext))
             {
                 return false;
             }
