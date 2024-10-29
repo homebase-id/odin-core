@@ -10,15 +10,12 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
-using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
-using Org.BouncyCastle.Asn1.Cms;
 
 #nullable enable
 
@@ -297,8 +294,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                                       {
                                           WaitTimeMs = 100,
                                           BatchSize = 100,
-                                          Drives = [],
-                                          OtherOnlineIdentityKeys = []
+                                          Drives = []
                                       };
 
                         foreach (var td in options.Drives)
@@ -312,7 +308,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         deviceSocket.Drives = drives;
                         deviceSocket.ForcePushInterval = TimeSpan.FromMilliseconds(options.WaitTimeMs);
                         deviceSocket.BatchSize = options.BatchSize;
-                        deviceSocket.OtherOnlineIdentityKeys = options.OtherOnlineIdentityKeys ?? [];
                     }
                     catch (OdinSecurityException e)
                     {
@@ -332,29 +327,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                     }), cancellationToken);
                     break;
 
-                case SocketCommandType.WhoIsOnline:
-                    await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(GetOnlineIdentities(deviceSocket)),
-                        cancellationToken);
-                    break;
                 default:
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
-        }
-
-        private Dictionary<OdinId, List<Guid>> GetOnlineIdentities(DeviceSocket deviceSocket)
-        {
-            // deviceSocket.DeviceOdinContext.Caller.OdinId
-            var allOnlineIdentities = _deviceSocketCollection.GetAll().Values;
-
-            var results = new Dictionary<OdinId, List<Guid>>();
-            foreach (var otherDeviceSocket in allOnlineIdentities)
-            {
-                var matchingKeys = otherDeviceSocket.OtherOnlineIdentityKeys.Intersect(deviceSocket.OtherOnlineIdentityKeys);
-                results.Add(otherDeviceSocket.DeviceOdinContext!.GetCallerOdinIdOrFail(), matchingKeys.ToList());
-            }
-
-            return results;
         }
 
         //

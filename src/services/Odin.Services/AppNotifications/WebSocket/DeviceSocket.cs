@@ -9,7 +9,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using SQLitePCL;
 
 namespace Odin.Services.AppNotifications.WebSocket;
 
@@ -29,11 +28,6 @@ public class EstablishConnectionOptions
     /// </summary>
     public int WaitTimeMs { get; init; }
 
-    /// <summary>
-    /// List of Ids specified by the client that should receive a socket notification
-    /// when another client with the same key establishes a connection  
-    /// </summary>
-    public List<Guid> OtherOnlineIdentityKeys { get; init; } = new();
 }
 
 public class DeviceSocket
@@ -64,18 +58,11 @@ public class DeviceSocket
     /// </summary>
     public TimeSpan ForcePushInterval { get; set; }
 
-    /// <summary>
-    /// List of Ids specified by the client that should receive a socket notification
-    /// when another client with the same key establishes a connection  
-    /// </summary>
-    public List<Guid> OtherOnlineIdentityKeys { get; set; } = new();
-
     private bool LongTimeNoSee()
     {
         var v = (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
         return v;
     }
-
 
     public async Task EnqueueMessage(string json, Guid? groupId = null, CancellationToken? cancellationToken = null)
     {
