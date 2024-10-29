@@ -50,6 +50,9 @@ public class VersionUpgradeService(
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
 
                 await v0ToV1VersionMigrationService.UpgradeAsync(odinContext, cancellationToken);
+                
+                await v0ToV1VersionMigrationService.ValidateUpgradeAsync(odinContext, cancellationToken);
+                
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);

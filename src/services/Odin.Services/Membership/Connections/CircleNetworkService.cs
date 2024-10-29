@@ -560,6 +560,27 @@ namespace Odin.Services.Membership.Connections
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
 
+        public async Task<List<OdinId>> GetInvalidMembersOfCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
+        {
+            await circleMembershipService.AssertValidDriveGrantsAsync(circleDef.DriveGrants);
+
+            var members = await GetCircleMembersAsync(circleDef.Id, odinContext);
+
+            var invalid = new List<OdinId>();
+            foreach (var odinId in members)
+            {
+                var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                var hasCg = icr.AccessGrant.CircleGrants.TryGetValue(circleDef.Id, out var cg);
+                
+                if (icr.IsConnected() && !hasCg)
+                {
+                    invalid.Add(icr.OdinId);
+                }
+            }
+
+            return invalid;
+        }
+
         /// <summary>
         /// Tests if a circle has members and indicates if it can be deleted
         /// </summary>
@@ -971,11 +992,11 @@ namespace Odin.Services.Membership.Connections
                 await this.UpdateCircleDefinitionAsync(def, odinContext);
             }
 
-            CircleDefinition confirmedCircle = await 
+            CircleDefinition confirmedCircle = await
                 circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
             await GrantAnonymousRead(confirmedCircle);
 
-            CircleDefinition autoConnectedCircle = await 
+            CircleDefinition autoConnectedCircle = await
                 circleMembershipService.GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
             await GrantAnonymousRead(autoConnectedCircle);
         }
@@ -991,7 +1012,7 @@ namespace Odin.Services.Membership.Connections
             // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
 
 
-            var (grants, enabledCircles) = await 
+            var (grants, enabledCircles) = await
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
@@ -1088,7 +1109,8 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor, ConnectionStatus status,
+        private async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor,
+            ConnectionStatus status,
             IOdinContext odinContext)
         {
             var (list, nextCursor) = await _storage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
