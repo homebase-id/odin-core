@@ -302,6 +302,37 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
+        [HttpGet("header_byuniqueid")]
+        public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] string odinId,
+            [FromQuery] Guid uniqueId,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            AssertIsValidOdinId(odinId, out var id);
+
+            var fst = GetHttpFileSystemResolver().GetFileSystemType();
+            var file = new GetPayloadByUniqueIdRequest()
+            {
+                UniqueId = uniqueId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            };
+
+            var db = tenantSystemStorage.IdentityDatabase;
+            var result = await peerDriveQueryService.GetFileHeaderByUniqueIdAsync(id, file, fst, WebOdinContext, db);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
         private IActionResult HandleThumbnailResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, string decryptedContentType,
             UnixTimeUtc? lastModified, Stream thumb)
         {
