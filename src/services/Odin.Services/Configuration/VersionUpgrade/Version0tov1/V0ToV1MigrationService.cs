@@ -76,7 +76,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 logger.LogError("Identities with invalid circle grant for confirmed connections circle : [{list}]",
                     string.Join(",", invalidMembers));
 
-                throw new OdinSystemException("Invalid members found for cionfirmed connections circle");
+                throw new OdinSystemException("Invalid members found for confirmed connections circle");
             }
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -104,38 +104,38 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             }
         }
 
-        private async Task AssertCircleDefinitionIsCorrect(CircleDefinition expectedDefinion)
+        private async Task AssertCircleDefinitionIsCorrect(CircleDefinition expectedDefinition)
         {
-            var existingDefinition = await circleDefinitionService.GetCircleAsync(expectedDefinion.Id);
+            var existingDefinition = await circleDefinitionService.GetCircleAsync(expectedDefinition.Id);
             if (existingDefinition == null)
             {
-                throw new OdinSystemException($"Definition does not exist with ID {expectedDefinion.Id}");
+                throw new OdinSystemException($"Definition does not exist with ID {expectedDefinition.Id}");
             }
 
-            if (existingDefinition.Name != expectedDefinion.Name)
+            if (existingDefinition.Name != expectedDefinition.Name)
             {
-                throw new OdinSystemException($"Name does not match expected definition with ID {expectedDefinion.Id}");
+                throw new OdinSystemException($"Name does not match expected definition with ID {expectedDefinition.Id}");
             }
 
-            if (existingDefinition.Description != expectedDefinion.Description)
+            if (existingDefinition.Description != expectedDefinition.Description)
             {
-                throw new OdinSystemException($"Description does not match expected definition for {expectedDefinion.Name}");
+                throw new OdinSystemException($"Description does not match expected definition for {expectedDefinition.Name}");
             }
 
-            if (existingDefinition.Disabled != expectedDefinion.Disabled)
+            if (existingDefinition.Disabled != expectedDefinition.Disabled)
             {
-                throw new OdinSystemException($"Disabled does not match expected definition for {expectedDefinion.Name}");
+                throw new OdinSystemException($"Disabled does not match expected definition for {expectedDefinition.Name}");
             }
 
-            if (existingDefinition.Permissions != expectedDefinion.Permissions)
+            if (existingDefinition.Permissions != expectedDefinition.Permissions)
             {
-                throw new OdinSystemException($"Circle Definition permission do not match expected definition for {expectedDefinion.Name}");
+                throw new OdinSystemException($"Circle Definition permission do not match expected definition for {expectedDefinition.Name}");
             }
 
-            if (expectedDefinion.DriveGrants.Intersect(existingDefinition.DriveGrants).Count() != expectedDefinion.DriveGrants.Count())
+            if (expectedDefinition.DriveGrants.Intersect(existingDefinition.DriveGrants).Count() != expectedDefinition.DriveGrants.Count())
             {
                 throw new OdinSystemException(
-                    $"Circle Definition DriveGrants do not match expected definition for {expectedDefinion.Name}");
+                    $"Circle Definition DriveGrants do not match expected definition for {expectedDefinition.Name}");
             }
         }
 
