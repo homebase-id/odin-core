@@ -172,7 +172,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun, IdentityDatabase db)
         {
-            if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            if (fileItem.AttemptCount > odinConfiguration.Host.OutboxOperationMaxAttempts)
             {
                 await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
                 logger.LogInformation(

@@ -11,6 +11,7 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -18,12 +19,30 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, FileSystemResolver fileSystemResolver)
+public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration)
 {
     protected OutboxFileItem FileItem => fileItem;
     protected FileSystemResolver FileSystemResolver => fileSystemResolver;
 
-    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext, IdentityDatabase db,
+    protected readonly OdinConfiguration Configuration = odinConfiguration;
+
+    protected void AssertHasRemainingAttempts()
+    {
+        if (FileItem.AttemptCount > Configuration.Host.OutboxOperationMaxAttempts)
+        {
+            throw new OdinOutboxProcessingException("Too many attempts")
+            {
+                File = FileItem.File,
+                TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
+                Recipient = default,
+                VersionTag = default,
+                GlobalTransitId = default
+            };
+        }
+
+    }
+    protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
+        IdentityDatabase db,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Failed to process outbox item for recipient: {recipient} " +
@@ -82,14 +101,16 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
     protected UnixTimeUtc CalculateNextRunTime(LatestTransferStatus transferStatus)
     {
+        var delay = CalculateSecondsDelay(FileItem.AttemptCount);
+
         switch (transferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
             case LatestTransferStatus.RecipientServerNotResponding:
-                return UnixTimeUtc.Now().AddSeconds(15);
+                return UnixTimeUtc.Now().AddSeconds(delay);
 
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
-                return UnixTimeUtc.Now().AddSeconds(15);
+                return UnixTimeUtc.Now().AddSeconds(delay);
             default:
                 return UnixTimeUtc.Now().AddSeconds(30);
         }
@@ -131,7 +152,8 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
         var stream = new MemoryStream(json.ToUtf8ByteArray());
-        var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
+        var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json",
+            Enum.GetName(MultipartHostTransferParts.Metadata));
 
         var payloadStreams = new List<StreamPart>();
 
@@ -153,7 +175,8 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var (thumbStream, thumbHeader) =
-                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key,
+                            descriptor.Uid,
                             odinContext, db);
 
                     var thumbnailKey =
@@ -174,7 +197,8 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
     protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, IdentityDatabase db)
     {
-        logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
+        logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient,
+            globalTransitId);
 
         var update = new UpdateTransferHistoryData()
         {
@@ -192,6 +216,18 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
         logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
-        
+    }
+
+    private int CalculateSecondsDelay(int attemptNumber)
+    {
+        int baseDelaySeconds = 10;
+
+        if (attemptNumber <= 5)
+        {
+            return (int)(baseDelaySeconds  * attemptNumber);
+        }
+
+        baseDelaySeconds = 30;
+        return (int)(baseDelaySeconds  * attemptNumber);
     }
 }
