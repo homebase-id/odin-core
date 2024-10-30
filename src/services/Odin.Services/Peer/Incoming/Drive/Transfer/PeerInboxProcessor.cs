@@ -40,7 +40,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
-        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, IdentityDatabase db, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, IdentityDatabase db,
+            int batchSize = 1)
         {
             int actualBatchSize = batchSize == 0 ? 1 : batchSize;
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
@@ -49,7 +50,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 batchSize, actualBatchSize);
 
             var status = await transitInboxBoxStorage.GetPendingCountAsync(driveId, db);
-            logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+            logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}",
+                targetDrive.ToString(),
                 status.PoppedCount, status.TotalItems,
                 status.OldestItemTimestamp.milliseconds);
 
@@ -112,7 +114,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
-                        var icr = await circleNetworkService.GetIdentityConnectionRegistrationAsync(inboxItem.Sender, odinContext, overrideHack: true);
+                        var icr = await circleNetworkService.GetIdentityConnectionRegistrationAsync(inboxItem.Sender, odinContext,
+                            overrideHack: true);
                         var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
                         var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
@@ -123,7 +126,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                 odinContext, tenantSystemStorage.IdentityDatabase);
                         });
 
-                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId, handleFileMs);
+                        logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
+                            handleFileMs);
                     }
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
@@ -153,7 +157,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
-                    logger.LogDebug("Processing Inbox -> UpdateFile instruction found, ignoring and marking as failure until code supports it.");
+                    logger.LogDebug(
+                        "Processing Inbox -> UpdateFile instruction found, ignoring and marking as failure until code supports it.");
                     await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker, tenantSystemStorage.IdentityDatabase);
                 }
                 else
@@ -199,6 +204,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogError(oce,
                     "Processing Inbox -> UniqueId Conflict: " +
+                    "\nSender: {sender}. " +
+                    "\nInbox InstructionType: {instructionType}. " +
+                    "\nTemp File:{f}. " +
+                    "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                    "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
+                    "\nAction: Marking Complete",
+                    inboxItem.Sender,
+                    inboxItem.InstructionType,
+                    tempFile,
+                    inboxItem.GlobalTransitId,
+                    Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                    Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+
+                await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker, tenantSystemStorage.IdentityDatabase);
+            }
+            catch (OdinSecurityException securityException)
+            {
+                logger.LogWarning(securityException,
+                    "Processing Inbox -> Security Exception: " +
                     "\nSender: {sender}. " +
                     "\nInbox InstructionType: {instructionType}. " +
                     "\nTemp File:{f}. " +
@@ -277,7 +302,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return OdinSystemSerializer.Deserialize<T>(json);
         }
 
-        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer, InternalDriveFileId tempFile,
+        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer,
+            InternalDriveFileId tempFile,
             IDriveFileSystem fs, IdentityDatabase db)
         {
             try
@@ -311,7 +337,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<InboxStatus> GetPendingCountAsync(TargetDrive targetDrive, IdentityDatabase db, Guid driveId)
         {
             var pendingCount = await transitInboxBoxStorage.GetPendingCountAsync(driveId, db);
-            logger.LogDebug("Returning: Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+            logger.LogDebug("Returning: Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}",
+                targetDrive.ToString(),
                 pendingCount.PoppedCount, pendingCount.TotalItems,
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
