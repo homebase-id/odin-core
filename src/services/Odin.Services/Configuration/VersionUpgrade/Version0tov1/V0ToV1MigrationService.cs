@@ -97,7 +97,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             // Sync verification hash's across all connections
             //
-            logger.LogInformation("Validate verification has on all connections...");
+            logger.LogDebug("Validate verification has on all connections...");
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             foreach (var identity in allIdentities.Results)
             {
@@ -108,7 +108,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                     throw new OdinSystemException($"Verification hash missing for {identity.OdinId}");
                 }
             }
-            logger.LogInformation("Validate verification has on all connections - OK");
+            logger.LogDebug("Validate verification has on all connections - OK");
 
         }
 
@@ -220,7 +220,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             // Sync verification hash's across all connections
             //
-            logger.LogInformation("Syncing verification hashes");
+            logger.LogDebug("Syncing verification hashes");
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
             //TODO CONNECTIONS
