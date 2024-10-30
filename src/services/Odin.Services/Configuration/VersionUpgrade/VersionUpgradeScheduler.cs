@@ -1,5 +1,7 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -64,4 +66,11 @@ public sealed class VersionUpgradeScheduler(
         
         return currentVersion != ReleaseVersionInfo.DataVersionNumber;
     }
+
+    public static void SetRequiresUpgradeResponse(HttpContext context)
+    {
+        context.Response.Headers.Append(OdinHeaderNames.RequiresUpgrade, bool.TrueString);
+        context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+    }
+    
 }

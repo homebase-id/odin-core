@@ -320,9 +320,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 throw new OdinSystemException($"Failed to upgrade app {request.AppId} | {request.Name}. " +
                                               $"PermissionSet does not match");
             }
-
-            if (appReg.Grant.DriveGrants.IntersectBy(request.CircleMemberPermissionGrant.Drives.Select(dg => dg.PermissionedDrive),
-                    rdg => rdg.PermissionedDrive).Count() != request.CircleMemberPermissionGrant.Drives.Count())
+            
+            if (appReg.Grant.DriveGrants.IntersectBy(request.Drives.Select(dg => dg.PermissionedDrive),
+                    rdg => rdg.PermissionedDrive).Count() != request.Drives.Count())
             {
                 throw new OdinSystemException($"Failed to upgrade app {request.AppId} | {request.Name}. " +
                                               $"Drives does not match");
