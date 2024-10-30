@@ -45,28 +45,30 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             // Validate new ICR Key exists
             //
-            logger.LogDebug("Validate new ICR Key exists");
-            // TODO
+            logger.LogDebug("Validate new ICR Key exists...");
             var icrEccKey = await publicPrivateKeyService.GetEccFullKeyAsync(PublicPrivateKeyType.OnlineIcrEncryptedKey);
             if (icrEccKey == null)
             {
                 throw new OdinSystemException("OnlineIcrEncryptedKey was not created");
             }
+            logger.LogDebug("Validate new ICR Key exists - OK");
 
             cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Validate system circles are correct
             //
-            logger.LogDebug("Validate system circles are correct");
+            logger.LogDebug("Validate system circles are correct...");
             await AssertCircleDefinitionIsCorrect(SystemCircleConstants.ConfirmedConnectionsDefinition);
             await AssertCircleDefinitionIsCorrect(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
             cancellationToken.ThrowIfCancellationRequested();
+            logger.LogDebug("Validate system circles are correct - OK");
+
 
             //
             //
             //
-            logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition");
+            logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition...");
 
             var invalidMembers = await circleNetworkService.GetInvalidMembersOfCircleDefinition(
                 SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
@@ -78,20 +80,24 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
                 throw new OdinSystemException("Invalid members found for confirmed connections circle");
             }
+            
+            logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition - OK");
+
             cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Update the apps that use the new circle
             //
-            logger.LogDebug("Verifying system apps have new circles and permissions");
+            logger.LogDebug("Verifying system apps have new circles and permissions...");
             await VerifyApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
             await VerifyApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+            logger.LogDebug("Verifying system apps have new circles and permissions - OK");
             cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Sync verification hash's across all connections
             //
-            logger.LogInformation("Syncing verification hashes");
+            logger.LogInformation("Validate verification has on all connections...");
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             foreach (var identity in allIdentities.Results)
             {
@@ -102,6 +108,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                     throw new OdinSystemException($"Verification hash missing for {identity.OdinId}");
                 }
             }
+            logger.LogInformation("Validate verification has on all connections - OK");
+
         }
 
         private async Task AssertCircleDefinitionIsCorrect(CircleDefinition expectedDefinition)
