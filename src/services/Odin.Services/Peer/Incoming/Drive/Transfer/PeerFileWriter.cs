@@ -79,7 +79,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             var drive = await driveManager.GetDriveAsync(tempFile.DriveId, db);
-            var isCollaborationChannel = drive.IsCollaborationDrive();
+            var isCollaborationDrive = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
@@ -91,7 +91,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 //
                 // Collab channel hack
                 //
-                if (isCollaborationChannel)
+                if (isCollaborationDrive)
                 {
                     targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
                     {
@@ -103,11 +103,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = fileSystemType,
-                AllowDistribution = isCollaborationChannel,
+                AllowDistribution = isCollaborationDrive,
                 AccessControlList = targetAcl
             };
 
-            metadata!.SenderOdinId = sender; //in a collab channel this is not the right sender;
+            if (isCollaborationDrive)
+            {
+                metadata!.SenderOdinId = encryptedRecipientTransferInstructionSet.IsPeerDirect ? odinContext.Tenant : sender;
+            }
+            else
+            {
+                metadata!.SenderOdinId = sender;
+            }
+
+
             switch (transferFileType)
             {
                 case TransferFileType.Normal:

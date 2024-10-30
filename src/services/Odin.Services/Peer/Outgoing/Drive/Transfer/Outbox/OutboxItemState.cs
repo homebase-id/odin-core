@@ -32,6 +32,12 @@ public class OutboxItemState
     
     public byte[] Data { get; set; }
     
+    /// <summary>
+    /// Indicates this transfer was done using peer direct; which will influence how we
+    /// set the senderId on the recipient identity 🤢🤢🤢
+    /// </summary>
+    public bool IsPeerDirect { get; set; }
+
     public T DeserializeData<T>()
     {
         return OdinSystemSerializer.Deserialize<T>(Data.ToStringFromUtf8Bytes());

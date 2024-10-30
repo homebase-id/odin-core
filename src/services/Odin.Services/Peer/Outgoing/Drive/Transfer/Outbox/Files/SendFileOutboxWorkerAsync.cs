@@ -110,6 +110,7 @@ public class SendFileOutboxWorkerAsync(
         var redactedAcl = header.ServerMetadata.AccessControlList;
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
+        instructionSet.IsPeerDirect = outboxFileItem.State.IsPeerDirect;
 
         var transferKeyHeaderStream = new StreamPart(
             new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
