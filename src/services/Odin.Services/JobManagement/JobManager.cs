@@ -261,7 +261,7 @@ public class JobManager(
     {
         var record = await _tblJobs.GetAsync(jobId);
     
-        if (record == null)
+        if (record == null!)
         {
             return null;
         }

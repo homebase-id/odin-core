@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -73,6 +75,7 @@ public class JobManagerTests
         };
 
         var host = Host.CreateDefaultBuilder()
+            .UseServiceProviderFactory(new AutofacServiceProviderFactory()) // Use Autofac as DI container
             .ConfigureServices((hostContext, services) =>
             {
                 services.AddSingleton(config);
@@ -87,7 +90,7 @@ public class JobManagerTests
                 services.AddSingleton<ServerSystemStorage>();
             
                 services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
-                    provider.GetRequiredService<IServiceProvider>(),
+                    provider.GetRequiredService<ILifetimeScope>(),
                     "system"
                 ));
 
@@ -104,8 +107,6 @@ public class JobManagerTests
                 services.AddTransient<JobWithHash>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
-
-
             })
             .Build();
 
@@ -124,13 +125,8 @@ public class JobManagerTests
     
     private async Task StartBackgroundServices()
     {
-        await _backgroundServiceManager!.StartAsync(
-            nameof(JobCleanUpBackgroundService),
-            _host!.Services.GetRequiredService<JobCleanUpBackgroundService>());
-        
-        await _backgroundServiceManager!.StartAsync(
-            nameof(JobRunnerBackgroundService), 
-            _host!.Services.GetRequiredService<JobRunnerBackgroundService>());
+        await _backgroundServiceManager!.StartAsync<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
+        await _backgroundServiceManager!.StartAsync<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
     
     //
@@ -1086,9 +1082,4 @@ public class JobManagerTests
             await Task.Delay(100);
         }
     }
-    
-    
-
-    
-    
 }
