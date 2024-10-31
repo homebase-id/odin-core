@@ -372,7 +372,7 @@ public class BackgroundServiceManagerTest
          //     var backgroundService = serviceScope.Resolve<T>();
          //   to
          //     var backgroundService = lifetimeScope.Resolve<T>();
-         //   this will cause the test to fail because the ScopedTestValue will will be resolved from the parent scope
+         //   this will cause the test to fail because the ScopedTestValue will be resolved from the parent scope
          //   and not the child scope.
          //
          

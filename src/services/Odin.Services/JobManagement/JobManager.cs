@@ -1,12 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -32,7 +31,7 @@ public interface IJobManager
 public class JobManager(
     ILogger<JobManager> logger,
     ICorrelationContext correlationContext,
-    IServiceProvider serviceProvider,
+    ILifetimeScope lifetimeScope,
     ServerSystemStorage serverSystemStorage,
     JobRunnerBackgroundService jobRunnerBackgroundService)
     : IJobManager
@@ -43,7 +42,7 @@ public class JobManager(
 
     public T NewJob<T>() where T : AbstractJob
     {
-        return serviceProvider.GetRequiredService<T>();
+        return lifetimeScope.Resolve<T>();
     }
 
     //
@@ -116,7 +115,8 @@ public class JobManager(
     {
         // DO NOT check cancellationToken here. It will orphan the job if we bail at this point!
 
-        var job = await GetJobAsync<AbstractJob>(jobId);
+        using var childScope = lifetimeScope.BeginLifetimeScope();
+        using var job = await GetJobAsync<AbstractJob>(jobId, childScope);
         if (job?.Record == null)
         {
             logger.LogError("Job {jobId} not found", jobId);
@@ -257,7 +257,14 @@ public class JobManager(
     
     //
 
-    public async Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
+    public Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
+    {
+        return GetJobAsync<T>(jobId, lifetimeScope);
+    }
+    
+    //
+    
+    private async Task<T?> GetJobAsync<T>(Guid jobId, ILifetimeScope scope) where T : AbstractJob
     {
         var record = await _tblJobs.GetAsync(jobId);
     
@@ -266,7 +273,7 @@ public class JobManager(
             return null;
         }
 
-        var job = AbstractJob.CreateInstance<T>(serviceProvider, record);
+        var job = AbstractJob.CreateInstance<T>(scope, record);
     
         return job;
     }

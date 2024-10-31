@@ -1,4 +1,6 @@
 using System;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -12,17 +14,19 @@ namespace Odin.Services.Tests.JobManagement;
 
 public class JobApiResponseTests
 {
-    private IServiceProvider _serviceProvider = null!;
+    private ILifetimeScope _container = null!;
 
     [SetUp]
     public void Setup()
     {
-        var serviceCollection = new ServiceCollection();
+        var builder = new ContainerBuilder();
 
-        serviceCollection.AddTransient<ILogger<SimpleJobTest>>(_ => Mock.Of<ILogger<SimpleJobTest>>());
-        serviceCollection.AddTransient<SimpleJobTest>();
+        var mockLogger = Mock.Of<ILogger<SimpleJobTest>>();
 
-        _serviceProvider = serviceCollection.BuildServiceProvider();
+        builder.RegisterInstance(mockLogger).As<ILogger<SimpleJobTest>>();
+        builder.RegisterType<SimpleJobTest>().AsSelf().InstancePerDependency();
+
+        _container = builder.Build();    
     }
 
     [Test]
@@ -36,7 +40,7 @@ public class JobApiResponseTests
             jobType = typeof(SimpleJobTest).AssemblyQualifiedName,
         };
 
-        var job = AbstractJob.CreateInstance<SimpleJobTest>(_serviceProvider, record);
+        using var job = AbstractJob.CreateInstance<SimpleJobTest>(_container, record);
         job.JobData.SomeJobData = "hurrah!";
 
         Assert.That(job.Id, Is.EqualTo(record.id));

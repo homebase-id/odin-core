@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -107,6 +108,9 @@ public class JobManagerTests
                 services.AddTransient<JobWithHash>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
+
+                services.AddScoped<ScopedTestDependency>();
+                services.AddTransient<ScopedJobTest>();
             })
             .Build();
 
@@ -1063,6 +1067,49 @@ public class JobManagerTests
     
     //
     
+    [Test]
+    public async Task JobShouldHaveInternalChildDiScope()
+    {
+        //
+        // NOTE:
+        //
+        // To see this test fail because of wrong scope:
+        // - go to JobManager::RunJobNowAsync
+        // - change the lines
+        //     using var job = await GetJobAsync<AbstractJob>(jobId, childScope);
+        //   to
+        //     var job = await GetJobAsync<AbstractJob>(jobId);
+        //   this will cause the test to fail because the ScopedTestDependency will be resolved from the parent scope
+        //   and not the child scope.
+        //
+        
+        var scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        scopedTestDependency.Value = "sanity";
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
+        
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        await StartBackgroundServices();
+        
+        var scopedJob = jobManager.NewJob<ScopedJobTest>();
+        var scopedJobId = await jobManager.ScheduleJobAsync(scopedJob);
+        Assert.That(scopedJobId, Is.Not.EqualTo(Guid.Empty));
+        
+        // Act
+        await WaitForJobStatus<ScopedJobTest>(jobManager, scopedJobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+        
+        scopedJob = await jobManager.GetJobAsync<ScopedJobTest>(scopedJobId);
+        Assert.That(scopedJob!.JobData.ScopedTestCopy, Is.EqualTo("new born"));
+        
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
+
+        await StopBackgroundServices();
+        AssertLogEvents();
+    }
+    
+    
+    //
     
     private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {

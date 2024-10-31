@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+using Autofac;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 
@@ -9,7 +9,7 @@ namespace Odin.Services.JobManagement;
 
 #nullable enable
 
-public abstract class AbstractJob
+public abstract class AbstractJob : IDisposable
 {
     // Implement this method to run the job
     public abstract Task<JobExecutionResult> Run(CancellationToken cancellationToken);
@@ -58,9 +58,9 @@ public abstract class AbstractJob
     // Low level database job record (read-only)
     public JobsRecord? Record { get; private set; }
     
-    public static AbstractJob CreateInstance(IServiceProvider serviceProvider, JobsRecord record)
+    public static AbstractJob CreateInstance(ILifetimeScope lifetimeScope, JobsRecord record)
     {
-        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(lifetimeScope);
         ArgumentNullException.ThrowIfNull(record);
 
         if (string.IsNullOrEmpty(record.jobType))
@@ -73,12 +73,12 @@ public abstract class AbstractJob
         {
             throw new OdinSystemException($"Unable to find job type {record.jobType}");
         }
-        
-        if (ActivatorUtilities.CreateInstance(serviceProvider, type) is not AbstractJob job)
+
+        if (lifetimeScope.Resolve(type) is not AbstractJob job)
         {
             throw new OdinSystemException($"Unable to create instance of job type {type}");
         }
-        
+
         job.Record = record;
 
         if (!string.IsNullOrEmpty(record.jobData))
@@ -91,14 +91,26 @@ public abstract class AbstractJob
     
     //
     
-    public static T CreateInstance<T>(IServiceProvider serviceProvider, JobsRecord record) where T : AbstractJob
+    public static T CreateInstance<T>(ILifetimeScope lifetimeScope, JobsRecord record) where T : AbstractJob
     {
-        if (CreateInstance(serviceProvider, record) is not T job)
+        if (CreateInstance(lifetimeScope, record) is not T job)
         {
             throw new OdinSystemException($"Unable to create instance of job type {typeof(T)}");
         }
         return job;
     }
+    
+    //
+    
+    public virtual void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);        
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+    }    
     
     //
     
