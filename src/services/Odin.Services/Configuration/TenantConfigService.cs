@@ -221,16 +221,7 @@ public class TenantConfigService
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
-
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+        await EnsureSystemDrivesExist(odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -258,6 +249,21 @@ public class TenantConfigService
         await _configStorage.UpsertManyAsync(db, keyValuePairs);
     }
 
+    public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
+    {
+        // Note - if the drive attributes was changed, they will be applied by this
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
+
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+    }
+
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
@@ -283,7 +289,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow, odinContext);
+                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -429,7 +436,7 @@ public class TenantConfigService
 
         await _appRegistrationService.RegisterAppAsync(request, odinContext);
     }
-    
+
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
         await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);

@@ -23,6 +23,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
         CircleNetworkVerificationService verificationService,
+        TenantConfigService tenantConfigService,
         PublicPrivateKeyService publicPrivateKeyService)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
@@ -192,6 +193,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             logger.LogDebug("Creating new Online Icr Encrypted ECC Key");
             await publicPrivateKeyService.CreateInitialKeysAsync(odinContext);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            //
+            // Ensure all system drives exist (for older identities)
+            //
+            logger.LogDebug("Ensuring all system drives exist");
+            await tenantConfigService.EnsureSystemDrivesExist(odinContext);
             cancellationToken.ThrowIfCancellationRequested();
 
             //
