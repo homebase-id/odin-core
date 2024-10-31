@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -70,7 +69,7 @@ public sealed class VersionUpgradeScheduler(
     public static void SetRequiresUpgradeResponse(HttpContext context)
     {
         context.Response.Headers.Append(OdinHeaderNames.RequiresUpgrade, bool.TrueString);
-        context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+        // context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
     }
     
 }
