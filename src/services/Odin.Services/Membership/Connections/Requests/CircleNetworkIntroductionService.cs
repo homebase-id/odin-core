@@ -245,9 +245,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task SendOutstandingConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         const int maxSendAttempts = 30;
-
+        
+        //upgrading for use in a bg process
+        var newOdinContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership);
+        
         //get the introductions from the list
-        var introductions = await GetReceivedIntroductionsAsync(odinContext);
+        var introductions = await GetReceivedIntroductionsAsync(newOdinContext);
 
         _logger.LogDebug("Sending outstanding connection requests to {introductionCount} introductions", introductions.Count);
 
@@ -261,14 +264,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             var recipient = intro.Identity;
 
-            var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);
+            var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, newOdinContext);
             if (hasOutstandingRequest)
             {
                 _logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
                 continue;
             }
 
-            var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, odinContext);
+            var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, newOdinContext);
             if (alreadyConnected)
             {
                 _logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
@@ -279,7 +282,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 if (intro.SendAttemptCount <= maxSendAttempts)
                 {
-                    await this.TrySendConnectionRequestAsync(intro, odinContext);
+                    await this.TrySendConnectionRequestAsync(intro, newOdinContext);
                 }
                 else
                 {
