@@ -234,7 +234,7 @@ public class TenantConfigService
             await CreateCircleIfNotExistsAsync(rc, odinContext);
         }
 
-        await this.RegisterBuiltInApps(odinContext);
+        await this.EnsureBuiltInApps(odinContext);
         var db = _tenantSystemStorage.IdentityDatabase;
 
         // TODO CONNECTIONS
@@ -362,7 +362,7 @@ public class TenantConfigService
 
     //
 
-    private async Task RegisterBuiltInApps(IOdinContext odinContext)
+    public async Task EnsureBuiltInApps(IOdinContext odinContext)
     {
         await RegisterChatAppAsync(odinContext);
         await RegisterMailAppAsync(odinContext);
@@ -434,17 +434,29 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(request.AppId, odinContext);
+        if (existingApp == null)
+        {
+            await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        }
     }
 
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
-        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
+        if (null == existingApp)
+        {
+            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        }
     }
 
     private async Task RegisterMailAppAsync(IOdinContext odinContext)
     {
-        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
+        if (null == existingApp)
+        {
+            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+        }
     }
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)

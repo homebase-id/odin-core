@@ -201,6 +201,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             logger.LogDebug("Ensuring all system drives exist");
             await tenantConfigService.EnsureSystemDrivesExist(odinContext);
             cancellationToken.ThrowIfCancellationRequested();
+            
+            //
+            // Ensure all system apps (for older identities)
+            //
+            logger.LogDebug("Ensuring all system apps exist");
+            await tenantConfigService.EnsureBuiltInApps(odinContext);
+            cancellationToken.ThrowIfCancellationRequested();
 
             //
             // Create new circles, rename existing ones
@@ -214,7 +221,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             //
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinitionAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
-
             cancellationToken.ThrowIfCancellationRequested();
 
             //
