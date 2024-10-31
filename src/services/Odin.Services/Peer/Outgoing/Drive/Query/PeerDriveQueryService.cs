@@ -539,6 +539,11 @@ public class PeerDriveQueryService(
         {
             throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
+        
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
+        }
 
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
