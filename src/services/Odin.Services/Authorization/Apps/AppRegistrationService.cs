@@ -9,6 +9,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -17,6 +18,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Util;
 
 
 namespace Odin.Services.Authorization.Apps
@@ -163,6 +165,22 @@ namespace Odin.Services.Authorization.Apps
             if (null == oldRegistration)
             {
                 throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+            }
+
+            if (request.AppId == SystemAppConstants.ChatAppId)
+            {
+                foreach (var cid in SystemAppConstants.ChatAppRegistrationRequest.AuthorizedCircles)
+                {
+                    request.AuthorizedCircles.EnsureItem(cid);
+                }
+            }
+            
+            if (request.AppId == SystemAppConstants.MailAppId)
+            {
+                foreach (var cid in SystemAppConstants.MailAppRegistrationRequest.AuthorizedCircles)
+                {
+                    request.AuthorizedCircles.EnsureItem(cid);
+                }
             }
 
             var updatedAppReg = new AppRegistration()
