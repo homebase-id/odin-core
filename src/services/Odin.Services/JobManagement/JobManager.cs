@@ -77,14 +77,14 @@ public class JobManager(
         
         if (record.jobHash == null)
         {
-            logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
-                jobId, job.Name, schedule.RunAt.ToString("O"));
+            logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
+                job.Name, jobId, schedule.RunAt.ToString("O"));
             await _tblJobs.InsertAsync(record);
         }
         else
         {
-            logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
-                jobId, job.Name, schedule.RunAt.ToString("O"));
+            logger.LogDebug("JobManager scheduling unique job '{name}' id:{jobId} hash:{jobHash} for {runat}",
+                job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
             var inserted = await _tblJobs.TryInsertAsync(record);
             if (inserted == 0)
             {
@@ -92,12 +92,26 @@ public class JobManager(
                 var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
                 if (existingRecord != null)
                 {
-                    logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
-                        existingRecord.id, existingRecord.name);
+                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
                     return existingRecord.id;
                 }
-                logger.LogError("Could not find job with hash {hash}", record.jobHash);
-                throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
+
+                //
+                // SEB:NOTE
+                //
+                // If we get here, there is either:
+                //
+                // - a race between many jobs having the same hash, where one of them completes and then being deleted
+                //   while another job is being scheduled with the same hash and fails to look it up.
+                //
+                // - a problem with the SQL query or record data that makes TryInsertAsync return 0.
+                //
+                // We need to figure out which one it is and handle it properly.
+                //
+
+                logger.LogError("Could not find job '{name}' with hash:{hash}. Did it complete already?", job.Name, record.jobHash);
+                throw new JobNotFoundException($"Could not find job with hash {record.jobHash}. Check logs for details.");
             }
         }
         
@@ -119,7 +133,7 @@ public class JobManager(
         var job = await GetJobAsync<AbstractJob>(jobId);
         if (job?.Record == null)
         {
-            logger.LogError("Job {jobId} not found", jobId);
+            logger.LogError("Job id:{jobId} not found", jobId);
             return;
         }
 
@@ -127,7 +141,7 @@ public class JobManager(
 
         if (job.State is not (JobState.Scheduled or JobState.Preflight))
         {
-            logger.LogError("Job {jobId} is in wrong state: {state}", jobId, job.State);
+            logger.LogError("Job id:{jobId} is in wrong state: {state}", jobId, job.State);
             return;
         }
         
@@ -140,7 +154,7 @@ public class JobManager(
         var record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
         try
         {
-            logger.LogInformation("JobManager starting job {jobId} ({name})", jobId, job.Record?.name);
+            logger.LogInformation("JobManager starting job '{name}' id:{jobId}", job.Record?.name, jobId);
             record.state = (int)JobState.Running;
             record.runCount++;
             record.lastRun = UnixTimeUtc.Now();
@@ -170,11 +184,12 @@ public class JobManager(
         //
         if (result.Result == RunResult.Success)
         {
-            logger.LogInformation("JobManager completed job {jobId} ({name}) successfully", 
-                record.id, record.name);
+            logger.LogInformation("JobManager completed job '{name}' id:{jobId} successfully",
+                record.name, record.id);
 
             if (record.onSuccessDeleteAfter == 0)
             {
+                logger.LogDebug("JobManager deleting successful job '{name}' id:{jobId}", record.name, record.id);
                 await DeleteAsync(record);
             }
             else
@@ -192,8 +207,8 @@ public class JobManager(
         //
         else if (result.Result == RunResult.Reschedule)
         {
-            logger.LogInformation("JobManager rescheduled job {jobId} ({name}) for {runat}", 
-                record.id, record.name, result.RescheduleAt.ToString("O"));
+            logger.LogInformation("JobManager rescheduled job '{name}' id:{jobId} for {runat}",
+                record.name, record.id, result.RescheduleAt.ToString("O"));
             record.state = (int)JobState.Scheduled;
             record.nextRun = result.RescheduleAt.ToUnixTimeMilliseconds();
             record.runCount = 0;
@@ -207,8 +222,7 @@ public class JobManager(
         //
         else if (result.Result == RunResult.Abort)
         {
-            logger.LogInformation("JobManager deleted job {jobId} ({name})", 
-                record.id, record.name);
+            logger.LogInformation("JobManager deleting aborted job '{name}' id:{jobId}", record.name, record.id);
             await DeleteAsync(record);
         }
         
@@ -223,18 +237,19 @@ public class JobManager(
             {
                 var runAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(record.retryDelay);
                 logger.LogWarning(
-                    "JobManager rescheduling unsuccessful job {jobId} ({name}) [{attempt}/{maxAttempt}] for {runat}, Error: {errorMessage}",
-                    record.id, record.name, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
+                    "JobManager rescheduling unsuccessful job '{name}' id:{jobId} ({attempt}/{maxAttempt}) for {runat}, Error: {errorMessage}",
+                    record.name, record.id, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
                 record.state = (int)JobState.Scheduled;
                 record.nextRun = runAt.ToUnixTimeMilliseconds();
             }
             else
             {
                 logger.LogError(
-                    "JobManager giving up on unsuccessful job {jobId} ({name}) after {attempts} attempts. Error: {errorMessage}",
-                    record.id, record.name, record.runCount, record.lastError);
+                    "JobManager giving up on unsuccessful job '{name}' id:{jobId} after {attempts} attempts. Error: {errorMessage}",
+                    record.name, record.id, record.runCount, record.lastError);
                 if (record.onFailureDeleteAfter == 0)
                 {
+                    logger.LogDebug("JobManager deleting failed job '{name}' id:{jobId}", record.name, record.id);
                     await DeleteAsync(record);
                 }
                 else
@@ -261,7 +276,7 @@ public class JobManager(
     {
         var record = await _tblJobs.GetAsync(jobId);
     
-        if (record == null)
+        if (record == null!)
         {
             return null;
         }
@@ -332,3 +347,6 @@ public class JobManager(
     //
     
 }
+
+class JobManagerException(string message) : OdinSystemException(message);
+class JobNotFoundException(string message) : JobManagerException(message);
