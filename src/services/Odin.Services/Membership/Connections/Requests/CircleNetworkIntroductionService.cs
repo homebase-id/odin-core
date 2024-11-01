@@ -383,7 +383,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
         catch (TryRetryException e)
         {
-            throw e.InnerException ?? e;
+            throw e.InnerException!;
         }
 
         return success;
