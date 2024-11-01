@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -19,7 +20,11 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration)
+public abstract class OutboxWorkerBase(
+    OutboxFileItem fileItem,
+    ILogger logger,
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration odinConfiguration)
 {
     protected OutboxFileItem FileItem => fileItem;
     protected FileSystemResolver FileSystemResolver => fileSystemResolver;
@@ -39,8 +44,8 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
                 GlobalTransitId = default
             };
         }
-
     }
+
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
         IdentityDatabase db,
         OdinOutboxProcessingException e)
@@ -102,7 +107,6 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
     protected UnixTimeUtc CalculateNextRunTime(LatestTransferStatus transferStatus)
     {
         var delay = CalculateSecondsDelay(FileItem.AttemptCount);
-
         switch (transferStatus)
         {
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
@@ -224,10 +228,10 @@ public abstract class OutboxWorkerBase(OutboxFileItem fileItem, ILogger logger, 
 
         if (attemptNumber <= 5)
         {
-            return (int)(baseDelaySeconds  * attemptNumber);
+            return (int)(baseDelaySeconds * attemptNumber);
         }
 
         baseDelaySeconds = 30;
-        return (int)(baseDelaySeconds  * attemptNumber);
+        return (int)(baseDelaySeconds * attemptNumber);
     }
 }
