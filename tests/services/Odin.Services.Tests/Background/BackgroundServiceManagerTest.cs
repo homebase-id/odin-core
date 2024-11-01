@@ -50,6 +50,9 @@ public class BackgroundServiceManagerTest
 
         builder.RegisterType<ScopedTestValue>().InstancePerLifetimeScope();
         builder.RegisterType<ScopeTestBackgroundService>().InstancePerDependency();
+
+        builder.RegisterType<PulseTestBackgroundService>().InstancePerDependency();
+
         
         _container = builder.Build();
     }
@@ -190,7 +193,7 @@ public class BackgroundServiceManagerTest
     public async Task ItShouldStartAndStopManyServicesWithLoopSleepAndWakeUpManyTimes()
     {
         var manager = new BackgroundServiceManager(_container, _tenant.Name);
-        
+
         for (var iteration = 0; iteration < 3; iteration++)
         {
             const int serviceCount = 100;
@@ -198,7 +201,7 @@ public class BackgroundServiceManagerTest
             var services = new List<Task<LoopingBackgroundServiceWithSleepAndWakeUp>>();
             for (var i = 0; i < serviceCount; i++)
             {
-                var service = manager.StartAsync<LoopingBackgroundServiceWithSleepAndWakeUp>(Guid.NewGuid().ToString());
+                var service = manager.StartAsync<LoopingBackgroundServiceWithSleepAndWakeUp>($"instance{i*(iteration+1)}");
                 services.Add(service);
             }
 
@@ -209,9 +212,9 @@ public class BackgroundServiceManagerTest
             // PulseBackgroundProcessor 3 times
             for (var idx = 0; idx < 3; idx++)
             {
-                foreach (var service in services.Select(s => s.Result))
+                for (var i = 0; i < serviceCount; i++)
                 {
-                    service.PulseBackgroundProcessor();
+                    manager.PulseBackgroundProcessor($"instance{i*(iteration+1)}");
                 }
                 await Task.Delay(200);
             }
@@ -263,7 +266,7 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         Assert.AreEqual(1, service.Counter);
         
-        service.PulseBackgroundProcessor();
+        manager.PulseBackgroundProcessor("foo");
         await Task.Delay(200);
         
         Assert.AreEqual(2, service.Counter);
@@ -413,11 +416,38 @@ public class BackgroundServiceManagerTest
 
          AssertLogEvents();
      }
-     
+
+     [Test]
+     public async Task ItShouldWakeSleepingBackgroundService()
+     {
+         var manager = new BackgroundServiceManager(_container, _tenant.Name);
+
+         var service = await manager.StartAsync<PulseTestBackgroundService>("dummy-service");
+         await Task.Delay(1);
+
+         Assert.True(service.DidInitialize);
+         Assert.False(service.DidFinish);
+         Assert.False(service.DidShutdown);
+         Assert.False(service.DidDispose);
+
+         Assert.False(service.Pulsed);
+
+         var otherService = _container.Resolve<PulseTestBackgroundService>();
+         manager.PulseBackgroundProcessor("dummy-service");
+         await Task.Delay(10);
+         Assert.True(service.Pulsed);
+         Assert.False(otherService.Pulsed);
+
+         await manager.StopAsync("dummy-service");
+         Assert.True(service.DidInitialize);
+         Assert.True(service.DidFinish);
+         Assert.True(service.DidShutdown);
+         Assert.True(service.DidDispose);
+
+         AssertLogEvents();
+     }
 
 }
-
-
 
 public abstract class BaseBackgroundService(ILogger logger)
     : AbstractBackgroundService(logger), IDisposable
@@ -542,11 +572,11 @@ public class BackgroundServiceWithBadSleep(ILogger logger) : BaseBackgroundServi
     }
 }
 
-
 public class ScopedTestValue
 {
     public string Value { get; set; } = "new born";
 }
+
 public class ScopeTestBackgroundService(ILogger logger, ScopedTestValue scopedTestValue) : BaseBackgroundService(logger)
 {
     public ScopedTestValue ScopedTestValue { get; } = scopedTestValue;
@@ -569,5 +599,23 @@ public class ScopeTestBackgroundService(ILogger logger, ScopedTestValue scopedTe
         ScopedTestValue.Value = "StoppedAsync";
         return base.StoppedAsync(stoppingToken);
     }
-    
+}
+
+public class PulseTestBackgroundService(ILogger logger) : BaseBackgroundService(logger)
+{
+    private volatile bool _pulsed;
+    public bool Pulsed => _pulsed;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                _pulsed = true;
+            }
+        }
+        DidFinish = true;
+    }
 }

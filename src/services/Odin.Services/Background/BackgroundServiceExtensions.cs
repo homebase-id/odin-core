@@ -18,25 +18,28 @@ public static class BackgroundServiceExtensions
         // BackgroundServiceManager
         cb.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), "system"))
+            .As<IBackgroundServiceTrigger>()
             .As<IBackgroundServiceManager>()
             .SingleInstance();
 
         // Background only services
         cb.RegisterType<DummySystemBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
         
         cb.RegisterType<JobCleanUpBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
         
         cb.RegisterType<JobRunnerBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
         
         cb.RegisterType<UpdateCertificatesBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
+
+        // SEB:TODO check lifetime of new services when merging with TODD / intros
        
         // Add more system services here
         // ...
@@ -69,20 +72,23 @@ public static class BackgroundServiceExtensions
     {
         cb.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), tenant.Name))
+            .As<IBackgroundServiceTrigger>()
             .As<IBackgroundServiceManager>()
             .SingleInstance();
 
         cb.RegisterType<DummyTenantBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
         
         cb.RegisterType<InboxOutboxReconciliationBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
         
         cb.RegisterType<PeerOutboxProcessorBackgroundService>()
             .AsSelf()
-            .SingleInstance();
+            .InstancePerDependency();
+
+        // SEB:TODO check lifetime of new services when merging with TODD / intros
        
         // Add more tenant services here
         // ...

@@ -15,6 +15,11 @@ namespace Odin.Services.Background;
 
 #nullable enable
 
+public interface IBackgroundServiceTrigger
+{
+    void PulseBackgroundProcessor(string serviceIdentifier);
+}
+
 public interface IBackgroundServiceManager
 {
     T Create<T>(string serviceIdentifier) where T : AbstractBackgroundService;
@@ -27,10 +32,11 @@ public interface IBackgroundServiceManager
 
 //
 
-public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, string owner) : IBackgroundServiceManager, IDisposable
+public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, string owner)
+    : IBackgroundServiceTrigger, IBackgroundServiceManager, IDisposable
 {
     private readonly CancellationTokenSource _stoppingCts = new();
-    private readonly AsyncLock _mutex = new();
+    private readonly AsyncReaderWriterLock _lock = new();
     private readonly Dictionary<string, ScopedAbstractBackgroundService> _backgroundServices = new();
     private readonly string _correlationId = Guid.NewGuid().ToString();
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
@@ -50,7 +56,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             throw new InvalidOperationException("The background service manager is stopping.");
         }
         
-        using (_mutex.Lock())
+        using (_lock.WriterLock())
         {
             if (_backgroundServices.ContainsKey(serviceIdentifier))
             {
@@ -77,7 +83,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             throw new InvalidOperationException("The background service manager is stopping.");
         }
 
-        using (await _mutex.LockAsync())
+        using (await _lock.ReaderLockAsync())
         {
             var (serviceIdentifier, scopedService) = 
                 _backgroundServices.FirstOrDefault(x => ReferenceEquals(x.Value.BackgroundService, service));
@@ -108,7 +114,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         UpdateLogContext();
 
         ScopedAbstractBackgroundService? scopedAbstractBackgroundService;
-        using (await _mutex.LockAsync())
+        using (await _lock.WriterLockAsync())
         {
             _backgroundServices.Remove(serviceIdentifier, out scopedAbstractBackgroundService);
         }
@@ -126,7 +132,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     public async Task StopAllAsync()
     {
         var tasks = new List<Task>();
-        using (await _mutex.LockAsync())
+        using (await _lock.ReaderLockAsync())
         {
             foreach (var serviceIdentifier in _backgroundServices.Keys)
             {
@@ -142,6 +148,28 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     {
         await _stoppingCts.CancelAsync();
         await StopAllAsync();
+    }
+
+    //
+
+    public void PulseBackgroundProcessor(string serviceIdentifier)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceIdentifier);
+
+        if (_stoppingCts.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("The background service manager is stopping.");
+        }
+
+        ScopedAbstractBackgroundService? backgroundService;
+        using (_lock.ReaderLock())
+        {
+            if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
+            {
+                throw new InvalidOperationException($"Background service '{serviceIdentifier}' doesn't exist");
+            }
+        }
+        backgroundService.BackgroundService.InternalPulseBackgroundProcessor();
     }
 
     //

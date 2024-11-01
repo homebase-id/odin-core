@@ -8,14 +8,9 @@ namespace Odin.Services.Background.Services;
 
 #nullable enable
 
-public interface IAbstractBackgroundService
-{
-    void PulseBackgroundProcessor();
-}
-
 //
 
-public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackgroundService
+public abstract class AbstractBackgroundService(ILogger logger)
 {
     public bool IsStarted { get; private set; }
     
@@ -106,8 +101,8 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
 
     //
 
-    // Call me from anywhere to wake up the service from SleepAsync
-    public void PulseBackgroundProcessor()
+    // Call me through JobManager to wake up the service from SleepAsync
+    internal void InternalPulseBackgroundProcessor()
     {
         _wakeUpEvent.Set();
     }

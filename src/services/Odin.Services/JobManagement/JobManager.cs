@@ -8,6 +8,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
+using Odin.Services.Background;
 using Odin.Services.Base;
 
 namespace Odin.Services.JobManagement;
@@ -33,7 +34,7 @@ public class JobManager(
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
     ServerSystemStorage serverSystemStorage,
-    JobRunnerBackgroundService jobRunnerBackgroundService)
+    IBackgroundServiceTrigger backgroundServiceTrigger)
     : IJobManager
 {
     private readonly TableJobs _tblJobs = serverSystemStorage.Jobs;
@@ -101,7 +102,7 @@ public class JobManager(
         }
         
         // Signal job runner to wake up
-        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
 
         return jobId;
     }
@@ -314,7 +315,7 @@ public class JobManager(
     private async Task<int> UpdateAsync(JobsRecord record)
     {
         var updated = await _tblJobs.UpdateAsync(record);
-        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return updated;
     }
 
@@ -323,7 +324,7 @@ public class JobManager(
     private async Task<int> UpsertAsync(JobsRecord record)
     {
         var updated = await _tblJobs.UpsertAsync(record);
-        jobRunnerBackgroundService.PulseBackgroundProcessor();       
+        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return updated;
     }
     
@@ -332,7 +333,7 @@ public class JobManager(
     private async Task<int> DeleteAsync(JobsRecord record)
     {
         var deleted = await _tblJobs.DeleteAsync(record.id);
-        jobRunnerBackgroundService.PulseBackgroundProcessor();
+        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return deleted;
     } 
    
