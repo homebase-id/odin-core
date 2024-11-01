@@ -241,6 +241,7 @@ public class JobManager(
                     record.name, record.id, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
                 record.state = (int)JobState.Scheduled;
                 record.nextRun = runAt.ToUnixTimeMilliseconds();
+                await UpdateAsync(record);
             }
             else
             {
@@ -256,9 +257,9 @@ public class JobManager(
                 {
                     record.state = (int)JobState.Failed;
                     record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                    await UpdateAsync(record);
                 }
             }
-            await UpdateAsync(record);
         }
         
         //
