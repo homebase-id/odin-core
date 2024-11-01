@@ -11,7 +11,7 @@ namespace Odin.Hosting.Middleware
 {
     public class VersionUpgradeMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler)
+        public async Task InvokeAsync(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler, VersionUpgradeService upgradeService)
         {
             var path = context.Request.Path.Value;
             
@@ -36,6 +36,13 @@ namespace Odin.Hosting.Middleware
             if (path.StartsWith(OwnerApiPathConstants.AuthV1))
             {
                 await next(context);
+                return;
+            }
+
+            if (upgradeService.IsRunning())
+            {
+                context.Response.Headers.Append(OdinHeaderNames.UpgradeIsRunning, bool.TrueString);
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
                 return;
             }
 

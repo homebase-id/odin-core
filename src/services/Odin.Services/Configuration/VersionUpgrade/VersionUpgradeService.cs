@@ -17,6 +17,8 @@ public class VersionUpgradeService(
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
+    private bool _isRunning = false;
+    
     public async Task UpgradeAsync(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
         logger.LogInformation($"Running Version Upgrade Process for {data.Tenant}");
@@ -47,12 +49,13 @@ public class VersionUpgradeService(
         {
             if (currentVersion == 0)
             {
+                _isRunning = true;
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
 
                 await v0ToV1VersionMigrationService.UpgradeAsync(odinContext, cancellationToken);
-                
+
                 await v0ToV1VersionMigrationService.ValidateUpgradeAsync(odinContext, cancellationToken);
-                
+
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
@@ -66,6 +69,7 @@ public class VersionUpgradeService(
 
             // if (currentVersion == 1)
             // {
+            //     _isRunning = true;
             //     logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
             //
             //     // do something else
@@ -78,5 +82,14 @@ public class VersionUpgradeService(
         {
             logger.LogError(ex, $"Upgrading from {currentVersion} failed");
         }
+        finally
+        {
+            _isRunning = false;
+        }
+    }
+
+    public bool IsRunning()
+    {
+        return _isRunning;
     }
 }
