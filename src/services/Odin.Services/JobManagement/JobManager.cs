@@ -77,14 +77,14 @@ public class JobManager(
         
         if (record.jobHash == null)
         {
-            logger.LogDebug("JobManager scheduling job {jobId} ({name}) for {runat}",
-                jobId, job.Name, schedule.RunAt.ToString("O"));
+            logger.LogDebug("JobManager scheduling job {name} id:{jobId} for {runat}",
+                job.Name, jobId, schedule.RunAt.ToString("O"));
             await _tblJobs.InsertAsync(record);
         }
         else
         {
-            logger.LogDebug("JobManager scheduling unique job {jobId} ({name}) for {runat}",
-                jobId, job.Name, schedule.RunAt.ToString("O"));
+            logger.LogDebug("JobManager scheduling unique job {name} id:{jobId} hash:{jobHash} for {runat}",
+                job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
             var inserted = await _tblJobs.TryInsertAsync(record);
             if (inserted == 0)
             {
@@ -92,11 +92,11 @@ public class JobManager(
                 var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
                 if (existingRecord != null)
                 {
-                    logger.LogDebug("JobManager job with hash already exists, returning existing job {jobId} ({name})",
-                        existingRecord.id, existingRecord.name);
+                    logger.LogDebug("JobManager unique job {name} id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
                     return existingRecord.id;
                 }
-                logger.LogError("Could not find job with hash {hash}", record.jobHash);
+                logger.LogError("Could not find job {name} with hash:{hash}. Did it complete already?", job.Name, record.jobHash);
                 throw new OdinSystemException($"Could not find job with hash {record.jobHash}");
             }
         }
