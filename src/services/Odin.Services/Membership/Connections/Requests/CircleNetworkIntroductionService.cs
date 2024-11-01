@@ -142,7 +142,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             await UpsertIntroductionAsync(iid);
         }
-
+        
         var notification = new IntroductionsReceivedNotification()
         {
             IntroducerOdinId = introducer,
@@ -157,11 +157,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 TypeId = notification.NotificationTypeId,
                 TagId = introducer,
                 Silent = false,
-                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
-                // {
-                //     IntroducerOdinId = introducer,
-                //     Introduction = introduction,
-                // })
             },
             newContext, db);
 
