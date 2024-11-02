@@ -129,30 +129,32 @@ public class JobManager(
     // You should only call this directly when testing the job.
     public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        // DO NOT check cancellationToken here. It will orphan the job if we bail at this point!
-
-        var job = await GetJobAsync<AbstractJob>(jobId);
-        if (job?.Record == null)
-        {
-            logger.LogError("Job id:{jobId} not found", jobId);
-            return;
-        }
-
-        correlationContext.Id = job.Record.correlationId;
-
-        if (job.State is not (JobState.Scheduled or JobState.Preflight))
-        {
-            logger.LogError("Job id:{jobId} is in wrong state: {state}", jobId, job.State);
-            return;
-        }
-        
         //
         // Prepare the job for take-off
         //
+        // - DO NOT check cancellationToken here. It will orphan the job if we bail at this point!
+        // - DO put ANYTHING that can throw an exception in a try-catch block!
+        //
         
+        AbstractJob? job;
         JobsRecord? record;
         try
         {
+            job = await GetJobAsync<AbstractJob>(jobId);
+            if (job?.Record == null)
+            {
+                logger.LogError("Job id:{jobId} not found", jobId);
+                return;
+            }
+
+            correlationContext.Id = job.Record.correlationId;
+
+            if (job.State is not (JobState.Scheduled or JobState.Preflight))
+            {
+                logger.LogError("Job id:{jobId} is in wrong state: {state}", jobId, job.State);
+                return;
+            }
+        
             record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
             record.state = (int)JobState.Running;
             record.runCount++;
@@ -161,7 +163,7 @@ public class JobManager(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error preparing job for take-off id:{jobId}. Check if orphaned. Message: {error}", jobId, e.Message);
+            logger.LogError(e, "Error preparing job for take-off id:{jobId}. Job is probably orphaned. Message: {error}", jobId, e.Message);
             return;
         }
         
