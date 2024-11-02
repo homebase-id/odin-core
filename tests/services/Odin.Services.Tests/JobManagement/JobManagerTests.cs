@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,9 +102,10 @@ public class JobManagerTests
                 services.AddTransient<AbortingJobTest>();
                 services.AddTransient<RescheduleJobTest>();
                 services.AddTransient<RescheduleOnCancelJobTest>();
-                services.AddTransient<JobWithHash>();
+                services.AddTransient<JobWithHashTest>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
+                services.AddTransient<FailingJobWithHashTest>();
 
 
             })
@@ -733,11 +735,11 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job1 = _host!.Services.GetRequiredService<JobWithHash>();
+        var job1 = _host!.Services.GetRequiredService<JobWithHashTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1);
 
         // Act
-        var job2 = _host!.Services.GetRequiredService<JobWithHash>();
+        var job2 = _host!.Services.GetRequiredService<JobWithHashTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2);
 
         Assert.That(jobId1, Is.EqualTo(jobId2));
@@ -1066,7 +1068,53 @@ public class JobManagerTests
     }
     
     //
+
+#if !NOISY_NEIGHBOUR    
+    [Test]
+    public async Task ItShouldGoTownOnScheduledUniqueJobs()
+    {
+        // Arrange
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        await StartBackgroundServices();
+        var random = new Random();
+        
+        var schedule = new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now,
+            MaxAttempts = 5,
+            RetryDelay = TimeSpan.FromMilliseconds(3),
+            OnSuccessDeleteAfter = TimeSpan.FromSeconds(0),
+            OnFailureDeleteAfter = TimeSpan.FromSeconds(0),
+        };
+        
+        var job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job, schedule);
+        
+        for (var idx = 0; idx < 100; idx++)
+        {
+            job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+            var jobIdRef = await jobManager.ScheduleJobAsync(job, schedule);
+            await Task.Delay(random.Next(1, 20));
+        }
+      
+        await Task.Delay(1000);
+        
+        await StopBackgroundServices();
+      
+        var orphanedJobsCount = await jobManager.CountJobsAsync();
+        var xjob = await jobManager.GetJobAsync<FailingJobWithHashTest>(jobId);
+        
+        Assert.That(orphanedJobsCount, Is.EqualTo(0));
+       
+        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        foreach (var logEvent in logEvents[LogEventLevel.Error])
+        {
+            Assert.That(logEvent.RenderMessage(), Does.StartWith("JobManager giving up on unsuccessful job"));
+        }
+    }
+#endif
     
+    //
     
     private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
@@ -1086,9 +1134,4 @@ public class JobManagerTests
             await Task.Delay(100);
         }
     }
-    
-    
-
-    
-    
 }

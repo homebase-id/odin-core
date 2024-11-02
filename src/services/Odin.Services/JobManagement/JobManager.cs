@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -85,33 +84,35 @@ public class JobManager(
         {
             logger.LogDebug("JobManager scheduling unique job '{name}' id:{jobId} hash:{jobHash} for {runat}",
                 job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
-            var inserted = await _tblJobs.TryInsertAsync(record);
+
+            // We give it a few tries to insert the job / lookup the existing job from the unique hash, since  
+            // a race between many jobs having the same hash, where one of them completes and then being deleted
+            // while another job is being scheduled with the same hash, will fail to look it up. In which case
+            // we let it retry the insert.
+
+            var inserted = 0;
+            var attempt = 0;
+            while (inserted == 0 && attempt < 5)
+            {
+                inserted = await _tblJobs.TryInsertAsync(record);
+                if (inserted == 0)
+                {
+                    // Job already exists, lets look it up using the jobHash
+                    var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
+                    if (existingRecord != null)
+                    {
+                        logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                            existingRecord.name, jobId, record.jobHash, existingRecord.id);
+                        return existingRecord.id;
+                    }
+                }
+                attempt++;
+            }
             if (inserted == 0)
             {
-                // Job already exists, lets look it up using the jobHash
-                var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
-                if (existingRecord != null)
-                {
-                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
-                    return existingRecord.id;
-                }
-
-                //
-                // SEB:NOTE
-                //
-                // If we get here, there is either:
-                //
-                // - a race between many jobs having the same hash, where one of them completes and then being deleted
-                //   while another job is being scheduled with the same hash and fails to look it up.
-                //
-                // - a problem with the SQL query or record data that makes TryInsertAsync return 0.
-                //
-                // We need to figure out which one it is and handle it properly.
-                //
-
-                logger.LogError("Could not find job '{name}' with hash:{hash}. Did it complete already?", job.Name, record.jobHash);
-                throw new JobNotFoundException($"Could not find job with hash {record.jobHash}. Check logs for details.");
+                var error = $"Could neither insert nor lookup job '{job.Name}' with hash:{record.jobHash}. Check logs. Good luck.";
+                logger.LogError(error);
+                throw new JobNotFoundException(error);
             }
         }
         
@@ -146,23 +147,35 @@ public class JobManager(
         }
         
         //
-        // Execute the job
+        // Prepare the job for take-off
         //
-
-        JobExecutionResult result;
-        string? errorMessage = null;
-        var record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
+        
+        JobsRecord? record;
         try
         {
-            logger.LogInformation("JobManager starting job '{name}' id:{jobId}", job.Record?.name, jobId);
+            record = OdinSystemSerializer.SlowDeepCloneObject(job.Record)!;
             record.state = (int)JobState.Running;
             record.runCount++;
             record.lastRun = UnixTimeUtc.Now();
             await UpdateAsync(record);
-
-            result = await job.Run(cancellationToken);
-            
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error preparing job for take-off id:{jobId}. Check if orphaned. Message: {error}", jobId, e.Message);
+            return;
+        }
+        
+        //
+        // Execute the job
+        //
+        
+        JobExecutionResult result;
+        string? errorMessage = null;
+        try
+        {
             // DO NOT RELOAD THE JOB AFTER THIS POINT!
+            logger.LogInformation("JobManager starting job '{name}' id:{jobId}", job.Record?.name, jobId);
+            result = await job.Run(cancellationToken);
         }
         catch (OperationCanceledException ex)
         {
@@ -241,6 +254,7 @@ public class JobManager(
                     record.name, record.id, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
                 record.state = (int)JobState.Scheduled;
                 record.nextRun = runAt.ToUnixTimeMilliseconds();
+                await UpdateAsync(record);
             }
             else
             {
@@ -256,9 +270,9 @@ public class JobManager(
                 {
                     record.state = (int)JobState.Failed;
                     record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                    await UpdateAsync(record);
                 }
             }
-            await UpdateAsync(record);
         }
         
         //
