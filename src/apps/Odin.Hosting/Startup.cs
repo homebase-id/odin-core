@@ -89,7 +89,6 @@ namespace Odin.Hosting
             //
             // Background and job stuff
             //
-            services.AddSystemBackgroundServices();
             services.AddJobManagerServices();
             
             services.AddControllers()
@@ -264,6 +263,8 @@ namespace Odin.Hosting
             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
+           
+            builder.AddSystemBackgroundServices();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

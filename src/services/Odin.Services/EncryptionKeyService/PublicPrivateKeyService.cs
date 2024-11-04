@@ -454,26 +454,19 @@ namespace Odin.Services.EncryptionKeyService
         private async Task CreateNotificationEccKeysAsync()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
-            // var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
-            //
-            // if (null != existingKeys)
-            // {
-            //     throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
-            // }
-            //
-            // //create a new key list
-            // var eccKeyList = EccKeyListManagement.CreateEccKeyList(NotificationPrivateEncryptionKey.ToSensitiveByteArray(),
-            //     EccKeyListManagement.DefaultMaxOnlineKeys,
-            //     EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
-
-            // _storage.Upsert(storageKey, eccKeyList);
             var db = _tenantSystemStorage.IdentityDatabase;
-            VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
-            await _storage.UpsertAsync(db, storageKey, new NotificationEccKeys
+            var existingKey = await _storage.GetAsync<NotificationEccKeys>(db, storageKey);
+            
+            if(null == existingKey)
             {
-                PublicKey64 = vapidKeys.PublicKey,
-                PrivateKey64 = vapidKeys.PrivateKey
-            });
+                VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
+
+                await _storage.UpsertAsync(db, storageKey, new NotificationEccKeys
+                {
+                    PublicKey64 = vapidKeys.PublicKey,
+                    PrivateKey64 = vapidKeys.PrivateKey
+                });
+            }
 
         }
 

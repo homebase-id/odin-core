@@ -40,6 +40,118 @@ public class SendingIntroductionsTests
         _scaffold.AssertLogEvents();
     }
 
+    [Test]
+    public async Task WillIgnoreIntroductionIfIntrodceeIsBlocked()
+    {
+        var frodo = TestIdentities.Frodo.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+
+        await Prepare();
+
+        // block errrrrbody
+        await merryOwnerClient.Network.BlockConnection(sam);
+        await samOwnerClient.Network.BlockConnection(merry);
+
+        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+
+        //
+        // we should return true to the sender so they do not know anything other than the introduction was received
+        //
+        var introResult = response.Content;
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        //
+        // neither should have connection requests
+        //
+        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        Assert.IsNull(samRequestFromMerryResponse.Content);
+
+        var merryRequestFromSamResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        Assert.IsNull(merryRequestFromSamResponse.Content);
+
+        //
+        // neither should have someone in the list
+        //
+        var samReceivedIntroductionsResponse = await samOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(samReceivedIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samReceivedIntroductionsResponse.Content.Count == 0);
+
+        var merryReceivedIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(merryReceivedIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(merryReceivedIntroductionsResponse.Content.Count == 0);
+
+        await Cleanup();
+    }
+
+    
+    [Test]
+    public async Task WillIgnoreIntroductionIfAlreadyConnected()
+    {
+        var frodo = TestIdentities.Frodo.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
+        var merry = TestIdentities.Merry.OdinId;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+
+        await Prepare();
+
+        // connect merry and sam
+        await merryOwnerClient.Connections.SendConnectionRequest(sam);
+        await samOwnerClient.Connections.AcceptConnectionRequest(merry);
+
+        var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
+
+        //
+        // we should return true to the sender so they do not know anything other than the introduction was received
+        //
+        var introResult = response.Content;
+        Assert.IsTrue(introResult.RecipientStatus[sam]);
+        Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        //
+        // neither should have connection requests
+        //
+        var samRequestFromMerryResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        Assert.IsNull(samRequestFromMerryResponse.Content);
+
+        var merryRequestFromSamResponse = await samOwnerClient.Connections.GetIncomingRequestFrom(merry);
+        Assert.IsNull(merryRequestFromSamResponse.Content);
+
+        //
+        // neither should have someone in the list
+        //
+        var samReceivedIntroductionsResponse = await samOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(samReceivedIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samReceivedIntroductionsResponse.Content.Count == 0);
+
+        var merryReceivedIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
+        Assert.IsTrue(merryReceivedIntroductionsResponse.IsSuccessStatusCode);
+        Assert.IsTrue(merryReceivedIntroductionsResponse.Content.Count == 0);
+
+        await Cleanup();
+    }
 
     [Test]
     public async Task WillSendConnectionRequestToIntroductions()
@@ -116,7 +228,6 @@ public class SendingIntroductionsTests
         var merrysIntroductionToSam = merryReceivedIntroductionsResponse.Content.Single();
         Assert.IsTrue(merrysIntroductionToSam.Identity == sam);
         Assert.IsTrue(merrysIntroductionToSam.IntroducerOdinId == frodo);
-
 
         await Cleanup();
     }
@@ -429,7 +540,7 @@ public class SendingIntroductionsTests
 
         await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
-        
+
         await frodo.Connections.DeleteAllIntroductions();
         await sam.Connections.DeleteAllIntroductions();
         await merry.Connections.DeleteAllIntroductions();
@@ -459,5 +570,8 @@ public class SendingIntroductionsTests
 
         await sam.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
         await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+
+        await sam.Network.UnblockConnection(merry.Identity.OdinId);
+        await merry.Network.UnblockConnection(sam.Identity.OdinId);
     }
 }

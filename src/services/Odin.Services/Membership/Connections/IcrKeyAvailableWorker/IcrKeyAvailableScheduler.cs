@@ -33,7 +33,6 @@ public sealed class IcrKeyAvailableScheduler(
         // logger.LogDebug($"IcrKeyAvailableBackgroundService Last run: {_lastRunTime.seconds}");
         if (UnixTimeUtc.Now() < _lastScheduledTime.AddSeconds(MinWaitTimeBetweenRuns))
         {
-            // logger.LogDebug("Not running IcrKeyAvailableBackgroundService Process");
             return;
         }
         
@@ -59,7 +58,7 @@ public sealed class IcrKeyAvailableScheduler(
             EncryptedToken = encryptedToken
         };
 
-        logger.LogInformation("Scheduling version upgrade job");
+        logger.LogInformation("Scheduling ICR Key Available job");
         await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.Now,

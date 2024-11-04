@@ -40,6 +40,16 @@ public static class OdinExtensions
 
         return list;
     }
+
+    public static List<Guid> EnsureItem(this List<Guid> list, Guid item)
+    {
+        if (!list.Contains(item))
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
 }
 
 public static class OdinValidationUtils

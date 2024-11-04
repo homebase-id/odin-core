@@ -1,3 +1,4 @@
+using System;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,23 +9,23 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
-public class JobWithHashData
+public class FailingJobWithHashData
 {
     public string SomeJobData { get; set; } = "uninitialized";    
 }
 
-public class JobWithHashTest(ILogger<JobWithHashTest> logger) : AbstractJob
+public class FailingJobWithHashTest(ILogger<FailingJobWithHashTest> logger) : AbstractJob
 {
-    public JobWithHashData JobData { get; private set; } = new ();
+    static readonly Random _random = new ();
+    public FailingJobWithHashData JobData { get; private set; } = new ();
     
     //
     
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        await Task.Delay(10, cancellationToken);
-        logger.LogInformation("Running JobWithHash");
-        JobData.SomeJobData = "hurrah!";
-        return JobExecutionResult.Success();
+        await Task.Delay(_random.Next(1, 30), cancellationToken);
+        logger.LogInformation("Running FailingJobWithHashData");
+        throw new Exception("oh no!");
     }
     
     //
@@ -38,14 +39,14 @@ public class JobWithHashTest(ILogger<JobWithHashTest> logger) : AbstractJob
 
     public override void DeserializeJobData(string json)
     {
-        JobData = OdinSystemSerializer.DeserializeOrThrow<JobWithHashData>(json);
+        JobData = OdinSystemSerializer.DeserializeOrThrow<FailingJobWithHashData>(json);
     }
 
     //
 
     public override string? CreateJobHash()
     {
-        var text = JobType + SerializeJobData();
+        var text = "full-throttle!";
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 }

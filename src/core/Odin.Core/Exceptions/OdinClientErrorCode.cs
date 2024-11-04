@@ -75,7 +75,7 @@ public enum OdinClientErrorCode
     IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
     BlockedConnection = 5004,
-    CannotSendConnectionRequestToValidConnection = 5005, 
+    CannotSendConnectionRequestToValidConnection = 5005,
     RemoteServerMissingOutgoingRequest = 5006,
 
     // App or YouAuth Domain Errors 60xx
@@ -89,6 +89,7 @@ public enum OdinClientErrorCode
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
     RemoteServerReturnedInternalServerError = 7500,
+    RemoteServerReturnedUnavailable = 7503,
     RemoteServerTransitRejected = 7900,
     InvalidTransitOptions = 7901,
     FileDoesNotHaveSender = 7902,

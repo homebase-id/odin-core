@@ -78,7 +78,9 @@ public static class SystemDriveConstants
         WalletDrive,
         ChatDrive,
         FeedDrive,
-        HomePageConfigDrive
+        HomePageConfigDrive,
+        MailDrive,
+        PublicPostsChannelDrive
     ];
 
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()

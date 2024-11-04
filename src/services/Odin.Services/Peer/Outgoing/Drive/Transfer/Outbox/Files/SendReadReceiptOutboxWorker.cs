@@ -23,24 +23,14 @@ public class SendReadReceiptOutboxWorker(
     ILogger<SendReadReceiptOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger, null)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
-            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
-            {
-                throw new OdinOutboxProcessingException("Too many attempts")
-                {
-                    File = FileItem.File,
-                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
-                    Recipient = default,
-                    VersionTag = default,
-                    GlobalTransitId = default
-                };
-            }
-
+            AssertHasRemainingAttempts();
+            
             logger.LogDebug("SendReadReceipt -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             var globalTransitId = await HandleRequest(FileItem, cancellationToken);
@@ -100,8 +90,8 @@ public class SendReadReceiptOutboxWorker(
             ApiResponse<PeerTransferResponse> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendFile(); });
 

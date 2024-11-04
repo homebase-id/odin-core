@@ -308,6 +308,39 @@ public class PeerDriveQueryService(
         }
     }
 
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdAsync(OdinId odinId, GetPayloadByUniqueIdRequest file,
+        FileSystemType fileSystemType, IOdinContext odinContext, IdentityDatabase db)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext, db);
+
+        try
+        {
+            ApiResponse<SharedSecretEncryptedFileHeader> response = null;
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                CancellationToken.None,
+                async () => { response = await httpClient.GetFileHeaderByUniqueId(file); });
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext, db);
+
+            var header = TransformSharedSecret(response.Content, icr, odinContext);
+            return header;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t);
+            throw;
+        }
+    }
+    
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
         GetPayloadByGlobalTransitIdAsync(OdinId odinId,
             GlobalTransitIdFileIdentifier file, string key,
@@ -506,6 +539,11 @@ public class PeerDriveQueryService(
         {
             throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
+        
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
+        }
 
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
@@ -513,6 +551,7 @@ public class PeerDriveQueryService(
         }
     }
 
+    
     private async Task<(
             EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
             bool payloadIsEncrypted,

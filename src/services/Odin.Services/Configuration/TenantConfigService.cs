@@ -221,16 +221,7 @@ public class TenantConfigService
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
-
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+        await EnsureSystemDrivesExist(odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -243,7 +234,7 @@ public class TenantConfigService
             await CreateCircleIfNotExistsAsync(rc, odinContext);
         }
 
-        await this.RegisterBuiltInApps(odinContext);
+        await this.EnsureBuiltInApps(odinContext);
         var db = _tenantSystemStorage.IdentityDatabase;
 
         // TODO CONNECTIONS
@@ -256,6 +247,21 @@ public class TenantConfigService
         };
 
         await _configStorage.UpsertManyAsync(db, keyValuePairs);
+    }
+
+    public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
+    {
+        // Note - if the drive attributes was changed, they will be applied by this
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
+
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
     }
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
@@ -283,7 +289,8 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow, odinContext);
+                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,
+                    odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -355,7 +362,7 @@ public class TenantConfigService
 
     //
 
-    private async Task RegisterBuiltInApps(IOdinContext odinContext)
+    public async Task EnsureBuiltInApps(IOdinContext odinContext)
     {
         await RegisterChatAppAsync(odinContext);
         await RegisterMailAppAsync(odinContext);
@@ -427,17 +434,29 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(request.AppId, odinContext);
+        if (existingApp == null)
+        {
+            await _appRegistrationService.RegisterAppAsync(request, odinContext);
+        }
     }
-    
+
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
-        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
+        if (null == existingApp)
+        {
+            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+        }
     }
 
     private async Task RegisterMailAppAsync(IOdinContext odinContext)
     {
-        await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
+        if (null == existingApp)
+        {
+            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+        }
     }
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
