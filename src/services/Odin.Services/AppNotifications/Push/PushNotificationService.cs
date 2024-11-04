@@ -16,7 +16,6 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Refit;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -316,7 +315,7 @@ public class PushNotificationService(
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
         //Transition code: we want to keep existing subscriptions so...
-        var key = odinContext.Caller.OdinClientContext?.DevicePushNotificationKey;
+        Guid? key = odinContext.Caller.OdinClientContext?.DevicePushNotificationKey;
 
         if (null == key)
         {

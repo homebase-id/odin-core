@@ -129,10 +129,15 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         //Store the introductions by the identity to which you're being introduces
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
-            // Note: we do not check if you're already connected or
+            // Note: we do not indicate if you're already connected or
             // have blocked the identity being introduced as we do not 
             // want to communicate any such information to the introducer
-
+            var icr = await CircleNetworkService.GetIcrAsync(identity, odinContext, overrideHack: true);
+            if (icr.IsConnected() || icr.Status == ConnectionStatus.Blocked)
+            {
+                continue;
+            }
+            
             var iid = new IdentityIntroduction()
             {
                 IntroducerOdinId = introducer,
@@ -142,7 +147,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             await UpsertIntroductionAsync(iid);
         }
-        
+
         var notification = new IntroductionsReceivedNotification()
         {
             IntroducerOdinId = introducer,
@@ -245,10 +250,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task SendOutstandingConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         const int maxSendAttempts = 30;
-        
+
         //upgrading for use in a bg process
         var newOdinContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership);
-        
+
         //get the introductions from the list
         var introductions = await GetReceivedIntroductionsAsync(newOdinContext);
 
@@ -459,7 +464,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private async Task UpsertIntroductionAsync(IdentityIntroduction intro)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _receivedIntroductionValueStorage.UpsertAsync(db, intro.Identity, dataTypeKey: intro.IntroducerOdinId.ToHashId().ToByteArray(),
+        await _receivedIntroductionValueStorage.UpsertAsync(db, intro.Identity,
+            dataTypeKey: intro.IntroducerOdinId.ToHashId().ToByteArray(),
             _receivedIntroductionDataType, intro);
     }
 
@@ -475,7 +481,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _logger.LogDebug("Deleting introduction sent from {identity}", introducer);
 
         var db = _tenantSystemStorage.IdentityDatabase;
-        var introductionsFromIdentity = await 
+        var introductionsFromIdentity = await
             _receivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(db, introducer.ToHashId().ToByteArray());
 
         foreach (var introduction in introductionsFromIdentity)

@@ -64,6 +64,11 @@ public class AccessExchangeGrant
             AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted()))
         };
     }
+
+    public bool RequiresMasterKeyEncryptionUpgrade()
+    {
+        return MasterKeyEncryptedKeyStoreKey == null;
+    }
 }
 
 public class RedactedAccessExchangeGrant

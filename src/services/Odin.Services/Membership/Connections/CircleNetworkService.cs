@@ -742,9 +742,7 @@ namespace Odin.Services.Membership.Connections
                     foreach (var odinId in members)
                     {
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                         icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
-                        keyStoreKey.Wipe();
                         await this.SaveIcrAsync(icr, odinContext);
                     }
                 }
@@ -758,20 +756,23 @@ namespace Odin.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-
-                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId, masterKey);
+                    if (await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext))
+                    {
+                        // refetch the record since the above method just writes to db
+                        icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                    }
 
                     if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
                         appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
+                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId, masterKey);
                     appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
-                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
-
                     keyStoreKey.Wipe();
 
+                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
                     await this.SaveIcrAsync(icr, odinContext);
                 }
             }
@@ -1210,9 +1211,9 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
-            if (identity.AccessGrant.MasterKeyEncryptedKeyStoreKey == null)
+            if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
 
@@ -1223,7 +1224,10 @@ namespace Odin.Services.Membership.Connections
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
                 await _storage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
+                return true;
             }
+
+            return false;
         }
     }
 }
