@@ -13,17 +13,18 @@ public class JobWithHashData
     public string SomeJobData { get; set; } = "uninitialized";    
 }
 
-public class JobWithHash(ILogger<JobWithHash> logger) : AbstractJob
+public class JobWithHashTest(ILogger<JobWithHashTest> logger) : AbstractJob
 {
     public JobWithHashData JobData { get; private set; } = new ();
     
     //
     
-    public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
+    public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
+        await Task.Delay(10, cancellationToken);
         logger.LogInformation("Running JobWithHash");
         JobData.SomeJobData = "hurrah!";
-        return Task.FromResult(JobExecutionResult.Success());
+        return JobExecutionResult.Success();
     }
     
     //
@@ -48,6 +49,7 @@ public class JobWithHash(ILogger<JobWithHash> logger) : AbstractJob
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 }
+
 
 
 

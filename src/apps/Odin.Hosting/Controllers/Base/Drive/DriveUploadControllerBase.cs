@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUpload(WebOdinContext, db);
+            var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext, db);
             return status;
         }
 
@@ -123,6 +123,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
+        private protected bool IsMetadataPart(MultipartSection section)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartUploadParts.Metadata;
+        }
+        
         private protected bool IsPayloadPart(MultipartSection section)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
@@ -153,17 +163,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             fileSection = section.AsFileSection();
-
             contentTypeFromMultiPartSection = section.ContentType;
-            // Todd - removed constraint so we can set the content type explicitly in the manifest
-            // if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
-            // {
-            //     throw new OdinClientException(
-            //         "Payloads must include a valid contentType in the multi-part upload.",
-            //         OdinClientErrorCode.InvalidPayload);
-            // }
 
-            fileSection = section.AsFileSection();
             DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
             payloadKey = fileSection?.FileName;
         }
@@ -184,16 +185,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
 
-            fileSection = section.AsFileSection();
-
             contentTypeFromMultiPartSection = section.ContentType;
-            // Todd - removed constraint so we can set the content type explicitly in the manifest
-            // if (string.IsNullOrEmpty(contentTypeFromMultiPartSection) || string.IsNullOrWhiteSpace(contentTypeFromMultiPartSection))
-            // {
-            //     throw new OdinClientException(
-            //         "Thumbnails must include a valid contentType in the multi-part upload.",
-            //         OdinClientErrorCode.InvalidThumnbnailName);
-            // }
 
             thumbnailUploadKey = fileSection?.FileName;
             if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))

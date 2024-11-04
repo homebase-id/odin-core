@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive.Specialized
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenDriveQueryByUniqueIdController(
         ILogger<ClientTokenDriveQueryByUniqueIdController> logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveQueryByUniqueIdControllerBase(peerOutgoingTransferService, tenantSystemStorage)
     {

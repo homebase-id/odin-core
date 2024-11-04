@@ -8,15 +8,12 @@ namespace Odin.Services.Background.Services;
 
 #nullable enable
 
-public interface IAbstractBackgroundService
-{
-    void PulseBackgroundProcessor();
-}
-
 //
 
-public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackgroundService
+public abstract class AbstractBackgroundService(ILogger logger)
 {
+    public bool IsStarted { get; private set; }
+    
     private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
@@ -26,7 +23,7 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromDays(7);
 
     // Override initialization logic here. BackgroundServiceManager will wait for this to complete before starting the service.
-    public virtual Task StartingAsync(CancellationToken stoppingToken)
+    protected virtual Task StartingAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
     }
@@ -37,7 +34,7 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     //
 
     // Override cleanup logic here. BackgroundServiceManager will run this after the service has stopped.
-    public virtual Task StoppedAsync(CancellationToken stoppingToken)
+    protected virtual Task StoppedAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
     }
@@ -104,8 +101,8 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
 
     //
 
-    // Call me from anywhere to wake up the service from SleepAsync
-    public void PulseBackgroundProcessor()
+    // Call me through JobManager to wake up the service from SleepAsync
+    internal void InternalPulseBackgroundProcessor()
     {
         _wakeUpEvent.Set();
     }
@@ -114,11 +111,16 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
 
     internal async Task InternalStartAsync(CancellationToken stoppingToken)
     {
-        _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        await StartingAsync(_stoppingCts.Token);
+        if (!IsStarted)
+        {
+            IsStarted = true;
+        
+            _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            await StartingAsync(_stoppingCts.Token);
 
-        // No 'await' here, this is intentional; we want to start the task and return immediately
-        _task = ExecuteWithCatchAllAsync(_stoppingCts.Token);
+            // No 'await' here, this is intentional; we want to start the task and return immediately
+            _task = ExecuteWithCatchAllAsync(_stoppingCts.Token);
+        }
     }
 
     //
@@ -170,6 +172,7 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
             _stoppingCts?.Dispose();
             _stoppingCts = null;
             _task = null;
+            IsStarted = false;
         }
     }
 

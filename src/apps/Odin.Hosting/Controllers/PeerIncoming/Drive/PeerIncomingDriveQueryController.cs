@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var db = tenantSystemStorage.IdentityDatabase;
             var perimeterService = GetPerimeterService();
             var (encryptedKeyHeader64, isEncrypted, _, payloadStream) =
-                await perimeterService.GetPayloadStream(
+                await perimeterService.GetPayloadStreamAsync(
                     request.File.TargetDrive,
                     request.File.FileId,
                     request.Key,
@@ -125,7 +125,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             var db = tenantSystemStorage.IdentityDatabase;
             var (encryptedKeyHeader64, isEncrypted, _, decryptedContentType, lastModified, thumb) =
-                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey,
+                await perimeterService.GetThumbnailAsync(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey,
                     WebOdinContext, db);
 
             if (thumb == null)
@@ -145,7 +145,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var perimeterService = GetPerimeterService();
             var db = tenantSystemStorage.IdentityDatabase;
-            var drives = await perimeterService.GetDrives(request.DriveType, WebOdinContext, db);
+            var drives = await perimeterService.GetDrivesAsync(request.DriveType, WebOdinContext, db);
             return drives;
         }
 

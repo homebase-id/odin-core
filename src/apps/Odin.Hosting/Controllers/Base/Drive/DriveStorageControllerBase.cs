@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveStorageControllerBase(
         // ILogger logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
+        PeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
         // private readonly ILogger _logger = logger;
 
@@ -96,14 +96,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key, WebOdinContext, db);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, request.Key, WebOdinContext, db);
 
             if (!fileExists)
             {
                 return NotFound();
             }
 
-            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk, WebOdinContext, db);
+            var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, request.Key, request.Chunk, WebOdinContext, db);
             if (payloadStream == null)
             {
                 return NotFound();
@@ -158,7 +158,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey, WebOdinContext, db);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, request.PayloadKey, WebOdinContext, db);
 
             if (!fileExists)
             {
@@ -167,7 +167,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             //Note: this second read of the payload could be going to network storage
 
-            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
+            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStreamAsync(file,
                 request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, WebOdinContext, db, request.DirectMatchOnly);
 
             if (thumbPayload == Stream.Null)

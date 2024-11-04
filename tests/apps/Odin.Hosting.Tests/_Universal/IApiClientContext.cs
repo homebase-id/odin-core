@@ -11,7 +11,6 @@ public interface IApiClientContext
 {
     // Create the app and setup permissions
     // Create the guest domain and setup permissions
-    // Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
     Task Initialize(OwnerApiClientRedux ownerApiClient);
     
     TargetDrive TargetDrive { get; }
@@ -19,4 +18,10 @@ public interface IApiClientContext
     DrivePermission DrivePermission { get; }
 
     IApiClientFactory GetFactory();
+
+    /// <summary>
+    /// Remove anything related this factory (i.e. delete youauth domain registrations, etc).
+    /// </summary>
+    /// <returns></returns>
+    Task Cleanup();
 }

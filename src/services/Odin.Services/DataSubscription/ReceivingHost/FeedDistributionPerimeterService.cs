@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -32,25 +33,34 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage,
-        DriveManager driveManager)
+        DriveManager driveManager,
+        ILogger<FeedDistributionPerimeterService> logger)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
             IdentityDatabase db)
         {
-            await followerService.AssertTenantFollowsTheCaller(odinContext);
+            logger.LogDebug("AcceptUpdatedFileMetadata called");
+            await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
 
+            var sender = odinContext.GetCallerOdinIdOrFail();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
+            if (request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
-                return await RouteFeedRequestToInbox(request, odinContext, db);
+                if (request.FileMetadata.IsEncrypted)
+                {
+                    return await RouteFeedRequestToInboxAsync(request, odinContext, db);
+                }
             }
 
-            var driveId2 = await driveManager.GetDriveIdByAlias(request.FileId.TargetDrive, db);
-            var drive = await driveManager.GetDrive(driveId2.GetValueOrDefault(), db);
+            logger.LogDebug("Looking up drive {d}", request.FileId.TargetDrive);
+            var driveId2 = await driveManager.GetDriveIdByAliasAsync(request.FileId.TargetDrive, db);
+            logger.LogDebug("Found Drive by alias up driveid: {d}", driveId2.GetValueOrDefault());
+            var drive = await driveManager.GetDriveAsync(driveId2.GetValueOrDefault(), db);
+            logger.LogDebug("Found storage drive: {d} (used drive id: {did})", drive.Name, driveId2.GetValueOrDefault());
 
             Log.Debug(
                 "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Looking up Internal file",
@@ -65,7 +75,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
                 }
 
-                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, db);
+                var fileId = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext, db);
 
                 if (null == fileId)
                 {
@@ -88,7 +98,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // Clearing the UID for any files that go into the feed drive because the feed drive
                     // comes from multiple channel drives from many different identities so there could be a clash
                     request.FileMetadata.AppData.UniqueId = null;
-
+                    request.FileMetadata.SenderOdinId = sender;
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, db);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, db, raiseEvent: true);
@@ -96,9 +106,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
-                        Sender = odinContext.GetCallerOdinIdOrFail(),
+                        Sender = sender,
                         OdinContext = newContext,
-                        GlobalTransitId = request.FileMetadata.ReferencedFile != null ? request.FileMetadata.ReferencedFile.GlobalTransitId : request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        GlobalTransitId = request.FileMetadata.ReferencedFile != null
+                            ? request.FileMetadata.ReferencedFile.GlobalTransitId
+                            : request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                         db = db
                     });
                 }
@@ -111,8 +123,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     // perform update
                     try
                     {
-                        request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
-                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, db);
+                        request.FileMetadata.SenderOdinId = sender;
+                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext, db,
+                            bypassCallerCheck: true);
                     }
                     catch (Exception e)
                     {
@@ -128,12 +141,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<PeerTransferResponse> DeleteAsync(DeleteFeedFileMetadataRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
-            await followerService.AssertTenantFollowsTheCaller(odinContext);
+            await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var fileId = await this.ResolveInternalFile(request.FileId, request.UniqueId, newContext, db);
+                var fileId = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext, db);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -155,7 +168,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         /// <summary>
         /// Looks up a file by a global transit identifier or uniqueId as a fallback
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, Guid? uid, IOdinContext odinContext,
+        private async Task<InternalDriveFileId?> ResolveInternalFileAsync(GlobalTransitIdFileIdentifier file, Guid? uid,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             Log.Debug("FeedDistributionPerimeterService - looking up fileId by global transit id");
@@ -170,7 +184,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     Log.Debug("Seeking the global transit id: {gtid} (as hex x'{hex}')", file.GlobalTransitId,
                         Convert.ToHexString(file.GlobalTransitId.ToByteArray()));
-                    var allDrives = await driveManager.GetDrives(PageOptions.All, odinContext, db);
+                    var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext, db);
                     var dump = await fs.Query.DumpGlobalTransitId(allDrives.Results.ToList(), file.GlobalTransitId, odinContext, db);
 
                     foreach (var result in dump.Results)
@@ -197,7 +211,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     {
                         Log.Debug("Seeking the uniqueId id: {uid} (as hex x'{hex}')", uid.GetValueOrDefault(),
                             Convert.ToHexString(uid.GetValueOrDefault().ToByteArray()));
-                        var allDrives = await driveManager.GetDrives(PageOptions.All, odinContext, db);
+                        var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext, db);
                         var dump = await fs.Query.DumpUniqueId(allDrives.Results.ToList(), uid.GetValueOrDefault(), odinContext, db);
 
                         foreach (var result in dump.Results)
@@ -254,59 +268,72 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             return fileId;
         }
 
-        private async Task<PeerTransferResponse> RouteFeedRequestToInbox(UpdateFeedFileMetadataRequest request, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<PeerTransferResponse> RouteFeedRequestToInboxAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext,
+            IdentityDatabase db)
         {
-            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-
-            // Write to temp file
-            var file = await fileSystem.Storage.CreateInternalFileId(feedDriveId, db);
-            var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
-            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream, odinContext, db);
-            await stream.DisposeAsync();
-
-            // then tell the inbox you have a new file
-            var item = new TransferInboxItem
+            try
             {
-                Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = odinContext.GetCallerOdinIdOrFail(),
-                InstructionType = TransferInstructionType.SaveFile,
+                logger.LogDebug("RouteFeedRequestToInbox for gtid: {gtid}", request.FileId.GlobalTransitId);
+                var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                logger.LogDebug("Found feed drive id {id}", feedDriveId);
 
-                FileId = file.FileId,
-                DriveId = file.DriveId,
-                GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                FileSystemType = FileSystemType.Standard, //comments are never distributed
+                // Write to temp file
+                var file = await fileSystem.Storage.CreateInternalFileId(feedDriveId, db);
+                var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
+                await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
+                    odinContext,
+                    db);
+                await stream.DisposeAsync();
 
-                Priority = 0,
-                Marker = default,
-                TransferFileType = TransferFileType.EncryptedFileForFeed,
-
-                TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
+                // then tell the inbox you have a new file
+                var item = new TransferInboxItem
                 {
-                    FileSystemType = FileSystemType.Standard,
+                    Id = Guid.NewGuid(),
+                    AddedTimestamp = UnixTimeUtc.Now(),
+                    Sender = odinContext.GetCallerOdinIdOrFail(),
+                    InstructionType = TransferInstructionType.SaveFile,
+
+                    FileId = file.FileId,
+                    DriveId = file.DriveId,
+                    GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    FileSystemType = FileSystemType.Standard, //comments are never distributed
+
+                    Priority = 0,
+                    Marker = default,
                     TransferFileType = TransferFileType.EncryptedFileForFeed,
-                    ContentsProvided = SendContents.Header
-                },
 
-                //Feed stuff
-                EncryptedFeedPayload = request.EncryptedPayload
-            };
+                    TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
+                    {
+                        FileSystemType = FileSystemType.Standard,
+                        TransferFileType = TransferFileType.EncryptedFileForFeed,
+                        ContentsProvided = SendContents.Header
+                    },
 
-            await inboxBoxStorage.AddAsync(item, db);
+                    //Feed stuff
+                    EncryptedFeedPayload = request.EncryptedPayload
+                };
 
-            await mediator.Publish(new InboxItemReceivedNotification()
+                await inboxBoxStorage.AddAsync(item);
+
+                await mediator.Publish(new InboxItemReceivedNotification()
+                {
+                    TargetDrive = SystemDriveConstants.FeedDrive,
+                    TransferFileType = item.TransferInstructionSet.TransferFileType,
+                    FileSystemType = item.TransferInstructionSet.FileSystemType,
+                    OdinContext = odinContext,
+                    db = db
+                });
+
+                return new PeerTransferResponse
+                {
+                    Code = PeerResponseCode.AcceptedIntoInbox
+                };
+            }
+            catch (Exception e)
             {
-                TargetDrive = SystemDriveConstants.FeedDrive,
-                TransferFileType = item.TransferInstructionSet.TransferFileType,
-                FileSystemType = item.TransferInstructionSet.FileSystemType,
-                OdinContext = odinContext,
-                db = db
-            });
-
-            return new PeerTransferResponse
-            {
-                Code = PeerResponseCode.AcceptedIntoInbox
-            };
+                logger.LogError(e, "this sucker is logged!");
+                throw;
+            }
         }
     }
 }

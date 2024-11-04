@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveStorageController(
         ILogger<OwnerDriveStorageController> logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {

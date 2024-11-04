@@ -8,8 +8,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerV1 + "/inbox/processor")]
     [AuthorizeValidAppToken]
-    public class AppPeerProcessController(
-        PeerInboxProcessor peerInboxProcessor,
-        TenantSystemStorage tenantSystemStorage
-        ) : PeerProcessControllerBase(peerInboxProcessor, tenantSystemStorage);
+    public class AppPeerProcessController(PeerInboxProcessor peerInboxProcessor) : PeerProcessControllerBase(peerInboxProcessor);
 }

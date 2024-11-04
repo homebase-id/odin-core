@@ -2,8 +2,6 @@
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Membership.CircleMembership;
@@ -13,14 +11,9 @@ namespace Odin.Services.Membership.Connections
     /// <summary>
     /// Manages the Icr keys
     /// </summary>
-    public class IcrKeyService
+    public class IcrKeyService(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
-        private readonly CircleNetworkStorage _storage;
-
-        public IcrKeyService(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
-        {
-            _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
-        }
+        private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
 
         /// <summary>
         /// Creates initial encryption keys
@@ -34,7 +27,8 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<SensitiveByteArray> GetDecryptedIcrKeyAsync(IOdinContext odinContext)
         {
-            return await GetDecryptedIcrKeyInternalAsync(odinContext);
+            var masterKey = odinContext.Caller.GetMasterKey();
+            return await GetDecryptedIcrKeyInternalAsync(masterKey);
         }
 
         public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
@@ -43,9 +37,19 @@ namespace Odin.Services.Membership.Connections
             return masterKeyEncryptedIcrKey;
         }
 
+        public async Task<SymmetricKeyEncryptedAes> ReEncryptIcrKeyAsync(SensitiveByteArray encryptionKey, SensitiveByteArray masterKey)
+        {
+            var rawIcrKey = await GetDecryptedIcrKeyInternalAsync(masterKey);
+            var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
+            rawIcrKey.Wipe();
+            return encryptedIcrKey;
+        }
+
         public async Task<SymmetricKeyEncryptedAes> ReEncryptIcrKeyAsync(SensitiveByteArray encryptionKey, IOdinContext odinContext)
         {
-            var rawIcrKey = await GetDecryptedIcrKeyInternalAsync(odinContext);
+            var masterKey = odinContext.Caller.GetMasterKey();
+
+            var rawIcrKey = await GetDecryptedIcrKeyInternalAsync(masterKey);
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
             rawIcrKey.Wipe();
             return encryptedIcrKey;
@@ -53,7 +57,8 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<EncryptedClientAccessToken> EncryptClientAccessTokenUsingIrcKeyAsync(ClientAccessToken clientAccessToken, IOdinContext odinContext)
         {
-            var rawIcrKey = await GetDecryptedIcrKeyInternalAsync(odinContext);
+            var masterKey = odinContext.Caller.GetMasterKey();
+            var rawIcrKey = await GetDecryptedIcrKeyInternalAsync(masterKey);
             var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
             rawIcrKey.Wipe();
             return k;
@@ -61,9 +66,8 @@ namespace Odin.Services.Membership.Connections
 
         //
 
-        private async Task<SensitiveByteArray> GetDecryptedIcrKeyInternalAsync(IOdinContext odinContext)
+        private async Task<SensitiveByteArray> GetDecryptedIcrKeyInternalAsync(SensitiveByteArray masterKey)
         {
-            var masterKey = odinContext.Caller.GetMasterKey();
             var masterKeyEncryptedIcrKey = await _storage.GetMasterKeyEncryptedIcrKeyAsync();
             return masterKeyEncryptedIcrKey.DecryptKeyClone(masterKey);
         }

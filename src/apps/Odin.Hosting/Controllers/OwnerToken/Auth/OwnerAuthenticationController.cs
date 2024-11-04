@@ -57,36 +57,26 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost]
         public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
-            // try
-            // {
-
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var (result, sharedSecret) = await _authService.AuthenticateAsync(package);
+            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
+            var (result, sharedSecret) = await _authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
             //TODO: need to encrypt shared secret using client public key
             return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
-
-            // }
-            // catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
-            // {
-            //     return null;
-            // }
         }
 
         [HttpGet("logout")]
-        public Task<JsonResult> ExpireCookieBasedToken()
+        public async Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
-                var db = _tenantSystemStorage.IdentityDatabase;
-                _authService.ExpireTokenAsync(result.Id);
+                await _authService.ExpireTokenAsync(result.Id);
             }
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
-            return Task.FromResult(new JsonResult(true));
+            return new JsonResult(true);
         }
 
         [HttpPost("extend")]
@@ -100,7 +90,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("expire")]
         public async Task<NoResultResponse> Expire(Guid token)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
             await _authService.ExpireTokenAsync(token);
             return new NoResultResponse(true);
         }
@@ -125,7 +114,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _ss.SetNewPassword(reply, db);
+            await _ss.SetNewPasswordAsync(reply, db);
             return new NoResultResponse(true);
         }
 
@@ -135,7 +124,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             try
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext, db);
+                await _ss.ResetPasswordUsingRecoveryKeyAsync(reply, WebOdinContext, db);
             }
             catch (BIP39Exception e)
             {
@@ -157,15 +146,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<NonceData> GenerateSalts()
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var salts = await _ss.GenerateNewSalts(db);
+            var salts = await _ss.GenerateNewSaltsAsync(db);
             return salts;
         }
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var key = await _publicPrivateKeyService.GetPublicRsaKeyAsync(keyType, db);
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,

@@ -16,6 +16,6 @@ namespace Odin.Services.EncryptionKeyService
         
                 
         [Get(Root + "/ecc_public_key")]
-        Task<ApiResponse<GetPublicKeyResponse>> GetEccPublicKey(PublicPrivateKeyType keyType);
+        Task<ApiResponse<GetEccPublicKeyResponse>> GetEccPublicKey(PublicPrivateKeyType keyType);
     }
 }

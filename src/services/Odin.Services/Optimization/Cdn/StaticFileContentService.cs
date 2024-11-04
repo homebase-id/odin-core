@@ -91,7 +91,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveManager.GetDriveIdByAlias(qp.TargetDrive, db, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAliasAsync(qp.TargetDrive, db, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {
@@ -130,7 +130,7 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null,odinContext, db);
+                        var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext, db);
                         try
                         {
                             payloads.Add(new PayloadStaticFileResponse()
