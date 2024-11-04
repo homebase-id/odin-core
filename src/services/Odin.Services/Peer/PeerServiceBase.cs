@@ -24,6 +24,9 @@ namespace Odin.Services.Peer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver)
     {
+        protected readonly IOdinHttpClientFactory OdinHttpClientFactory = odinHttpClientFactory;
+
+        protected readonly CircleNetworkService CircleNetworkService = circleNetworkService;
         protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
 
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
@@ -43,7 +46,7 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext, IdentityDatabase db,
+        protected async Task<ClientAccessToken> ResolveClientAccessTokenAsync(OdinId recipient, IOdinContext odinContext,
             bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
@@ -52,35 +55,39 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIdentityConnectionRegistrationAsync(recipient, odinContext, overrideHack: true);
+            var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
                 {
-                    throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
+                    throw new OdinClientException("Cannot resolve client access token; not connected",
+                        OdinClientErrorCode.NotAConnectedIdentity);
                 }
 
                 return null;
             }
 
+
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext,
-            IdentityDatabase db,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClientAsync(OdinId odinId,
+            IOdinContext odinContext,
             FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessTokenAsync(odinId, odinContext, db, false);
+            var token = await ResolveClientAccessTokenAsync(odinId, odinContext, false);
 
             if (token == null)
             {
-                var httpClient = odinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
+                var httpClient = OdinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
                 return (null, httpClient);
             }
             else
             {
-                var httpClient =
-                    odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                var httpClient = OdinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(
+                    odinId,
+                    token.ToAuthenticationToken(),
+                    fileSystemType);
                 return (token, httpClient);
             }
         }
@@ -104,7 +111,8 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, IdentityDatabase db,
+        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext,
+            IdentityDatabase db,
             bool failIfNull = false)
         {
             var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext, db);
@@ -113,7 +121,8 @@ namespace Odin.Services.Peer
             {
                 // throw new OdinRemoteIdentityException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
                 // logger.LogInformation($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}");
-                throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}", OdinClientErrorCode.InvalidGlobalTransitId);
+                throw new OdinClientException($"Invalid global transit id {file.GlobalTransitId} on drive {file.TargetDrive}",
+                    OdinClientErrorCode.InvalidGlobalTransitId);
             }
 
             return fileId;

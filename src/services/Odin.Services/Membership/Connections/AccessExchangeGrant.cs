@@ -37,7 +37,7 @@ public class AccessExchangeGrant
     /// if true, revokes access while remaining connected.
     /// </summary>
     public bool IsRevoked { get; set; }
-    
+
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {
         var appKey = appCircleGrant.AppId;

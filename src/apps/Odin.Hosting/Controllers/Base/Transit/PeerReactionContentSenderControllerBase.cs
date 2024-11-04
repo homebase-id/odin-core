@@ -26,17 +26,17 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> AddReactionContent([FromBody] PeerAddReactionRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.AddReaction((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.AddReactionAsync((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("list")]
-        public Task<GetReactionsPerimeterResponse> GetAllReactions([FromBody] PeerGetReactionsRequest request)
+        public async Task<GetReactionsPerimeterResponse> GetAllReactions([FromBody] PeerGetReactionsRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            return peerReactionSenderService.GetReactions((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            return await peerReactionSenderService.GetReactionsAsync((OdinId)request.OdinId, request.Request,WebOdinContext, db);
         }
 
         /// <summary>
@@ -47,8 +47,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] PeerDeleteReactionRequest request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.DeleteReactionAsync((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 
@@ -61,7 +60,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] PeerDeleteReactionRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            await peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            await peerReactionSenderService.DeleteAllReactionsAsync((OdinId)request.OdinId, request.Request,WebOdinContext);
             return NoContent();
         }
 
@@ -74,7 +73,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] PeerGetReactionsRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            return await peerReactionSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request,WebOdinContext, db);
+            return await peerReactionSenderService.GetReactionCountsAsync((OdinId)request.OdinId, request.Request,WebOdinContext, db);
         }
 
         /// <summary>
@@ -85,7 +84,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<List<string>> GetReactionsByIdentity([FromBody] PeerGetReactionsByIdentityRequest request)
         {
             var db = tenantSystemStorage.IdentityDatabase;
-            return await peerReactionSenderService.GetReactionsByIdentityAndFile(request.OdinId, request,WebOdinContext, db);
+            return await peerReactionSenderService.GetReactionsByIdentityAndFileAsync(request.OdinId, request,WebOdinContext, db);
         }
     }
 }

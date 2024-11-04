@@ -36,7 +36,6 @@ public static class OdinContextUpgrades
     //
     //     return patchedContext;
     // }
-
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
@@ -45,6 +44,19 @@ public static class OdinContextUpgrades
         patchedContext.PermissionsContext.PermissionGroups.TryAdd("send_notifications_for_peer_transfer",
             new PermissionGroup(
                 new PermissionSet([PermissionKeys.SendPushNotifications]),
+                new List<DriveGrant>(), null, null));
+
+        return patchedContext;
+    }
+
+    public static IOdinContext UseTransitRead(IOdinContext odinContext)
+    {
+        var patchedContext = odinContext.Clone();
+
+        //Note TryAdd because this might have already been added when multiple files are coming in
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd("use-transit-read",
+            new PermissionGroup(
+                new PermissionSet([PermissionKeys.UseTransitRead]),
                 new List<DriveGrant>(), null, null));
 
         return patchedContext;
@@ -124,6 +136,18 @@ public static class OdinContextUpgrades
                     // PermissionKeys.SendOnBehalfOfOwner,
                     PermissionKeys.ReadCircleMembership
                 ]),
+                new List<DriveGrant>(), null, null));
+
+        return patchedContext;
+    }
+
+    public static IOdinContext UsePermissions(IOdinContext odinContext, params int[] permissionKeys)
+    {
+        var patchedContext = odinContext.Clone();
+
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd($"UsePermissions_{Guid.NewGuid().ToString()}",
+            new PermissionGroup(
+                new PermissionSet(permissionKeys),
                 new List<DriveGrant>(), null, null));
 
         return patchedContext;

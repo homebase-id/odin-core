@@ -23,23 +23,13 @@ public class AddRemoteReactionOutboxWorker(
     ILogger<AddRemoteReactionOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
-            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
-            {
-                throw new OdinOutboxProcessingException("Too many attempts")
-                {
-                    File = FileItem.File,
-                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
-                    Recipient = default,
-                    VersionTag = default,
-                    GlobalTransitId = default
-                };
-            }
+            base.AssertHasRemainingAttempts();
 
             logger.LogDebug("AddRemoteReaction -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
@@ -83,7 +73,7 @@ public class AddRemoteReactionOutboxWorker(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerResponseCode>> TrySendRequest()
         {
@@ -100,8 +90,8 @@ public class AddRemoteReactionOutboxWorker(
             ApiResponse<PeerResponseCode> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendRequest(); });
 

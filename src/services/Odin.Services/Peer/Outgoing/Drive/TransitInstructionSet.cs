@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -14,17 +15,17 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// The transfer initialization vector used to encrypt the KeyHeader
         /// </summary>
         public byte[] TransferIv { get; set; }
-        
+
         /// <summary>
         /// List of identities that should receive this file 
         /// </summary>
         public List<string> Recipients { get; set; }
-        
+
         /// <summary>
         /// The target drive on the recipient's identity
         /// </summary>
         public TargetDrive RemoteTargetDrive { get; set; }
-        
+
         /// <summary>
         /// Optionally specified if you are overwriting a remote file
         /// </summary>

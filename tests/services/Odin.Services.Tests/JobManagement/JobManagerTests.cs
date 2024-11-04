@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -121,10 +122,13 @@ public class JobManagerTests
                 services.AddTransient<AbortingJobTest>();
                 services.AddTransient<RescheduleJobTest>();
                 services.AddTransient<RescheduleOnCancelJobTest>();
-                services.AddTransient<JobWithHash>();
+                services.AddTransient<JobWithHashTest>();
+                services.AddTransient<FailingJobWithHashTest>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
                 services.AddTransient<ScopedJobTest>(); services.AddScoped<ScopedJobTestDependency>();
+
+
             })
             .Build();
 
@@ -747,11 +751,11 @@ public class JobManagerTests
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
-        var job1 = _host!.Services.GetRequiredService<JobWithHash>();
+        var job1 = _host!.Services.GetRequiredService<JobWithHashTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1);
 
         // Act
-        var job2 = _host!.Services.GetRequiredService<JobWithHash>();
+        var job2 = _host!.Services.GetRequiredService<JobWithHashTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2);
 
         Assert.That(jobId1, Is.EqualTo(jobId2));
@@ -1081,7 +1085,7 @@ public class JobManagerTests
     }
     
     //
-    
+
     [Test]
     public async Task JobShouldHaveInternalChildDiScope()
     {
@@ -1097,35 +1101,81 @@ public class JobManagerTests
         //   this will cause the test to fail because the ScopedTestDependency will be resolved from the parent scope
         //   and not the child scope.
         //
-        
+
         var scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         scopedTestDependency.Value = "sanity";
         scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
-        
+
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
-        
+
         var scopedJob = jobManager.NewJob<ScopedJobTest>();
         var scopedJobId = await jobManager.ScheduleJobAsync(scopedJob);
         Assert.That(scopedJobId, Is.Not.EqualTo(Guid.Empty));
-        
+
         // Act
         await WaitForJobStatus<ScopedJobTest>(jobManager, scopedJobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
-        
+
         scopedJob = await jobManager.GetJobAsync<ScopedJobTest>(scopedJobId);
         Assert.That(scopedJob!.JobData.ScopedTestCopy, Is.EqualTo("new born"));
-        
+
         scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
 
         await StopBackgroundServices();
         AssertLogEvents();
     }
-    
-    
+
+
     //
-    
+
+#if !NOISY_NEIGHBOUR
+    [Test]
+    public async Task ItShouldGoToTownOnScheduledUniqueJobs()
+    {
+        // Arrange
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        await StartBackgroundServices();
+        var random = new Random();
+
+        var schedule = new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now,
+            MaxAttempts = 5,
+            RetryDelay = TimeSpan.FromMilliseconds(3),
+            OnSuccessDeleteAfter = TimeSpan.FromSeconds(0),
+            OnFailureDeleteAfter = TimeSpan.FromSeconds(0),
+        };
+
+        var job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job, schedule);
+
+        for (var idx = 0; idx < 100; idx++)
+        {
+            job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+            await jobManager.ScheduleJobAsync(job, schedule);
+            await Task.Delay(random.Next(1, 20));
+        }
+
+        await Task.Delay(1000);
+
+        await StopBackgroundServices();
+
+        var orphanedJobsCount = await jobManager.CountJobsAsync();
+
+        Assert.That(orphanedJobsCount, Is.EqualTo(0));
+
+        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        foreach (var logEvent in logEvents[LogEventLevel.Error])
+        {
+            Assert.That(logEvent.RenderMessage(), Does.StartWith("JobManager giving up on unsuccessful job"));
+        }
+    }
+#endif
+
+    //
+
     private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
         var sw = Stopwatch.StartNew();

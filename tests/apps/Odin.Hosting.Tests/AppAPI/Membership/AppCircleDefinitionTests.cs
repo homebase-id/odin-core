@@ -54,7 +54,7 @@ public class AppCircleDefinitionTests
 
         var appClient = await this.CreateAppAndClient(TestIdentities.Frodo, PermissionKeys.All.ToArray());
 
-        var response = await appClient.CircleNetwork.GetDomainsInCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+        var response = await appClient.CircleNetwork.GetDomainsInCircle(SystemCircleConstants.ConfirmedConnectionsCircleId);
         Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
 
         await _scaffold.Scenarios.DisconnectHobbits();

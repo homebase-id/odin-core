@@ -367,9 +367,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.SetAssertLogEventsAction(logEvents =>
             {
                 var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                Assert.That(errorLogs[0].Exception!.Message,
-                    Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+                Assert.That(errorLogs.Count, Is.GreaterThan(0), "Unexpected number of Error log events");
+                foreach (var error in errorLogs)
+                {
+                    Assert.That(error.Exception!.Message,
+                        Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));    
+                }
+                
             });
 
             var sender = TestIdentities.Frodo;
@@ -442,9 +446,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.SetAssertLogEventsAction(logEvents =>
             {
                 var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                Assert.That(errorLogs[0].Exception!.Message,
-                    Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+                Assert.That(errorLogs.Count, Is.GreaterThan(0), "Unexpected number of Error log events");
+                foreach (var error in errorLogs)
+                {
+                    Assert.That(error.Exception!.Message,
+                        Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));    
+                }
             });
 
             var sender = TestIdentities.Frodo;

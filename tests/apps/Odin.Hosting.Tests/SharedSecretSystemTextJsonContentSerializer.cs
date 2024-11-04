@@ -77,8 +77,13 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
 
         var key = _sharedSecret;
         var decryptedBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), key, payload.Iv);
-        var c = await (new ByteArrayContent(decryptedBytes)).ReadFromJsonAsync<T>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return c;
+        if(decryptedBytes.Length>0)
+        {
+            var c = await (new ByteArrayContent(decryptedBytes)).ReadFromJsonAsync<T>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+            return c;
+        }
+
+        return (T)default!;
     }
 
     public string? GetFieldNameForProperty(PropertyInfo propertyInfo)

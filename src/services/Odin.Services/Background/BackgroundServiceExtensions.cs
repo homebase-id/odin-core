@@ -26,22 +26,22 @@ public static class BackgroundServiceExtensions
         cb.RegisterType<DummySystemBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
-        
+
         cb.RegisterType<JobCleanUpBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
-        
+
         cb.RegisterType<JobRunnerBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
-        
+
         cb.RegisterType<UpdateCertificatesBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
 
-        // SEB:TODO check lifetime of new services when merging with TODD / intros
-       
         // Add more system services here
+        // They MUST be InstancePerDependency
+        // because they are using scopes internally
         // ...
         // ...
     }
@@ -87,10 +87,10 @@ public static class BackgroundServiceExtensions
         cb.RegisterType<PeerOutboxProcessorBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
-
-        // SEB:TODO check lifetime of new services when merging with TODD / intros
        
         // Add more tenant services here
+        // They MUST be InstancePerDependency
+        // because they are using scopes internally
         // ...
         // ...
 

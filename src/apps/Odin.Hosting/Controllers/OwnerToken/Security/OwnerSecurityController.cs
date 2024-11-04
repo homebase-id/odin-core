@@ -51,7 +51,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        await _ss.ResetPassword(request, WebOdinContext, db);
+        await _ss.ResetPasswordAsync(request, WebOdinContext, db);
         return new OkResult();
     }
 

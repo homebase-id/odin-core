@@ -1,11 +1,9 @@
 using System.Collections.Generic;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Base;
-using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
 
@@ -14,41 +12,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 public class ConnectionRequestTests
 {
     private WebScaffold _scaffold;
-    private readonly PermissionSetGrantRequest _senderPermissions;
-    private readonly PermissionSetGrantRequest _recipientPermissions;
-
-    public ConnectionRequestTests()
-    {
-        _senderPermissions = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = TargetDrive.NewTargetDrive(),
-                        Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments
-                    }
-                }
-            }
-        };
-
-        _recipientPermissions = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = TargetDrive.NewTargetDrive(),
-                        Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments
-                    }
-                }
-            }
-        };
-    }
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -92,6 +55,7 @@ public class ConnectionRequestTests
 
     [Test]
     [Description("Merry: Connected, Pippin: Connected")]
+    [Ignore("Invalid due to invitations feature")]
     public async Task CanConnectWhenState_Merry_Connected_Pippin_Connected()
     {
         var sender = TestIdentities.Merry;
@@ -135,6 +99,7 @@ public class ConnectionRequestTests
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
+        // await Cleanup(pippin, merry);
 
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
@@ -149,22 +114,23 @@ public class ConnectionRequestTests
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
 
         // They try to reconnect again fully
-        await Connect(merry, pippin);
-        await AssertConnected(merry, pippin);
-        await Cleanup(merry, pippin);
+        await Connect(pippin, merry);
+        await AssertConnected(pippin, merry);
+        await Cleanup(pippin, merry);
     }
 
     [Test]
+    [Ignore("Invalid due to invitations feature; we now accept the incoming request if you're sending one to the same recipient")]
     public async Task CanStoreSentRequestAndOutgoingRequestForSameIdentity()
     {
-        //Scenario: merry sends request to pippin, therefore pippin has an incoming request from merry
+        // Scenario: merry sends request to pippin, therefore pippin has an incoming request from merry
         // pippin sends a request to merry, therefore pippin has an outgoing request to merry
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
 
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
-        
+
         await merryClient.Network.SendConnectionRequestTo(pippin);
 
         var pendingRequestFromMerry = await pippinClient.Network.GetIncomingRequestFrom(merry);
@@ -172,16 +138,16 @@ public class ConnectionRequestTests
         Assert.IsTrue(pendingRequestFromMerry.SenderOdinId == merryClient.Identity.OdinId);
         Assert.IsTrue(pendingRequestFromMerry.Direction == ConnectionRequestDirection.Incoming);
 
-        
+
         //Now that Pippin has an incoming request
         await pippinClient.Network.SendConnectionRequestTo(merry);
-        
+
         // Assert that we still have an outgoing request to merry and an incoming request from merry; two different requests
         var sentRequestToMerry = await pippinClient.Network.GetOutgoingSentRequestTo(merry);
         Assert.IsNotNull(sentRequestToMerry);
         Assert.IsTrue(sentRequestToMerry.Recipient == merryClient.Identity.OdinId);
         Assert.IsTrue(sentRequestToMerry.Direction == ConnectionRequestDirection.Outgoing);
-        
+
         var pendingRequestFromMerry2 = await pippinClient.Network.GetIncomingRequestFrom(merry);
         Assert.IsNotNull(pendingRequestFromMerry2);
         Assert.IsTrue(pendingRequestFromMerry2.SenderOdinId == merryClient.Identity.OdinId);
@@ -192,13 +158,14 @@ public class ConnectionRequestTests
         await AssertConnected(merry, pippin);
         await Cleanup(merry, pippin);
     }
-    
+
     [Test]
     [Description("Merry: Connected, Pippin: Incoming")]
     public async Task CanConnectWhenState_Merry__Connected_Pippin_Incoming()
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
+
 
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
@@ -259,6 +226,7 @@ public class ConnectionRequestTests
 
     [Test]
     [Description("Merry: Outgoing, Pippin: Outgoing")]
+    [Ignore("Invalid due to invitations feature; we now auto-approve requests when sending a request to a recipient who already sent you a request")]
     public async Task CanConnectWhenState_Merry_Outgoing_Pippin_Outgoing()
     {
         var merry = TestIdentities.Merry;
@@ -355,7 +323,7 @@ public class ConnectionRequestTests
 
     [Test]
     [Description("Merry: Incoming, Pippin: Connected")]
-    public async Task CanConnectWhenState_Merry_Incoming_Pippin_Connected()
+    public async Task Will_AutoAccept_WhenState_Merry_Incoming_Pippin_Connected()
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
@@ -369,6 +337,42 @@ public class ConnectionRequestTests
         await merryClient.Network.DisconnectFrom(pippin);
         await pippinClient.Network.SendConnectionRequestTo(merry);
 
+        //
+        // Assert state is ready for test
+        //
+
+        var pippinInfo = await merryClient.Network.GetIncomingRequestFrom(pippin);
+        Assert.IsNotNull(pippinInfo);
+
+        var merryInfo = await pippinClient.Network.GetConnectionInfo(merry);
+        Assert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
+
+        //
+        // Send the request; it should be auto-approved
+        //
+        await merryClient.Network.SendConnectionRequestTo(pippin, new List<GuidId>());
+
+        await AssertConnected(merry, pippin);
+        await Cleanup(merry, pippin);
+    }
+
+    [Test]
+    [Description("Merry: Incoming, Pippin: Connected")]
+    public async Task WillFailToAutoAccept_WhenState_Merry_Incoming_Pippin_Connected_and_Pippin_No_outgoing()
+    {
+        var merry = TestIdentities.Merry;
+        var pippin = TestIdentities.Pippin;
+
+        var merryClient = _scaffold.CreateOwnerApiClient(merry);
+        var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+
+        await Connect(merry, pippin);
+        await AssertConnected(merry, pippin);
+
+        await merryClient.Network.DisconnectFrom(pippin);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
+
+        // ensure pippin does not have an outgoing request
         await pippinClient.Network.DeleteSentRequestTo(merry);
 
         //
@@ -382,10 +386,12 @@ public class ConnectionRequestTests
         Assert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
 
         //
-        // They try to reconnect again fully
+        // Send the request; it should be auto-approved but will fail because there is no outgoing request from pippin
         //
-        await Connect(merry, pippin);
-        await AssertConnected(merry, pippin);
+        var response = await merryClient.Network.SendConnectionRequestRaw(pippin, new List<GuidId>());
+
+        Assert.IsFalse(response.IsSuccessStatusCode);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
         await Cleanup(merry, pippin);
     }
 
@@ -398,7 +404,7 @@ public class ConnectionRequestTests
 
     [Test]
     [Description("Merry: Incoming, Pippin: Incoming")]
-    public async Task CanConnectWhenState_Merry_Incoming_Pippin_Incoming()
+    public async Task WillAutoConnectWhenState_Merry_Incoming_Pippin_Incoming()
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
@@ -409,56 +415,40 @@ public class ConnectionRequestTests
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.SendConnectionRequestTo(pippin);
 
-        await pippinClient.Network.DeleteSentRequestTo(merry);
-        await merryClient.Network.DeleteSentRequestTo(pippin);
-
-        //
-        // Assert state is ready for test
-        //
-
-        Assert.IsNotNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
-
-        Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
-        Assert.IsNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
-
-        //
-        // They try to reconnect again fully
-        //
-        await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
+
         await Cleanup(merry, pippin);
     }
 
     [Test]
-    [Description("Merry: Incoming, Pippin: None")]
-    public async Task CanConnectWhenState_Merry_Incoming_Pippin_None()
+    [Description("Sam: Incoming, Frodo: None")]
+    public async Task FailToConnect_Sam_Incoming_And_Frodo_Has_Deleted_Outgoing_Request()
     {
-        var merry = TestIdentities.Merry;
-        var pippin = TestIdentities.Pippin;
+        //I know.. I switch to sam and frodo coz of a clean up issue :( bad me
+        var sam = TestIdentities.Samwise;
+        var frodo = TestIdentities.Frodo;
 
-        var merryClient = _scaffold.CreateOwnerApiClient(merry);
-        var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+        var samClient = _scaffold.CreateOwnerApiClient(sam);
+        var frodoClient = _scaffold.CreateOwnerApiClient(frodo);
 
-        await pippinClient.Network.SendConnectionRequestTo(merry);
-        await pippinClient.Network.DeleteSentRequestTo(merry);
+        await frodoClient.Network.SendConnectionRequestTo(sam);
+        await frodoClient.Network.DeleteSentRequestTo(sam);
 
         //
         // Assert state is ready for test
         //
 
-        Assert.IsNotNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
+        Assert.IsNotNull(await samClient.Network.GetIncomingRequestFrom(frodo));
+        Assert.IsNull(await samClient.Network.GetOutgoingSentRequestTo(frodo));
 
-        Assert.IsNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
-        Assert.IsNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
+        Assert.IsNull(await frodoClient.Network.GetIncomingRequestFrom(sam));
+        Assert.IsNull(await frodoClient.Network.GetOutgoingSentRequestTo(sam));
 
-        //
-        // They try to reconnect again fully
-        //
-        await Connect(merry, pippin);
-        await AssertConnected(merry, pippin);
-        await Cleanup(merry, pippin);
+
+        var response = await samClient.Network.SendConnectionRequestRaw(frodo, new List<GuidId>());
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+
+        await samClient.Network.DeleteConnectionRequestFrom(frodo);
     }
 
     [Test]
@@ -470,6 +460,9 @@ public class ConnectionRequestTests
 
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+
+        await merryClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await pippinClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.AcceptConnectionRequest(pippin);
@@ -499,6 +492,9 @@ public class ConnectionRequestTests
 
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+
+        await merryClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await pippinClient.Configuration.DisableAutoAcceptIntroductions(true);
 
         await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
@@ -554,7 +550,7 @@ public class ConnectionRequestTests
 
 
     [Test]
-    public async Task CanConnectedWithBothSendConnectionRequests()
+    public async Task CanAutoAcceptIncomingConnectionRequestsWhenOutgoingRequestExists()
     {
         var merry = TestIdentities.Merry;
         var pippin = TestIdentities.Pippin;
@@ -566,20 +562,12 @@ public class ConnectionRequestTests
         await pippinClient.Network.SendConnectionRequestTo(merry);
 
         //
-        // Assert state is ready for test
-        //
-
-        Assert.IsNotNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
-        Assert.IsNotNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
-        //
-        // Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
-        // Assert.IsNotNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
-
-        //
-        // They try to reconnect again fully
-        //
-        await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
+
+        //
+        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
+        Assert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
+
         await Cleanup(merry, pippin);
     }
 
@@ -631,8 +619,11 @@ public class ConnectionRequestTests
         var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
         var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-        await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { });
-        await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>() { });
+        await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await recipientOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        
+        await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>());
+        await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
     }
 
     private async Task AssertConnected(TestIdentity sender, TestIdentity recipient)
@@ -654,7 +645,7 @@ public class ConnectionRequestTests
         //
         var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
         Assert.IsTrue(recipientConnectionInfo.Status == ConnectionStatus.Connected);
-        
+
         Assert.IsNull(await senderOwnerClient.Network.GetIncomingRequestFrom(recipient));
         Assert.IsNull(await senderOwnerClient.Network.GetOutgoingSentRequestTo(recipient));
     }

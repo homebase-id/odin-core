@@ -15,11 +15,9 @@ public class AcceptRequestHeader
     /// Initial data sent with a connection request
     /// </summary>
     public ContactRequestData ContactData { get; set; }
-
+    
     public void Validate()
     {
         OdinValidationUtils.AssertNotNullOrEmpty(Sender, nameof(Sender));
-        OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
-        ContactData.Validate();
     }
 }

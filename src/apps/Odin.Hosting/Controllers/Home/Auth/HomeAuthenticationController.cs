@@ -60,7 +60,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             try
             {
                 var db = _tenantSystemStorage.IdentityDatabase;
-                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKeyAsync(db);
+                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKeyAsync();
                 var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
                 var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
@@ -87,7 +87,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 //set the cookie from the identity being logged into
 
-                var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken, db);
+                var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccessAsync(odinId, clientAuthToken, db);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
 
                 var url = GetFinalUrl(odinId, clientAccessToken, authState);

@@ -32,7 +32,7 @@ public class FollowerAuthenticationService
     /// <summary>
     /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -50,7 +50,7 @@ public class FollowerAuthenticationService
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken, db);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, tempToken, db);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -66,9 +66,9 @@ public class FollowerAuthenticationService
         return await _cache.GetOrAddContextAsync(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
     {
-        var permissionContext = await _followerService.CreateFollowerPermissionContext(callerOdinId, token);
+        var permissionContext = await _followerService.CreateFollowerPermissionContextAsync(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
@@ -77,11 +77,5 @@ public class FollowerAuthenticationService
             tokenType: ClientTokenType.DataProvider);
 
         return (cc, permissionContext);
-    }
-
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
-    {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
-        return Task.CompletedTask;
     }
 }

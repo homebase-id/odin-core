@@ -274,11 +274,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
-        public async Task<OwnerAuthTokenContext> GetOwnerAuthContext(OdinId identity)
+        public OwnerAuthTokenContext GetOwnerAuthContext(OdinId identity)
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {
-                return await Task.FromResult(context);
+                return context;
             }
 
             throw new Exception($"No token found for {identity}");
@@ -319,7 +319,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateOwnerApiHttpClient(OdinId identity, out SensitiveByteArray sharedSecret,
             FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var token = GetOwnerAuthContext(identity);
             var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
             sharedSecret = token.SharedSecret;
             return client;

@@ -32,7 +32,7 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
-        return await _groupReactionService.AddReaction(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
+        return await _groupReactionService.AddReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -45,7 +45,7 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     {
         var db = _tenantSystemStorage.IdentityDatabase;
 
-        return await _groupReactionService.DeleteReaction(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
+        return await _groupReactionService.DeleteReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -55,7 +55,7 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     public async Task<GetReactionsResponse> GetAllReactions([FromQuery] GetReactionsRequestRedux request)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        return await _groupReactionService.GetReactions(request.File, request.Cursor, request.MaxRecords, WebOdinContext, db,
+        return await _groupReactionService.GetReactionsAsync(request.File, request.Cursor, request.MaxRecords, WebOdinContext, db,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -69,7 +69,7 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
         var db = _tenantSystemStorage.IdentityDatabase;
 
         OdinValidationUtils.AssertIsValidOdinId(request.Identity, out var identity);
-        return await _groupReactionService.GetReactionsByIdentityAndFile(identity, request.File, WebOdinContext, db,
+        return await _groupReactionService.GetReactionsByIdentityAndFileAsync(identity, request.File, WebOdinContext, db,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -81,7 +81,7 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromQuery] GetReactionsRequestRedux request)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        return await _groupReactionService.GetReactionCountsByFile(request.File, WebOdinContext, db,
+        return await _groupReactionService.GetReactionCountsByFileAsync(request.File, WebOdinContext, db,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 }

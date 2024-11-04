@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {
         public OwnerPeerSenderController(
-            IPeerOutgoingTransferService peerOutgoingTransferService,
+            PeerOutgoingTransferService peerOutgoingTransferService,
             TenantSystemStorage tenantSystemStorage) : base(peerOutgoingTransferService, tenantSystemStorage)
         {
         }

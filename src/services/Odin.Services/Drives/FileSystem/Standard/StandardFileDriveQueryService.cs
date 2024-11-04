@@ -23,9 +23,9 @@ namespace Odin.Services.Drives.FileSystem.Standard
         {
         }
 
-        public override async Task AssertCanReadDrive(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
+        public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
         {
-            var drive = await DriveManager.GetDrive(driveId, db, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, db, true);
             if (!drive.AllowAnonymousReads)
             {
                 odinContext.PermissionsContext.AssertCanReadDrive(driveId);
@@ -34,16 +34,16 @@ namespace Odin.Services.Drives.FileSystem.Standard
 
         public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
         {
-            var drive = await DriveManager.GetDrive(driveId, db, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, db, true);
             if (!drive.AllowAnonymousReads)
             {
                 odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
 
-        public override async Task AssertCanReadOrWriteToDrive(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
+        public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext, IdentityDatabase db)
         {
-            var drive = await DriveManager.GetDrive(driveId, db, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, db, true);
             if (!drive.AllowAnonymousReads)
             {
                 var pc = odinContext.PermissionsContext;

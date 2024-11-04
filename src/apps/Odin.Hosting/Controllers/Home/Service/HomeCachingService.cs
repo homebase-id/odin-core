@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.db);
+            var drive = await _driveManager.GetDriveAsync(notification.File.DriveId, notification.db);
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason

@@ -40,7 +40,7 @@ namespace Odin.Services.DataSubscription
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
             var driveId = notification.Reaction.FileId.DriveId;
-            if (await IsFeedDriveRelated(driveId, notification.db))
+            if (await IsFeedDriveRelatedAsync(driveId, notification.db))
             {
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
@@ -120,9 +120,9 @@ namespace Odin.Services.DataSubscription
                 notification.db);
         }
 
-        private async Task<bool> IsFeedDriveRelated(Guid driveId, IdentityDatabase db)
+        private async Task<bool> IsFeedDriveRelatedAsync(Guid driveId, IdentityDatabase db)
         {
-            var drive = await driveManager.GetDrive(driveId, db);
+            var drive = await driveManager.GetDriveAsync(driveId, db);
             if (null == drive)
             {
                 logger.LogWarning("notification sent with invalid driveId - this is totes rare");
