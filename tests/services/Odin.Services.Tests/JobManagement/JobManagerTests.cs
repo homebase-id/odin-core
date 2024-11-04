@@ -5,6 +5,9 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -29,7 +32,9 @@ public class JobManagerTests
 {
     private IHost? _host;
     private string? _tempPath;
-    private IBackgroundServiceManager? _backgroundServiceManager;
+    private BackgroundServiceManager? _backgroundServiceManager;
+    private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
+    private JobRunnerBackgroundService? _jobRunnerBackgroundService;
     
     [SetUp]
     public void Setup()
@@ -38,7 +43,10 @@ public class JobManagerTests
         Directory.CreateDirectory(_tempPath);
         
         _host = CreateHostedJobManager();
-        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
+        _backgroundServiceManager = _host.Services.GetRequiredService<BackgroundServiceManager>();
+
+        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
+        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
 
     //
@@ -74,6 +82,7 @@ public class JobManagerTests
         };
 
         var host = Host.CreateDefaultBuilder()
+            .UseServiceProviderFactory(new AutofacServiceProviderFactory()) // Use Autofac as DI container
             .ConfigureServices((hostContext, services) =>
             {
                 services.AddSingleton(config);
@@ -87,15 +96,26 @@ public class JobManagerTests
                 services.AddSingleton<IStickyHostname, StickyHostname>();
                 services.AddSingleton<ServerSystemStorage>();
             
-                services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
-                    provider.GetRequiredService<IServiceProvider>(),
+                //
+                //  Background services
+                //
+
+                services.AddSingleton<BackgroundServiceManager>(provider => new BackgroundServiceManager(
+                    provider.GetRequiredService<ILifetimeScope>(),
                     "system"
                 ));
+                services.AddSingleton<IBackgroundServiceTrigger>(provider => provider.GetRequiredService<BackgroundServiceManager>());
+                services.AddSingleton<IBackgroundServiceManager>(provider => provider.GetRequiredService<BackgroundServiceManager>());
 
-                services.AddSingleton<JobCleanUpBackgroundService>();
-                services.AddSingleton<JobRunnerBackgroundService>();
+                services.AddTransient<JobCleanUpBackgroundService>();
+                services.AddTransient<JobRunnerBackgroundService>();
+
+                //
+                // Jobs
+                //
+
                 services.AddSingleton<IJobManager, JobManager>();
-                
+
                 services.AddTransient<SimpleJobTest>();
                 services.AddTransient<SimpleJobWithDelayTest>();
                 services.AddTransient<EventuallySucceedJobTest>();
@@ -103,9 +123,10 @@ public class JobManagerTests
                 services.AddTransient<RescheduleJobTest>();
                 services.AddTransient<RescheduleOnCancelJobTest>();
                 services.AddTransient<JobWithHashTest>();
+                services.AddTransient<FailingJobWithHashTest>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
-                services.AddTransient<FailingJobWithHashTest>();
+                services.AddTransient<ScopedJobTest>(); services.AddScoped<ScopedJobTestDependency>();
 
 
             })
@@ -126,13 +147,8 @@ public class JobManagerTests
     
     private async Task StartBackgroundServices()
     {
-        await _backgroundServiceManager!.StartAsync(
-            nameof(JobCleanUpBackgroundService),
-            _host!.Services.GetRequiredService<JobCleanUpBackgroundService>());
-        
-        await _backgroundServiceManager!.StartAsync(
-            nameof(JobRunnerBackgroundService), 
-            _host!.Services.GetRequiredService<JobRunnerBackgroundService>());
+        await _backgroundServiceManager!.StartAsync(_jobCleanUpBackgroundService!);
+        await _backgroundServiceManager!.StartAsync(_jobRunnerBackgroundService!);
     }
     
     //
@@ -814,6 +830,8 @@ public class JobManagerTests
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
+
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle
@@ -859,8 +877,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        var jobCleanUpBackgroundService = _host!.Services.GetRequiredService<JobCleanUpBackgroundService>();
-        jobCleanUpBackgroundService.PulseBackgroundProcessor();
+        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -946,6 +963,7 @@ public class JobManagerTests
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle
@@ -989,8 +1007,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        var jobCleanUpBackgroundService = _host!.Services.GetRequiredService<JobCleanUpBackgroundService>();
-        jobCleanUpBackgroundService.PulseBackgroundProcessor();
+        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1069,15 +1086,59 @@ public class JobManagerTests
     
     //
 
-#if !NOISY_NEIGHBOUR    
     [Test]
-    public async Task ItShouldGoTownOnScheduledUniqueJobs()
+    public async Task JobShouldHaveInternalChildDiScope()
+    {
+        //
+        // NOTE:
+        //
+        // To see this test fail because of wrong scope:
+        // - go to JobManager::RunJobNowAsync
+        // - change the lines
+        //     using var job = await GetJobAsync<AbstractJob>(jobId, childScope);
+        //   to
+        //     var job = await GetJobAsync<AbstractJob>(jobId);
+        //   this will cause the test to fail because the ScopedTestDependency will be resolved from the parent scope
+        //   and not the child scope.
+        //
+
+        var scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        scopedTestDependency.Value = "sanity";
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
+
+        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        await StartBackgroundServices();
+
+        var scopedJob = jobManager.NewJob<ScopedJobTest>();
+        var scopedJobId = await jobManager.ScheduleJobAsync(scopedJob);
+        Assert.That(scopedJobId, Is.Not.EqualTo(Guid.Empty));
+
+        // Act
+        await WaitForJobStatus<ScopedJobTest>(jobManager, scopedJobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+
+        scopedJob = await jobManager.GetJobAsync<ScopedJobTest>(scopedJobId);
+        Assert.That(scopedJob!.JobData.ScopedTestCopy, Is.EqualTo("new born"));
+
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
+
+        await StopBackgroundServices();
+        AssertLogEvents();
+    }
+
+
+    //
+
+#if !NOISY_NEIGHBOUR
+    [Test]
+    public async Task ItShouldGoToTownOnScheduledUniqueJobs()
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         var random = new Random();
-        
+
         var schedule = new JobSchedule
         {
             RunAt = DateTimeOffset.Now,
@@ -1086,26 +1147,25 @@ public class JobManagerTests
             OnSuccessDeleteAfter = TimeSpan.FromSeconds(0),
             OnFailureDeleteAfter = TimeSpan.FromSeconds(0),
         };
-        
+
         var job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
         var jobId = await jobManager.ScheduleJobAsync(job, schedule);
-        
+
         for (var idx = 0; idx < 100; idx++)
         {
             job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
-            var jobIdRef = await jobManager.ScheduleJobAsync(job, schedule);
+            await jobManager.ScheduleJobAsync(job, schedule);
             await Task.Delay(random.Next(1, 20));
         }
-      
+
         await Task.Delay(1000);
-        
+
         await StopBackgroundServices();
-      
+
         var orphanedJobsCount = await jobManager.CountJobsAsync();
-        var xjob = await jobManager.GetJobAsync<FailingJobWithHashTest>(jobId);
-        
+
         Assert.That(orphanedJobsCount, Is.EqualTo(0));
-       
+
         var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
         foreach (var logEvent in logEvents[LogEventLevel.Error])
         {
@@ -1113,9 +1173,9 @@ public class JobManagerTests
         }
     }
 #endif
-    
+
     //
-    
+
     private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
         var sw = Stopwatch.StartNew();

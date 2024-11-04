@@ -11,6 +11,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -33,7 +34,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService
+        IBackgroundServiceTrigger backgroundServiceTrigger
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
@@ -74,7 +75,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return outboxStatus;
         }
@@ -122,7 +123,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return outboxStatus;
         }
@@ -190,7 +191,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -347,7 +348,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return results;
         }

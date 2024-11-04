@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.Membership.Connections;
@@ -23,7 +24,7 @@ public class GroupReactionService(
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
-    PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService,
+    IBackgroundServiceTrigger backgroundServiceTrigger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     FileSystemResolver fileSystemResolver) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
@@ -53,7 +54,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
         }
 
         return result;
@@ -81,7 +82,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
         }
 
         return result;

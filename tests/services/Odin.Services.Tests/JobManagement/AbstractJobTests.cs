@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -13,16 +14,21 @@ namespace Odin.Services.Tests.JobManagement;
 
 public class AbstractJobTests
 {
+    private ILifetimeScope _container = null!;
+    
+    [SetUp]
+    public void Setup()
+    {
+        var builder = new ContainerBuilder();
+        var mockLogger = Mock.Of<ILogger<SimpleJobTest>>();
+        builder.RegisterInstance(mockLogger).As<ILogger<SimpleJobTest>>();
+        builder.RegisterType<SimpleJobTest>().AsSelf().InstancePerDependency();
+        _container = builder.Build();    
+    }
+    
     [Test]
     public async Task ItShouldCreateJobInstanceFromTypeAndSerializedDataAndRunIt()
     {
-        // Arrange
-        var loggerMock = new Mock<ILogger<SimpleJobTest>>();
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(ILogger<SimpleJobTest>)))
-            .Returns(loggerMock.Object);
-        
         var jobType = typeof(SimpleJobTest).AssemblyQualifiedName;
         var jobData = OdinSystemSerializer.Serialize(new SimpleJobTestData());
         var record = new JobsRecord
@@ -32,7 +38,7 @@ public class AbstractJobTests
         };
         
         // Act
-        var job = AbstractJob.CreateInstance(serviceProviderMock.Object, record);
+        using var job = AbstractJob.CreateInstance(_container, record);
 
         // Assert
         Assert.NotNull(job);
