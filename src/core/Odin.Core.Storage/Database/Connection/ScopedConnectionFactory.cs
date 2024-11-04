@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Connection.System;
+using Odin.Core.Storage.Database.Connection.Tenant;
 
 namespace Odin.Core.Storage.Database.Connection;
 
@@ -12,10 +14,10 @@ namespace Odin.Core.Storage.Database.Connection;
 /*
     When dealing with either parallel tasks or threads, it is important to ensure that they run in a new scope:
 
-     using var scope = _scopeFactory.CreateScope();
-      var scopedDbConnection = scope.ServiceProvider.GetRequiredService<ScopedDbConnection>();
+    using var scope = _scopeFactory.CreateScope();
+    var scopedDbConnection = scope.ServiceProvider.GetRequiredService<ScopedDbConnection>();
 
-      var (disposer, connection) = await scopedDbConnection.CreateConnectionAsync();
+    var (disposer, connection) = await scopedDbConnection.CreateConnectionAsync();
       // Use the connection
       disposer.Dispose();
 
@@ -27,8 +29,9 @@ namespace Odin.Core.Storage.Database.Connection;
       await someRepo.InsertStuffInDbAsync();
  */
 
-public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, IDbConnectionFactory connectionFactory)
+public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logger, T connectionFactory) where T : IDbConnectionFactory
 {
+    private readonly T _connectionFactory = connectionFactory;
     private readonly AsyncLock _mutex = new();
     private DbConnection? _connection;
     private int _connectionRefCount;
@@ -43,7 +46,7 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
         {
             if (++_connectionRefCount == 1)
             {
-                _connection = await connectionFactory.CreateAsync();
+                _connection = await _connectionFactory.CreateAsync();
             }
 
             // Sanity
@@ -88,9 +91,10 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
 
     //
 
-    public sealed class ConnectionAccessor(ScopedConnectionFactory instance) : IDisposable, IAsyncDisposable
+    public sealed class ConnectionAccessor(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
     {
         public DbConnection Instance => instance._connection!;
+        public int RefCount => instance._connectionRefCount;
 
         public async Task<TransactionAccessor> BeginNestedTransactionAsync()
         {
@@ -130,9 +134,10 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
 
     //
 
-    public sealed class TransactionAccessor(ScopedConnectionFactory instance) : IDisposable, IAsyncDisposable
+    public sealed class TransactionAccessor(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
     {
         public DbTransaction Instance => instance._transaction!;
+        public int RefCount => instance._transactionRefCount;
 
         public async Task CommitAsync()
         {
@@ -158,7 +163,7 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
                 if (instance._connection == null)
                 {
                     throw new ScopedDbConnectionException(
-                        "No connection available to dispose transaction. This should never happen");
+                        "No connection available to dispose transaction. This should never happen.");
                 }
 
                 if (--instance._transactionRefCount == 0)
@@ -170,8 +175,7 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
                 // Sanity
                 if (instance._transactionRefCount < 0)
                 {
-                    throw new ScopedDbConnectionException(
-                        "Transaction nesting is negative. This should never happen");
+                    throw new ScopedDbConnectionException("Transaction nesting is negative. This should never happen.");
                 }
             }
         }
@@ -179,3 +183,17 @@ public class ScopedConnectionFactory(ILogger<ScopedConnectionFactory> logger, ID
 }
 
 public class ScopedDbConnectionException(string message) : OdinSystemException(message);
+
+public class ScopedSystemConnectionFactory(
+    ILogger<ScopedSystemConnectionFactory> logger,
+    ISystemDbConnectionFactory connectionFactory)
+    : ScopedConnectionFactory<ISystemDbConnectionFactory>(logger, connectionFactory)
+{
+}
+
+public class ScopedIdentityConnectionFactory(
+    ILogger<ScopedIdentityConnectionFactory> logger,
+    ITenantDbConnectionFactory connectionFactory)
+    : ScopedConnectionFactory<ITenantDbConnectionFactory>(logger, connectionFactory)
+{
+}
