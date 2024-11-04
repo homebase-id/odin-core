@@ -341,7 +341,7 @@ namespace Odin.Services.DataSubscription
                 {
                     if (status == DeleteLinkedFileStatus.EnqueueFailed)
                     {
-                        _logger.LogWarning("Enqueuing failed for recipient: {recipient}", recipient);
+                        _logger.LogDebug("Enqueuing failed for recipient: {recipient}", recipient);
                     }
                 }
             }

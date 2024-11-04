@@ -128,7 +128,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (null == header.EccEncryptedPayload)
                 {
-                    _logger.LogWarning($"RSA Payload for incoming/pending request from {sender} was null");
+                    _logger.LogDebug($"RSA Payload for incoming/pending request from {sender} was null");
                     return null;
                 }
 

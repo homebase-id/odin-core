@@ -173,7 +173,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (LockConflictException lce)
             {
-                logger.LogWarning(lce,
+                logger.LogInformation(lce,
                     "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
                     inboxItem.InstructionType,
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
@@ -181,7 +181,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinAcquireLockException te)
             {
-                logger.LogWarning(te,
+                logger.LogInformation(te,
                     "Processing Inbox -> Inbox InstructionType: {instructionType}. Action: Marking Failure; retry later: [{marker}]",
                     inboxItem.InstructionType,
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
@@ -191,7 +191,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 if (oce.ErrorCode == OdinClientErrorCode.ExistingFileWithUniqueId)
                 {
-                    logger.LogError(oce,
+                    logger.LogInformation(oce,
                         "Processing Inbox -> UniqueId Conflict: " +
                         "\nSender: {sender}. " +
                         "\nInbox InstructionType: {instructionType}. " +
@@ -212,7 +212,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinSecurityException securityException)
             {
-                logger.LogWarning(securityException,
+                logger.LogInformation(securityException,
                     "Processing Inbox -> Security Exception: " +
                     "\nSender: {sender}. " +
                     "\nInbox InstructionType: {instructionType}. " +

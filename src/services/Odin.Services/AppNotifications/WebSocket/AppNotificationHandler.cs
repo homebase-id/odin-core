@@ -312,12 +312,12 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             catch (WebSocketException e)
             {
-                logger.LogWarning("WebSocketException: {error}", e.Message);
+                logger.LogInformation("WebSocketException: {error}", e.Message);
             }
             catch (Exception e)
             {
                 //HACK: need to find out what is trying to write when the response is complete
-                logger.LogError(e, "SendMessageAsync: {error}", e.Message);
+                logger.LogInformation(e, "SendMessageAsync: {error}", e.Message);
             }
         }
 

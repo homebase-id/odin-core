@@ -424,7 +424,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                         "Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next", potentialId);
                     continue;
                 }
-
+ 
                 var registration = LoadRegistration(id);
                 if (registration == null)
                 {

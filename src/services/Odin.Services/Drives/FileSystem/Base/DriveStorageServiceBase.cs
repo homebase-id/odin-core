@@ -371,7 +371,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (null == header)
             {
-                _logger.LogWarning($"Permission check called on non-existing file {file}");
+                _logger.LogDebug($"Permission check called on non-existing file {file}");
                 return false;
             }
 
