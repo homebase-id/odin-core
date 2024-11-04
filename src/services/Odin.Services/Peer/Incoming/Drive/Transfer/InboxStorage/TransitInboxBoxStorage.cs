@@ -18,7 +18,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// </summary>
     public class TransitInboxBoxStorage(TenantSystemStorage tenantSystemStorage)
     {
-        public async Task AddAsync(TransferInboxItem item, IdentityDatabase db)
+        public async Task AddAsync(TransferInboxItem item)
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
@@ -28,7 +28,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             PerformanceCounter.IncrementCounter("Inbox Item Added");
         }
 
-        public async Task<InboxStatus> GetStatusAsync(Guid driveId, IdentityDatabase db)
+        public async Task<InboxStatus> GetStatusAsync(Guid driveId)
         {
             var p = await tenantSystemStorage.Inbox.PopStatusSpecificBoxAsync(driveId);
 
@@ -41,10 +41,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         }
 
 
-        public async Task<InboxStatus> GetPendingCountAsync(Guid driveId, IdentityDatabase db)
+        public async Task<InboxStatus> GetPendingCountAsync(Guid driveId)
         {
             var p = await tenantSystemStorage.Inbox.PopStatusSpecificBoxAsync(driveId);
-            return new InboxStatus
+            return new InboxStatus()
             {
                 TotalItems = p.totalCount,
                 PoppedCount = p.poppedCount,
@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             };
         }
 
-        public async Task<List<TransferInboxItem>> GetPendingItemsAsync(Guid driveId, int batchSize, IdentityDatabase db)
+        public async Task<List<TransferInboxItem>> GetPendingItemsAsync(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
             var records = await tenantSystemStorage.Inbox.PopSpecificBoxAsync(driveId, batchSize == 0 ? 1 : batchSize);
@@ -80,19 +80,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return items;
         }
 
-        public async Task MarkCompleteAsync(InternalDriveFileId file, Guid marker, IdentityDatabase db)
+        public async Task MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
             await tenantSystemStorage.Inbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
+            
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
         }
 
-        public async Task MarkFailureAsync(InternalDriveFileId file, Guid marker, IdentityDatabase db)
+        public async Task MarkFailureAsync(InternalDriveFileId file, Guid marker)
         {
             await tenantSystemStorage.Inbox.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
             PerformanceCounter.IncrementCounter("Inbox Mark Failure");
         }
 
-        public async Task<int> RecoverDeadAsync(UnixTimeUtc time, IdentityDatabase db)
+        public async Task<int> RecoverDeadAsync(UnixTimeUtc time)
         {
             var recovered = await tenantSystemStorage.Inbox.PopRecoverDeadAsync(time);
             PerformanceCounter.IncrementCounter("Inbox Recover Dead");

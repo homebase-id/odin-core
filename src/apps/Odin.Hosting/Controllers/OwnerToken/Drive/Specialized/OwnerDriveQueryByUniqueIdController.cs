@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Specialized
     [AuthorizeValidOwnerToken]
     public class OwnerDriveQueryByUniqueIdController(
         ILogger<OwnerDriveQueryByUniqueIdController> logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         TenantSystemStorage tenantSystemStorage)
         : DriveQueryByUniqueIdControllerBase(peerOutgoingTransferService, tenantSystemStorage)
     {

@@ -45,7 +45,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -93,8 +92,7 @@ namespace Odin.Hosting
             //
             services.AddSystemBackgroundServices();
             services.AddJobManagerServices();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
-
+            
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -322,6 +320,8 @@ namespace Odin.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseVersionUpgrade();
+
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseCors();
             app.UseApiCors();
@@ -486,9 +486,6 @@ namespace Odin.Hosting
                     config.Host.ShutdownTimeoutSeconds);
 
                 var services = app.ApplicationServices;
-
-                // Wait for any registered fire-and-forget tasks to complete
-                services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
 
                 //
                 // Shutdown all tenant background services

@@ -4,54 +4,63 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Verification;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
-    public abstract class CircleNetworkControllerBase : OdinControllerBase
+    public abstract class CircleNetworkControllerBase(
+        CircleNetworkService circleNetwork,
+        CircleNetworkVerificationService verificationService)
+        : OdinControllerBase
     {
-        private readonly CircleNetworkService _circleNetwork;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-        public CircleNetworkControllerBase(CircleNetworkService db, TenantSystemStorage tenantSystemStorage)
-        {
-            _circleNetwork = db;
-            _tenantSystemStorage = tenantSystemStorage;
-        }
-
+        
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.UnblockAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.UnblockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("block")]
         public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.BlockAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.BlockAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
         }
 
         [HttpPost("disconnect")]
         public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext);
             return result;
+        }
+
+        [HttpPost("confirm-connection")]
+        public async Task<IActionResult> ConfirmConnection([FromBody] OdinIdRequest request)
+        {
+            await circleNetwork.ConfirmConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("verify-connection")]
+        public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
+        {
+            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            return new JsonResult(result);
         }
 
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.GetTroubleshootingInfoAsync((OdinId)request.OdinId, WebOdinContext);
             return new JsonResult(result);
         }
-        
+
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistrationAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 
@@ -59,7 +68,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
+            var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -71,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
+            var result = await circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -82,21 +91,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("circles/list")]
         public async Task<IEnumerable<OdinId>> GetCircleMembers([FromBody] GetCircleMembersRequest request)
         {
-            var result = await _circleNetwork.GetCircleMembersAsync(request.CircleId, WebOdinContext);
+            var result = await circleNetwork.GetCircleMembersAsync(request.CircleId, WebOdinContext);
             return result;
         }
 
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            await _circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await circleNetwork.GrantCircleAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            await _circleNetwork.RevokeCircleAccessAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
+            await circleNetwork.RevokeCircleAccessAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
             return true;
         }
     }

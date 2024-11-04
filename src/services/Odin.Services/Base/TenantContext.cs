@@ -1,4 +1,5 @@
 using System;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
@@ -13,6 +14,8 @@ namespace Odin.Services.Base
         {
         }
 
+        public SensitiveByteArray TemporalEncryptionKey { get; } = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+        
         public TenantContext(Guid dotYouRegistryId, OdinId hostOdinId, string sslRoot, TenantStorageConfig storageConfig, Guid? firstRunToken,
             bool isPreconfigured, UnixTimeUtc? markedForDeletionDate)
         {

@@ -29,6 +29,9 @@ public class FeedDistributionItem
 public class FeedItemPayload
 {
     public byte[] KeyHeaderBytes { get; set; }
+    public bool DriveOriginWasCollaborative { get; set; }
+
+    // public OdinId? CollaborationChannelAuthor { get; set; }
 }
 
 public enum FeedDistroType

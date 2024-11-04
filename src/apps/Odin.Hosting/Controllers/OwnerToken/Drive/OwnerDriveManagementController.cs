@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var drives = await _driveManager.GetDrives(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
+            var drives = await _driveManager.GetDrivesAsync(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -65,7 +65,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, true);
             await _driveManager.UpdateMetadataAsync(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, db);
             return true;
         }
@@ -74,7 +74,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> UpdateDriveAttributes([FromBody] UpdateDriveDefinitionRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, true);
             await _driveManager.UpdateAttributesAsync(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, db);
             return true;
         }
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> SetDriveReadMode([FromBody] UpdateDriveReadModeRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, db, true);
+            var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, true);
             await _driveManager.SetDriveReadModeAsync(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, db);
             return Ok();
         }
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
+            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
                 {

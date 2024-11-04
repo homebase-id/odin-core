@@ -83,7 +83,7 @@ public class SendPushNotificationOutboxWorker(
 
         try
         {
-            await pushNotificationService.Push(pushContent, odinContext, db, cancellationToken);
+            await pushNotificationService.PushAsync(pushContent, odinContext, db, cancellationToken);
         }
         catch (Exception e)
         {
