@@ -315,7 +315,7 @@ public class PushNotificationService(
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
         //Transition code: we want to keep existing subscriptions so...
-        var key = odinContext.Caller.OdinClientContext?.DevicePushNotificationKey;
+        Guid? key = odinContext.Caller.OdinClientContext?.DevicePushNotificationKey;
 
         if (null == key)
         {
