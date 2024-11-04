@@ -6,6 +6,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.Tenant.Container;
@@ -33,6 +34,10 @@ public class VersionUpgradeJob(
             }
 
             var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!);
+            
+            var stickyHostnameContext = scope.Resolve<IStickyHostname>();
+            stickyHostnameContext.Hostname = $"{Data.Tenant}&";
+            
             var versionUpgradeService = scope.Resolve<VersionUpgradeService>();
             await versionUpgradeService.UpgradeAsync(Data, cancellationToken);
         }

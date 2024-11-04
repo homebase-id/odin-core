@@ -28,7 +28,7 @@ public class IcrKeyAvailableBackgroundService(
 
     public async Task Run(IcrKeyAvailableJobData data, CancellationToken cancellationToken)
     {
-        logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process for {data.Tenant}; token type: {data.TokenType}");
+        logger.LogDebug($"Running IcrKeyAvailableBackgroundService Process - token type: {data.TokenType}");
 
         var odinContext = await GetOdinContext(data);
         var currentVersion = (await tenantConfigService.GetVersionInfoAsync()).DataVersionNumber;

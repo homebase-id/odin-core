@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -23,7 +22,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger, null)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
@@ -90,8 +89,8 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             ApiResponse<PeerTransferResponse> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendFile(); });
 

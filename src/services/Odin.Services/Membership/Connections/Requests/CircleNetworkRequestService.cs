@@ -136,7 +136,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             else
             {
-                (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(KeyType, header.Payload, odinContext);
+                (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
 
                 if (isValidPublicKey == false)
                 {

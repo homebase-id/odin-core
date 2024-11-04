@@ -11,6 +11,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -33,7 +34,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService
+        IBackgroundServiceTrigger backgroundServiceTrigger
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
@@ -70,14 +71,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
+                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true },
+                    odinContext, db);
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return outboxStatus;
         }
+
 
         /// <summary>
         /// Updates a remote file
@@ -116,13 +119,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 if (!item.State.IsTransientFile)
                 {
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
+                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient,
+                        new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext, db);
                 }
 
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return outboxStatus;
         }
@@ -140,7 +144,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
             };
 
-            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext, db);
+            var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext,
+                db);
 
             return result;
         }
@@ -190,7 +195,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -347,7 +352,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
 
             return results;
         }
@@ -372,7 +377,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateOutboxItems(InternalDriveFileId internalFile,
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem>)> CreateOutboxItems(
+            InternalDriveFileId internalFile,
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
@@ -380,20 +386,24 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IdentityDatabase db)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
-            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDriveAsync(internalFile.DriveId, db, failIfInvalid: true)).TargetDriveInfo;
+            TargetDrive targetDrive = options.RemoteTargetDrive ??
+                                      (await driveManager.GetDriveAsync(internalFile.DriveId, db, failIfInvalid: true)).TargetDriveInfo;
 
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
 
             if (options.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
             {
-                throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
+                throw new OdinClientException("Cannot transfer a file to the sender; what's the point?",
+                    OdinClientErrorCode.InvalidRecipient);
             }
 
             var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext, db);
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
-            var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
+            var keyHeader = header.FileMetadata.IsEncrypted
+                ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey)
+                : KeyHeader.Empty();
             storageKey.Wipe();
 
             foreach (var r in options.Recipients!)
@@ -434,7 +444,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
+                    logger.LogInformation("Failed while creating outbox item {msg}", ex.Message);
                     status.Add(recipient, TransferStatus.EnqueuedFailed);
                 }
             }
@@ -442,15 +452,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return (status, outboxItems);
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)> CreateUpdateOutboxItemsAsync(
-            InternalDriveFileId sourceFile,
-            byte[] keyHeaderIv,
-            UpdateRemoteFileRequest request,
-            List<OdinId> recipients,
-            int priority,
-            FileSystemType fileSystemType,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)>
+            CreateUpdateOutboxItemsAsync(
+                InternalDriveFileId sourceFile,
+                byte[] keyHeaderIv,
+                UpdateRemoteFileRequest request,
+                List<OdinId> recipients,
+                int priority,
+                FileSystemType fileSystemType,
+                IOdinContext odinContext,
+                IdentityDatabase db)
         {
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -506,7 +517,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
+                    logger.LogInformation("Failed while creating outbox item {msg}", ex.Message);
                     status.Add(recipient, TransferStatus.EnqueuedFailed);
                 }
             }

@@ -129,7 +129,6 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             /////
-
             odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))

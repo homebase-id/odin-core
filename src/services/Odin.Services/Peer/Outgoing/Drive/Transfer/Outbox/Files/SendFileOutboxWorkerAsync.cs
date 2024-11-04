@@ -25,23 +25,13 @@ public class SendFileOutboxWorkerAsync(
     ILogger<SendFileOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger, fileSystemResolver)
+) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
     {
         try
         {
-            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
-            {
-                throw new OdinOutboxProcessingException("Too many attempts")
-                {
-                    File = FileItem.File,
-                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
-                    Recipient = default,
-                    VersionTag = default,
-                    GlobalTransitId = default
-                };
-            }
+            AssertHasRemainingAttempts();
 
             logger.LogDebug("Start: Sending file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
@@ -135,8 +125,8 @@ public class SendFileOutboxWorkerAsync(
             ApiResponse<PeerTransferResponse> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendFile(); });
 
@@ -183,7 +173,7 @@ public class SendFileOutboxWorkerAsync(
             LatestTransferStatus = e.TransferStatus,
             VersionTag = null
         };
-
+        
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);

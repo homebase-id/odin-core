@@ -213,10 +213,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             catch (OdinSecurityException securityException)
             {
                 logger.LogWarning(securityException,
-                    "Processing Inbox -> Inbox InstructionType: {instructionType}. " +
-                    "OdinSecurityException: Failed with Temp File:{f}. " +
-                    "Inbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
-                    "PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
+                    "Processing Inbox -> Security Exception: " +
+                    "\nSender: {sender}. " +
+                    "\nInbox InstructionType: {instructionType}. " +
+                    "\nTemp File:{f}. " +
+                    "\nInbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
+                    "\nPopStamp (hex): {marker} for drive (hex): {driveId}  " +
+                    "\nAction: Marking Complete",
+                    inboxItem.Sender,
                     inboxItem.InstructionType,
                     tempFile,
                     inboxItem.GlobalTransitId,

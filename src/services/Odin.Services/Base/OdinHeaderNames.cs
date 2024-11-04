@@ -20,5 +20,6 @@ namespace Odin.Services.Base
         public const string FileSystemTypeRequestQueryStringName = "xfst";
 
         public const string RequiresUpgrade = "X-REQUIRES-UPGRADE";
+        public const string UpgradeIsRunning = "X-UPGRADE-RUNNING";
     }
 }

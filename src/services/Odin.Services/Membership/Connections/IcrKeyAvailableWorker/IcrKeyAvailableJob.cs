@@ -26,11 +26,13 @@ public class IcrKeyAvailableJob(
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
+        logger.LogDebug("IcrKeyAvailableJob - Running tenant [{t}]", Data.Tenant);
+
         try
         {
             if (!OdinId.IsValid(Data.Tenant))
             {
-                logger.LogError("Version Upgrade Job received empty tenant; aborting");
+                logger.LogError("IcrKeyAvailableJob received empty tenant; aborting");
                 return JobExecutionResult.Abort();
             }
 
@@ -38,7 +40,6 @@ public class IcrKeyAvailableJob(
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
-            
             var service = scope.Resolve<IcrKeyAvailableBackgroundService>();
             await service.Run(Data, cancellationToken);
 
@@ -47,11 +48,14 @@ public class IcrKeyAvailableJob(
             logger.LogDebug("IcrKeyAvailableJob RunCount: {rc}", service.RunCount);
             if (service.RunCount > 30) //TODO: config
             {
+                logger.LogDebug("IcrKeyAvailableJob RunCount Complete; returning JobExecutionResult.Success");
                 service.RunCount = 0;
                 return JobExecutionResult.Success();
             }
 
-            return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(60));
+            const int seconds = 60;
+            logger.LogDebug("IcrKeyAvailableJob - rescheduled for {seconds} seconds", seconds);
+            return JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(seconds));
         }
         catch (OdinSecurityException se)
         {
@@ -72,7 +76,8 @@ public class IcrKeyAvailableJob(
 
     public override string? CreateJobHash()
     {
-        var text = JobType + Data.Tenant;
+        var text = JobType + "X" + Data.Tenant;
+        logger.LogDebug("IcrKeyUpgradeJob CreateJobHash {t}", text);
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 

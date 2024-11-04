@@ -137,7 +137,7 @@ public class CircleNetworkVerificationService(
         }
         catch (TryRetryException e)
         {
-            throw e.InnerException ?? e;
+            throw e.InnerException!;
         }
 
         return result;
@@ -209,7 +209,7 @@ public class CircleNetworkVerificationService(
         }
         catch (TryRetryException e)
         {
-            throw e.InnerException ?? e;
+            throw e.InnerException!;
         }
 
         return success;

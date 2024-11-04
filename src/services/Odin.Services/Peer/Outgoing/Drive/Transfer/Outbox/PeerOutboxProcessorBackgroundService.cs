@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -23,6 +24,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessorBackgroundService(
+        ICorrelationContext correlationContext,
         ICertificateCache certificateCache,
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -78,6 +80,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         private async Task ProcessItemThread(OutboxFileItem fileItem, CancellationToken cancellationToken)
         {
+            var originalCorrelationId = correlationContext.Id;
+            correlationContext.Id = Guid.NewGuid().ToString();
+
             var odinContext = new OdinContext
             {
                 Tenant = tenantContext.HostOdinId,
@@ -92,7 +97,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             odinContext.SetPermissionContext(new PermissionContext(null, null, true));
 
-            logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
+            logger.LogDebug("Processing outbox item type: {type} (logref:{originalCorrelationId})", fileItem.Type, originalCorrelationId);
             var db = tenantSystemStorage.IdentityDatabase;
 
             try
@@ -172,7 +177,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun, IdentityDatabase db)
         {
-            if (fileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
+            if (fileItem.AttemptCount > odinConfiguration.Host.OutboxOperationMaxAttempts)
             {
                 await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
                 logger.LogInformation(
@@ -184,7 +189,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             await peerOutbox.MarkFailureAsync(fileItem.Marker, nextRun, db);
-            PulseBackgroundProcessor();
+            InternalPulseBackgroundProcessor();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,

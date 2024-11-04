@@ -38,7 +38,7 @@ public interface IGenericMemoryCache
 
 //
 
-public sealed class GenericMemoryCache : IGenericMemoryCache, IDisposable
+public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 {
     private static readonly object NullValue = new();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
