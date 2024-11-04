@@ -40,6 +40,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     private readonly Dictionary<string, ScopedAbstractBackgroundService> _backgroundServices = new();
     private readonly string _correlationId = Guid.NewGuid().ToString();
     private readonly ILogger<BackgroundServiceManager> _logger = lifetimeScope.Resolve<ILogger<BackgroundServiceManager>>();
+    private bool _disposed;
 
     //
     
@@ -76,6 +77,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public async Task StartAsync(AbstractBackgroundService service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         UpdateLogContext();
         
         if (_stoppingCts.IsCancellationRequested)
@@ -166,7 +169,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         {
             if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
             {
-                throw new InvalidOperationException($"Background service '{serviceIdentifier}' doesn't exist");
+                throw new InvalidOperationException($"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
             }
         }
         backgroundService.BackgroundService.InternalPulseBackgroundProcessor();
@@ -176,8 +179,12 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public void Dispose()
     {
-        ShutdownAsync().BlockingWait();
-        _stoppingCts.Dispose();
+        if (!_disposed)
+        {
+            _disposed = true;
+            ShutdownAsync().BlockingWait();
+            _stoppingCts.Dispose();
+        }
     }
     
     //

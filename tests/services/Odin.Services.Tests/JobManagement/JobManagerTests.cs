@@ -32,6 +32,8 @@ public class JobManagerTests
     private IHost? _host;
     private string? _tempPath;
     private BackgroundServiceManager? _backgroundServiceManager;
+    private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
+    private JobRunnerBackgroundService? _jobRunnerBackgroundService;
     
     [SetUp]
     public void Setup()
@@ -41,6 +43,9 @@ public class JobManagerTests
         
         _host = CreateHostedJobManager();
         _backgroundServiceManager = _host.Services.GetRequiredService<BackgroundServiceManager>();
+
+        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
+        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
 
     //
@@ -90,15 +95,26 @@ public class JobManagerTests
                 services.AddSingleton<IStickyHostname, StickyHostname>();
                 services.AddSingleton<ServerSystemStorage>();
             
+                //
+                //  Background services
+                //
+
                 services.AddSingleton<BackgroundServiceManager>(provider => new BackgroundServiceManager(
                     provider.GetRequiredService<ILifetimeScope>(),
                     "system"
                 ));
+                services.AddSingleton<IBackgroundServiceTrigger>(provider => provider.GetRequiredService<BackgroundServiceManager>());
+                services.AddSingleton<IBackgroundServiceManager>(provider => provider.GetRequiredService<BackgroundServiceManager>());
 
                 services.AddTransient<JobCleanUpBackgroundService>();
                 services.AddTransient<JobRunnerBackgroundService>();
+
+                //
+                // Jobs
+                //
+
                 services.AddSingleton<IJobManager, JobManager>();
-                
+
                 services.AddTransient<SimpleJobTest>();
                 services.AddTransient<SimpleJobWithDelayTest>();
                 services.AddTransient<EventuallySucceedJobTest>();
@@ -108,9 +124,7 @@ public class JobManagerTests
                 services.AddTransient<JobWithHash>();
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
-
-                services.AddScoped<ScopedTestDependency>();
-                services.AddTransient<ScopedJobTest>();
+                services.AddTransient<ScopedJobTest>(); services.AddScoped<ScopedJobTestDependency>();
             })
             .Build();
 
@@ -129,8 +143,8 @@ public class JobManagerTests
     
     private async Task StartBackgroundServices()
     {
-        await _backgroundServiceManager!.StartAsync<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
-        await _backgroundServiceManager!.StartAsync<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
+        await _backgroundServiceManager!.StartAsync(_jobCleanUpBackgroundService!);
+        await _backgroundServiceManager!.StartAsync(_jobRunnerBackgroundService!);
     }
     
     //
@@ -1084,9 +1098,9 @@ public class JobManagerTests
         //   and not the child scope.
         //
         
-        var scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        var scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         scopedTestDependency.Value = "sanity";
-        scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
         
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
@@ -1102,7 +1116,7 @@ public class JobManagerTests
         scopedJob = await jobManager.GetJobAsync<ScopedJobTest>(scopedJobId);
         Assert.That(scopedJob!.JobData.ScopedTestCopy, Is.EqualTo("new born"));
         
-        scopedTestDependency = _host!.Services.GetRequiredService<ScopedTestDependency>();
+        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
 
         await StopBackgroundServices();

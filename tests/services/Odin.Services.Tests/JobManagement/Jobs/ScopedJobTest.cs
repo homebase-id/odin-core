@@ -6,7 +6,7 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
-public class ScopedTestDependency
+public class ScopedJobTestDependency
 {
     public string Value { get; set; } = "new born";
 }
@@ -16,7 +16,7 @@ public class ScopedTestData
     public string ScopedTestCopy { get; set; } = "uninitialized";
 }
 
-public class ScopedJobTest(ILogger<ScopedJobTest> logger, ScopedTestDependency scopedTestDependency) : AbstractJob
+public class ScopedJobTest(ILogger<ScopedJobTest> logger, ScopedJobTestDependency scopedJobTestDependency) : AbstractJob
 {
     public ScopedTestData JobData { get; private set; } = new ();
     
@@ -25,7 +25,7 @@ public class ScopedJobTest(ILogger<ScopedJobTest> logger, ScopedTestDependency s
     public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
         logger.LogInformation("Running ScopedTest");
-        JobData.ScopedTestCopy = scopedTestDependency.Value;
+        JobData.ScopedTestCopy = scopedJobTestDependency.Value;
         return Task.FromResult(JobExecutionResult.Success());
     }
     
