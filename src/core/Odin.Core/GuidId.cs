@@ -122,7 +122,7 @@ public class GuidId : IGenericCloneable<GuidId>
 
     public static implicit operator Guid(GuidId id)
     {
-        return id.Value;
+        return id?.Value ?? Guid.Empty;
     }
 
     public static implicit operator GuidId(Guid id)
