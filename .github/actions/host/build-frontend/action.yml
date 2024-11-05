@@ -102,8 +102,8 @@ runs:
       working-directory: ./client/apps
       run: |
         npm run build:community
-        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/community
-        mv packages/community-app/dist ../../odin-core/src/apps/Odin.Hosting/client/community
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/community
+        mv packages/community-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/community
 
     - name: Build provisioning-app
       shell: bash
