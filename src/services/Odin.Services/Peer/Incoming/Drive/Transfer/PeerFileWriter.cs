@@ -165,14 +165,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header.FileState == FileState.Deleted)
             {
-                logger.LogWarning("MarkFileAsRead -> Attempted to mark a deleted file as read");
+                logger.LogDebug("MarkFileAsRead -> Attempted to mark a deleted file as read");
             }
 
             // disabling validation during june 14 transition period (old files w/o the transfer history, etc.)
 
             if (header.ServerMetadata.TransferHistory == null || header.ServerMetadata.TransferHistory.Recipients == null)
             {
-                logger.LogWarning("MarkFileAsRead -> TransferHistory is null.  File created: {created} and " +
+                logger.LogDebug("MarkFileAsRead -> TransferHistory is null.  File created: {created} and " +
                                   "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
             }
             else
@@ -182,7 +182,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (!recordExists || transferHistoryItem == null)
                 {
                     // throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
-                    logger.LogWarning("Cannot accept read-receipt; there is no record of having sent this file to {sender}", item.Sender);
+                    logger.LogDebug("Cannot accept read-receipt; there is no record of having sent this file to {sender}", item.Sender);
                 }
             }
 

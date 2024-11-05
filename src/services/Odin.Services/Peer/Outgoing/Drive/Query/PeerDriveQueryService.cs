@@ -573,7 +573,7 @@ public class PeerDriveQueryService(
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
-            logger.LogWarning($"Could not parse remote server response last modified for thumbnail");
+            logger.LogDebug($"Could not parse remote server response last modified for thumbnail");
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
@@ -614,7 +614,7 @@ public class PeerDriveQueryService(
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
-            logger.LogWarning($"Could not parse last modified for payload (key:{key})");
+            logger.LogInformation($"Could not parse last modified for payload (key:{key})");
         }
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
