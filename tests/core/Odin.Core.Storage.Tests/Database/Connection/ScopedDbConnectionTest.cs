@@ -1,32 +1,31 @@
-using System;
-using System.ComponentModel.Design;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Threading.Tasks;
 using Autofac;
-using Castle.Core.Logging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Connection;
 using Odin.Core.Storage.Database.Connection.System;
+using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Odin.Core.Storage.Tests.Database.Connection;
 
-SEB: Ach...  make an effort to abstract away connection strings and (more) factory etc. Do it!
+//SEB: Ach...  make an effort to abstract away connection strings and (more) factory etc. Do it!
 
 public class ScopedConnectionFactoryTest
 {
-    private const string SqliteConnectionString = "Data Source=InMemorySample;Mode=Memory;Cache=Shared";
-
+    private string _tempFolder;
     private ILifetimeScope _container = null!;
     private LogEventMemoryStore _logEventMemoryStore = null!;
 
     [SetUp]
     public void Setup()
     {
+        _tempFolder = TempDirectory.Create();
     }
 
     [TearDown]
@@ -37,10 +36,11 @@ public class ScopedConnectionFactoryTest
             DropTestDatabaseAsync().Wait();
             _container.Dispose();
         }
+        Directory.Delete(_tempFolder, true);
         LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
     }
 
-    private void RegisterServices(DatabaseType databaseType, string connectionString)
+    private void RegisterServices(DatabaseType databaseType)
     {
         _logEventMemoryStore = new LogEventMemoryStore();
 
@@ -48,12 +48,14 @@ public class ScopedConnectionFactoryTest
 
         if (databaseType == DatabaseType.Sqlite)
         {
+            var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
             builder
                 .RegisterInstance(new SqliteSystemDbConnectionFactory(connectionString))
                 .As<ISystemDbConnectionFactory>();
         }
         else if (databaseType == DatabaseType.PostgreSql)
         {
+            var connectionString = "Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin";            
             builder
                 .RegisterInstance(new PgsqlSystemDbConnectionFactory(connectionString))
                 .As<ISystemDbConnectionFactory>();
@@ -80,6 +82,7 @@ public class ScopedConnectionFactoryTest
 
         await using var cmd = cn.Instance.CreateCommand();
         cmd.CommandText = "CREATE TABLE test (name TEXT);";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private async Task DropTestDatabaseAsync()
@@ -92,10 +95,10 @@ public class ScopedConnectionFactoryTest
     }
 
     [Test]
-    [TestCase(DatabaseType.Sqlite, SqliteConnectionString)]
-    public async Task ItShouldCreateScopedConnections(DatabaseType databaseType, string connectionString)
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldCreateScopedConnections(DatabaseType databaseType)
     {
-        RegisterServices(databaseType, connectionString);
+        RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
         await using var scope = _container.BeginLifetimeScope();
@@ -141,10 +144,10 @@ public class ScopedConnectionFactoryTest
     //
 
     [Test]
-    [TestCase(DatabaseType.Sqlite, SqliteConnectionString)]
-    public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType, string connectionString)
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType, connectionString);
+        RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
         await using var scope = _container.BeginLifetimeScope();
@@ -155,24 +158,24 @@ public class ScopedConnectionFactoryTest
         Assert.That(cn.Instance, Is.Not.Null);
 
         ScopedSystemConnectionFactory.TransactionAccessor tx;
-        await using (tx = await cn.BeginNestedTransactionAsync())
+        await using (tx = await cn.BeginStackedTransactionAsync())
         {
             Assert.That(tx.RefCount, Is.EqualTo(1));
             Assert.That(tx.Instance, Is.Not.Null);
-            await using (var tx1 = await cn.BeginNestedTransactionAsync())
+            await using (var tx1 = await cn.BeginStackedTransactionAsync())
             {
                 Assert.That(tx.RefCount, Is.EqualTo(2));
                 Assert.That(tx.Instance, Is.Not.Null);
                 Assert.That(tx1.RefCount, Is.EqualTo(2));
                 Assert.That(tx1.Instance, Is.SameAs(tx.Instance));
             }
-            await using (var tx2 = await cn.BeginNestedTransactionAsync())
+            await using (var tx2 = await cn.BeginStackedTransactionAsync())
             {
                 Assert.That(tx.RefCount, Is.EqualTo(2));
                 Assert.That(tx.Instance, Is.Not.Null);
                 Assert.That(tx2.RefCount, Is.EqualTo(2));
                 Assert.That(tx2.Instance, Is.Not.Null);
-                await using (var tx3 = await cn.BeginNestedTransactionAsync())
+                await using (var tx3 = await cn.BeginStackedTransactionAsync())
                 {
                     Assert.That(tx.RefCount, Is.EqualTo(3));
                     Assert.That(tx.Instance, Is.Not.Null);
@@ -194,20 +197,43 @@ public class ScopedConnectionFactoryTest
     //
 
     [Test]
-    [TestCase(DatabaseType.Sqlite, SqliteConnectionString)]
-    public async Task ItShouldQueryDatabase(DatabaseType databaseType, string connectionString)
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldQueryDatabase(DatabaseType databaseType)
     {
-        RegisterServices(databaseType, connectionString);
+        RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
         await using var scope = _container.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using (var cmd = cn.Instance.CreateCommand())
+        await using var cmd = cn.Instance.CreateCommand();
+
+        cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+        await cmd.ExecuteNonQueryAsync();
+            
+        cmd.CommandText = "SELECT COUNT(*) FROM test;";
+        var result = await cmd.ExecuteScalarAsync();
+        Assert.That(result, Is.EqualTo(1));
+    }
+    
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
         {
+            await using var cmd = cn.Instance.CreateCommand();
             cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
             await cmd.ExecuteNonQueryAsync();
+            await tx.CommitAsync();
         }
 
         await using (var cmd = cn.Instance.CreateCommand())
@@ -217,8 +243,213 @@ public class ScopedConnectionFactoryTest
             Assert.That(result, Is.EqualTo(1));
         }
     }
+    
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
 
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (await cn.BeginStackedTransactionAsync())
+        {
+            await using var cmd = cn.Instance.CreateCommand();
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        await using (var cmd = cn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(0));
+        }
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndExplicitlyRollbackTransaction(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            await using var cmd = cn.Instance.CreateCommand();
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
+            await tx.RollbackAsync();
+        }
+
+        await using (var cmd = cn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(0));
+        }
+    }
+    
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx1 = await cn.BeginStackedTransactionAsync())
+        {
+            await using (var tx2 = await cn.BeginStackedTransactionAsync())
+            {
+                await using var cmd2 = cn.Instance.CreateCommand();
+                cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd2.ExecuteNonQueryAsync();
+            }
+            await using var cmd1 = cn.Instance.CreateCommand();
+            cmd1.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd1.ExecuteNonQueryAsync();
+            await tx1.CommitAsync();
+        }
+
+        await using (var cmd = cn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(2));
+        }
+    }
+    
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx1 = await cn.BeginStackedTransactionAsync())
+        {
+            await using (var tx2 = await cn.BeginStackedTransactionAsync())
+            {
+                await using var cmd2 = cn.Instance.CreateCommand();
+                cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd2.ExecuteNonQueryAsync();
+            }
+            await using var cmd1 = cn.Instance.CreateCommand();
+            cmd1.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd1.ExecuteNonQueryAsync();
+        }
+
+        await using (var cmd = cn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(0));
+        }
+    }
+    
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateAndExplicitlyRollbackStackedTransactions(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _container.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx1 = await cn.BeginStackedTransactionAsync())
+        {
+            await using (var tx2 = await cn.BeginStackedTransactionAsync())
+            {
+                await using var cmd2 = cn.Instance.CreateCommand();
+                cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd2.ExecuteNonQueryAsync();
+                await tx2.RollbackAsync();
+            }
+            await using var cmd1 = cn.Instance.CreateCommand();
+            cmd1.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd1.ExecuteNonQueryAsync();
+            await tx1.RollbackAsync();
+        }
+
+        await using (var cmd = cn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(0));
+        }
+    }
+   
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+        
+        await using var outerScope = _container.BeginLifetimeScope();
+        var outerScopedConnectionFactory = outerScope.Resolve<ScopedSystemConnectionFactory>();
+        await using var outerCn = await outerScopedConnectionFactory.CreateScopedConnectionAsync();
+
+        async Task Test(bool  commit)
+        {
+            await Task.Delay(10);
+            
+            await using var scope = _container.BeginLifetimeScope();
+            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+            
+            Assert.That(cn.RefCount, Is.EqualTo(1));
+            Assert.That(tx.RefCount, Is.EqualTo(1));
+                
+            await using var cmd = cn.Instance.CreateCommand();
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
+
+            if (commit)
+            {
+                await tx.CommitAsync();    
+            }
+        }
+
+        var tasks = new List<Task>();
+        for (var i = 0; i < 10; i++)
+        {
+            var i1 = i;
+            tasks.Add(Task.Run(() => Test((i1 & 1) == 0)));
+        }
+
+        await Task.WhenAll(tasks);
+        
+        await using (var cmd = outerCn.Instance.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(5));
+        }
+    }
+    
+    
+    
     // [Test]
     // public async Task TestMethod1()
     // {
@@ -237,7 +468,7 @@ public class ScopedConnectionFactoryTest
     //     await using var connection = await scopedConnectionFactory.CreateScopedConnectionAsync();
     //
     //     // Transactions are "shared" in the same scope. This is required for nested transactions.
-    //     await using var transaction = await connection.BeginNestedTransactionAsync();
+    //     await using var transaction = await connection.BeginStackedTransactionAsync();
     //
     //     //
     //     // At this point, anything ON THE SAME SCOPE that calls CreateScopedConnectionAsync will get the same connection
@@ -263,3 +494,4 @@ public class ScopedConnectionFactoryTest
     // }
 
 }
+

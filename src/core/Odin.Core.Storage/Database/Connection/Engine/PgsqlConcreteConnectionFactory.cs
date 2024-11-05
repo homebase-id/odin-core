@@ -2,7 +2,7 @@ using System.Data.Common;
 using System.Threading.Tasks;
 using Npgsql;
 
-namespace Odin.Core.Storage.Database.Connection;
+namespace Odin.Core.Storage.Database.Connection.Engine;
 
 internal static class PgsqlConcreteConnectionFactory
 {

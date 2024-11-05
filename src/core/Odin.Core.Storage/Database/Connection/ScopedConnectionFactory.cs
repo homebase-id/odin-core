@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Connection.Identity;
 using Odin.Core.Storage.Database.Connection.System;
-using Odin.Core.Storage.Database.Connection.Tenant;
 
 namespace Odin.Core.Storage.Database.Connection;
 
@@ -62,7 +62,7 @@ public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logg
 
     //
 
-    private async Task<TransactionAccessor> BeginNestedTransactionAsync()
+    private async Task<TransactionAccessor> BeginStackedTransactionAsync()
     {
         logger.LogTrace("Beginning transaction");
 
@@ -96,9 +96,9 @@ public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logg
         public DbConnection Instance => instance._connection!;
         public int RefCount => instance._connectionRefCount;
 
-        public async Task<TransactionAccessor> BeginNestedTransactionAsync()
+        public async Task<TransactionAccessor> BeginStackedTransactionAsync()
         {
-            return await instance.BeginNestedTransactionAsync();
+            return await instance.BeginStackedTransactionAsync();
         }
 
         public void Dispose()
@@ -134,6 +134,8 @@ public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logg
 
     //
 
+    // Dispose should rollback the transaction.
+    // However, the behavior of Dispose is provider specific, and should not replace calling Rollback.
     public sealed class TransactionAccessor(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
     {
         public DbTransaction Instance => instance._transaction!;
@@ -150,6 +152,17 @@ public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logg
             }
         }
 
+        public async Task RollbackAsync()
+        {
+            using (await instance._mutex.LockAsync())
+            {
+                if (instance._transactionRefCount == 1)
+                {
+                    await instance._transaction!.RollbackAsync();
+                }
+            }
+        }
+        
         public void Dispose()
         {
             DisposeAsync().AsTask().GetAwaiter().GetResult();
@@ -193,7 +206,7 @@ public class ScopedSystemConnectionFactory(
 
 public class ScopedIdentityConnectionFactory(
     ILogger<ScopedIdentityConnectionFactory> logger,
-    ITenantDbConnectionFactory connectionFactory)
-    : ScopedConnectionFactory<ITenantDbConnectionFactory>(logger, connectionFactory)
+    IIdentityDbConnectionFactory connectionFactory)
+    : ScopedConnectionFactory<IIdentityDbConnectionFactory>(logger, connectionFactory)
 {
 }
