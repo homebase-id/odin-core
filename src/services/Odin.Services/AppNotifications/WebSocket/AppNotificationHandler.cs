@@ -317,7 +317,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             catch (Exception e)
             {
                 //HACK: need to find out what is trying to write when the response is complete
-                logger.LogInformation(e, "SendMessageAsync: {error}", e.Message);
+                logger.LogError(e, "SendMessageAsync: {error}", e.Message);
             }
         }
 
