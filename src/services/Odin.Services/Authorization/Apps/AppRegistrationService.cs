@@ -81,15 +81,19 @@ namespace Odin.Services.Authorization.Apps
 
             if (hasTransit)
             {
-                //Apps must be able to access the transient drive to send files directly over transit
-                drives.Add(new DriveGrantRequest()
+                // ensure the transient temp drive is added, once
+                // Apps must be able to access the transient drive to send files directly over transit
+                if (drives.All(d => d.PermissionedDrive.Drive != SystemDriveConstants.TransientTempDrive))
                 {
-                    PermissionedDrive = new()
+                    drives.Add(new DriveGrantRequest()
                     {
-                        Drive = SystemDriveConstants.TransientTempDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                });
+                        PermissionedDrive = new()
+                        {
+                            Drive = SystemDriveConstants.TransientTempDrive,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    });                    
+                }
             }
 
             var appGrant = await _exchangeGrantService.CreateExchangeGrantAsync(db,
@@ -137,15 +141,19 @@ namespace Odin.Services.Authorization.Apps
 
             if (hasTransit)
             {
-                //Apps must be able to access the transient drive to send files directly over transit
-                drives.Add(new DriveGrantRequest()
+                // ensure the transient temp drive is added, once
+                // Apps must be able to access the transient drive to send files directly over transit
+                if (drives.All(d => d.PermissionedDrive.Drive != SystemDriveConstants.TransientTempDrive))
                 {
-                    PermissionedDrive = new()
+                    drives.Add(new DriveGrantRequest()
                     {
-                        Drive = SystemDriveConstants.TransientTempDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                });
+                        PermissionedDrive = new()
+                        {
+                            Drive = SystemDriveConstants.TransientTempDrive,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    });                    
+                }
             }
 
             appReg.Grant =
