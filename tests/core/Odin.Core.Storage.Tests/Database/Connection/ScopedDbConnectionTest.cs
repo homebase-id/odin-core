@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
@@ -39,6 +40,8 @@ public class ScopedConnectionFactoryTest
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
+
+        SqliteConnection.ClearAllPools();
     }
     
     //
@@ -52,6 +55,7 @@ public class ScopedConnectionFactoryTest
         if (databaseType == DatabaseType.Sqlite)
         {
             var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
+            //var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Cache=Shared;";
             services.AddSingleton<ISystemDbConnectionFactory>(new SqliteSystemDbConnectionFactory(connectionString));
         }
         else if (databaseType == DatabaseType.PostgreSql)
