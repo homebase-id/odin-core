@@ -174,7 +174,7 @@ namespace Odin.Hosting.Authentication.YouAuth
                 // Steal this path from the http controller because here we have the client auth token
                 if (Context.Request.Path.StartsWithSegments($"{GuestApiPathConstants.PeerNotificationsV1}/preauth"))
                 {
-                    AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.SubscriberCookieName, subscriberToken, SameSiteMode.None);
+                    AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.SubscriberCookieName, subscriberToken, SameSiteMode.None, true);
                 }
 
                 return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
