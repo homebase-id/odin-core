@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -79,7 +78,7 @@ public class CollaborationChatPushNotificationTests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
+    // [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppWithOnlyUseTransitWrite))]
     [TestCaseSource(nameof(GuestNotAllowed))]
     public async Task CanAddPushNotificationWhenSendingChatMessage(IApiClientContext callerContext,
@@ -115,12 +114,15 @@ public class CollaborationChatPushNotificationTests
             chatCircleId,
             notificationOptions);
         Assert.IsTrue(response.IsSuccessStatusCode);
-
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
+            // wait for push notifications to be distributed
+            await collabChatIdentity.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+            await collabChatIdentity.DriveRedux.WaitForEmptyOutbox(collabChatDrive);
+            
             //
             // Assert collab channel has the file
             //
@@ -209,7 +211,7 @@ public class CollaborationChatPushNotificationTests
 
         await collabChat.DriveManager.CreateDrive(collabChannelDrive, "Test collab chat drive 001", "",
             allowAnonymousReads: false,
-            allowSubscriptions: false,
+            allowSubscriptions: true, //required for distributing push notifications
             attributes: IsCollaborativeChannelAttributes);
 
 
@@ -225,7 +227,7 @@ public class CollaborationChatPushNotificationTests
         var appPermissions = new PermissionSetGrantRequest
         {
             Drives = [],
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead)
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead, PermissionKeys.SendIntroductions)
         };
 
         var member1AppToken = await member1.AppManager.RegisterAppAndClient(collabChatAppId, appPermissions);

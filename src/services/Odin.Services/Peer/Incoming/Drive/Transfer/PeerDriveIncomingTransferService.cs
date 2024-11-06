@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -19,9 +20,12 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -31,8 +35,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         IDriveFileSystem fileSystem,
         TenantSystemStorage tenantSystemStorage,
         IMediator mediator,
-        FileSystemResolver fileSystemResolver,
-        PushNotificationService pushNotificationService)
+        PushNotificationService pushNotificationService,
+        PeerOutbox peerOutbox,
+        IOdinHttpClientFactory odinHttpClientFactory,
+        CircleNetworkService circleNetworkService,
+        FileSystemResolver fileSystemResolver
+    ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         private IncomingTransferStateItem _transferState;
 
@@ -137,9 +145,42 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     var notificationOptions = _transferState.TransferInstructionSet.AppNotificationOptions;
                     if (null != notificationOptions)
                     {
-                        var senderId = odinContext.GetCallerOdinIdOrFail();
-                        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                        await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, db);
+                        if (notificationOptions.Recipients?.Any() ?? false)
+                        {
+                            var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive,
+                                tenantSystemStorage.IdentityDatabase);
+                            if (!drive.AllowSubscriptions)
+                            {
+                                throw new OdinSecurityException(
+                                    "Attempt to distribute app notifications to drive which does not allow subscriptions");
+                            }
+
+                            foreach (var recipient in notificationOptions.Recipients.Without(odinContext.Tenant))
+                            {
+                                try
+                                {
+                                    await EnqueuePeerPushNotificationDistribution(recipient, notificationOptions, drive, odinContext);
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.LogInformation(e, "Failed why enqueueing peer push notification for recipient ({r})", recipient);
+                                }
+                            }
+
+                            // also send to me
+                            if (notificationOptions.Recipients.Any(r => r == odinContext.Tenant))
+                            {
+                                var senderId = odinContext.GetCallerOdinIdOrFail();
+                                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                                await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, db);
+                            }
+                        }
+                        else
+                        {
+                            var senderId = odinContext.GetCallerOdinIdOrFail();
+                            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                            await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, db);
+                        }
                     }
                 }
 
@@ -209,7 +250,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
+        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId,
+            FileSystemType fileSystemType,
             IOdinContext odinContext, IdentityDatabase db)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
@@ -280,7 +322,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
+            PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader =
                 DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
@@ -327,7 +369,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         /// <summary>
-        /// Stores the file in the inbox so it can be processed by the owner in a separate process
+        /// Stores the file in the inbox, so it can be processed by the owner in a separate process
         /// </summary>
         private async Task<PeerResponseCode> RouteToInboxAsync(IncomingTransferStateItem stateItem, IOdinContext odinContext,
             IdentityDatabase db)
@@ -360,6 +402,49 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             });
 
             return PeerResponseCode.AcceptedIntoInbox;
+        }
+
+        private async Task EnqueuePeerPushNotificationDistribution(OdinId recipient, AppNotificationOptions options,
+            StorageDrive drive,
+            IOdinContext odinContext)
+        {
+            //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
+            // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
+            // if (null == clientAuthToken)
+            // {
+            //     logger.LogDebug("Attempt to distribute to recipient ({r}) who is not connected", recipient);
+            //     return;
+            // }
+
+            var item = new OutboxFileItem
+            {
+                Recipient = recipient,
+                Priority = 0, //super high priority to ensure these are sent quickly,
+                Type = OutboxItemType.PeerPushNotification,
+                AttemptCount = 0,
+                File = new InternalDriveFileId()
+                {
+                    DriveId = drive.Id,
+                    FileId = SequentialGuid.CreateGuid()
+                },
+                DependencyFileId = default,
+                State = new OutboxItemState
+                {
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    // EncryptedClientAuthToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes(),
+                    Data = OdinSystemSerializer.Serialize(new PushNotificationOutboxRecord()
+                        {
+                            SenderId = odinContext.GetCallerOdinIdOrFail(),
+                            Options = options,
+                            Timestamp = UnixTimeUtc.Now()
+                                .milliseconds
+                        })
+                        .ToUtf8ByteArray()
+                },
+            };
+
+            await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
     }
 }

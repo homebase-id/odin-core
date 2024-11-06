@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -28,6 +29,7 @@ public class PeerAppNotificationService : PeerServiceBase
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
     private readonly TenantSystemStorage _tenantSystemStorage;
+    private readonly PushNotificationService _pushNotificationService;
     private readonly TwoKeyValueStorage _notificationSubscriptionStorage;
 
     /// <summary>
@@ -38,15 +40,46 @@ public class PeerAppNotificationService : PeerServiceBase
         CircleNetworkService circleNetworkService,
         TenantSystemStorage tenantSystemStorage,
         OdinConfiguration config,
+        PushNotificationService pushNotificationService,
         FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         _odinConfiguration = odinConfiguration;
         _tenantSystemStorage = tenantSystemStorage;
+        _pushNotificationService = pushNotificationService;
         _cache = new(config.Host.CacheSlidingExpirationSeconds);
 
         const string subscriptionContextKey = "e6981b6c-360f-477e-83e3-ed1f5be35209";
         _notificationSubscriptionStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(subscriptionContextKey));
     }
+
+    public async Task<PeerTransferResponse> EnqueuePushNotification(PushNotificationOutboxRecord record, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsAuthenticated();
+
+        var caller = odinContext.GetCallerOdinIdOrFail();
+        
+        var isConnected = (await CircleNetworkService.GetIcrAsync(caller, odinContext, true)).IsConnected();
+        if (!isConnected)
+        {
+            throw new OdinSecurityException("Caller not connected");
+        }
+
+        var subscriptions = await GetSubscriptions(caller, odinContext);
+        if (subscriptions.All(sub => sub.SubscriptionId != record.Options.PeerSubscriptionId))
+        {
+            throw new OdinSecurityException("Invalid subscription Id");
+        }
+
+        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+        var db = _tenantSystemStorage.IdentityDatabase;
+        await _pushNotificationService.EnqueueNotification(record.SenderId, record.Options, newContext, db);
+
+        return new PeerTransferResponse
+        {
+            Code = PeerResponseCode.AcceptedIntoInbox
+        };
+    }
+
 
     public async Task<SharedSecretEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
     {
