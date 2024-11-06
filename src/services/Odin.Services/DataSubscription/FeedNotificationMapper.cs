@@ -126,7 +126,7 @@ namespace Odin.Services.DataSubscription
             var drive = await driveManager.GetDriveAsync(driveId, db);
             if (null == drive)
             {
-                logger.LogWarning("notification sent with invalid driveId - this is totes rare");
+                logger.LogDebug("notification sent with invalid driveId - this is totes rare");
                 return false;
             }
 

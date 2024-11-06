@@ -319,7 +319,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             catch (WebSocketException e)
             {
-                logger.LogWarning("WebSocketException: {error}", e.Message);
+                logger.LogInformation("WebSocketException: {error}", e.Message);
             }
             catch (Exception e)
             {

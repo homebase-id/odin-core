@@ -857,7 +857,7 @@ namespace Odin.Services.Membership.Connections
                 // for a connected identity; but #paranoid
                 if (icr.EncryptedClientAccessToken == null)
                 {
-                    logger.LogWarning("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
+                    logger.LogDebug("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
                     return false;
                 }
 
@@ -896,7 +896,7 @@ namespace Odin.Services.Membership.Connections
                 }
                 catch (Exception e)
                 {
-                    logger.LogWarning(e, "Failed while upgrading token for {identity}", identity);
+                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity);
                 }
 
                 if (odinContext.Caller.HasMasterKey)
@@ -907,7 +907,7 @@ namespace Odin.Services.Membership.Connections
                     }
                     catch (Exception e)
                     {
-                        logger.LogWarning(e, "Failed while upgrading KSK   for {identity}", identity);
+                        logger.LogInformation(e, "Failed while upgrading KSK   for {identity}", identity);
                     }
                 }
             }
@@ -1070,11 +1070,11 @@ namespace Odin.Services.Membership.Connections
                                     message += $"\n Existing key has [{existingKeyJson}]";
                                     message += $"\n AppGrant Key [{newKeyJson}]";
 
-                                    logger.LogWarning(message);
+                                    logger.LogDebug(message);
                                 }
                                 else
                                 {
-                                    logger.LogWarning(
+                                    logger.LogDebug(
                                         $"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
                                 }
                             }
