@@ -23,7 +23,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public abstract class PeerSenderControllerBase(PeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+    public abstract class PeerSenderControllerBase(
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        TenantSystemStorage tenantSystemStorage)
         : DriveUploadControllerBase
     {
         /// <summary>
@@ -75,13 +77,16 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
+                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext,
+                        db);
                 }
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
+                        out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
+                        WebOdinContext, db);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -101,7 +106,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
-        
+
         /// <summary>
         /// Sends a Delete Linked File Request to recipients
         /// </summary>
@@ -158,6 +163,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
+                    UseAppNotification = transitInstructionSet.NotificationOptions != null,
+                    AppNotificationOptions = transitInstructionSet.NotificationOptions,
                 },
                 Manifest = transitInstructionSet.Manifest
             };
