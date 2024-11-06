@@ -15,8 +15,13 @@ internal static class AuthenticationCookieUtil
             Secure = true,
             SameSite = ssm,
             Expires = DateTime.UtcNow.AddMonths(6),
-            Path = partioned ? "/; Partitioned" : null
         };
+        
+        if (partioned)
+        {
+            options.Path = "/; Partitioned";
+        }
+        
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }
     
