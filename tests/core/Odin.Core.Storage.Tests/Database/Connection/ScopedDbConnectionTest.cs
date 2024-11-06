@@ -58,8 +58,7 @@ public class ScopedConnectionFactoryTest
         
         if (databaseType == DatabaseType.Sqlite)
         {
-            // var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
-            var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Cache=Shared;";
+            var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
             services.AddSingleton<ISystemDbConnectionFactory>(new SqliteSystemDbConnectionFactory(connectionString));
         }
         else if (databaseType == DatabaseType.PostgreSql)
