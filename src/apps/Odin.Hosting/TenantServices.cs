@@ -48,6 +48,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
@@ -101,6 +102,19 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionFinalizedNotification>>()
                 .AsSelf()
                 .SingleInstance();
+            
+            cb.RegisterType<PeerAppNotificationHandler>()
+                // .As<INotificationHandler<FileAddedNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionContentDeletedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                // .As<INotificationHandler<AppNotificationAddedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
 
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
@@ -240,6 +254,7 @@ namespace Odin.Hosting
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
 
+            cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
             

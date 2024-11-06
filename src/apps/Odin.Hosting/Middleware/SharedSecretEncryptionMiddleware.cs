@@ -74,7 +74,10 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{AppApiPathConstants.DriveV1}/files/update",
                 $"{AppApiPathConstants.AuthV1}/logout",
-                $"{AppApiPathConstants.NotificationsV1}/preauth"
+                $"{AppApiPathConstants.NotificationsV1}/preauth",
+                $"{AppApiPathConstants.PeerNotificationsV1}/preauth",
+                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth",
+                
             };
 
             //Paths that should not have their responses encrypted with shared secret

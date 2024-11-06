@@ -50,6 +50,11 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
+            if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
+            {
+                allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
+            }
+
             if (shouldSetHeaders)
             {
                 context.Response.Headers.Append("Access-Control-Allow-Credentials", new[] { "true" });

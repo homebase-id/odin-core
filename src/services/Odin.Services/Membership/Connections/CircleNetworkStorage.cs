@@ -27,6 +27,8 @@ public class CircleNetworkStorage
     private readonly TenantSystemStorage _tenantSystemStorage;
 
     private readonly SingleKeyValueStorage _icrKeyStorage;
+    
+    private readonly SingleKeyValueStorage _peerIcrClientStorage;
 
     public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
@@ -35,6 +37,9 @@ public class CircleNetworkStorage
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+        
+        const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
+        _peerIcrClientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
     }
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
@@ -183,6 +188,20 @@ public class CircleNetworkStorage
         return key?.MasterKeyEncryptedIcrKey;
     }
 
+    
+    public async Task SavePeerIcrClientAsync(PeerIcrClient client)
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        await _peerIcrClientStorage.UpsertAsync(db, client.AccessRegistration.Id, client);
+    }
+
+    public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
+    {
+        var db = _tenantSystemStorage.IdentityDatabase;
+        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(db, accessRegId);
+    }
+
+    
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();

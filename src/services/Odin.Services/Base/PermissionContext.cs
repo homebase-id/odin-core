@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
@@ -59,6 +60,34 @@ namespace Odin.Services.Base
             this.SharedSecretKey = value;
         }
 
+        public SensitiveByteArray DecryptUsingKeyStoreKey(SymmetricKeyEncryptedAes encryptedKeyStoreKey)
+        {
+            // TODO: need to move the key store key storage to this
+            // upper class rather than having to hunt thru the permission groups
+            
+            var groupWithKey = PermissionGroups.Values.FirstOrDefault(group => group.GetKeyStoreKey()?.IsSet() ?? false);
+
+            if (null == groupWithKey)
+            {
+                throw new OdinSecurityException($"No key store key found");
+            }
+            
+            return encryptedKeyStoreKey.DecryptKeyClone(groupWithKey.GetKeyStoreKey());
+        }
+        public SensitiveByteArray GetKeyStoreKey()
+        {
+            // TODO: need to move the key store key storage to this
+            // upper class rather than having to hunt thru the permission groups
+            
+            var groupWithKey = PermissionGroups.Values.FirstOrDefault(group => group.GetKeyStoreKey()?.IsSet() ?? false);
+
+            if (null == groupWithKey)
+            {
+                throw new OdinSecurityException($"No key store key found");
+            }
+
+            return groupWithKey.GetKeyStoreKey();
+        }
         public SensitiveByteArray GetIcrKey()
         {
             foreach (var group in PermissionGroups.Values)

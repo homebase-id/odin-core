@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
@@ -10,7 +11,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
 
 public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificationBatchSize, int notificationWaitTime)
 {
-    private readonly TestWebSocketListener _socketListener = new();
+    private readonly TestOwnerWebSocketListener _socketListener = new();
 
     private OwnerApiClientRedux _client;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;

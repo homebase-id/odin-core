@@ -7,21 +7,34 @@ public static class YouAuthPolicies
 {
     public const string IsAuthorizedApp = "IsAuthorizedApp";
 
-    public const string IsIdentified = "IsClientTokenIdentified";
-        
+    public const string IsYouAuthAuthorized = "IsClientTokenIdentified";
+
+    public const string IsAppNotificationSubscriber = "IsAppNotificationSubscriber";
+
     public static void AddPolicies(AuthorizationOptions policy)
     {
-        policy.AddPolicy(IsIdentified, pb =>
+        policy.AddPolicy(IsAppNotificationSubscriber, pb =>
         {
-            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
-            // pb.RequireRole()
-            pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
-
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());
+            pb.RequireClaim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower());
+            pb.AuthenticationSchemes.Add(YouAuthConstants.AppNotificationSubscriberScheme);
         });
-            
+
+        policy.AddPolicy(IsYouAuthAuthorized, pb =>
+        {
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());
+            pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
+        });
+
+        policy.AddPolicy(IsYouAuthAuthorized, pb =>
+        {
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());
+            pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
+        });
+
         policy.AddPolicy(IsAuthorizedApp, pb =>
         {
-            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
+            pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());
             pb.RequireClaim(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
             pb.AuthenticationSchemes.Add(YouAuthConstants.YouAuthScheme);
         });

@@ -54,6 +54,8 @@ runs:
         echo VITE_VERSION=$(date +%s) >> packages/mail-app/.env
         touch packages/provisioning-app/.env
         echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
+        touch packages/community-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/community-app/.env
 
     - name: Build owner-app
       shell: bash
@@ -95,6 +97,14 @@ runs:
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
         mv packages/mail-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
 
+    - name: Build community-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:community
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/community
+        mv packages/community-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/community
+
     - name: Build provisioning-app
       shell: bash
       working-directory: ./client/apps
@@ -102,4 +112,3 @@ runs:
         npm run build:provisioning
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
         mv packages/provisioning-app/dist ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
-

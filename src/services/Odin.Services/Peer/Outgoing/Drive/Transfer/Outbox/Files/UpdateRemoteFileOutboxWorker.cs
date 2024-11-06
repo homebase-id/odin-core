@@ -34,7 +34,6 @@ public class UpdateRemoteFileOutboxWorker(
         try
         {
             AssertHasRemainingAttempts();
-
             logger.LogDebug("Start: Sending updated file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             Guid versionTag = default;

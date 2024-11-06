@@ -80,7 +80,8 @@ public class AppManagementApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> UpdateAppAuthorizedCircles(Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
+    public async Task<ApiResponse<HttpContent>> UpdateAppAuthorizedCircles(Guid appId, List<Guid> authorizedCircles,
+        PermissionSetGrantRequest grant)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -108,6 +109,27 @@ public class AppManagementApiClient
                 PermissionSet = grant.PermissionSet
             });
         }
+    }
+
+    public async Task<ClientAccessToken> RegisterAppAndClient(Guid appId,
+        PermissionSetGrantRequest appPermissions,
+        List<Guid> authorizedCircles = null,
+        PermissionSetGrantRequest circleMemberGrantRequest = null)
+    {
+        var appRegResponse = await this.RegisterApp(appId, appPermissions, authorizedCircles, circleMemberGrantRequest);
+        if (!appRegResponse.IsSuccessStatusCode)
+        {
+            throw new Exception("Failed to register app");
+        }
+        
+        var appClient = await this.RegisterAppClient(appId);
+        return new ClientAccessToken
+        {
+            Id = appClient.clientAuthToken.Id,
+            AccessTokenHalfKey = appClient.clientAuthToken.AccessTokenHalfKey,
+            ClientTokenType = appClient.clientAuthToken.ClientTokenType,
+            SharedSecret = appClient.sharedSecret.ToSensitiveByteArray()
+        };
     }
 
     /// <summary>

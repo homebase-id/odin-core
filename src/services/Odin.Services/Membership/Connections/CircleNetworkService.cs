@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -911,6 +911,30 @@ namespace Odin.Services.Membership.Connections
                     }
                 }
             }
+        }
+
+        public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsConnected();
+            var caller = odinContext.GetCallerOdinIdOrFail();
+
+            var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();
+            var (accessRegistration, token) = await exchangeGrantService.CreateClientAccessToken(
+                grantKeyStoreKey, ClientTokenType.RemoteNotificationSubscriber);
+
+            var client = new PeerIcrClient
+            {
+                Identity = caller,
+                AccessRegistration = accessRegistration
+            };
+
+            await _storage.SavePeerIcrClientAsync(client);
+            return token;
+        }
+
+        public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
+        {
+            return await _storage.GetPeerIcrClientAsync(accessRegId);
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(

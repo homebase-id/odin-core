@@ -71,5 +71,4 @@ public sealed class VersionUpgradeScheduler(
         context.Response.Headers.Append(OdinHeaderNames.RequiresUpgrade, bool.TrueString);
         // context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
     }
-    
 }

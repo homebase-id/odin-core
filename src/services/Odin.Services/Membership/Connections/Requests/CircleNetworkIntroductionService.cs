@@ -162,6 +162,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 TypeId = notification.NotificationTypeId,
                 TagId = introducer,
                 Silent = false,
+                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
+                // {
+                //     IntroducerOdinId = introducer,
+                //     Introduction = introduction,
+                // })
             },
             newContext, db);
 

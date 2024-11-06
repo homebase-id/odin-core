@@ -27,6 +27,7 @@ public class EstablishConnectionOptions
     /// Milliseconds to wait between pushes
     /// </summary>
     public int WaitTimeMs { get; init; }
+
 }
 
 public class DeviceSocket
@@ -62,7 +63,6 @@ public class DeviceSocket
         var v = (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
         return v;
     }
-
 
     public async Task EnqueueMessage(string json, Guid? groupId = null, CancellationToken? cancellationToken = null)
     {
