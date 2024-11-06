@@ -6,7 +6,8 @@ namespace Odin.Hosting.Authentication.YouAuth;
 
 internal static class AuthenticationCookieUtil
 {
-    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken, SameSiteMode ssm = SameSiteMode.Strict, bool partioned = false)
+    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken,
+        SameSiteMode ssm = SameSiteMode.Strict)
     {
         var options = new CookieOptions()
         {
@@ -16,13 +17,12 @@ internal static class AuthenticationCookieUtil
             SameSite = ssm,
             Expires = DateTime.UtcNow.AddMonths(6),
         };
-        
-        if (partioned)
+
+        if (ssm == SameSiteMode.None)
         {
             options.Path = "/; Partitioned";
         }
-        
+
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }
-    
 }
