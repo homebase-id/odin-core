@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Connection;
+using Odin.Core.Storage.Database.Connection.Engine;
 using Odin.Core.Storage.Database.Connection.System;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
@@ -40,8 +41,6 @@ public class ScopedConnectionFactoryTest
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
-
-        // SqliteConnection.ClearAllPools();
     }
     
     //
@@ -52,6 +51,11 @@ public class ScopedConnectionFactoryTest
         
         var services = new ServiceCollection();
 
+        if (databaseType == DatabaseType.Sqlite)
+        {
+            services.AddSingleton<SqlitePoolBoy>();            
+        }
+        
         if (databaseType == DatabaseType.Sqlite)
         {
             // var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
@@ -69,6 +73,12 @@ public class ScopedConnectionFactoryTest
         services.AddScoped<ScopedSystemConnectionFactory>();
         
         _services = services.BuildServiceProvider();
+        if (databaseType == DatabaseType.Sqlite)
+        {
+            // This activates the pool boy so when the container is disposed, the pool is cleared
+            _services.GetRequiredService<SqlitePoolBoy>();    
+        }
+        
     }
 
     private async Task CreateTestDatabaseAsync()
