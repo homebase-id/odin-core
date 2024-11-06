@@ -20,5 +20,19 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
         {
             return await peerAppNotificationService.GetRemoteNotificationToken(request, WebOdinContext);
         }
+
+        [HttpPost("push-notification")]
+        public async Task<IActionResult> Subscribe([FromBody] PeerNotificationSubscription request)
+        {
+            await peerAppNotificationService.SubscribePeerAsync(request, WebOdinContext);
+            return NoContent();
+        }
+
+        [HttpDelete("push-notification")]
+        public async Task<IActionResult> Unsubscribe([FromBody] PeerNotificationSubscription request)
+        {
+            await peerAppNotificationService.UnsubscribePeerAsync(request, WebOdinContext);
+            return NoContent();
+        }
     }
 }
