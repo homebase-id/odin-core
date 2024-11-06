@@ -14,7 +14,6 @@
 
     #nullable enable
 
-
     /// <summary>
     /// Provides a factory for creating and managing DI scoped database connections, transactions, and commands
     /// in a thread-safe manner for use within a specific dependency injection scope. This factory ensures that each 
@@ -72,9 +71,39 @@
     ///    await tx.CommitAsync();
     /// }
     /// </code>
+    /// <code>
+    /// // Parallel tasks MUST use isolated scopes:
+    /// var tasks = new List&lt;Task&gt;();
+    /// var barrier = new Barrier(2);
+    ///     
+    /// tasks.Add(Task.Run(async () =&gt;
+    /// {
+    ///    using var scope = _services.CreateScope();
+    ///    var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService&lt;ScopedSystemConnectionFactory&gt;();
+    ///         
+    ///    barrier.SignalAndWait();
+    ///         
+    ///    await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+    ///    await using var cmd = cn.CreateCommand();
+    ///    cmd.CommandText = "INSERT INTO test (name) VALUES ('test 1');";
+    ///    await cmd.ExecuteNonQueryAsync();
+    /// }));
+    /// tasks.Add(Task.Run(async () =&gt;
+    /// {
+    ///    using var scope = _services.CreateScope();
+    ///    var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService&lt;ScopedSystemConnectionFactory&gt;();
+    ///         
+    ///    barrier.SignalAndWait();
+    ///         
+    ///    await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+    ///    await using var cmd = cn.CreateCommand();
+    ///    cmd.CommandText = "INSERT INTO test (name) VALUES ('test 2');";
+    ///    await cmd.ExecuteNonQueryAsync();
+    /// }));
+    /// await Task.WhenAll(tasks);
+    /// </code>
     /// </example> 
     /// </remarks>
-
 
     public class ScopedConnectionFactory<T>(ILogger<ScopedConnectionFactory<T>> logger, T connectionFactory)
         where T : IDbConnectionFactory

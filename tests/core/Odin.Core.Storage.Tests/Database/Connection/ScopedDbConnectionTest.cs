@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
-using Autofac;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
@@ -15,12 +13,10 @@ using Odin.Test.Helpers.Logging;
 
 namespace Odin.Core.Storage.Tests.Database.Connection;
 
-//SEB: Ach...  make an effort to abstract away connection strings and (more) factory etc. Do it!
-
 public class ScopedConnectionFactoryTest
 {
     private string _tempFolder;
-    private ILifetimeScope _container = null!;
+    private ServiceProvider _services = null!;
     private LogEventMemoryStore _logEventMemoryStore = null!;
 
     [SetUp]
@@ -32,10 +28,10 @@ public class ScopedConnectionFactoryTest
     [TearDown]
     public void TearDown()
     {
-        if (_container != null)
+        if (_services != null)
         {
             DropTestDatabaseAsync().Wait();
-            _container.Dispose();
+            _services.Dispose();
         }
         Directory.Delete(_tempFolder, true);
         LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
@@ -44,45 +40,36 @@ public class ScopedConnectionFactoryTest
         GC.WaitForPendingFinalizers();
         GC.Collect();
     }
+    
+    //
 
     private void RegisterServices(DatabaseType databaseType)
     {
         _logEventMemoryStore = new LogEventMemoryStore();
-
-        var builder = new ContainerBuilder();
+        
+        var services = new ServiceCollection();
 
         if (databaseType == DatabaseType.Sqlite)
         {
             var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
-            builder
-                .RegisterInstance(new SqliteSystemDbConnectionFactory(connectionString))
-                .As<ISystemDbConnectionFactory>();
+            services.AddSingleton<ISystemDbConnectionFactory>(new SqliteSystemDbConnectionFactory(connectionString));
         }
         else if (databaseType == DatabaseType.PostgreSql)
         {
-            var connectionString = "Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin";            
-            builder
-                .RegisterInstance(new PgsqlSystemDbConnectionFactory(connectionString))
-                .As<ISystemDbConnectionFactory>();
+            var connectionString = "Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin";
+            services.AddSingleton<ISystemDbConnectionFactory>(new PgsqlSystemDbConnectionFactory(connectionString));
         }
 
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore))
-            .As<ILogger<ScopedSystemConnectionFactory>>();
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore))
-            .As<ILogger<ScopedIdentityConnectionFactory>>();
-
-        builder.RegisterType<ScopedSystemConnectionFactory>()
-            .AsSelf()
-            .InstancePerLifetimeScope();
-
-        _container = builder.Build();
+        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore));
+        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore));
+        services.AddScoped<ScopedSystemConnectionFactory>();
+        
+        _services = services.BuildServiceProvider();
     }
 
     private async Task CreateTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _container.Resolve<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = _services.GetRequiredService<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
@@ -92,83 +79,14 @@ public class ScopedConnectionFactoryTest
     
     private async Task DropTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _container.Resolve<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = _services.GetRequiredService<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = "DROP TABLE IF EXISTS test;";
     }
-    
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    public async Task XXXXX(DatabaseType databaseType)
-    {
-        RegisterServices(databaseType);
-        await CreateTestDatabaseAsync();
-
-        {
-            var tasks = new List<Task>();
-            await using var scope = _container.BeginLifetimeScope();
-            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
-            
-            var barrier = new Barrier(2);
-            
-            tasks.Add(Task.Run(async () =>
-            {
-                barrier.SignalAndWait(); // Wait here until the other task is also ready
-                using (await scopedConnectionFactory.CreateScopedConnectionAsync())
-                {
-                    await Task.Delay(100000);    
-                };
-            }));
-            tasks.Add(Task.Run(async () =>
-            {
-                barrier.SignalAndWait(); // Wait here until the other task is also ready
-                using (await scopedConnectionFactory.CreateScopedConnectionAsync())
-                {
-                    await Task.Delay(100000);    
-                };
-            }));
-         
-            try
-            {
-                await Task.WhenAll(tasks);
-                Assert.Fail("Expected ScopedDbConnectionException");
-            }
-            catch (ScopedDbConnectionException ex)
-            {
-                Assert.That(ex.Message, Is.EqualTo("This ScopedConnectionFactory instance is being accessed from a different execution context. Please create a new scope for each parallel task."));
-            }
-        }
-
-        {
-            var scopedConnectionFactory = _container.Resolve<ScopedSystemConnectionFactory>();
-            using (var cn1 = await scopedConnectionFactory.CreateScopedConnectionAsync())
-            {
-                using (var cn2 = await scopedConnectionFactory.CreateScopedConnectionAsync())
-                {
-                    await using var cmd = cn2.CreateCommand();
-                    cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-        }
-        
-        // await Task.Run(async () =>
-        // {
-        //     var scopedConnectionFactory = _container.Resolve<ScopedSystemConnectionFactory>();
-        //     using (var cn1 = await scopedConnectionFactory.CreateScopedConnectionAsync())
-        //     {
-        //         using (var cn2 = await scopedConnectionFactory.CreateScopedConnectionAsync())
-        //         {
-        //             await using var cmd = cn2.CreateCommand();
-        //             cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-        //             await cmd.ExecuteNonQueryAsync();
-        //         }
-        //     }
-        // });        
-    }
-    
+  
+    //    
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
@@ -177,8 +95,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         ScopedSystemConnectionFactory.ConnectionWrapper cn;
         await using (cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
@@ -226,8 +144,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         Assert.That(cn.RefCount, Is.EqualTo(1));
@@ -279,8 +197,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -300,8 +218,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx = await cn.BeginStackedTransactionAsync())
@@ -327,8 +245,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (await cn.BeginStackedTransactionAsync())
@@ -353,8 +271,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx = await cn.BeginStackedTransactionAsync())
@@ -380,13 +298,13 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx1 = await cn.BeginStackedTransactionAsync())
         {
-            await using (var tx2 = await cn.BeginStackedTransactionAsync())
+            await using (await cn.BeginStackedTransactionAsync())
             {
                 await using var cmd2 = cn.CreateCommand();
                 cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
@@ -413,13 +331,13 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using (var tx1 = await cn.BeginStackedTransactionAsync())
+        await using (await cn.BeginStackedTransactionAsync())
         {
-            await using (var tx2 = await cn.BeginStackedTransactionAsync())
+            await using (await cn.BeginStackedTransactionAsync())
             {
                 await using var cmd2 = cn.CreateCommand();
                 cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
@@ -445,8 +363,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _container.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        using var scope = _services.CreateScope();
+        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx1 = await cn.BeginStackedTransactionAsync())
@@ -480,8 +398,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
         
-        await using var outerScope = _container.BeginLifetimeScope();
-        var outerScopedConnectionFactory = outerScope.Resolve<ScopedSystemConnectionFactory>();
+        using var outerScope = _services.CreateScope();
+        var outerScopedConnectionFactory = outerScope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
         await using var outerCn = await outerScopedConnectionFactory.CreateScopedConnectionAsync();
 
         async Task Test(bool commit)
@@ -489,8 +407,8 @@ public class ScopedConnectionFactoryTest
             await Task.Delay(10);
             
             // ReSharper disable once AccessToDisposedClosure
-            await using var scope = outerScope.BeginLifetimeScope();
-            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+            using var scope = outerScope.ServiceProvider.CreateScope();
+            var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -524,50 +442,5 @@ public class ScopedConnectionFactoryTest
             Assert.That(result, Is.EqualTo(5));
         }
     }
-    
-    
-    // [Test]
-    // public async Task TestMethod1()
-    // {
-    //     // IMPORTANT: "scope" below means a "scope" in the context of a DI container.
-    //
-    //     // Included for completeness:
-    //     var serviceProvider = new ServiceContainer();
-    //
-    //     // Included for completeness. Normally handled by the DI container.
-    //     using var scope = serviceProvider.CreateScope();
-    //
-    //     // Included for completeness. Will normally be injected where ever a connection is needed.
-    //     var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedConnectionFactory>();
-    //
-    //     // Connections are "shared" in the same scope. This is required for transactions.
-    //     await using var connection = await scopedConnectionFactory.CreateScopedConnectionAsync();
-    //
-    //     // Transactions are "shared" in the same scope. This is required for nested transactions.
-    //     await using var transaction = await connection.BeginStackedTransactionAsync();
-    //
-    //     //
-    //     // At this point, anything ON THE SAME SCOPE that calls CreateScopedConnectionAsync will get the same connection
-    //     // (and transaction) as the one created above. This includes any class that is injected directly or indirectly
-    //     // with ScopedConnectionFactory.
-    //     //
-    //
-    //     await using var cmd = connection.Instance.CreateCommand();
-    //     cmd.CommandText = "SELECT 1";
-    //     await cmd.ExecuteNonQueryAsync();
-    //
-    //     // Outermost explicit commit is required transactions, otherwise the transaction will be rolled back.
-    //     await transaction.CommitAsync();
-    //
-    //
-    //
-    //     Assert.Pass();
-    //
-    //
-    //     // Act
-    //
-    //     // Assert
-    // }
-
 }
 
