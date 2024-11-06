@@ -5,10 +5,10 @@ namespace Odin.Core.Util;
 
 public static class FinalizerError
 {
-    public static string ReportMissingDispose(Type type, ILogger logger)
+    public static void ReportMissingDispose(Type type, ILogger logger)
     {
         var errorMessage = $"Error {type.Name}: missing call to Dispose() or DisposeAsync()";
-        
+
         try
         {
             logger?.LogError("{Message}", errorMessage);
@@ -22,6 +22,5 @@ public static class FinalizerError
 #if DEBUG
         throw new InvalidOperationException(errorMessage);
 #endif
-
     }
 }
