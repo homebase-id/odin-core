@@ -67,7 +67,7 @@ public class CircleNetworkVerificationService(
         }
 
         var expectedHash = icr!.VerificationHash;
-        if (expectedHash?.Length == 0)
+        if (expectedHash == null || expectedHash.Length == 0)
         {
             throw new OdinClientException("Missing verification hash", OdinClientErrorCode.MissingVerificationHash);
         }
@@ -96,8 +96,8 @@ public class CircleNetworkVerificationService(
                 async () =>
                 {
                     var client = clientAuthToken == null
-                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkVerificationClient>(recipient)
-                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
+                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkPeerConnectionsClient>(recipient)
+                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
                             clientAuthToken.ToAuthenticationToken());
 
                     response = await client.VerifyConnection();
@@ -116,7 +116,14 @@ public class CircleNetworkVerificationService(
                         else
                         {
                             var vcr = response.Content;
-                            result.RemoteIdentityWasConnected = vcr.IsConnected;
+                            result.RemoteIdentityWasConnected = vcr!.IsConnected;
+                            
+                            logger.LogDebug("Comparing verification-hash: " +
+                                            "remote identity has hash {remoteYesNo} | " +
+                                            "local identity has has: {localYesNo}",
+                                vcr.Hash?.Length > 0,
+                                expectedHash?.Length > 0);
+                            
                             if (vcr.IsConnected)
                             {
                                 result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
@@ -200,7 +207,7 @@ public class CircleNetworkVerificationService(
                 {
                     var json = OdinSystemSerializer.Serialize(request);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
+                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.UpdateRemoteVerificationHash(encryptedPayload);

@@ -779,10 +779,14 @@ namespace Odin.Services.Membership.Connections
             //
         }
 
-        public async Task<VerifyConnectionResponse> VerifyConnectionCodeAsync(IOdinContext odinContext)
+        public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsConnected)
             {
+                logger.LogDebug("Verification Connection Code - not connected, " +
+                                "returning null hash.(AuthContext:{ac})",
+                    odinContext.AuthContext);
+                
                 return new VerifyConnectionResponse
                 {
                     IsConnected = false,
@@ -1211,7 +1215,8 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity,
+            IOdinContext odinContext)
         {
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {
