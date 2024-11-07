@@ -49,5 +49,9 @@ namespace Odin.Services.EncryptionKeyService
         /// </summary>
         public byte[] Salt { get; set; }
 
+        /// <summary>
+        /// The crc of the public key used to encrypt this payload
+        /// </summary>
+        public uint EncryptionPublicKeyCrc32 { get; set; }
     }
 }

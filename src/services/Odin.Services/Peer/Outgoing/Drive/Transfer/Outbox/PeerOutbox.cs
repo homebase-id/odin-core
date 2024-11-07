@@ -1,27 +1,28 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Mediator;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(TenantSystemStorage tenantSystemStorage)
+    public class PeerOutbox(TenantSystemStorage tenantSystemStorage, IMediator mediator)
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public async Task AddItemAsync(OutboxFileItem fileItem, IdentityDatabase db, bool useUpsert = false)
+        public async Task AddItemAsync(OutboxFileItem fileItem, bool useUpsert = false)
         {
             var record = new OutboxRecord()
             {
@@ -42,13 +43,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 await tenantSystemStorage.Outbox.InsertAsync(record);
             }
-            
+
+            await mediator.Publish(new OutboxItemAddedNotification());
             PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
+            
         }
 
         public async Task MarkCompleteAsync(Guid marker, IdentityDatabase db)
         {
             await tenantSystemStorage.Outbox.CompleteAndRemoveAsync(marker);
+            
             PerformanceCounter.IncrementCounter("Outbox Mark Complete");
         }
 
@@ -58,13 +62,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public async Task MarkFailureAsync(Guid marker, UnixTimeUtc nextRun, IdentityDatabase db)
         {
             await tenantSystemStorage.Outbox.CheckInAsCancelledAsync(marker, nextRun);
+            
             PerformanceCounter.IncrementCounter("Outbox Mark Failure");
         }
 
         public async Task<int> RecoverDeadAsync(UnixTimeUtc time, IdentityDatabase db)
         {
             var recovered = await tenantSystemStorage.Outbox.RecoverCheckedOutDeadItemsAsync(time);
+            
             PerformanceCounter.IncrementCounter("Outbox Recover Dead");
+
             return recovered;
         }
 

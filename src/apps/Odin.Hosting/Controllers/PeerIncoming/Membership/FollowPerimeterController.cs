@@ -33,18 +33,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 
         /// <summary />
         [HttpPost("follow")]
-        public async Task<IActionResult> ReceiveFollowRequest([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> ReceiveFollowRequest([FromBody] EccEncryptedPayload payload)
         {
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
-            OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
 
             var db = _tenantSystemStorage.IdentityDatabase;
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, db);
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return BadRequest("Invalid Public Key");
-            }
+            var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext);
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             OdinValidationUtils.AssertNotNull(request, nameof(request));

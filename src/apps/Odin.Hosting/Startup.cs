@@ -45,7 +45,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -91,10 +90,8 @@ namespace Odin.Hosting
             //
             // Background and job stuff
             //
-            services.AddSystemBackgroundServices();
             services.AddJobManagerServices();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
-
+            
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -267,6 +264,8 @@ namespace Odin.Hosting
             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
+           
+            builder.AddSystemBackgroundServices();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -321,6 +320,8 @@ namespace Odin.Hosting
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseVersionUpgrade();
 
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseCors();
@@ -486,9 +487,6 @@ namespace Odin.Hosting
                     config.Host.ShutdownTimeoutSeconds);
 
                 var services = app.ApplicationServices;
-
-                // Wait for any registered fire-and-forget tasks to complete
-                services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
 
                 //
                 // Shutdown all tenant background services

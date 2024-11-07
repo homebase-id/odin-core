@@ -36,7 +36,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInbox(TransferInstructionType.AddReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext, db);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
@@ -49,11 +49,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInbox(TransferInstructionType.DeleteReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext, db);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    private async Task RouteReactionActionToInbox(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext,
+    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext,
         IdentityDatabase db)
     {
         var file = request.File;
@@ -76,7 +76,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
             Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
         };
 
-        await transitInboxBoxStorage.AddAsync(item, db);
+        await transitInboxBoxStorage.AddAsync(item);
 
         await mediator.Publish(new InboxItemReceivedNotification()
         {

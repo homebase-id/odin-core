@@ -17,10 +17,9 @@ namespace Odin.Services.Membership.Connections
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService)
     {
-        public async Task AutoFix(IOdinContext odinContext)
+        public async Task AutoFixAsync(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             
             // TODO CONNECTIONS
@@ -35,7 +34,7 @@ namespace Odin.Services.Membership.Connections
                 foreach (var app in allApps)
                 {
                     logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
-                    await circleNetworkService.ReconcileAuthorizedCirclesAsync(oldAppRegistration: null, app, odinContext);
+                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
                 }
             // });
         }

@@ -9,7 +9,7 @@ namespace Odin.Services.Authorization.Acl
 {
     public interface IDriveAclAuthorizationService
     {
-        Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db);
+        Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db);
         
         Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext);
 

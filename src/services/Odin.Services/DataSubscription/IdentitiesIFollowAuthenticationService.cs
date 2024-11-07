@@ -31,7 +31,7 @@ public class IdentitiesIFollowAuthenticationService
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -50,7 +50,7 @@ public class IdentitiesIFollowAuthenticationService
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken, db);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, tempToken, db);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -63,13 +63,14 @@ public class IdentitiesIFollowAuthenticationService
             return dotYouContext;
         });
 
+        // return await creator();
         return await _cache.GetOrAddContextAsync(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
         ClientAuthenticationToken token, IdentityDatabase db)
     {
-        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollow(callerOdinId, token);
+        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollowAsync(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
@@ -80,9 +81,4 @@ public class IdentitiesIFollowAuthenticationService
         return (cc, permissionContext);
     }
 
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
-    {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
-        return Task.CompletedTask;
-    }
 }

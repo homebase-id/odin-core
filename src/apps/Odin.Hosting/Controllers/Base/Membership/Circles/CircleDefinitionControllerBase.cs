@@ -13,13 +13,13 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
 {
     public abstract class CircleDefinitionControllerBase : OdinControllerBase
     {
-        private readonly CircleNetworkService _dbs;
+        private readonly CircleNetworkService _cns;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleDefinitionControllerBase(CircleNetworkService dbs, CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
+        public CircleDefinitionControllerBase(CircleNetworkService cns, CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
         {
-            _dbs = dbs;
+            _cns = cns;
             _circleMembershipService = circleMembershipService;
             _tenantSystemStorage = tenantSystemStorage;
         }
@@ -48,21 +48,21 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotEmptyGuid(request.Id, nameof(request.Id));
 
-            await _circleMembershipService.CreateCircleDefinition(request, WebOdinContext);
+            await _circleMembershipService.CreateCircleDefinitionAsync(request, WebOdinContext);
             return true;
         }
 
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            await _dbs.UpdateCircleDefinitionAsync(circleDefinition, WebOdinContext);
+            await _cns.UpdateCircleDefinitionAsync(circleDefinition, WebOdinContext);
             return true;
         }
 
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            await _dbs.DeleteCircleDefinition(new GuidId(id), WebOdinContext);
+            await _cns.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 

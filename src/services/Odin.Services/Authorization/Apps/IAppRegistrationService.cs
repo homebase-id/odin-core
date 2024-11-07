@@ -1,10 +1,9 @@
 ﻿#nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
@@ -19,7 +18,7 @@ namespace Odin.Services.Authorization.Apps
 
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
 
-        Task<IOdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, IOdinContext odinContext);
+        Task<IOdinContext?> GetAppPermissionContextAsync(ClientAuthenticationToken token, IOdinContext odinContext);
 
         /// <summary>
         /// Updates the permissions granted to the app
@@ -32,7 +31,8 @@ namespace Odin.Services.Authorization.Apps
         /// <returns></returns>
         Task UpdateAuthorizedCirclesAsync(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext);
 
-        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(ClientAuthenticationToken authToken,
+        Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
+            ClientAuthenticationToken authToken,
             IOdinContext odinContext);
 
         /// <summary>
@@ -40,6 +40,12 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task<List<RedactedAppRegistration>> GetRegisteredAppsAsync(IOdinContext odinContext);
+
+        /// <summary>
+        /// Gets all apps which grant the specified circle
+        /// </summary>
+        /// <returns></returns>
+        Task<List<RedactedAppRegistration>> GetAppsGrantingCircleAsync(Guid circleId, IOdinContext odinContext);
 
         /// <summary>
         /// Removes access for a given application across all devices
@@ -51,7 +57,8 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext);
 
-        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId, byte[] clientPublicKey,
+        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
+            byte[] clientPublicKey,
             string friendlyName, IOdinContext odinContext);
 
 
@@ -63,7 +70,7 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="odinContext"></param>
         /// <param name="cn"></param>
         /// <returns></returns>
-        Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, IOdinContext odinContext);
+        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext);
 

@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             var db = _tenantSystemStorage.IdentityDatabase;
 
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
+            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()
