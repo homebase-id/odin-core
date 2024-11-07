@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Connection;
-using Odin.Core.Storage.Database.Connection.Engine;
-using Odin.Core.Storage.Database.Connection.System;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
@@ -18,7 +17,7 @@ namespace Odin.Core.Storage.Tests.Database.Connection;
 public class ScopedConnectionFactoryTest
 {
     private string _tempFolder;
-    private ServiceProvider _services = null!;
+    private ILifetimeScope _services = null!;
     private LogEventMemoryStore _logEventMemoryStore = null!;
 
     [SetUp]
@@ -50,39 +49,31 @@ public class ScopedConnectionFactoryTest
         _logEventMemoryStore = new LogEventMemoryStore();
         
         var services = new ServiceCollection();
-
-        if (databaseType == DatabaseType.Sqlite)
-        {
-            services.AddSingleton<SqlitePoolBoy>();            
-        }
-        
-        if (databaseType == DatabaseType.Sqlite)
-        {
-            var connectionString = $"Data Source={Path.Combine(_tempFolder, "system-test.db")};Pooling=True;Cache=Shared;";
-            services.AddSingleton<ISystemDbConnectionFactory>(new SqliteSystemDbConnectionFactory(connectionString));
-        }
-        else if (databaseType == DatabaseType.PostgreSql)
-        {
-            var connectionString = "Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin";
-            services.AddSingleton<ISystemDbConnectionFactory>(new PgsqlSystemDbConnectionFactory(connectionString));
-        }
-
         services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore));
         services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore));
-        services.AddScoped<ScopedSystemConnectionFactory>();
         
-        _services = services.BuildServiceProvider();
-        if (databaseType == DatabaseType.Sqlite)
+        var builder = new ContainerBuilder();
+        builder.Populate(services);
+
+        builder.AddCommonDatabaseServices();
+        switch (databaseType)
         {
-            // This activates the pool boy so when the container is disposed, the pool is cleared
-            _services.GetRequiredService<SqlitePoolBoy>();    
+            case DatabaseType.Sqlite:
+                builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
+                break;
+            case DatabaseType.PostgreSql:
+                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
+                break;
+            default:
+                throw new Exception("Unsupported database type");
         }
-        
+       
+        _services = builder.Build();
     }
 
     private async Task CreateTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _services.GetRequiredService<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = _services.Resolve<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
@@ -92,7 +83,7 @@ public class ScopedConnectionFactoryTest
     
     private async Task DropTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _services.GetRequiredService<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = _services.Resolve<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
@@ -108,8 +99,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         ScopedSystemConnectionFactory.ConnectionWrapper cn;
         await using (cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
@@ -157,8 +148,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         Assert.That(cn.RefCount, Is.EqualTo(1));
@@ -210,18 +201,36 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        {
+            using var scope = _services.BeginLifetimeScope();
+            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-        await cmd.ExecuteNonQueryAsync();
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
             
-        cmd.CommandText = "SELECT COUNT(*) FROM test;";
-        var result = await cmd.ExecuteScalarAsync();
-        Assert.That(result, Is.EqualTo(1));
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(1));
+        }
+        
+        {
+            using var scope = _services.BeginLifetimeScope();
+            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
+            
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(2));
+        }
+        
     }
     
     [Test]
@@ -231,8 +240,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx = await cn.BeginStackedTransactionAsync())
@@ -258,8 +267,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (await cn.BeginStackedTransactionAsync())
@@ -284,8 +293,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx = await cn.BeginStackedTransactionAsync())
@@ -311,8 +320,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx1 = await cn.BeginStackedTransactionAsync())
@@ -344,8 +353,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (await cn.BeginStackedTransactionAsync())
@@ -376,8 +385,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using (var tx1 = await cn.BeginStackedTransactionAsync())
@@ -411,8 +420,8 @@ public class ScopedConnectionFactoryTest
         RegisterServices(databaseType);
         await CreateTestDatabaseAsync();
         
-        using var outerScope = _services.CreateScope();
-        var outerScopedConnectionFactory = outerScope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+        using var outerScope = _services.BeginLifetimeScope();
+        var outerScopedConnectionFactory = outerScope.Resolve<ScopedSystemConnectionFactory>();
         await using var outerCn = await outerScopedConnectionFactory.CreateScopedConnectionAsync();
 
         async Task Test(bool commit)
@@ -420,8 +429,8 @@ public class ScopedConnectionFactoryTest
             await Task.Delay(10);
             
             // ReSharper disable once AccessToDisposedClosure
-            using var scope = outerScope.ServiceProvider.CreateScope();
-            var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedSystemConnectionFactory>();
+            using var scope = outerScope.BeginLifetimeScope();
+            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
