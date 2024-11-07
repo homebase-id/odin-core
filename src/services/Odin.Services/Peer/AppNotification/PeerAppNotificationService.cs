@@ -212,7 +212,7 @@ public class PeerAppNotificationService : PeerServiceBase
     public async Task SubscribePeerAsync(PeerNotificationSubscription request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var db = _tenantSystemStorage.IdentityDatabase;
         await _notificationSubscriptionStorage.UpsertAsync(db, request.ToKey(), request.Identity.ToHashId().ToByteArray(), request);
@@ -224,7 +224,7 @@ public class PeerAppNotificationService : PeerServiceBase
     public async Task UnsubscribePeerAsync(PeerNotificationSubscription request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var db = _tenantSystemStorage.IdentityDatabase;
         await _notificationSubscriptionStorage.DeleteAsync(db, request.ToKey());
@@ -232,7 +232,7 @@ public class PeerAppNotificationService : PeerServiceBase
 
     public async Task<List<PeerNotificationSubscription>> GetSubscriptions(OdinId identity, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var db = _tenantSystemStorage.IdentityDatabase;
         var list = await _notificationSubscriptionStorage.GetByDataTypeAsync<PeerNotificationSubscription>(db,
