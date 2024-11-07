@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 // or has not yet been created.
                 if (certificateCache.LookupCertificate(domain) == null)
                 {
-                    logger.LogWarning("No certificate found for domain {domain}. Skipping outbox processing", domain);
+                    logger.LogInformation("No certificate found for domain {domain}. Skipping outbox processing", domain);
                     await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
                     continue;
                 }
@@ -171,7 +171,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
+                logger.LogInformation(e, "Failed to clean up transient file {file}; record is already marked complete", fileItem.File);
             }
         }
 

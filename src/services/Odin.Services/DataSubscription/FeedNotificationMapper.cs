@@ -85,11 +85,12 @@ namespace Odin.Services.DataSubscription
                 //no need to send a notification to myself
                 return;
             }
-
+            
+            
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
 
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && sender != tenantContext.HostOdinId)
+                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Alias == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
             {
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
@@ -125,7 +126,7 @@ namespace Odin.Services.DataSubscription
             var drive = await driveManager.GetDriveAsync(driveId, db);
             if (null == drive)
             {
-                logger.LogWarning("notification sent with invalid driveId - this is totes rare");
+                logger.LogDebug("notification sent with invalid driveId - this is totes rare");
                 return false;
             }
 

@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
@@ -222,7 +222,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinitionAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
-
+            
             //
             // Update the apps that use the new circle
             //

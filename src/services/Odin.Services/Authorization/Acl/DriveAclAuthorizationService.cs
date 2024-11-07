@@ -37,7 +37,7 @@ namespace Odin.Services.Authorization.Acl
                 if (hasBadData.GetValueOrDefault())
                 {
                     var cg = icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
-                    logger.LogWarning("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
+                    logger.LogInformation("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
 
                     //let it continue on
                 }

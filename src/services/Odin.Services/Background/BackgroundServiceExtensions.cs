@@ -87,7 +87,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterType<PeerOutboxProcessorBackgroundService>()
             .AsSelf()
             .InstancePerDependency();
-       
+
         // Add more tenant services here
         // They MUST be InstancePerDependency
         // because they are using scopes internally

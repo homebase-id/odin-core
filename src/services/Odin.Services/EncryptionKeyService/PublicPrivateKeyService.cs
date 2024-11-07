@@ -454,6 +454,7 @@ namespace Odin.Services.EncryptionKeyService
         private async Task CreateNotificationEccKeysAsync()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
+
             var db = _tenantSystemStorage.IdentityDatabase;
             var existingKey = await _storage.GetAsync<NotificationEccKeys>(db, storageKey);
             
@@ -467,7 +468,6 @@ namespace Odin.Services.EncryptionKeyService
                     PrivateKey64 = vapidKeys.PrivateKey
                 });
             }
-
         }
 
         private async Task CreateNewEccKeysAsync(SensitiveByteArray encryptionKey, Guid storageKey)

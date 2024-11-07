@@ -60,7 +60,10 @@ namespace Odin.Hosting
             services.AddSingleton(config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-            services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
+            services.Configure<HostOptions>(options =>
+            {
+                options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
+            });
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
@@ -158,6 +161,7 @@ namespace Odin.Hosting
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
+                .AddAppNotificationSubscriberAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
@@ -232,7 +236,7 @@ namespace Odin.Hosting
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
-            services.AddIpRateLimiter(config.Host.IpRateLimitRequestsPerSecond); 
+            services.AddIpRateLimiter(config.Host.IpRateLimitRequestsPerSecond);
         }
 
         // ConfigureContainer is where you can register things directly
@@ -366,6 +370,9 @@ namespace Odin.Hosting
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3004/"); }); });
 
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
+
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
                     homeApp =>
@@ -448,6 +455,24 @@ namespace Odin.Hosting
                         });
                     });
 
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    communityApp =>
+                    {
+                        var communityPath = Path.Combine(env.ContentRootPath, "client", "apps", "community");
+                        communityApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(communityPath),
+                            RequestPath = "/apps/community"
+                        });
+
+                        communityApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
+                            return;
+                        });
+                    });
+
                 // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,
                     homeApp =>
@@ -477,7 +502,7 @@ namespace Odin.Hosting
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
                 {
-                    services.StartSystemBackgroundServices().BlockingWait();                    
+                    services.StartSystemBackgroundServices().BlockingWait();
                 }
             });
 
@@ -491,8 +516,8 @@ namespace Odin.Hosting
                 //
                 // Shutdown all tenant background services
                 //
-                services.ShutdownTenantBackgroundServices().BlockingWait();                
-                
+                services.ShutdownTenantBackgroundServices().BlockingWait();
+
                 //
                 // Shutdown system background services
                 //

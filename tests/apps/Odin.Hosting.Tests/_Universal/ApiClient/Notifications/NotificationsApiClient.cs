@@ -18,6 +18,7 @@ public class AppNotificationsApiClient
     private readonly OdinId _identity;
     private readonly IApiClientFactory _factory;
 
+    //TODO: rename to universal
     public AppNotificationsApiClient(OdinId identity, IApiClientFactory factory)
     {
         _identity = identity;

@@ -26,9 +26,11 @@ namespace Odin.Services.Peer
     {
         protected readonly IOdinHttpClientFactory OdinHttpClientFactory = odinHttpClientFactory;
 
-        protected readonly CircleNetworkService CircleNetworkService = circleNetworkService;
-        protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
 
+        protected readonly CircleNetworkService CircleNetworkService = circleNetworkService;
+
+        protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
+        
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -71,8 +73,7 @@ namespace Odin.Services.Peer
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClientAsync(OdinId odinId,
-            IOdinContext odinContext,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClientAsync(OdinId odinId, IOdinContext odinContext,
             FileSystemType? fileSystemType = null)
         {
             var token = await ResolveClientAccessTokenAsync(odinId, odinContext, false);
@@ -92,7 +93,22 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
+        protected async Task<(ClientAccessToken token, T client)> CreateHttpClientAsync<T>(
+            OdinId odinId,
+            IdentityDatabase db,
+            IOdinContext odinContext)
+        {
+
+            var token = await ResolveClientAccessTokenAsync(odinId, odinContext);
+
+            var httpClient = OdinHttpClientFactory.CreateClientUsingAccessToken<T>(
+                odinId,
+                token.ToAuthenticationToken());
+        
+            return (token, httpClient);
+        }
+        
+        protected async Task<T> DecryptUsingSharedSecretAsync<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
@@ -105,6 +121,7 @@ namespace Odin.Services.Peer
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
+            await Task.CompletedTask;
             return OdinSystemSerializer.Deserialize<T>(json);
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -857,7 +857,7 @@ namespace Odin.Services.Membership.Connections
                 // for a connected identity; but #paranoid
                 if (icr.EncryptedClientAccessToken == null)
                 {
-                    logger.LogWarning("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
+                    logger.LogDebug("Skipping UpdateVerificationHash since connected identity was missing EncryptedClientAccessToken");
                     return false;
                 }
 
@@ -896,7 +896,7 @@ namespace Odin.Services.Membership.Connections
                 }
                 catch (Exception e)
                 {
-                    logger.LogWarning(e, "Failed while upgrading token for {identity}", identity);
+                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity);
                 }
 
                 if (odinContext.Caller.HasMasterKey)
@@ -907,10 +907,34 @@ namespace Odin.Services.Membership.Connections
                     }
                     catch (Exception e)
                     {
-                        logger.LogWarning(e, "Failed while upgrading KSK   for {identity}", identity);
+                        logger.LogInformation(e, "Failed while upgrading KSK   for {identity}", identity);
                     }
                 }
             }
+        }
+
+        public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsConnected();
+            var caller = odinContext.GetCallerOdinIdOrFail();
+
+            var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();
+            var (accessRegistration, token) = await exchangeGrantService.CreateClientAccessToken(
+                grantKeyStoreKey, ClientTokenType.RemoteNotificationSubscriber);
+
+            var client = new PeerIcrClient
+            {
+                Identity = caller,
+                AccessRegistration = accessRegistration
+            };
+
+            await _storage.SavePeerIcrClientAsync(client);
+            return token;
+        }
+
+        public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
+        {
+            return await _storage.GetPeerIcrClientAsync(accessRegId);
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
@@ -1046,11 +1070,11 @@ namespace Odin.Services.Membership.Connections
                                     message += $"\n Existing key has [{existingKeyJson}]";
                                     message += $"\n AppGrant Key [{newKeyJson}]";
 
-                                    logger.LogWarning(message);
+                                    logger.LogDebug(message);
                                 }
                                 else
                                 {
-                                    logger.LogWarning(
+                                    logger.LogDebug(
                                         $"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
                                 }
                             }

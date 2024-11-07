@@ -528,7 +528,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (null == channelDrives)
             {
-                _logger.LogWarning("SynchronizeChannelFiles - Failed to get channel drives from recipient");
+                _logger.LogInformation("SynchronizeChannelFiles - Failed to get channel drives from recipient");
                 return new List<PerimeterDriveData>();
             }
 

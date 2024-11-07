@@ -162,6 +162,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 TypeId = notification.NotificationTypeId,
                 TagId = introducer,
                 Silent = false,
+                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
+                // {
+                //     IntroducerOdinId = introducer,
+                //     Introduction = introduction,
+                // })
             },
             newContext, db);
 
@@ -234,7 +239,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
+                _logger.LogInformation(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
             }
         }
     }
@@ -292,7 +297,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex,
+                _logger.LogInformation(ex,
                     "Failed sending Introduced-connection-request to {identity}. This was attempt #:{attemptNumber} of {maxSendAttempts}.  Continuing to next introduction.",
                     intro.Identity, intro.SendAttemptCount, maxSendAttempts);
             }
@@ -413,7 +418,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
+            _logger.LogInformation(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
         }
     }
 

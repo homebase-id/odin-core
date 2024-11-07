@@ -816,7 +816,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception("Error occured while retrieving outbox status");
+                throw new Exception("Error occured while retrieving inbox status");
             }
 
             var status = response.Content;

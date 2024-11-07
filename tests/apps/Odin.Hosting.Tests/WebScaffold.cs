@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,12 +19,14 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Services.Authorization.ExchangeGrants;
 using Refit;
 using Serilog.Events;
 
@@ -242,12 +245,19 @@ namespace Odin.Hosting.Tests
             return new OwnerApiClientRedux(this._oldOwnerApi, identity);
         }
 
+        public AppApiClientRedux CreateAppApiClientRedux(OdinId identity, ClientAccessToken accessToken)
+        {
+            return new AppApiClientRedux(identity, accessToken.ToAuthenticationToken(), accessToken.SharedSecret.GetKey());
+        }
+
         public AppApiClient CreateAppClient(TestIdentity identity, Guid appId)
         {
             return new AppApiClient(this._oldOwnerApi, identity, appId);
         }
 
-        public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
+        public AppApiTestUtils AppApi => this._appApi ??
+                                         throw new NullReferenceException(
+                                             "Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");
 
