@@ -55,8 +55,7 @@ public class CircleNetworkVerificationService(
             //if the caller is only authenticated, there will be no ICR so verification will fail
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
-
-
+        
         if (!icr.IsConnected())
         {
             return new IcrVerificationResult
@@ -65,7 +64,7 @@ public class CircleNetworkVerificationService(
                 RemoteIdentityWasConnected = null
             };
         }
-
+        
         var expectedHash = icr!.VerificationHash;
         if (expectedHash == null || expectedHash.Length == 0)
         {

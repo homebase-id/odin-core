@@ -641,6 +641,8 @@ namespace Odin.Services.Membership.Connections
             var circleDefinitions = (await circleDefinitionService.GetCirclesAsync(true)).ToList();
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
+            info.Icr = icr.Redacted();
+
             ArgumentNullException.ThrowIfNull(icr);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant.CircleGrants);
@@ -786,7 +788,7 @@ namespace Odin.Services.Membership.Connections
                 logger.LogDebug("Verification Connection Code - not connected, " +
                                 "returning null hash.(AuthContext:{ac})",
                     odinContext.AuthContext);
-                
+
                 return new VerifyConnectionResponse
                 {
                     IsConnected = false,
@@ -854,7 +856,7 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
+            if (icr.Status == ConnectionStatus.Connected && (icr.VerificationHash?.Length ?? 0) == 0)
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
