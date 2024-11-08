@@ -1,5 +1,9 @@
+using System;
+using System.IO;
 using Autofac;
 using MediatR;
+using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -60,7 +64,7 @@ namespace Odin.Hosting
     /// </summary>
     public static class TenantServices
     {
-        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
+        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant, OdinConfiguration config)
         {
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
@@ -260,6 +264,17 @@ namespace Odin.Hosting
             
             // Background services
             cb.AddTenantBackgroundServices(tenant);
+
+            // Database services (only sqlite has tenant specific services)
+            if (config.Database.Type == DatabaseType.Sqlite)
+            {
+                 //var xx = Path.Combine(config.Host.TenantDataRootPath, "registrations",
+
+                // Directory.CreateDirectory(config.Host.SystemDataRootPath); // SEB:TODO move this out of service registration
+
+                // cb.AddSqliteIdentityDatabaseServices(Path.Combine(config.Host.SystemDataRootPath, "sys.db"));
+            }
+
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

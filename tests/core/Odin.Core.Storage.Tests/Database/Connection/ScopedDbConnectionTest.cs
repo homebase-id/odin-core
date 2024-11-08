@@ -62,7 +62,7 @@ public class ScopedConnectionFactoryTest
                 builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
                 break;
             case DatabaseType.PostgreSql:
-                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
+                builder.AddPgsqlDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
                 break;
             default:
                 throw new Exception("Unsupported database type");

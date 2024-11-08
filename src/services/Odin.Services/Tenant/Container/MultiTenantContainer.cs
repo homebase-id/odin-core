@@ -8,6 +8,7 @@ using Autofac;
 using Autofac.Core;
 using Autofac.Core.Lifetime;
 using Autofac.Core.Resolving;
+using Odin.Services.Configuration;
 
 #nullable enable
 namespace Odin.Services.Tenant.Container;
@@ -18,8 +19,9 @@ public sealed class MultiTenantContainer : IContainer
     private readonly  IContainer _applicationContainer;
 
     // This action configures a container builder
-    private readonly Action<ContainerBuilder, Tenant> _tenantServiceConfiguration;
+    private readonly Action<ContainerBuilder, Tenant, OdinConfiguration> _tenantServiceConfiguration;
     private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
+    private readonly OdinConfiguration _config;
 
     // This dictionary keeps track of all of the tenant scopes that we have created
     private readonly ConcurrentDictionary<string, Lazy<ILifetimeScope>> _tenantLifetimeScopes = new();
@@ -28,12 +30,14 @@ public sealed class MultiTenantContainer : IContainer
 
     public MultiTenantContainer(
         IContainer applicationContainer,
-        Action<ContainerBuilder, Tenant> serviceConfiguration,
-        Action<ILifetimeScope, Tenant> tenantInitialization)
+        Action<ContainerBuilder, Tenant, OdinConfiguration> serviceConfiguration,
+        Action<ILifetimeScope, Tenant> tenantInitialization,
+        OdinConfiguration config)
     {
         _applicationContainer = applicationContainer;
         _tenantServiceConfiguration = serviceConfiguration;
         _tenantInitialization = tenantInitialization;
+        _config = config;
     }
 
     //
@@ -120,7 +124,7 @@ public sealed class MultiTenantContainer : IContainer
             // Configure a new lifetime scope for the tenant
             var lifetimeScope = _applicationContainer.BeginLifetimeScope(
                 tenantId,
-                cb => _tenantServiceConfiguration(cb, tenant));
+                cb => _tenantServiceConfiguration(cb, tenant, _config));
 
             _tenantInitialization(lifetimeScope, tenant);
             return lifetimeScope;

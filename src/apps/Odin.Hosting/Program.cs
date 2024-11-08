@@ -143,7 +143,8 @@ namespace Odin.Hosting
                 .UseServiceProviderFactory(
                     new MultiTenantServiceProviderFactory(
                         TenantServices.ConfigureMultiTenantServices,
-                        TenantServices.InitializeTenant))
+                        TenantServices.InitializeTenant,
+                        odinConfig))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions =>

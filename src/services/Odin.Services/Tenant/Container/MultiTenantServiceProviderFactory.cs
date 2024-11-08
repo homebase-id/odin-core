@@ -2,21 +2,25 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Services.Configuration;
 
 #nullable enable
 namespace Odin.Services.Tenant.Container
 {
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {
-        private readonly Action<ContainerBuilder, Tenant> _tenantServicesConfiguration;
+        private readonly Action<ContainerBuilder, Tenant, OdinConfiguration> _tenantServicesConfiguration;
         private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
+        private readonly OdinConfiguration _config;
 
         public MultiTenantServiceProviderFactory(
-            Action<ContainerBuilder, Tenant> tenantServicesConfiguration,
-            Action<ILifetimeScope, Tenant> tenantInitialization)
+            Action<ContainerBuilder, Tenant, OdinConfiguration> tenantServicesConfiguration,
+            Action<ILifetimeScope, Tenant> tenantInitialization,
+            OdinConfiguration config)
         {
             _tenantServicesConfiguration = tenantServicesConfiguration;
             _tenantInitialization = tenantInitialization;
+            _config = config;
         }
         
         //
@@ -47,7 +51,8 @@ namespace Odin.Services.Tenant.Container
             container = new MultiTenantContainer(
                 containerBuilder.Build(), 
                 _tenantServicesConfiguration,
-                _tenantInitialization);
+                _tenantInitialization,
+                _config);
 
             return new AutofacServiceProvider(container);
         }

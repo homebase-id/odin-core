@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Tasks;
+using Odin.Services.Configuration;
 using Odin.Services.Tenant;
 using Odin.Services.Tenant.Container;
 
@@ -19,11 +20,12 @@ public class MultiTenantContainerTest
     {
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
+        var configMock = new OdinConfiguration();
 
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         var scopedInfo = new SomeScopedData {Name1 = tenant.Name};
@@ -35,7 +37,8 @@ public class MultiTenantContainerTest
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         Assert.AreEqual(tenant.Name, scopedInfo.Name1);
                         scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services
@@ -74,11 +77,12 @@ public class MultiTenantContainerTest
     {
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
+        var configMock = new OdinConfiguration();
 
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         var scopedInfo = new SomeScopedData {Name1 = tenant.Name};
@@ -90,7 +94,8 @@ public class MultiTenantContainerTest
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         Assert.AreEqual(tenant.Name, scopedInfo.Name1);
                         scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services
@@ -141,11 +146,12 @@ public class MultiTenantContainerTest
     {
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
+        var configMock = new OdinConfiguration();
 
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         var scopedInfo = new SomeScopedData {Name1 = tenant.Name};
@@ -157,7 +163,8 @@ public class MultiTenantContainerTest
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         Assert.AreEqual(tenant.Name, scopedInfo.Name1);
                         scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services
@@ -205,11 +212,12 @@ public class MultiTenantContainerTest
     {
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
+        var configMock = new OdinConfiguration();
 
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         var scopedInfo = new SomeScopedData {Name1 = tenant.Name};
@@ -221,7 +229,8 @@ public class MultiTenantContainerTest
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         Assert.AreEqual(tenant.Name, scopedInfo.Name1);
                         scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services
@@ -275,11 +284,12 @@ public class MultiTenantContainerTest
     {
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
+        var configMock = new OdinConfiguration();
 
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         builder.RegisterType<SomeScopedData>().AsSelf().InstancePerLifetimeScope();
@@ -289,7 +299,8 @@ public class MultiTenantContainerTest
                         // Initialize per-tenant services
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         scopedInfo.Name1 = scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services
@@ -347,10 +358,12 @@ public class MultiTenantContainerTest
     [Test]
     public async Task ItShouldUseCorrectTenantScopeInChildTasks()
     {
+        var configMock = new OdinConfiguration();
+
         var host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(
                 new MultiTenantServiceProviderFactory(
-                    (builder, tenant) =>
+                    (builder, tenant, config) =>
                     {
                         // Register per-tenant services
                         var scopedInfo = new SomeScopedData {Name1 = tenant.Name};
@@ -362,7 +375,8 @@ public class MultiTenantContainerTest
                         var scopedInfo = scope.Resolve<SomeScopedData>();
                         Assert.AreEqual(tenant.Name, scopedInfo.Name1);
                         scopedInfo.Name2 = tenant.Name;
-                    }))
+                    },
+                    configMock))
             .ConfigureServices((hostContext, services) =>
             {
                 // Standard ASP.NET root services here
