@@ -88,7 +88,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await _driveManager.SetDriveReadModeAsync(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext, db);
             return Ok();
         }
-
+        
+        [HttpPost("set-allow-subscriptions")]
+        public async Task<IActionResult> SetDriveAllowSubscriptions([FromBody] UpdateDriveAllowSubscriptionsRequest request)
+        {
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, true);
+            await _driveManager.SetDriveAllowSubscriptionsAsync(driveId.GetValueOrDefault(), request.AllowSubscriptions, WebOdinContext, db);
+            return Ok();
+        }
+        
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
@@ -127,5 +136,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowAnonymousReads { get; set; }
+    }
+    
+    public class UpdateDriveAllowSubscriptionsRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool AllowSubscriptions { get; set; }
     }
 }

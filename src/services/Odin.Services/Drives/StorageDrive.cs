@@ -68,7 +68,7 @@ namespace Odin.Services.Drives
         public override bool AllowSubscriptions
         {
             get => _inner.AllowSubscriptions;
-            set { }
+            set => _inner.AllowSubscriptions = value;
         }
 
         public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey

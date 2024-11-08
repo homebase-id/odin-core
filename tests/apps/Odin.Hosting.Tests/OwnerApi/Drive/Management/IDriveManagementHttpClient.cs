@@ -30,5 +30,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Management
         
         [Post(RootEndpoint + "/setdrivereadmode")]
         Task<ApiResponse<HttpContent>> SetDriveReadMode([Body] UpdateDriveReadModeRequest request);
+
+        [Post(RootEndpoint + "/set-allow-subscriptions")]
+        Task<ApiResponse<HttpContent>> SetAllowSubscriptions([Body] UpdateDriveAllowSubscriptionsRequest request);
+        
+        
     }
 }

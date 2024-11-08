@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
+using SQLitePCL;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -117,7 +118,8 @@ public class DriveManagementTests
                 Metadata = "some metadata",
                 AllowAnonymousReads = false
             });
-            Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode, $"Create drive with duplicate alias and type should have failed");
+            Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode,
+                $"Create drive with duplicate alias and type should have failed");
         }
     }
 
@@ -271,6 +273,56 @@ public class DriveManagementTests
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
             Assert.IsTrue(updatedDrive.AllowAnonymousReads);
+        }
+    }
+
+    [Test]
+    public async Task CanSetSystemDriveAllowSubscriptionsFlag()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+            string name = "test drive 01";
+            string metadata = "{some:'json'}";
+
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = name,
+                Metadata = metadata,
+                AllowSubscriptions = false
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            Assert.IsNotNull(response.Content);
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            var page = getDrivesResponse.Content;
+
+            Assert.IsTrue(page.Results.Any());
+            var theDrive = page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
+            Assert.NotNull(theDrive);
+            Assert.IsFalse(theDrive.AllowSubscriptions);
+
+            var setDriveModeResponse = await svc.SetAllowSubscriptions(new UpdateDriveAllowSubscriptionsRequest()
+            {
+                TargetDrive = targetDrive,
+                AllowSubscriptions = true
+            });
+
+            Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
+
+            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            var updatedDrivesPage = getUpdatedResponse.Content;
+            Assert.IsNotNull(updatedDrivesPage);
+
+            var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            Assert.IsTrue(updatedDrive.AllowSubscriptions);
         }
     }
 

@@ -5,9 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -64,7 +62,7 @@ public class PeerAppNotificationService : PeerServiceBase
             throw new OdinSecurityException("Caller not connected");
         }
 
-        var subscriptions = await GetSubscriptions(caller, odinContext);
+        var subscriptions = await GetSubscriptionsToCallerInternal( odinContext);
         if (subscriptions.All(sub => sub.SubscriptionId != record.Options.PeerSubscriptionId))
         {
             throw new OdinSecurityException("Invalid subscription Id");
@@ -230,13 +228,13 @@ public class PeerAppNotificationService : PeerServiceBase
         await _notificationSubscriptionStorage.DeleteAsync(db, request.ToKey());
     }
 
-    public async Task<List<PeerNotificationSubscription>> GetSubscriptions(OdinId identity, IOdinContext odinContext)
+    private async Task<List<PeerNotificationSubscription>> GetSubscriptionsToCallerInternal(IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        var caller = odinContext.GetCallerOdinIdOrFail();
 
         var db = _tenantSystemStorage.IdentityDatabase;
         var list = await _notificationSubscriptionStorage.GetByDataTypeAsync<PeerNotificationSubscription>(db,
-            identity.ToHashId().ToByteArray());
+            caller.ToHashId().ToByteArray());
         return list.ToList();
     }
 }
