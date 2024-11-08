@@ -140,10 +140,7 @@ namespace Odin.Hosting
                 {
                     CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
                 })
-                .UseServiceProviderFactory(
-                    new MultiTenantServiceProviderFactory(
-                        TenantServices.ConfigureMultiTenantServices,
-                        TenantServices.InitializeTenant))
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory())
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions =>

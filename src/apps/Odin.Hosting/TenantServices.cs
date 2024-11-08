@@ -52,6 +52,7 @@ using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
+using Odin.Services.Registry;
 
 namespace Odin.Hosting
 {
@@ -60,7 +61,7 @@ namespace Odin.Hosting
     /// </summary>
     public static class TenantServices
     {
-        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
+        internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration)
         {
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
@@ -259,12 +260,7 @@ namespace Odin.Hosting
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
             
             // Background services
-            cb.AddTenantBackgroundServices(tenant);
-        }
-
-        internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
-        {
-            // DEPRECATED - don't do stuff in here.
+            cb.AddTenantBackgroundServices(registration);
         }
     }
 }

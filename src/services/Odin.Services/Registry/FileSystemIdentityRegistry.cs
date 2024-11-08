@@ -41,6 +41,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
+    private readonly Action<ContainerBuilder, IdentityRegistration> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tempFolderRoot;
@@ -51,6 +52,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
+        Action<ContainerBuilder, IdentityRegistration> tenantContainerBuilder,
         OdinConfiguration config
     )
     {
@@ -71,6 +73,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
         _tenantContainer = tenantContainer;
+        _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
 
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
@@ -472,18 +475,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
 
-        // Create multitenant scope
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var tenantContext = scope.Resolve<TenantContext>();
-        var tc = CreateTenantContext(registration.PrimaryDomainName);
-        tenantContext.Update(tc);
+        CreateMultiTenantScope(registration);
     }
 
     private async Task UnloadRegistration(IdentityRegistration registration)
     {
         _cache.TryRemove(registration.Id, out _);
         await StopBackgroundServices(registration);
-        _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
+        RemoveMultiTenantScope(registration.PrimaryDomainName);
     }
 
     private IdentityRegistration GetByFirstRunToken(Guid firstRunToken)
@@ -656,5 +655,24 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     }
 
     //
+
+    private void CreateMultiTenantScope(IdentityRegistration registration)
+    {
+        var scope = _tenantContainer.Container().GetOrAddTenantScope(
+            registration.PrimaryDomainName,
+            cb => _tenantContainerBuilder(cb, registration));
+
+        var tenantContext = scope.Resolve<TenantContext>();
+        var tc = CreateTenantContext(registration.PrimaryDomainName);
+        tenantContext.Update(tc);
+    }
+
+    //
+
+    private void RemoveMultiTenantScope(string domain)
+    {
+        _tenantContainer.Container().RemoveTenantScope(domain);
+    }
+
 
 }
