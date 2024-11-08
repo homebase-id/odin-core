@@ -79,6 +79,9 @@ public class VersionUpgradeService(
                 await v2.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+                
+                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+
             }
 
             // ...
