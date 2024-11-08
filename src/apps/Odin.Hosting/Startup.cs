@@ -21,6 +21,7 @@ using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
@@ -252,8 +253,8 @@ namespace Odin.Hosting
            
             builder.AddSystemBackgroundServices();
 
-            // Database services
-            builder.AddCommonDatabaseServices();
+            // System database services
+            builder.AddDatabaseCacheServices();
             switch (_config.Database.Type)
             {
                 case DatabaseType.Sqlite:
@@ -261,7 +262,7 @@ namespace Odin.Hosting
                     builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
                     break;
                 case DatabaseType.PostgreSql:
-                    builder.AddPgsqlDatabaseServices(_config.Database.ConnectionString);
+                    builder.AddPgsqlSystemDatabaseServices(_config.Database.ConnectionString);
                     break;
                 default:
                     throw new OdinSystemException("Unsupported database type");

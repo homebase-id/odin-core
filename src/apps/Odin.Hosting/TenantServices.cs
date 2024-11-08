@@ -3,6 +3,7 @@ using System.IO;
 using Autofac;
 using MediatR;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -262,21 +263,41 @@ namespace Odin.Hosting
             cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
             
-            // Background services
+            // Tenant background services
             cb.AddTenantBackgroundServices(registration);
 
-            // Database services (only sqlite has tenant specific services)
-            if (config.Database.Type == DatabaseType.Sqlite)
+            // Tenant database services
+            cb.ConfigureDatabaseServices(registration, config);
+        }
+
+        //
+
+        private static void ConfigureDatabaseServices(
+            this ContainerBuilder cb,
+            IdentityRegistration registration,
+            OdinConfiguration config)
+        {
+            cb.AddDatabaseCacheServices();
+            switch (config.Database.Type)
             {
-                // SEB:TODO move this out of service registration
-                // SEB:TODO duplicated from registration code. Don't do that.
-                var headersPath = Path.Combine(
-                    config.Host.TenantDataRootPath,
-                    "registrations",
-                    registration.Id.ToString(),
-                    "headers");
-                Directory.CreateDirectory(headersPath);
-                cb.AddSqliteIdentityDatabaseServices(Path.Combine(headersPath, "identity.db"));
+                case DatabaseType.Sqlite:
+                {
+                    // SEB:TODO move this out of service registration
+                    // SEB:TODO duplicated from registration code. Don't do that.
+                    var headersPath = Path.Combine(
+                        config.Host.TenantDataRootPath,
+                        "registrations",
+                        registration.Id.ToString(),
+                        "headers");
+                    Directory.CreateDirectory(headersPath);
+                    cb.AddSqliteIdentityDatabaseServices(Path.Combine(headersPath, "identity.db"));
+                    break;
+                }
+                case DatabaseType.PostgreSql:
+                    cb.AddPgsqlIdentityDatabaseServices(config.Database.ConnectionString);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");
             }
         }
     }

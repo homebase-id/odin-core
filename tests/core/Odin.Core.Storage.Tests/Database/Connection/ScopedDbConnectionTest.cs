@@ -8,7 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Connection;
+using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
@@ -55,14 +56,14 @@ public class ScopedConnectionFactoryTest
         var builder = new ContainerBuilder();
         builder.Populate(services);
 
-        builder.AddCommonDatabaseServices();
+        builder.AddDatabaseCacheServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:
                 builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
                 break;
             case DatabaseType.PostgreSql:
-                builder.AddPgsqlDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
+                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
                 break;
             default:
                 throw new Exception("Unsupported database type");

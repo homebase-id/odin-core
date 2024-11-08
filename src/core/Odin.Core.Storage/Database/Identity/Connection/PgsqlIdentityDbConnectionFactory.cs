@@ -1,8 +1,8 @@
 using System.Data.Common;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Database.Connection.Engine;
+using Odin.Core.Storage.Factory.Pgsql;
 
-namespace Odin.Core.Storage.Database.Connection.Identity;
+namespace Odin.Core.Storage.Database.Identity.Connection;
 
 #nullable enable
 

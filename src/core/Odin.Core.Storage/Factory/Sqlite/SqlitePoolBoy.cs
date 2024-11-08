@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Data.Sqlite;
 
-namespace Odin.Core.Storage.Database.Connection.Engine;
+namespace Odin.Core.Storage.Factory.Sqlite;
 
 public sealed class SqlitePoolBoy : IDisposable
 {

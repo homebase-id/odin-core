@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Nito.AsyncEx;
 
-namespace Odin.Core.Storage.Database.Connection.Engine;
+namespace Odin.Core.Storage.Factory.Sqlite;
 
 internal static class SqliteConcreteConnectionFactory
 {
