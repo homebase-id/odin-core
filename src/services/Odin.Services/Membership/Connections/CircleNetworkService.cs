@@ -856,7 +856,8 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            if (icr.Status == ConnectionStatus.Connected && (icr.VerificationHash?.Length ?? 0) == 0)
+            
+            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken

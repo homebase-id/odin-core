@@ -124,7 +124,7 @@ namespace Odin.Services.Membership.Connections
                 ConnectionRequestOrigin = this.ConnectionRequestOrigin,
                 AccessGrant = this.AccessGrant?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
-                HasVerificationHash = this.VerificationHash?.Length > 0
+                HasVerificationHash = !this.VerificationHash.IsNullOrEmpty()
             };
         }
     }
