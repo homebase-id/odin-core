@@ -240,14 +240,15 @@ public class CircleNetworkVerificationService(
 
                     if (!success)
                     {
-                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        if (response.StatusCode == HttpStatusCode.Forbidden)
                         {
                             if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
                                 bool.Parse(values.Single()))
                             {
-                                //the remote ICR is dead - re
-                                await CircleNetworkService.DisconnectAsync(recipient, odinContext);
+                                // The remote ICR is dead
                                 logger.LogInformation("Remote identity is no longer connected; deleting local ICR");
+                                await CircleNetworkService.DisconnectAsync(recipient, odinContext);
+                                return;
                             }
                         }
                     }
