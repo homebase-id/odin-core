@@ -246,7 +246,8 @@ public class CircleNetworkVerificationService(
                                 bool.Parse(values.Single()))
                             {
                                 //the remote ICR is dead - re
-                                await cns.DisconnectAsync(recipient, odinContext);
+                                await CircleNetworkService.DisconnectAsync(recipient, odinContext);
+                                logger.LogInformation("Remote identity is no longer connected; deleting local ICR");
                             }
                         }
                     }
