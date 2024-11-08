@@ -8,17 +8,6 @@ namespace Odin.Services.Tenant.Container
 {
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {
-        private readonly Action<ContainerBuilder, Tenant> _tenantServicesConfiguration;
-        private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
-
-        public MultiTenantServiceProviderFactory(
-            Action<ContainerBuilder, Tenant> tenantServicesConfiguration,
-            Action<ILifetimeScope, Tenant> tenantInitialization)
-        {
-            _tenantServicesConfiguration = tenantServicesConfiguration;
-            _tenantInitialization = tenantInitialization;
-        }
-        
         //
 
         public ContainerBuilder CreateBuilder(IServiceCollection services)
@@ -36,6 +25,7 @@ namespace Odin.Services.Tenant.Container
             
             MultiTenantContainer ContainerAccessor()
             {
+                // ReSharper disable once AccessToModifiedClosure
                 return container!;
             }
             
@@ -44,10 +34,7 @@ namespace Odin.Services.Tenant.Container
                 .As<IMultiTenantContainerAccessor>()
                 .SingleInstance();
             
-            container = new MultiTenantContainer(
-                containerBuilder.Build(), 
-                _tenantServicesConfiguration,
-                _tenantInitialization);
+            container = new MultiTenantContainer(containerBuilder.Build());
 
             return new AutofacServiceProvider(container);
         }
