@@ -268,18 +268,16 @@ namespace Odin.Hosting
             // Database services (only sqlite has tenant specific services)
             if (config.Database.Type == DatabaseType.Sqlite)
             {
-                 // var xx = Path.Combine(config.Host.TenantDataRootPath, "registrations",
-
-                // Directory.CreateDirectory(config.Host.SystemDataRootPath); // SEB:TODO move this out of service registration
-
-                // cb.AddSqliteIdentityDatabaseServices(Path.Combine(config.Host.SystemDataRootPath, "sys.db"));
+                // SEB:TODO move this out of service registration
+                // SEB:TODO duplicated from registration code. Don't do that.
+                var headersPath = Path.Combine(
+                    config.Host.TenantDataRootPath,
+                    "registrations",
+                    registration.Id.ToString(),
+                    "headers");
+                Directory.CreateDirectory(headersPath);
+                cb.AddSqliteIdentityDatabaseServices(Path.Combine(headersPath, "identity.db"));
             }
-
-        }
-
-        internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
-        {
-            // DEPRECATED - don't do stuff in here.
         }
     }
 }
