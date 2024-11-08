@@ -151,6 +151,8 @@ public class CircleNetworkVerificationService(
 
     public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
     {
+        odinContext.Caller.AssertHasMasterKey();
+
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
         //TODO CONNECTIONS
@@ -190,7 +192,8 @@ public class CircleNetworkVerificationService(
 
             if (success)
             {
-                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, odinContext);
+                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret, odinContext);
             }
         }
 
@@ -203,7 +206,8 @@ public class CircleNetworkVerificationService(
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
+        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode,
+            odinContext.PermissionsContext.SharedSecretKey, odinContext);
     }
 
     private async Task<bool> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode, IOdinContext odinContext)

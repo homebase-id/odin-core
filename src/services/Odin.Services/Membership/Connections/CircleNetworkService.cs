@@ -846,7 +846,7 @@ namespace Odin.Services.Membership.Connections
             //);
         }
 
-        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, IOdinContext odinContext)
+        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret, IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsOwner)
             {
@@ -856,7 +856,7 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            
+
             if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
@@ -868,8 +868,7 @@ namespace Odin.Services.Membership.Connections
                     return false;
                 }
 
-                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
+                var hash = this.CreateVerificationHash(randomCode, sharedSecret);
 
                 await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
