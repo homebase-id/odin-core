@@ -55,7 +55,7 @@ public class CircleNetworkVerificationService(
             //if the caller is only authenticated, there will be no ICR so verification will fail
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
-        
+
         if (!icr.IsConnected())
         {
             return new IcrVerificationResult
@@ -64,7 +64,7 @@ public class CircleNetworkVerificationService(
                 RemoteIdentityWasConnected = null
             };
         }
-        
+
         var expectedHash = icr!.VerificationHash;
         if (expectedHash == null || expectedHash.Length == 0)
         {
@@ -116,13 +116,13 @@ public class CircleNetworkVerificationService(
                         {
                             var vcr = response.Content;
                             result.RemoteIdentityWasConnected = vcr!.IsConnected;
-                            
+
                             logger.LogDebug("Comparing verification-hash: " +
                                             "remote identity has hash {remoteYesNo} | " +
                                             "local identity has has: {localYesNo}",
                                 vcr.Hash?.Length > 0,
                                 expectedHash?.Length > 0);
-                            
+
                             if (vcr.IsConnected)
                             {
                                 result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
@@ -147,6 +147,27 @@ public class CircleNetworkVerificationService(
         }
 
         return result;
+    }
+
+    public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+
+        //TODO CONNECTIONS
+        // await db.CreateCommitUnitOfWorkAsync(async () =>
+        {
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (identity.VerificationHash.IsNullOrEmpty())
+                {
+                    var success = await SynchronizeVerificationHashAsync(identity.OdinId, odinContext);
+                    logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
+                }
+            }
+        }
+        //);
     }
 
     /// <summary>

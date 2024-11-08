@@ -799,7 +799,7 @@ namespace Odin.Services.Membership.Connections
             //look up the verification hash on the caller's icr
             var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
 
-            if (callerIcr.VerificationHash?.Length == 0)
+            if (callerIcr.VerificationHash.IsNullOrEmpty())
             {
                 throw new OdinSecurityException("Cannot verify caller");
             }
