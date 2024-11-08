@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -236,6 +237,21 @@ public class CircleNetworkVerificationService(
 
                     response = await client.UpdateRemoteVerificationHash(encryptedPayload);
                     success = response.IsSuccessStatusCode;
+
+                    if (!success)
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
+                                bool.Parse(values.Single()))
+                            {
+                                //the remote ICR is dead - re
+                                await cns.DisconnectAsync(recipient, odinContext);
+                            }
+                        }
+                    }
+
+                    await response.EnsureSuccessStatusCodeAsync();
                 });
         }
         catch (TryRetryException e)
