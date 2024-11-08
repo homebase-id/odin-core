@@ -188,6 +188,7 @@ namespace Odin.Hosting
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
                 sp.GetRequiredService<IMultiTenantContainerAccessor>(),
+                TenantServices.ConfigureTenantServices,
                 _config));
 
             services.AddSingleton(new AcmeAccountConfig

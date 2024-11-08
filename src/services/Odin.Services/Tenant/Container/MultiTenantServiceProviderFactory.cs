@@ -2,27 +2,12 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Services.Configuration;
 
 #nullable enable
 namespace Odin.Services.Tenant.Container
 {
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {
-        private readonly Action<ContainerBuilder, Tenant, OdinConfiguration> _tenantServicesConfiguration;
-        private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
-        private readonly OdinConfiguration _config;
-
-        public MultiTenantServiceProviderFactory(
-            Action<ContainerBuilder, Tenant, OdinConfiguration> tenantServicesConfiguration,
-            Action<ILifetimeScope, Tenant> tenantInitialization,
-            OdinConfiguration config)
-        {
-            _tenantServicesConfiguration = tenantServicesConfiguration;
-            _tenantInitialization = tenantInitialization;
-            _config = config;
-        }
-        
         //
 
         public ContainerBuilder CreateBuilder(IServiceCollection services)
@@ -40,6 +25,7 @@ namespace Odin.Services.Tenant.Container
             
             MultiTenantContainer ContainerAccessor()
             {
+                // ReSharper disable once AccessToModifiedClosure
                 return container!;
             }
             
@@ -48,11 +34,7 @@ namespace Odin.Services.Tenant.Container
                 .As<IMultiTenantContainerAccessor>()
                 .SingleInstance();
             
-            container = new MultiTenantContainer(
-                containerBuilder.Build(), 
-                _tenantServicesConfiguration,
-                _tenantInitialization,
-                _config);
+            container = new MultiTenantContainer(containerBuilder.Build());
 
             return new AutofacServiceProvider(container);
         }

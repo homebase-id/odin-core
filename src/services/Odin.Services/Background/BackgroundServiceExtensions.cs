@@ -68,10 +68,10 @@ public static class BackgroundServiceExtensions
     
     //
     
-    public static void AddTenantBackgroundServices(this ContainerBuilder cb, Tenant.Tenant tenant)
+    public static void AddTenantBackgroundServices(this ContainerBuilder cb, IdentityRegistration registration)
     {
         cb.RegisterType<BackgroundServiceManager>()
-            .WithParameter(new TypedParameter(typeof(string), tenant.Name))
+            .WithParameter(new TypedParameter(typeof(string), registration.PrimaryDomainName))
             .As<IBackgroundServiceTrigger>()
             .As<IBackgroundServiceManager>()
             .SingleInstance();

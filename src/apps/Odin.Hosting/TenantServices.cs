@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using Autofac;
 using MediatR;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
@@ -56,6 +55,7 @@ using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
+using Odin.Services.Registry;
 
 namespace Odin.Hosting
 {
@@ -64,7 +64,7 @@ namespace Odin.Hosting
     /// </summary>
     public static class TenantServices
     {
-        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant, OdinConfiguration config)
+        internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
         {
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
@@ -263,12 +263,12 @@ namespace Odin.Hosting
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
             
             // Background services
-            cb.AddTenantBackgroundServices(tenant);
+            cb.AddTenantBackgroundServices(registration);
 
             // Database services (only sqlite has tenant specific services)
             if (config.Database.Type == DatabaseType.Sqlite)
             {
-                 //var xx = Path.Combine(config.Host.TenantDataRootPath, "registrations",
+                 // var xx = Path.Combine(config.Host.TenantDataRootPath, "registrations",
 
                 // Directory.CreateDirectory(config.Host.SystemDataRootPath); // SEB:TODO move this out of service registration
 
