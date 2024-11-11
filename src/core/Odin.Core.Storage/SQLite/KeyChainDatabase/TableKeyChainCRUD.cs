@@ -1,10 +1,12 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -114,26 +116,26 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyChain("
-                     +"previousHash BLOB NOT NULL UNIQUE, "
-                     +"identity STRING NOT NULL, "
-                     +"timestamp INT NOT NULL, "
-                     +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                     +"algorithm STRING NOT NULL, "
-                     +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
-                     +"recordHash BLOB NOT NULL UNIQUE "
-                     +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
-                     +");"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyChain("
+                 +"previousHash BLOB NOT NULL UNIQUE, "
+                 +"identity STRING NOT NULL, "
+                 +"timestamp INT NOT NULL, "
+                 +"signedPreviousHash BLOB NOT NULL UNIQUE, "
+                 +"algorithm STRING NOT NULL, "
+                 +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
+                 +"recordHash BLOB NOT NULL UNIQUE "
+                 +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
+                 +");"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
@@ -177,7 +179,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyChainRecord item)
@@ -220,7 +222,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyChainRecord item)
@@ -264,7 +266,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 return count;
-            } // Using
+            }
         }
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyChainRecord item)
         {
@@ -307,7 +309,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -442,7 +444,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
-            } // Using
+            }
         }
 
         public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr, string identity,string publicKeyJwkBase64Url)

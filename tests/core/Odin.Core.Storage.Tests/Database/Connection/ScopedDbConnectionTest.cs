@@ -52,6 +52,8 @@ public class ScopedConnectionFactoryTest
         var services = new ServiceCollection();
         services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore));
         services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore));
+        services.AddScoped<ScopedSystemUser>();
+        services.AddTransient<TransientSystemUser>();
         
         var builder = new ContainerBuilder();
         builder.Populate(services);
@@ -465,5 +467,45 @@ public class ScopedConnectionFactoryTest
             Assert.That(result, Is.EqualTo(5));
         }
     }
+    
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+        
+        var scopedSystemUser = _services.Resolve<ScopedSystemUser>();
+        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
+        
+        var transientSystemUser = _services.Resolve<TransientSystemUser>();
+        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
+    }
+    
+    //
+    
 }
 
+public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
+{
+    public async Task<long> GetCountAsync()
+    {
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM test;";
+        return (long) (await cmd.ExecuteScalarAsync() ?? 0);
+    }
+}
+
+public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
+{
+    public async Task<long> GetCountAsync()
+    {
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM test;";
+        return (long) (await cmd.ExecuteScalarAsync() ?? 0);
+    }
+}

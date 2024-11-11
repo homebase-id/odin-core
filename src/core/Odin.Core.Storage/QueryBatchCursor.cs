@@ -1,7 +1,7 @@
 ﻿using System;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage
 {
     public class QueryBatchCursor
     {

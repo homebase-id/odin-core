@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveMainIndexRecord
     {
@@ -307,20 +307,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveMainIndexCRUD
     {
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableDriveMainIndexCRUD(CacheHelper cache)
+        public TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveMainIndex("
@@ -357,11 +360,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +");"
                  +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -372,7 +375,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
@@ -486,7 +490,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam26.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam27.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.created = now;
@@ -495,7 +499,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -506,7 +510,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
@@ -620,7 +625,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam26.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam27.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     item.created = now;
@@ -629,7 +634,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -640,7 +645,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
@@ -756,7 +762,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 upsertParam26.Value = now.uniqueTime;
                 upsertParam27.Value = now.uniqueTime;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = rdr.GetInt64(0);
@@ -772,7 +778,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, DriveMainIndexRecord item)
+        internal virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -783,7 +789,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE driveMainIndex " +
                                              "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
@@ -897,7 +904,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
                 updateParam26.Value = now.uniqueTime;
                 updateParam27.Value = now.uniqueTime;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.modified = now;
@@ -906,13 +913,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -953,16 +961,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        internal virtual async Task<int> GetDriveCountDirtyAsync(DatabaseConnection conn, Guid driveId)
+        internal virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
-            using (var getCountDriveCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountDriveCommand = cn.CreateCommand();
             {
+                 // TODO: this is SQLite specific
                 getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
                 getCountDriveParam1.Value = driveId.ToByteArray();
-                var count = await conn.ExecuteScalarAsync(getCountDriveCommand);
+                var count = await getCountDriveCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -1199,9 +1209,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
@@ -1218,7 +1229,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = fileId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
@@ -1424,9 +1435,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? uniqueId)
+        internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
         {
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
@@ -1444,7 +1456,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param2.Value = driveId.ToByteArray();
                 get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -1658,9 +1670,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid? globalTransitId)
+        internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
         {
-            using (var get1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
@@ -1678,7 +1691,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get1Param2.Value = driveId.ToByteArray();
                 get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -1892,9 +1905,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<DriveMainIndexRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var get2Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
@@ -1912,7 +1926,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get2Param2.Value = driveId.ToByteArray();
                 get2Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get2Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

@@ -1,17 +1,17 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.ServerDatabase
+namespace Odin.Core.Storage.Database.System.Table
 {
     public class JobsRecord
     {
@@ -224,57 +224,61 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
     public class TableJobsCRUD
     {
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        public TableJobsCRUD(CacheHelper cache)
+        public TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS jobs("
-                     +"id BLOB NOT NULL UNIQUE, "
-                     +"name STRING NOT NULL, "
-                     +"state INT NOT NULL, "
-                     +"priority INT NOT NULL, "
-                     +"nextRun INT NOT NULL, "
-                     +"lastRun INT , "
-                     +"runCount INT NOT NULL, "
-                     +"maxAttempts INT NOT NULL, "
-                     +"retryDelay INT NOT NULL, "
-                     +"onSuccessDeleteAfter INT NOT NULL, "
-                     +"onFailureDeleteAfter INT NOT NULL, "
-                     +"expiresAt INT , "
-                     +"correlationId STRING NOT NULL, "
-                     +"jobType STRING NOT NULL, "
-                     +"jobData STRING , "
-                     +"jobHash STRING  UNIQUE, "
-                     +"lastError STRING , "
-                     +"created INT NOT NULL, "
-                     +"modified INT  "
-                     +", PRIMARY KEY (id)"
-                     +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
-                     +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
+                   await cmd.ExecuteNonQueryAsync();
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS jobs("
+                 +"id BLOB NOT NULL UNIQUE, "
+                 +"name STRING NOT NULL, "
+                 +"state INT NOT NULL, "
+                 +"priority INT NOT NULL, "
+                 +"nextRun INT NOT NULL, "
+                 +"lastRun INT , "
+                 +"runCount INT NOT NULL, "
+                 +"maxAttempts INT NOT NULL, "
+                 +"retryDelay INT NOT NULL, "
+                 +"onSuccessDeleteAfter INT NOT NULL, "
+                 +"onFailureDeleteAfter INT NOT NULL, "
+                 +"expiresAt INT , "
+                 +"correlationId STRING NOT NULL, "
+                 +"jobType STRING NOT NULL, "
+                 +"jobData STRING , "
+                 +"jobHash STRING  UNIQUE, "
+                 +"lastError STRING , "
+                 +"created INT NOT NULL, "
+                 +"modified INT  "
+                 +", PRIMARY KEY (id)"
+                 +");"
+                 +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
+                 +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
+                 +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
+                 +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                 ;
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        public virtual async Task<int> InsertAsync(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> InsertAsync(JobsRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
@@ -356,19 +360,20 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 insertParam18.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam19.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.created = now;
                 }
                 return count;
-            } // Using
+            }
         }
 
-        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> TryInsertAsync(JobsRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
@@ -450,19 +455,20 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 insertParam18.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam19.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     item.created = now;
                 }
                 return count;
-            } // Using
+            }
         }
 
-        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> UpsertAsync(JobsRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created)"+
@@ -546,28 +552,27 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
                 upsertParam18.Value = now.uniqueTime;
                 upsertParam19.Value = now.uniqueTime;
-                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                   if (rdr.Read())
-                   {
-                      long created = rdr.GetInt64(0);
-                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                      item.created = new UnixTimeUtcUnique(created);
-                      if (modified != null)
-                         item.modified = new UnixTimeUtcUnique((long)modified);
-                      else
-                         item.modified = null;
-                      return 1;
-                   }
+                   long created = rdr.GetInt64(0);
+                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                   item.created = new UnixTimeUtcUnique(created);
+                   if (modified != null)
+                      item.modified = new UnixTimeUtcUnique((long)modified);
+                   else
+                      item.modified = null;
+                   return 1;
                 }
                 return 0;
-            } // Using
+            }
         }
 
-        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, JobsRecord item)
+        public virtual async Task<int> UpdateAsync(JobsRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE jobs " +
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
@@ -629,7 +634,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 var updateParam19 = updateCommand.CreateParameter();
                 updateParam19.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam19);
-             var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtcUnique.Now();
                 updateParam1.Value = item.id.ToByteArray();
                 updateParam2.Value = item.name;
                 updateParam3.Value = item.state;
@@ -649,22 +654,23 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 updateParam17.Value = item.lastError ?? (object)DBNull.Value;
                 updateParam18.Value = now.uniqueTime;
                 updateParam19.Value = now.uniqueTime;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.modified = now;
                 }
                 return count;
-            } // Using
+            }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM jobs; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -846,9 +852,10 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public async Task<int> DeleteAsync(DatabaseConnection conn, Guid id)
+        public async Task<int> DeleteAsync(Guid id)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM jobs " +
                                              "WHERE id = @id";
@@ -857,9 +864,9 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 delete0Command.Parameters.Add(delete0Param1);
 
                 delete0Param1.Value = id.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
-            } // Using
+            }
         }
 
         public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
@@ -1001,9 +1008,10 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public async Task<JobsRecord> GetAsync(DatabaseConnection conn, Guid id)
+        public async Task<JobsRecord> GetAsync(Guid id)
         {
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
                                              "WHERE id = @id LIMIT 1;";
@@ -1013,7 +1021,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
                 get0Param1.Value = id.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class OutboxRecord
     {
@@ -164,20 +164,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableOutboxCRUD
     {
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableOutboxCRUD(CacheHelper cache)
+        public TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS outbox("
@@ -198,18 +201,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +");"
                  +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, OutboxRecord item)
+        internal virtual async Task<int> InsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
             item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified)";
@@ -267,7 +271,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam12.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam13.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.created = now;
@@ -276,14 +280,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, OutboxRecord item)
+        internal virtual async Task<int> TryInsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
             item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified)";
@@ -341,7 +346,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam12.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam13.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     item.created = now;
@@ -350,14 +355,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, OutboxRecord item)
+        internal virtual async Task<int> UpsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
             item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created)"+
@@ -417,7 +423,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
                 upsertParam12.Value = now.uniqueTime;
                 upsertParam13.Value = now.uniqueTime;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = rdr.GetInt64(0);
@@ -433,14 +439,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, OutboxRecord item)
+        internal virtual async Task<int> UpdateAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
             item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE outbox " +
                                              "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,modified = @modified "+
@@ -498,7 +505,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
                 updateParam12.Value = now.uniqueTime;
                 updateParam13.Value = now.uniqueTime;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.modified = now;
@@ -507,13 +514,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM outbox; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -673,12 +681,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient";
@@ -699,7 +708,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = fileId.ToByteArray();
                 delete0Param4.Value = recipient;
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
@@ -801,9 +810,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<List<OutboxRecord>> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
@@ -821,7 +831,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param2.Value = driveId.ToByteArray();
                 get0Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -934,12 +944,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<OutboxRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        internal async Task<OutboxRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
-            using (var get1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;";
@@ -961,7 +972,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get1Param3.Value = fileId.ToByteArray();
                 get1Param4.Value = recipient;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

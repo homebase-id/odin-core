@@ -14,7 +14,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
-using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
+using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
 

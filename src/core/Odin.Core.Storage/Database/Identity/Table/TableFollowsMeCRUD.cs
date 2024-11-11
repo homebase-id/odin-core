@@ -13,7 +13,7 @@ using Odin.Core.Util;
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class FollowsMeRecord
     {
@@ -75,21 +75,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableFollowsMeCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableFollowsMeCRUD(CacheHelper cache)
+        public TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS followsMe("
@@ -102,14 +105,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +");"
                  +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual async Task<int> InsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified)";
@@ -135,7 +139,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam4.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.created = now;
@@ -145,10 +149,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO followsMe (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified)";
@@ -174,7 +179,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam4.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     item.created = now;
@@ -184,10 +189,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual async Task<int> UpsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created) " +
                                              "VALUES (@identityId,@identity,@driveId,@created)"+
@@ -215,7 +221,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam3.Value = item.driveId.ToByteArray();
                 upsertParam4.Value = now.uniqueTime;
                 upsertParam5.Value = now.uniqueTime;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = rdr.GetInt64(0);
@@ -232,10 +238,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, FollowsMeRecord item)
+        internal virtual async Task<int> UpdateAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE followsMe " +
                                              "SET modified = @modified "+
@@ -261,7 +268,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam3.Value = item.driveId.ToByteArray();
                 updateParam4.Value = now.uniqueTime;
                 updateParam5.Value = now.uniqueTime;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.modified = now;
@@ -271,13 +278,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM followsMe; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -350,12 +358,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
+        internal async Task<int> DeleteAsync(Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId";
@@ -372,7 +381,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = identity;
                 delete0Param3.Value = driveId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
                 return count;
@@ -411,7 +420,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<FollowsMeRecord> GetAsync(DatabaseConnection conn, Guid identityId,string identity,Guid driveId)
+        internal async Task<FollowsMeRecord> GetAsync(Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -419,7 +428,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
             if (hit)
                 return (FollowsMeRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT created,modified FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
@@ -437,7 +447,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param2.Value = identity;
                 get0Param3.Value = driveId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -493,12 +503,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<List<FollowsMeRecord>> GetAsync(DatabaseConnection conn, Guid identityId,string identity)
+        internal async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
-            using (var get1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT driveId,created,modified FROM followsMe " +
                                              "WHERE identityId = @identityId AND identity = @identity;";
@@ -512,7 +523,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get1Param1.Value = identityId.ToByteArray();
                 get1Param2.Value = identity;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

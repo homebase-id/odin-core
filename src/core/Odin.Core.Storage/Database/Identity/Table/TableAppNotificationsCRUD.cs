@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class AppNotificationsRecord
     {
@@ -104,21 +104,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableAppNotificationsCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableAppNotificationsCRUD(CacheHelper cache)
+        public TableAppNotificationsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS AppNotifications("
@@ -134,15 +137,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +");"
                  +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> InsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
@@ -180,7 +184,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam7.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.created = now;
@@ -190,11 +194,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
@@ -232,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam7.Value = now.uniqueTime;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     item.created = now;
@@ -242,11 +247,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created)"+
@@ -286,7 +292,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam6.Value = item.data ?? (object)DBNull.Value;
                 upsertParam7.Value = now.uniqueTime;
                 upsertParam8.Value = now.uniqueTime;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = rdr.GetInt64(0);
@@ -303,11 +309,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, AppNotificationsRecord item)
+        internal virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE AppNotifications " +
                                              "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
@@ -345,7 +352,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam6.Value = item.data ?? (object)DBNull.Value;
                 updateParam7.Value = now.uniqueTime;
                 updateParam8.Value = now.uniqueTime;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                      item.modified = now;
@@ -355,13 +362,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -464,9 +472,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId";
@@ -479,7 +488,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = notificationId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
                 return count;
@@ -548,12 +557,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<AppNotificationsRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid notificationId)
+        internal async Task<AppNotificationsRecord> GetAsync(Guid identityId,Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
                 return (AppNotificationsRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
@@ -567,7 +577,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = notificationId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -582,14 +592,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(DatabaseConnection conn, int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        internal async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
-            using (var getPaging7Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                             "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
@@ -608,7 +619,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging7Param3.Value = identityId.ToByteArray();
 
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(getPaging7Command, System.Data.CommandBehavior.Default))
+                    await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<AppNotificationsRecord>();
                         UnixTimeUtcUnique? nextCursor;

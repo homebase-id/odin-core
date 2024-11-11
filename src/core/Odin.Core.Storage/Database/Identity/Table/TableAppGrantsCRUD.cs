@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class AppGrantsRecord
     {
@@ -72,21 +72,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableAppGrantsCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableAppGrantsCRUD(CacheHelper cache)
+        public TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS appGrants("
@@ -98,17 +101,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
                  +");"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual async Task<int> InsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
@@ -132,7 +136,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam3.Value = item.appId.ToByteArray();
                 insertParam4.Value = item.circleId.ToByteArray();
                 insertParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
@@ -141,13 +145,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual async Task<int> TryInsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
@@ -171,7 +176,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam3.Value = item.appId.ToByteArray();
                 insertParam4.Value = item.circleId.ToByteArray();
                 insertParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
@@ -180,13 +185,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual async Task<int> UpsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
@@ -213,19 +219,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam3.Value = item.appId.ToByteArray();
                 upsertParam4.Value = item.circleId.ToByteArray();
                 upsertParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
+                var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, AppGrantsRecord item)
+        internal virtual async Task<int> UpdateAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE appGrants " +
                                              "SET data = @data "+
@@ -250,7 +257,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam3.Value = item.appId.ToByteArray();
                 updateParam4.Value = item.circleId.ToByteArray();
                 updateParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
@@ -259,13 +266,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM appGrants; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -350,9 +358,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId";
@@ -373,7 +382,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param2.Value = odinHashId.ToByteArray();
                 delete0Param3.Value = appId.ToByteArray();
                 delete0Param4.Value = circleId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
                 return count;
@@ -427,9 +436,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(DatabaseConnection conn, Guid identityId,Guid odinHashId)
+        internal async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid identityId,Guid odinHashId)
         {
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId;";
@@ -443,7 +453,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = odinHashId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -492,12 +502,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<AppGrantsRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        internal async Task<AppGrantsRecord> GetAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
             if (hit)
                 return (AppGrantsRecord)cacheObject;
-            using (var get1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT data FROM appGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;";
@@ -519,7 +530,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get1Param3.Value = appId.ToByteArray();
                 get1Param4.Value = circleId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

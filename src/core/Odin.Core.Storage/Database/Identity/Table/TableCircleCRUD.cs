@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class CircleRecord
     {
@@ -65,21 +65,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableCircleCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableCircleCRUD(CacheHelper cache)
+        public TableCircleCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS circle;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS circle("
@@ -90,15 +93,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +", PRIMARY KEY (identityId,circleId)"
                  +");"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, CircleRecord item)
+        internal virtual async Task<int> InsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)";
@@ -118,7 +122,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam2.Value = item.circleName;
                 insertParam3.Value = item.circleId.ToByteArray();
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
@@ -127,11 +131,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, CircleRecord item)
+        internal virtual async Task<int> TryInsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)";
@@ -151,7 +156,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam2.Value = item.circleName;
                 insertParam3.Value = item.circleId.ToByteArray();
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableCircleCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
@@ -160,11 +165,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, CircleRecord item)
+        internal virtual async Task<int> UpsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
                                              "VALUES (@identityId,@circleName,@circleId,@data)"+
@@ -187,17 +193,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam2.Value = item.circleName;
                 upsertParam3.Value = item.circleId.ToByteArray();
                 upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
+                var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.AddOrUpdate("TableCircleCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, CircleRecord item)
+        internal virtual async Task<int> UpdateAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE circle " +
                                              "SET circleName = @circleName,data = @data "+
@@ -218,7 +225,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam2.Value = item.circleName;
                 updateParam3.Value = item.circleId.ToByteArray();
                 updateParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
@@ -227,13 +234,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circle; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -304,9 +312,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid circleId)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId";
@@ -319,7 +328,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = circleId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableCircleCRUD", identityId.ToString()+circleId.ToString());
                 return count;
@@ -360,12 +369,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<CircleRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid circleId)
+        internal async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
                 return (CircleRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT circleName,data FROM circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1;";
@@ -379,7 +389,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = circleId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -394,14 +404,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(DatabaseConnection conn, int count, Guid identityId, Guid? inCursor)
+        internal async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
                 inCursor = Guid.Empty;
 
-            using (var getPaging3Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging3Command = cn.CreateCommand();
             {
                 getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT $_count;";
@@ -420,7 +431,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getPaging3Param3.Value = identityId.ToByteArray();
 
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(getPaging3Command, System.Data.CommandBehavior.Default))
+                    await using (var rdr = await getPaging3Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
                         Guid? nextCursor;

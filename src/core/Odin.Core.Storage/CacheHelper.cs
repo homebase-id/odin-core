@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Specialized;
-using System.Data;
 using System.Runtime.Caching;
-using System.Xml.Linq;
 
-namespace Odin.Core.Storage.SQLite
+namespace Odin.Core.Storage
 {
     /*
      *  If we want to cache more than atomic records then we can add a List<string> facets as

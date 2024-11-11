@@ -1,10 +1,12 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -69,23 +71,23 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS attestationStatus("
-                     +"attestationId BLOB NOT NULL UNIQUE, "
-                     +"status INT NOT NULL, "
-                     +"created INT NOT NULL, "
-                     +"modified INT  "
-                     +", PRIMARY KEY (attestationId)"
-                     +");"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS attestationStatus("
+                 +"attestationId BLOB NOT NULL UNIQUE, "
+                 +"status INT NOT NULL, "
+                 +"created INT NOT NULL, "
+                 +"modified INT  "
+                 +", PRIMARY KEY (attestationId)"
+                 +");"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
@@ -120,7 +122,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
@@ -154,7 +156,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
@@ -183,23 +185,21 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 upsertParam2.Value = item.status;
                 upsertParam3.Value = now.uniqueTime;
                 upsertParam4.Value = now.uniqueTime;
-                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
+                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                   if (rdr.Read())
-                   {
-                      long created = rdr.GetInt64(0);
-                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                      item.created = new UnixTimeUtcUnique(created);
-                      if (modified != null)
-                         item.modified = new UnixTimeUtcUnique((long)modified);
-                      else
-                         item.modified = null;
-                      _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
-                      return 1;
-                   }
+                   long created = rdr.GetInt64(0);
+                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                   item.created = new UnixTimeUtcUnique(created);
+                   if (modified != null)
+                      item.modified = new UnixTimeUtcUnique((long)modified);
+                   else
+                      item.modified = null;
+                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                   return 1;
                 }
                 return 0;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationStatusRecord item)
@@ -221,7 +221,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam4);
-             var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtcUnique.Now();
                 updateParam1.Value = item.attestationId;
                 updateParam2.Value = item.status;
                 updateParam3.Value = now.uniqueTime;
@@ -233,7 +233,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -325,7 +325,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                     _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
-            } // Using
+            }
         }
 
         public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr, byte[] attestationId)

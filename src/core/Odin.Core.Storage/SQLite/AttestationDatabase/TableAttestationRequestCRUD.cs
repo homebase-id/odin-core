@@ -1,10 +1,12 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -62,22 +64,22 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS attestationRequest("
-                     +"attestationId STRING NOT NULL UNIQUE, "
-                     +"requestEnvelope STRING NOT NULL UNIQUE, "
-                     +"timestamp INT NOT NULL "
-                     +", PRIMARY KEY (attestationId)"
-                     +");"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS attestationRequest("
+                 +"attestationId STRING NOT NULL UNIQUE, "
+                 +"requestEnvelope STRING NOT NULL UNIQUE, "
+                 +"timestamp INT NOT NULL "
+                 +", PRIMARY KEY (attestationId)"
+                 +");"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
@@ -105,7 +107,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AttestationRequestRecord item)
@@ -132,7 +134,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpsertAsync(DatabaseConnection conn, AttestationRequestRecord item)
@@ -160,7 +162,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 return count;
-            } // Using
+            }
         }
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationRequestRecord item)
         {
@@ -187,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -265,7 +267,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                     _cache.Remove("TableAttestationRequestCRUD", attestationId);
                 return count;
-            } // Using
+            }
         }
 
         public AttestationRequestRecord ReadRecordFromReader0(DbDataReader rdr, string attestationId)
@@ -353,7 +355,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 getPaging1Param2.Value = count+1;
 
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(getPaging1Command, System.Data.CommandBehavior.Default))
+                    await using (var rdr = await conn.ExecuteReaderAsync(getPaging1Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AttestationRequestRecord>();
                         string nextCursor;

@@ -1,10 +1,12 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -127,27 +129,27 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS notaryChain("
-                     +"previousHash BLOB NOT NULL UNIQUE, "
-                     +"identity STRING NOT NULL, "
-                     +"timestamp INT NOT NULL, "
-                     +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                     +"algorithm STRING NOT NULL, "
-                     +"publicKeyJwkBase64Url STRING NOT NULL, "
-                     +"notarySignature BLOB NOT NULL UNIQUE, "
-                     +"recordHash BLOB NOT NULL UNIQUE "
-                     +", PRIMARY KEY (notarySignature)"
-                     +");"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS notaryChain("
+                 +"previousHash BLOB NOT NULL UNIQUE, "
+                 +"identity STRING NOT NULL, "
+                 +"timestamp INT NOT NULL, "
+                 +"signedPreviousHash BLOB NOT NULL UNIQUE, "
+                 +"algorithm STRING NOT NULL, "
+                 +"publicKeyJwkBase64Url STRING NOT NULL, "
+                 +"notarySignature BLOB NOT NULL UNIQUE, "
+                 +"recordHash BLOB NOT NULL UNIQUE "
+                 +", PRIMARY KEY (notarySignature)"
+                 +");"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
@@ -195,7 +197,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
@@ -242,7 +244,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpsertAsync(DatabaseConnection conn, NotaryChainRecord item)
@@ -290,7 +292,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 return count;
-            } // Using
+            }
         }
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, NotaryChainRecord item)
         {
@@ -337,7 +339,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -479,7 +481,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 if (count > 0)
                     _cache.Remove("TableNotaryChainCRUD", notarySignature.ToBase64());
                 return count;
-            } // Using
+            }
         }
 
         public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr, byte[] notarySignature)

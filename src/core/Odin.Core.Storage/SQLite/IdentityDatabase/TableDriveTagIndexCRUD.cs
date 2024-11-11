@@ -1,10 +1,13 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
+using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -64,33 +67,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveTagIndex("
-                     +"identityId BLOB NOT NULL, "
-                     +"driveId BLOB NOT NULL, "
-                     +"fileId BLOB NOT NULL, "
-                     +"tagId BLOB NOT NULL "
-                     +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
-                     +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveTagIndex("
+                 +"identityId BLOB NOT NULL, "
+                 +"driveId BLOB NOT NULL, "
+                 +"fileId BLOB NOT NULL, "
+                 +"tagId BLOB NOT NULL "
+                 +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
+                 +");"
+                 +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
         internal virtual async Task<int> InsertAsync(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -116,15 +119,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -150,15 +153,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
             using (var upsertCommand = conn.db.CreateCommand())
             {
                 upsertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
@@ -184,14 +187,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam4.Value = item.tagId.ToByteArray();
                 var count = await conn.ExecuteNonQueryAsync(upsertCommand);
                 return count;
-            } // Using
+            }
         }
         internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.tagId, "Guid parameter tagId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE driveTagIndex " +
@@ -218,7 +221,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -249,6 +252,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (var getCountDriveCommand = conn.db.CreateCommand())
             {
+                 // TODO: this is SQLite specific
                 getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
@@ -340,7 +344,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param4.Value = tagId.ToByteArray();
                 var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 return count;
-            } // Using
+            }
         }
 
         internal async Task<int> DeleteAllRowsAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
@@ -364,7 +368,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete1Param3.Value = fileId.ToByteArray();
                 var count = await conn.ExecuteNonQueryAsync(delete1Command);
                 return count;
-            } // Using
+            }
         }
 
         internal DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)

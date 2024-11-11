@@ -1,10 +1,13 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
+using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -76,31 +79,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS imFollowing;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS imFollowing("
-                     +"identityId BLOB NOT NULL, "
-                     +"identity STRING NOT NULL, "
-                     +"driveId BLOB NOT NULL, "
-                     +"created INT NOT NULL, "
-                     +"modified INT  "
-                     +", PRIMARY KEY (identityId,identity,driveId)"
-                     +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS imFollowing;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS imFollowing("
+                 +"identityId BLOB NOT NULL, "
+                 +"identity STRING NOT NULL, "
+                 +"driveId BLOB NOT NULL, "
+                 +"created INT NOT NULL, "
+                 +"modified INT  "
+                 +", PRIMARY KEY (identityId,identity,driveId)"
+                 +");"
+                 +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
         internal virtual async Task<int> InsertAsync(DatabaseConnection conn, ImFollowingRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created,modified) " +
@@ -134,12 +137,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, ImFollowingRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO imFollowing (identityId,identity,driveId,created,modified) " +
@@ -173,12 +176,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, ImFollowingRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var upsertCommand = conn.db.CreateCommand())
             {
                 upsertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created) " +
@@ -207,28 +210,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam3.Value = item.driveId.ToByteArray();
                 upsertParam4.Value = now.uniqueTime;
                 upsertParam5.Value = now.uniqueTime;
-                using (var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow))
+                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                   if (rdr.Read())
-                   {
-                      long created = rdr.GetInt64(0);
-                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                      item.created = new UnixTimeUtcUnique(created);
-                      if (modified != null)
-                         item.modified = new UnixTimeUtcUnique((long)modified);
-                      else
-                         item.modified = null;
-                      _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
-                      return 1;
-                   }
+                   long created = rdr.GetInt64(0);
+                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                   item.created = new UnixTimeUtcUnique(created);
+                   if (modified != null)
+                      item.modified = new UnixTimeUtcUnique((long)modified);
+                   else
+                      item.modified = null;
+                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
+                   return 1;
                 }
                 return 0;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, ImFollowingRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE imFollowing " +
@@ -249,7 +250,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var updateParam5 = updateCommand.CreateParameter();
                 updateParam5.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam5);
-             var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtcUnique.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.identity.DomainName;
                 updateParam3.Value = item.driveId.ToByteArray();
@@ -262,7 +263,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -367,7 +368,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                     _cache.Remove("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString());
                 return count;
-            } // Using
+            }
         }
 
         internal ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)

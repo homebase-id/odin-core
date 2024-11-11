@@ -14,7 +14,7 @@ using Odin.Core.Util;
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 [assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class KeyValueRecord
     {
@@ -58,21 +58,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableKeyValueCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableKeyValueCRUD(CacheHelper cache)
+        public TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyValue("
@@ -82,14 +85,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +", PRIMARY KEY (identityId,key)"
                  +");"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)";
@@ -105,7 +109,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -114,10 +118,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> TryInsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)";
@@ -133,7 +138,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -142,10 +147,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> UpsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data)"+
@@ -164,16 +170,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.key;
                 upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
+                var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyValueRecord item)
+        internal virtual async Task<int> UpdateAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE keyValue " +
                                              "SET data = @data "+
@@ -190,7 +197,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.key;
                 updateParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
@@ -199,13 +206,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyValue; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -271,12 +279,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal async Task<int> DeleteAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM keyValue " +
                                              "WHERE identityId = @identityId AND key = @key";
@@ -289,7 +298,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = key;
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
                 return count;
@@ -326,7 +335,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<KeyValueRecord> GetAsync(DatabaseConnection conn, Guid identityId,byte[] key)
+        internal async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -334,7 +343,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
             if (hit)
                 return (KeyValueRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT data FROM keyValue " +
                                              "WHERE identityId = @identityId AND key = @key LIMIT 1;";
@@ -348,7 +358,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = key;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

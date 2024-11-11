@@ -11,7 +11,7 @@ using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.IdentityDatabase
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveAclIndexRecord
     {
@@ -59,20 +59,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class TableDriveAclIndexCRUD
     {
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableDriveAclIndexCRUD(CacheHelper cache)
+        public TableDriveAclIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             {
                 if (dropExisting)
                 {
                    cmd.CommandText = "DROP TABLE IF EXISTS driveAclIndex;";
-                   await conn.ExecuteNonQueryAsync(cmd);
+                   await cmd.ExecuteNonQueryAsync();
                 }
                 cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveAclIndex("
@@ -84,17 +87,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                  +");"
                  +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
                  ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DatabaseConnection conn, DriveAclIndexRecord item)
+        internal virtual async Task<int> InsertAsync(DriveAclIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)";
@@ -114,7 +118,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.aclMemberId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                 }
@@ -122,13 +126,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, DriveAclIndexRecord item)
+        internal virtual async Task<int> TryInsertAsync(DriveAclIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)";
@@ -148,7 +153,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.aclMemberId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
+                var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                 }
@@ -156,13 +161,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, DriveAclIndexRecord item)
+        internal virtual async Task<int> UpsertAsync(DriveAclIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO driveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
@@ -185,17 +191,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 upsertParam2.Value = item.driveId.ToByteArray();
                 upsertParam3.Value = item.fileId.ToByteArray();
                 upsertParam4.Value = item.aclMemberId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
+                var count = await upsertCommand.ExecuteNonQueryAsync();
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, DriveAclIndexRecord item)
+        internal virtual async Task<int> UpdateAsync(DriveAclIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE driveAclIndex " +
                                              "SET  "+
@@ -216,7 +223,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 updateParam2.Value = item.driveId.ToByteArray();
                 updateParam3.Value = item.fileId.ToByteArray();
                 updateParam4.Value = item.aclMemberId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
+                var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                 }
@@ -224,13 +231,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        internal virtual async Task<int> GetCountDirtyAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex; PRAGMA read_uncommitted = 0;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -248,9 +256,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return sl;
         }
 
-        internal virtual async Task<int> GetDriveCountDirtyAsync(DatabaseConnection conn, Guid driveId)
+        internal virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
-            using (var getCountDriveCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountDriveCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
@@ -258,7 +267,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
                 getCountDriveParam1.Value = driveId.ToByteArray();
-                var count = await conn.ExecuteScalarAsync(getCountDriveCommand);
+                var count = await getCountDriveCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -319,9 +328,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<int> DeleteAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        internal async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId";
@@ -342,14 +352,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = fileId.ToByteArray();
                 delete0Param4.Value = aclMemberId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        internal async Task<int> DeleteAllRowsAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var delete1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete1Command = cn.CreateCommand();
             {
                 delete1Command.CommandText = "DELETE FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
@@ -366,7 +377,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 delete1Param1.Value = identityId.ToByteArray();
                 delete1Param2.Value = driveId.ToByteArray();
                 delete1Param3.Value = fileId.ToByteArray();
-                var count = await conn.ExecuteNonQueryAsync(delete1Command);
+                var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
@@ -387,9 +398,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        internal async Task<DriveAclIndexRecord> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        internal async Task<DriveAclIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT identityId,driveId,fileId,aclMemberId FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;";
@@ -411,7 +423,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get0Param3.Value = fileId.ToByteArray();
                 get0Param4.Value = aclMemberId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -424,9 +436,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        internal async Task<List<Guid>> GetAsync(DatabaseConnection conn, Guid identityId,Guid driveId,Guid fileId)
+        internal async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
-            using (var get1Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT aclMemberId FROM driveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
@@ -444,7 +457,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 get1Param2.Value = driveId.ToByteArray();
                 get1Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get1Command, System.Data.CommandBehavior.Default))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();

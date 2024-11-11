@@ -1,6 +1,7 @@
 using Autofac;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Factory.Sqlite;
 
@@ -10,6 +11,8 @@ public static class SystemExtensions
 {
     public static ContainerBuilder AddSqliteSystemDatabaseServices(this ContainerBuilder cb, string databasePath)
     {
+        cb.RegisterSystemCommon();
+        
         cb.RegisterType<SqlitePoolBoy>().InstancePerLifetimeScope();
 
         cb.Register(c =>
@@ -27,8 +30,6 @@ public static class SystemExtensions
             .As<ISystemDbConnectionFactory>()
             .InstancePerLifetimeScope(); // Per scope so the pool boy can do his job when scope exists
 
-        cb.RegisterType<ScopedSystemConnectionFactory>().InstancePerLifetimeScope();
-
         return cb;
     }
 
@@ -36,12 +37,26 @@ public static class SystemExtensions
 
     public static ContainerBuilder AddPgsqlSystemDatabaseServices(this ContainerBuilder cb, string connectionString)
     {
+        cb.RegisterSystemCommon();
+        
         cb.Register(_ => new PgsqlSystemDbConnectionFactory(connectionString))
             .As<ISystemDbConnectionFactory>()
             .SingleInstance();
 
+        return cb;
+    }
+    
+    //
+    
+    private static ContainerBuilder RegisterSystemCommon(this ContainerBuilder cb)
+    {
+        // Connection
         cb.RegisterType<ScopedSystemConnectionFactory>().InstancePerLifetimeScope();
+        
+        // Tables
+        cb.RegisterType<TableJobsCRUD>().InstancePerLifetimeScope();
 
         return cb;
     }
+    
 }

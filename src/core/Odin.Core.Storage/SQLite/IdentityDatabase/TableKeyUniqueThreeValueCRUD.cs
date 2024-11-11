@@ -1,10 +1,13 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Factory;
+using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -87,33 +90,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
-                     +"identityId BLOB NOT NULL, "
-                     +"key1 BLOB NOT NULL UNIQUE, "
-                     +"key2 BLOB NOT NULL, "
-                     +"key3 BLOB NOT NULL, "
-                     +"data BLOB  "
-                     +", PRIMARY KEY (identityId,key1)"
-                     +", UNIQUE(identityId,key2,key3)"
-                     +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
+                 +"identityId BLOB NOT NULL, "
+                 +"key1 BLOB NOT NULL UNIQUE, "
+                 +"key2 BLOB NOT NULL, "
+                 +"key3 BLOB NOT NULL, "
+                 +"data BLOB  "
+                 +", PRIMARY KEY (identityId,key1)"
+                 +", UNIQUE(identityId,key2,key3)"
+                 +");"
+                 +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
+                 +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
         internal virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO keyUniqueThreeValue (identityId,key1,key2,key3,data) " +
@@ -144,12 +147,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT OR IGNORE INTO keyUniqueThreeValue (identityId,key1,key2,key3,data) " +
@@ -180,12 +183,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var upsertCommand = conn.db.CreateCommand())
             {
                 upsertCommand.CommandText = "INSERT INTO keyUniqueThreeValue (identityId,key1,key2,key3,data) " +
@@ -217,11 +220,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 return count;
-            } // Using
+            }
         }
         internal virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyUniqueThreeValueRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE keyUniqueThreeValue " +
@@ -253,7 +256,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         internal virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -378,7 +381,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                     _cache.Remove("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64());
                 return count;
-            } // Using
+            }
         }
 
         internal async Task<List<byte[]>> GetByKeyTwoAsync(DatabaseConnection conn, Guid identityId,byte[] key2)

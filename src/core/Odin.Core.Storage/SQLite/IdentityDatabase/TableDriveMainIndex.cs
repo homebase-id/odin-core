@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Org.BouncyCastle.Crypto.Engines;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
@@ -71,15 +72,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         // REMOVED TransferHistory and ReactionUpdate by hand
         public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DatabaseConnection conn, DriveMainIndexRecord item)
         {
-            DatabaseBase.AssertGuidNotEmpty(item.identityId, "Guid parameter identityId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.driveId, "Guid parameter driveId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.fileId, "Guid parameter fileId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.globalTransitId, "Guid parameter globalTransitId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.groupId, "Guid parameter groupId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.uniqueId, "Guid parameter uniqueId cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.hdrVersionTag, "Guid parameter hdrVersionTag cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveAlias, "Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
-            DatabaseBase.AssertGuidNotEmpty(item.hdrTmpDriveType, "Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
+            item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
+            item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
+            item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 
             using (var upsertCommand = conn.db.CreateCommand())
             {

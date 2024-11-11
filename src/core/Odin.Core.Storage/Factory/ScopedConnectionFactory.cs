@@ -399,6 +399,10 @@ namespace Odin.Core.Storage.Factory;
             }
             
             //
+            
+            public DbParameterCollection Parameters => command.Parameters;
+            
+            //
 
             public void Cancel()
             {
