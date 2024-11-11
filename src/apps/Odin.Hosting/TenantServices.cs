@@ -293,7 +293,7 @@ namespace Odin.Hosting
                     cb.AddSqliteIdentityDatabaseServices(Path.Combine(headersPath, "identity.db"));
                     break;
                 }
-                case DatabaseType.PostgreSql:
+                case DatabaseType.Postgres:
                     cb.AddPgsqlIdentityDatabaseServices(config.Database.ConnectionString);
                     break;
                 default:

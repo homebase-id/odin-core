@@ -6,7 +6,7 @@ namespace Odin.Core.Storage.Database;
 public enum DatabaseType
 {
     Sqlite,
-    PostgreSql
+    Postgres
 }
 
 public static class DatabaseExtensions

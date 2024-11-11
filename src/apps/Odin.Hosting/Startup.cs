@@ -261,7 +261,7 @@ namespace Odin.Hosting
                     Directory.CreateDirectory(_config.Host.SystemDataRootPath); // SEB:TODO move this out of service registration
                     builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
                     break;
-                case DatabaseType.PostgreSql:
+                case DatabaseType.Postgres:
                     builder.AddPgsqlSystemDatabaseServices(_config.Database.ConnectionString);
                     break;
                 default:

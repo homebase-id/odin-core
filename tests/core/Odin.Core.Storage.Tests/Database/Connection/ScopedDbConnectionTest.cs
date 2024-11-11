@@ -62,7 +62,7 @@ public class ScopedConnectionFactoryTest
             case DatabaseType.Sqlite:
                 builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
                 break;
-            case DatabaseType.PostgreSql:
+            case DatabaseType.Postgres:
                 builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
                 break;
             default:
