@@ -161,7 +161,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
         if (_stoppingCts.IsCancellationRequested)
         {
-            throw new InvalidOperationException("The background service manager is stopping.");
+            return;
         }
 
         ScopedAbstractBackgroundService? backgroundService;
