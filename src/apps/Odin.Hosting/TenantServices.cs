@@ -46,6 +46,7 @@ using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
+using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.AppNotification;
@@ -252,6 +253,7 @@ namespace Odin.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().SingleInstance();
+            cb.RegisterType<V1ToV2VersionMigrationService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
 

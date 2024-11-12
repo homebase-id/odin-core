@@ -641,6 +641,8 @@ namespace Odin.Services.Membership.Connections
             var circleDefinitions = (await circleDefinitionService.GetCirclesAsync(true)).ToList();
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
+            info.Icr = icr.Redacted();
+
             ArgumentNullException.ThrowIfNull(icr);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant.CircleGrants);
@@ -779,10 +781,14 @@ namespace Odin.Services.Membership.Connections
             //
         }
 
-        public async Task<VerifyConnectionResponse> VerifyConnectionCodeAsync(IOdinContext odinContext)
+        public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsConnected)
             {
+                logger.LogDebug("Verification Connection Code - not connected, " +
+                                "returning null hash.(AuthContext:{ac})",
+                    odinContext.AuthContext);
+
                 return new VerifyConnectionResponse
                 {
                     IsConnected = false,
@@ -793,7 +799,7 @@ namespace Odin.Services.Membership.Connections
             //look up the verification hash on the caller's icr
             var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
 
-            if (callerIcr.VerificationHash?.Length == 0)
+            if (callerIcr.VerificationHash.IsNullOrEmpty())
             {
                 throw new OdinSecurityException("Cannot verify caller");
             }
@@ -840,7 +846,7 @@ namespace Odin.Services.Membership.Connections
             //);
         }
 
-        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, IOdinContext odinContext)
+        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret, IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsOwner)
             {
@@ -850,7 +856,8 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
+
+            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
@@ -861,8 +868,7 @@ namespace Odin.Services.Membership.Connections
                     return false;
                 }
 
-                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
+                var hash = this.CreateVerificationHash(randomCode, sharedSecret);
 
                 await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
@@ -1211,7 +1217,8 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity,
+            IOdinContext odinContext)
         {
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {

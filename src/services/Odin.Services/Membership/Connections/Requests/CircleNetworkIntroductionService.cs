@@ -21,6 +21,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
@@ -379,7 +380,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 {
                     var json = OdinSystemSerializer.Serialize(introduction);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
+                    var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.MakeIntroduction(encryptedPayload);
