@@ -828,7 +828,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // Sanity
                 if (recipientItem.LatestTransferStatus == LatestTransferStatus.Invalid)
                 {
-                    throw new OdinSystemException("Invalid transfer status");
+                    _logger.LogError("Invalid transfer status");
                 }
 
                 header.ServerMetadata.TransferHistory = history;
