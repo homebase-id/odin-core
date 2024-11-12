@@ -825,12 +825,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
                 }
 
-                // Sanity
-                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Invalid)
-                {
-                    _logger.LogError("UpdateTransferHistory: Invalid transfer status");
-                }
-
                 header.ServerMetadata.TransferHistory = history;
 
                 _logger.LogDebug(

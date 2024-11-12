@@ -38,11 +38,6 @@ public class RecipientTransferHistoryItem
 public enum LatestTransferStatus
 {
     /// <summary>
-    /// Invalid status
-    /// </summary>
-    Invalid = 0,
-
-    /// <summary>
     /// Item was delivered to the recipient server
     /// </summary>
     Delivered = 10,
