@@ -101,12 +101,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class AppNotificationsRecord
 
-    public class TableAppNotificationsCRUD
+    public abstract class TableAppNotificationsCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableAppNotificationsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableAppNotificationsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

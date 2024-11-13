@@ -70,11 +70,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class DriveReactionsRecord
 
-    public class TableDriveReactionsCRUD
+    public abstract class TableDriveReactionsCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableDriveReactionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveReactionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

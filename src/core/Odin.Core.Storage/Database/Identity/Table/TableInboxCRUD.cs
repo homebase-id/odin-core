@@ -109,11 +109,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class InboxRecord
 
-    public class TableInboxCRUD
+    public abstract class TableInboxCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableInboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableInboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

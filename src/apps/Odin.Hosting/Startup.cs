@@ -178,8 +178,6 @@ namespace Odin.Hosting
                 PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<ServerSystemStorage>();
-
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 

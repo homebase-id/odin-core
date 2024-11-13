@@ -162,11 +162,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class OutboxRecord
 
-    public class TableOutboxCRUD
+    public abstract class TableOutboxCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

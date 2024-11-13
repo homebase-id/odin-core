@@ -78,12 +78,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class KeyUniqueThreeValueRecord
 
-    public class TableKeyUniqueThreeValueCRUD
+    public abstract class TableKeyUniqueThreeValueCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableKeyUniqueThreeValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableKeyUniqueThreeValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

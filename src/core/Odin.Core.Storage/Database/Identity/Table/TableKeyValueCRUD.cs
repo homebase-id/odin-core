@@ -55,12 +55,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class KeyValueRecord
 
-    public class TableKeyValueCRUD
+    public abstract class TableKeyValueCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

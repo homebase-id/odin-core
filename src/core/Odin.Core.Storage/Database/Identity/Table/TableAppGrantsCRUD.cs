@@ -69,12 +69,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class AppGrantsRecord
 
-    public class TableAppGrantsCRUD
+    public abstract class TableAppGrantsCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

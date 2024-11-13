@@ -18,7 +18,7 @@ public static class DatabaseExtensions
     // Note: be sure to also call this in any sub-scopes if isolation is required
     public static ContainerBuilder AddDatabaseCacheServices(this ContainerBuilder cb)
     {
-        cb.RegisterType<CacheHelper>().SingleInstance();
+        cb.RegisterInstance(new CacheHelper("database"));
         return cb;
     }
 }

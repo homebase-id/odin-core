@@ -72,12 +72,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class FollowsMeRecord
 
-    public class TableFollowsMeCRUD
+    public abstract class TableFollowsMeCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

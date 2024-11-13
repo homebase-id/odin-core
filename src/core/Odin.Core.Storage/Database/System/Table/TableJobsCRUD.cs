@@ -222,11 +222,11 @@ namespace Odin.Core.Storage.Database.System.Table
         }
     } // End of class JobsRecord
 
-    public class TableJobsCRUD
+    public abstract class TableJobsCRUD
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        public TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        protected TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

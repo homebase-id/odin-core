@@ -305,11 +305,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class DriveMainIndexRecord
 
-    public class TableDriveMainIndexCRUD
+    public abstract class TableDriveMainIndexCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
