@@ -20,6 +20,11 @@ namespace Odin.Services.Membership.Connections.Requests
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply);
-        
+
+        /// <summary>
+        /// Makes an introduction between two identities
+        /// </summary>
+        [Post(RootPath + "/make-introduction")]
+        Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request);
     }
 }

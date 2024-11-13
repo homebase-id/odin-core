@@ -11,7 +11,7 @@ using Refit;
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
     [ApiController]
-    [Route(PeerApiPathConstants.ConnectionsV1)]
+    [Route(PeerApiPathConstants.InvitationsV1)]
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork,
         AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class ConnectionsController(
@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("verify-identity-connection")]
         public async Task<IActionResult> VerifyConnection()
         {
-            var code = await circleNetwork.GetCallerVerificationHashAsync(WebOdinContext);
+            var code = await circleNetwork.VerifyConnectionCodeAsync(WebOdinContext);
             return new JsonResult(code);
         }
 
@@ -31,7 +31,5 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             await verificationService.SynchronizeVerificationHashFromRemoteAsync(payload, WebOdinContext);
             return Ok();
         }
-        
-        
     }
 }
