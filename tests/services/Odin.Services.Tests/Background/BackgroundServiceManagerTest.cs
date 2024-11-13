@@ -40,7 +40,12 @@ public class BackgroundServiceManagerTest
         
         builder.RegisterInstance(_logger).As<ILogger<BackgroundServiceManager>>();
         builder.RegisterInstance(TestLogFactory.CreateConsoleLogger(_logEventMemoryStore)).As<ILogger>();
-        
+
+        builder.RegisterType<BackgroundServiceManager>()
+            .WithParameter(new TypedParameter(typeof(string), _tenant.ToString()))
+            .As<IBackgroundServiceManager>()
+            .SingleInstance();
+
         builder.RegisterType<ThrowingBackgroundService>().InstancePerDependency();
         builder.RegisterType<NoOpBackgroundService>().InstancePerDependency();
         builder.RegisterType<LoopingBackgroundService>().InstancePerDependency();
@@ -52,8 +57,10 @@ public class BackgroundServiceManagerTest
         builder.RegisterType<ScopeTestBackgroundService>().InstancePerDependency();
 
         builder.RegisterType<PulseTestBackgroundService>().InstancePerDependency();
+        builder.RegisterType<BackgroundServiceTrigger<PulseTestBackgroundService>>()
+            .As<IBackgroundServiceTrigger<PulseTestBackgroundService>>()
+            .SingleInstance();
 
-        
         _container = builder.Build();
     }
 
@@ -65,7 +72,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldLogUnhandledExceptions()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
         await manager.StartAsync<ThrowingBackgroundService>("dummy-service");
         await Task.Delay(1);
 
@@ -78,7 +85,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public void ItShouldThrowOnUnknownService()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
         
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => 
             await manager.StartAsync(_container.Resolve<NoOpBackgroundService>())); 
@@ -89,7 +96,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public void ItShouldThrowOnDuplicateServiceIdentifier()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
 
         manager.Create<NoOpBackgroundService>("asdasdasd");
         
@@ -102,7 +109,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopAServiceWithoutLoop()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
 
         var service = await manager.StartAsync<NoOpBackgroundService>("dummy-service");
         await Task.Delay(1);
@@ -124,7 +131,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopAServiceWithLoop()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
 
         var sw = Stopwatch.StartNew();
 
@@ -150,7 +157,7 @@ public class BackgroundServiceManagerTest
      [Test]
      public async Task ItShouldStartAndStopManyServicesWithLoop()
      {
-         var manager = new BackgroundServiceManager(_container, _tenant.Name);
+         var manager = _container.Resolve<IBackgroundServiceManager>();
          
          const int serviceCount = 100;
          var services = new List<Task<LoopingBackgroundService>>();
@@ -192,7 +199,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoopSleepAndWakeUpManyTimes()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
 
         for (var iteration = 0; iteration < 3; iteration++)
         {
@@ -257,7 +264,7 @@ public class BackgroundServiceManagerTest
     [Test]
     public async Task WillFailIfBackgroundServiceManagerUsesAutoResetEventInsteadOfManualResetEvent()
     {
-        var manager = new BackgroundServiceManager(_container, _tenant.Name);
+        var manager = _container.Resolve<IBackgroundServiceManager>();
         var service = await manager.StartAsync<ResetEventDemo>("foo");
 
         var sw = Stopwatch.StartNew();
@@ -278,7 +285,7 @@ public class BackgroundServiceManagerTest
      [Test]
      public async Task ItShouldResetDurationOnBadSleepDuration()
      {
-         var manager = new BackgroundServiceManager(_container, _tenant.Name);
+         var manager = _container.Resolve<IBackgroundServiceManager>();
 
          // Good sleep
          {
@@ -379,7 +386,7 @@ public class BackgroundServiceManagerTest
          //   and not the child scope.
          //
          
-         var manager = new BackgroundServiceManager(_container, _tenant.Name);
+         var manager = _container.Resolve<IBackgroundServiceManager>();
          
          // Sanity
          var scopedTestValue = _container.Resolve<ScopedTestValue>();
@@ -420,9 +427,9 @@ public class BackgroundServiceManagerTest
      [Test]
      public async Task ItShouldWakeSleepingBackgroundService()
      {
-         var manager = new BackgroundServiceManager(_container, _tenant.Name);
+         var manager = _container.Resolve<IBackgroundServiceManager>();
 
-         var service = await manager.StartAsync<PulseTestBackgroundService>("dummy-service");
+         var service = await manager.StartAsync<PulseTestBackgroundService>();
          await Task.Delay(1);
 
          Assert.True(service.DidInitialize);
@@ -433,12 +440,13 @@ public class BackgroundServiceManagerTest
          Assert.False(service.Pulsed);
 
          var otherService = _container.Resolve<PulseTestBackgroundService>();
-         manager.PulseBackgroundProcessor("dummy-service");
+         var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
+         trigger.PulseBackgroundProcessor();
          await Task.Delay(10);
          Assert.True(service.Pulsed);
          Assert.False(otherService.Pulsed);
 
-         await manager.StopAsync("dummy-service");
+         await manager.StopAsync<PulseTestBackgroundService>();
          Assert.True(service.DidInitialize);
          Assert.True(service.DidFinish);
          Assert.True(service.DidShutdown);

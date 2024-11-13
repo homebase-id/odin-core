@@ -34,7 +34,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        IBackgroundServiceTrigger backgroundServiceTrigger
+        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
@@ -76,7 +76,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
 
             return outboxStatus;
         }
@@ -126,7 +126,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
 
             return outboxStatus;
         }
@@ -195,7 +195,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -352,7 +352,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
 
             return results;
         }

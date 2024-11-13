@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Services.Background.Services;
 using Odin.Services.Background.Services.System;
 using Odin.Services.Background.Services.Tenant;
 using Odin.Services.JobManagement;
@@ -18,30 +19,15 @@ public static class BackgroundServiceExtensions
         // BackgroundServiceManager
         cb.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), "system"))
-            .As<IBackgroundServiceTrigger>()
             .As<IBackgroundServiceManager>()
             .SingleInstance();
 
-        // Background only services
-        cb.RegisterType<DummySystemBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
+        // cb.RegisterBackgroundService<DummySystemBackgroundService>();
+        cb.RegisterBackgroundService<JobCleanUpBackgroundService>();
+        cb.RegisterBackgroundService<JobRunnerBackgroundService>();
+        cb.RegisterBackgroundService<UpdateCertificatesBackgroundService>();
 
-        cb.RegisterType<JobCleanUpBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
-
-        cb.RegisterType<JobRunnerBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
-
-        cb.RegisterType<UpdateCertificatesBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
-
-        // Add more system services here
-        // They MUST be InstancePerDependency
-        // because they are using scopes internally
+        // Add more system background services here
         // ...
         // ...
     }
@@ -53,11 +39,12 @@ public static class BackgroundServiceExtensions
         var bsm = services.GetRequiredService<IBackgroundServiceManager>();
         
         // await bsm.StartAsync<DummySystemBackgroundService>(nameof(DummySystemBackgroundService));
-        await bsm.StartAsync<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
-        await bsm.StartAsync<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
-        await bsm.StartAsync<UpdateCertificatesBackgroundService>(nameof(UpdateCertificatesBackgroundService));
+        await bsm.StartAsync<JobCleanUpBackgroundService>();
+        await bsm.StartAsync<JobRunnerBackgroundService>();
+        await bsm.StartAsync<UpdateCertificatesBackgroundService>();
+
     }
-    
+
     //
 
     public static async Task ShutdownSystemBackgroundServices(this IServiceProvider services)
@@ -72,28 +59,16 @@ public static class BackgroundServiceExtensions
     {
         cb.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), registration.PrimaryDomainName))
-            .As<IBackgroundServiceTrigger>()
             .As<IBackgroundServiceManager>()
             .SingleInstance();
 
-        cb.RegisterType<DummyTenantBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
-        
-        cb.RegisterType<InboxOutboxReconciliationBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
-        
-        cb.RegisterType<PeerOutboxProcessorBackgroundService>()
-            .AsSelf()
-            .InstancePerDependency();
+        // cb.RegisterBackgroundService<DummyTenantBackgroundService>();
+        cb.RegisterBackgroundService<InboxOutboxReconciliationBackgroundService>();
+        cb.RegisterBackgroundService<PeerOutboxProcessorBackgroundService>();
 
-        // Add more tenant services here
-        // They MUST be InstancePerDependency
-        // because they are using scopes internally
+        // Add more tenant background services here
         // ...
         // ...
-
     }
     
     //
@@ -103,8 +78,8 @@ public static class BackgroundServiceExtensions
         var bsm = scope.Resolve<IBackgroundServiceManager>();
     
         // await bsm.StartAsync<DummyTenantBackgroundService>("dummy-tenant-background-service");
-        await bsm.StartAsync<PeerOutboxProcessorBackgroundService>(nameof(PeerOutboxProcessorBackgroundService));
-        await bsm.StartAsync<InboxOutboxReconciliationBackgroundService>(nameof(InboxOutboxReconciliationBackgroundService));
+        await bsm.StartAsync<PeerOutboxProcessorBackgroundService>();
+        await bsm.StartAsync<InboxOutboxReconciliationBackgroundService>();
     }
     
     //
@@ -123,5 +98,18 @@ public static class BackgroundServiceExtensions
     }
     
     //
-    
+
+    private static ContainerBuilder RegisterBackgroundService<TService>(this ContainerBuilder cb)
+        where TService : AbstractBackgroundService
+    {
+        cb.RegisterType<TService>()
+            .AsSelf()
+            .InstancePerDependency(); // Important!
+
+        cb.RegisterType<BackgroundServiceTrigger<TService>>()
+            .As<IBackgroundServiceTrigger<TService>>()
+            .SingleInstance();
+
+        return cb;
+    }
 }

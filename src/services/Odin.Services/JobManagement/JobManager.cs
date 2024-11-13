@@ -34,7 +34,7 @@ public class JobManager(
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
     ServerSystemStorage serverSystemStorage,
-    IBackgroundServiceTrigger backgroundServiceTrigger)
+    IBackgroundServiceTrigger<JobRunnerBackgroundService> backgroundServiceTrigger)
     : IJobManager
 {
     private readonly TableJobs _tblJobs = serverSystemStorage.Jobs;
@@ -118,7 +118,7 @@ public class JobManager(
         }
         
         // Signal job runner to wake up
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
 
         return jobId;
     }
@@ -359,7 +359,7 @@ public class JobManager(
     private async Task<int> UpdateAsync(JobsRecord record)
     {
         var updated = await _tblJobs.UpdateAsync(record);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
 
@@ -368,7 +368,7 @@ public class JobManager(
     private async Task<int> UpsertAsync(JobsRecord record)
     {
         var updated = await _tblJobs.UpsertAsync(record);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
     
@@ -377,7 +377,7 @@ public class JobManager(
     private async Task<int> DeleteAsync(JobsRecord record)
     {
         var deleted = await _tblJobs.DeleteAsync(record.id);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return deleted;
     } 
    
