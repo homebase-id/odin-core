@@ -10,7 +10,7 @@ using Odin.Hosting.Controllers.Base;
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
     [ApiController]
-    [Route(PeerApiPathConstants.ConnectionsV1)]
+    [Route(PeerApiPathConstants.InvitationsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class IntroductionsController(
         CircleNetworkIntroductionService introductionService,

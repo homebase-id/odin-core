@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,6 +56,7 @@ public class CircleNetworkVerificationService(
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
 
+
         if (!icr.IsConnected())
         {
             return new IcrVerificationResult
@@ -67,7 +67,7 @@ public class CircleNetworkVerificationService(
         }
 
         var expectedHash = icr!.VerificationHash;
-        if (expectedHash == null || expectedHash.Length == 0)
+        if (expectedHash?.Length == 0)
         {
             throw new OdinClientException("Missing verification hash", OdinClientErrorCode.MissingVerificationHash);
         }
@@ -96,8 +96,8 @@ public class CircleNetworkVerificationService(
                 async () =>
                 {
                     var client = clientAuthToken == null
-                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkPeerConnectionsClient>(recipient)
-                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkVerificationClient>(recipient)
+                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
                             clientAuthToken.ToAuthenticationToken());
 
                     response = await client.VerifyConnection();
@@ -116,14 +116,7 @@ public class CircleNetworkVerificationService(
                         else
                         {
                             var vcr = response.Content;
-                            result.RemoteIdentityWasConnected = vcr!.IsConnected;
-
-                            logger.LogDebug("Comparing verification-hash: " +
-                                            "remote identity has hash {remoteYesNo} | " +
-                                            "local identity has has: {localYesNo}",
-                                vcr.Hash?.Length > 0,
-                                expectedHash?.Length > 0);
-
+                            result.RemoteIdentityWasConnected = vcr.IsConnected;
                             if (vcr.IsConnected)
                             {
                                 result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
@@ -150,29 +143,6 @@ public class CircleNetworkVerificationService(
         return result;
     }
 
-    public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-
-        //TODO CONNECTIONS
-        // await db.CreateCommitUnitOfWorkAsync(async () =>
-        {
-            foreach (var identity in allIdentities.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (identity.VerificationHash.IsNullOrEmpty())
-                {
-                    var success = await SynchronizeVerificationHashAsync(identity.OdinId, odinContext);
-                    logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
-                }
-            }
-        }
-        //);
-    }
-
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
@@ -193,8 +163,7 @@ public class CircleNetworkVerificationService(
 
             if (success)
             {
-                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret, odinContext);
+                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, odinContext);
             }
         }
 
@@ -207,8 +176,7 @@ public class CircleNetworkVerificationService(
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode,
-            odinContext.PermissionsContext.SharedSecretKey, odinContext);
+        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
     }
 
     private async Task<bool> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode, IOdinContext odinContext)
@@ -232,28 +200,11 @@ public class CircleNetworkVerificationService(
                 {
                     var json = OdinSystemSerializer.Serialize(request);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.UpdateRemoteVerificationHash(encryptedPayload);
                     success = response.IsSuccessStatusCode;
-
-                    if (!success)
-                    {
-                        if (response.StatusCode == HttpStatusCode.Forbidden)
-                        {
-                            if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
-                                bool.Parse(values.Single()))
-                            {
-                                // The remote ICR is dead
-                                logger.LogInformation("Remote identity is no longer connected; deleting local ICR");
-                                await CircleNetworkService.DisconnectAsync(recipient, odinContext);
-                                return;
-                            }
-                        }
-                    }
-
-                    await response.EnsureSuccessStatusCodeAsync();
                 });
         }
         catch (TryRetryException e)

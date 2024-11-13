@@ -4,14 +4,14 @@ using Odin.Services.Base;
 using Odin.Services.Peer;
 using Refit;
 
-namespace Odin.Services.Membership.Connections
+namespace Odin.Services.Membership.Connections.Verification
 {
     /// <summary>
     /// Sends connection requests and acceptances to other Digital Identities
     /// </summary>
-    public interface ICircleNetworkPeerConnectionsClient
+    public interface ICircleNetworkVerificationClient
     {
-        private const string RootPath = PeerApiPathConstants.ConnectionsV1;
+        private const string RootPath = PeerApiPathConstants.InvitationsV1;
 
         /// <summary>
         /// Verifies a connection is valid between two identities
@@ -25,10 +25,5 @@ namespace Odin.Services.Membership.Connections
         [Post(RootPath + "/update-remote-verification-hash")]
         Task<ApiResponse<HttpContent>> UpdateRemoteVerificationHash(SharedSecretEncryptedPayload payload);
 
-        /// <summary>
-        /// Makes an introduction between two identities
-        /// </summary>
-        [Post(RootPath + "/make-introduction")]
-        Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request);
     }
 }

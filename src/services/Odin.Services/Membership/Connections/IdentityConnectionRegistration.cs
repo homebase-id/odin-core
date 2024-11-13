@@ -102,7 +102,7 @@ namespace Odin.Services.Membership.Connections
             {
                 throw new OdinSecurityException("missing icr key");
             }
-
+            
             var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
             return cat;
         }
@@ -123,8 +123,7 @@ namespace Odin.Services.Membership.Connections
                 IntroducerOdinId = this.IntroducerOdinId,
                 ConnectionRequestOrigin = this.ConnectionRequestOrigin,
                 AccessGrant = this.AccessGrant?.Redacted(),
-                Rku = EncryptedClientAccessToken == null,
-                HasVerificationHash = !this.VerificationHash.IsNullOrEmpty()
+                Rku = EncryptedClientAccessToken == null
             };
         }
     }
@@ -145,8 +144,6 @@ namespace Odin.Services.Membership.Connections
         public ContactRequestData OriginalContactData { get; init; }
         public OdinId? IntroducerOdinId { get; init; }
         public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; }
-
-        public bool HasVerificationHash { get; init; }
 
         public bool Rku { get; init; }
     }

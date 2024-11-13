@@ -6,24 +6,19 @@ namespace Odin.Core
 {
     public static class ArrayExtensions
     {
-        /*
-         * Dont think this is needed
-         *
-         public static UnixTimeUtcSeconds ToUnixTimeUtcSeconds(this DateTime dateTime)
-         {
-             return new UnixTimeUtcSeconds(dateTime);
-         }*/
-
-        public static bool IsNullOrEmpty(this byte[] bytes)
+       /*
+        * Dont think this is needed
+        * 
+        public static UnixTimeUtcSeconds ToUnixTimeUtcSeconds(this DateTime dateTime)
         {
-            return bytes == null || bytes.Length == 0;
-        }
-
+            return new UnixTimeUtcSeconds(dateTime);
+        }*/
+        
         public static string ToStringFromUtf8Bytes(this Byte[] bytes)
         {
             return System.Text.Encoding.UTF8.GetString(bytes);
         }
-
+        
         public static SensitiveByteArray ToSensitiveByteArray(this Byte[] array)
         {
             return new SensitiveByteArray(array);
@@ -33,7 +28,7 @@ namespace Odin.Core
         {
             ByteArrayUtil.WipeByteArray(array);
         }
-
+        
         public static string ToBase64(this byte[] array)
         {
             //I know, I know, this extension method does not do much but it looks better when used :)
@@ -52,7 +47,6 @@ namespace Odin.Core
             {
                 sb.Append(b.ToString("x2"));
             }
-
             return sb.ToString();
         }
     }
