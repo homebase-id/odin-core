@@ -24,7 +24,7 @@ public class GroupReactionService(
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
-    IBackgroundServiceTrigger backgroundServiceTrigger,
+    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     FileSystemResolver fileSystemResolver) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
@@ -54,7 +54,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
         }
 
         return result;
@@ -82,7 +82,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+            backgroundServiceTrigger.PulseBackgroundProcessor();
         }
 
         return result;

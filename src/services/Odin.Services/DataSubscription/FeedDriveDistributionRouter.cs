@@ -40,7 +40,7 @@ namespace Odin.Services.DataSubscription
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
         private readonly PublicPrivateKeyService _pkService;
-        private readonly IBackgroundServiceTrigger _backgroundServiceTrigger;
+        private readonly IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> _backgroundServiceTrigger;
         private readonly PeerOutbox _peerOutbox;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
@@ -57,7 +57,7 @@ namespace Odin.Services.DataSubscription
             IDriveAclAuthorizationService driveAcl,
             ILogger<FeedDriveDistributionRouter> logger,
             PublicPrivateKeyService pkService,
-            IBackgroundServiceTrigger backgroundServiceTrigger,
+            IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
             PeerOutbox peerOutbox)
         {
             _followerService = followerService;
@@ -98,7 +98,7 @@ namespace Odin.Services.DataSubscription
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.db);
                     }
 
-                    _backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+                    _backgroundServiceTrigger.PulseBackgroundProcessor();
                 }
                 else
                 {
@@ -108,7 +108,7 @@ namespace Odin.Services.DataSubscription
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.db);
-                            _backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+                            _backgroundServiceTrigger.PulseBackgroundProcessor();
                             return;
                         }
                     }
@@ -126,7 +126,7 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, notification.db);
-                        _backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService));
+                        _backgroundServiceTrigger.PulseBackgroundProcessor();
                     }
                 }
             }
