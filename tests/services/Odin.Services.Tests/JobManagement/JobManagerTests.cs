@@ -379,7 +379,7 @@ public class JobManagerTests
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var logger = _host!.Services.GetRequiredService<ILogger<JobManagerTests>>();
 
-        for (var idx = 0; idx < 100; idx++)
+        for (var idx = 0; idx < 200; idx++)
         {
             var job = jobManager.NewJob<SimpleJobWithDelayTest>();
             job.JobData.Delay = TimeSpan.FromMilliseconds(100);

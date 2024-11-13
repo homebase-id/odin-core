@@ -31,6 +31,7 @@ namespace Odin.Core.Storage.Factory;
     /// <para>
     /// <b>Thread Safety:</b> ALWAYS create a new DI scope for each parallel task or thread. This ensures that each
     /// task or thread will work on its own connection and transaction, preventing concurrency issues.
+    /// Be careful when using this class in singleton-registrations: make sure scopes are created and disposed correctly.
     /// `ScopedConnectionFactory` uses an asynchronous lock to ensure only one thread or 
     /// task can access the connection at a time, preventing issues with `DbConnection`'s lack of thread safety. 
     /// To simulate nested transactions (which are not natively supported in SQLite), the factory employs a reference 

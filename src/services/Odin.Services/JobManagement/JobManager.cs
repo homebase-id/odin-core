@@ -32,8 +32,7 @@ public class JobManager(
     ILogger<JobManager> logger,
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
-    IBackgroundServiceTrigger backgroundServiceTrigger,
-    TableJobs tableJobs)
+    IBackgroundServiceTrigger backgroundServiceTrigger)
     : IJobManager
 {
 
@@ -72,7 +71,12 @@ public class JobManager(
             jobHash = job.CreateJobHash(),
             lastError = null,
         };
-        
+
+        // JobManager works across different scopes and threads, so we need to isolate the tableJobs instance
+        // into its own scope to avoid issues with exising scoped connections down the callstack.
+        await using var scope = lifetimeScope.BeginLifetimeScope();
+        var tableJobs = scope.Resolve<TableJobs>();
+
         if (record.jobHash == null)
         {
             logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
@@ -128,10 +132,10 @@ public class JobManager(
     // You should only call this directly when testing the job.
     public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        using var childScope = lifetimeScope.BeginLifetimeScope();
+        await using var scope = lifetimeScope.BeginLifetimeScope();
         try
         {
-            using var job = await GetJobAsync<AbstractJob>(jobId, childScope);
+            using var job = await GetJobAsync<AbstractJob>(jobId, scope);
 
             if (job?.Record == null)
             {
@@ -139,7 +143,7 @@ public class JobManager(
             }
 
             correlationContext.Id = job.Record.correlationId;
-            await ExecuteAsync(job, cancellationToken);
+            await ExecuteAsync(job, scope, cancellationToken);
         }
         catch (Exception e)
         {
@@ -149,7 +153,7 @@ public class JobManager(
 
     //
 
-    private async Task ExecuteAsync(AbstractJob job, CancellationToken cancellationToken)
+    private async Task ExecuteAsync(AbstractJob job, ILifetimeScope scope, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(job.Record);
@@ -172,7 +176,7 @@ public class JobManager(
             record.state = (int)JobState.Running;
             record.runCount++;
             record.lastRun = UnixTimeUtc.Now();
-            await UpdateAsync(record);
+            await UpdateAsync(record, scope);
         }
         catch (Exception e)
         {
@@ -217,7 +221,7 @@ public class JobManager(
             if (record.onSuccessDeleteAfter == 0)
             {
                 logger.LogDebug("JobManager deleting successful job '{name}' id:{jobId}", record.name, record.id);
-                await DeleteAsync(record);
+                await DeleteAsync(record, scope);
             }
             else
             {
@@ -225,7 +229,7 @@ public class JobManager(
                 record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onSuccessDeleteAfter);
                 record.lastError = null;
                 record.jobData = job.SerializeJobData();
-                await UpdateAsync(record);
+                await UpdateAsync(record, scope);
             }
         }
 
@@ -241,7 +245,7 @@ public class JobManager(
             record.runCount = 0;
             record.lastError = errorMessage ?? "job was rescheduled";
             record.jobData = job.SerializeJobData();
-            await UpdateAsync(record);
+            await UpdateAsync(record, scope);
         }
 
         //
@@ -250,7 +254,7 @@ public class JobManager(
         else if (result.Result == RunResult.Abort)
         {
             logger.LogInformation("JobManager deleting aborted job '{name}' id:{jobId}", record.name, record.id);
-            await DeleteAsync(record);
+            await DeleteAsync(record, scope);
         }
 
         //
@@ -268,7 +272,7 @@ public class JobManager(
                     record.name, record.id, record.runCount, record.maxAttempts, runAt.ToString("O"), record.lastError);
                 record.state = (int)JobState.Scheduled;
                 record.nextRun = runAt.ToUnixTimeMilliseconds();
-                await UpdateAsync(record);
+                await UpdateAsync(record, scope);
             }
             else
             {
@@ -278,13 +282,13 @@ public class JobManager(
                 if (record.onFailureDeleteAfter == 0)
                 {
                     logger.LogDebug("JobManager deleting failed job '{name}' id:{jobId}", record.name, record.id);
-                    await DeleteAsync(record);
+                    await DeleteAsync(record, scope);
                 }
                 else
                 {
                     record.state = (int)JobState.Failed;
                     record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
-                    await UpdateAsync(record);
+                    await UpdateAsync(record, scope);
                 }
             }
         }
@@ -309,6 +313,7 @@ public class JobManager(
 
     private async Task<T?> GetJobAsync<T>(Guid jobId, ILifetimeScope scope) where T : AbstractJob
     {
+        var tableJobs = scope.Resolve<TableJobs>();
         var record = await tableJobs.GetAsync(jobId);
     
         if (record == null!)
@@ -323,39 +328,64 @@ public class JobManager(
     
     //
     
-    public async Task<long> CountJobsAsync()
+    public Task<long> CountJobsAsync()
     {
+        return CountJobsAsync(lifetimeScope);
+    }
+
+    private async Task<long> CountJobsAsync(ILifetimeScope scope)
+    {
+        var tableJobs = scope.Resolve<TableJobs>();
         var result = await tableJobs.GetCountAsync();
         return result;
     }
-    
+
     //
     
-    public async Task<bool> JobExistsAsync(Guid jobId)
+    public Task<bool> JobExistsAsync(Guid jobId)
     {
+        return JobExistsAsync(jobId, lifetimeScope);
+    }
+
+    private async Task<bool> JobExistsAsync(Guid jobId, ILifetimeScope scope)
+    {
+        var tableJobs = scope.Resolve<TableJobs>();
         var result = await tableJobs.JobIdExistsAsync(jobId);
         return result;
     }
-    
+
     //
 
-    public async Task<bool> DeleteJobAsync(Guid jobId)
+    public Task<bool> DeleteJobAsync(Guid jobId)
     {
+        return DeleteJobAsync(jobId, lifetimeScope);
+    }
+
+    private async Task<bool> DeleteJobAsync(Guid jobId, ILifetimeScope scope)
+    {
+        var tableJobs = scope.Resolve<TableJobs>();
         var result = await tableJobs.DeleteAsync(jobId);
         return result > 0;
     }
-    
+
     //
 
-    public async Task DeleteExpiredJobsAsync()
+    public Task DeleteExpiredJobsAsync()
     {
+        return DeleteExpiredJobsAsync(lifetimeScope);
+    }
+
+    private async Task DeleteExpiredJobsAsync(ILifetimeScope scope)
+    {
+        var tableJobs = scope.Resolve<TableJobs>();
         await tableJobs.DeleteExpiredJobsAsync();
     }
 
     //
 
-    private async Task<int> UpdateAsync(JobsRecord record)
+    private async Task<int> UpdateAsync(JobsRecord record, ILifetimeScope scope)
     {
+        var tableJobs = scope.Resolve<TableJobs>();
         var updated = await tableJobs.UpdateAsync(record);
         backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return updated;
@@ -363,8 +393,9 @@ public class JobManager(
 
     //
 
-    private async Task<int> UpsertAsync(JobsRecord record)
+    private async Task<int> UpsertAsync(JobsRecord record, ILifetimeScope scope)
     {
+        var tableJobs = scope.Resolve<TableJobs>();
         var updated = await tableJobs.UpsertAsync(record);
         backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return updated;
@@ -372,8 +403,9 @@ public class JobManager(
     
     //
     
-    private async Task<int> DeleteAsync(JobsRecord record)
+    private async Task<int> DeleteAsync(JobsRecord record, ILifetimeScope scope)
     {
+        var tableJobs = scope.Resolve<TableJobs>();
         var deleted = await tableJobs.DeleteAsync(record.id);
         backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
         return deleted;
