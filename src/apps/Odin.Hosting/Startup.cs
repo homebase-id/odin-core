@@ -491,6 +491,11 @@ namespace Odin.Hosting
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
+
+                // Create system database
+                var systemDatabase = services.GetRequiredService<SystemDatabase>();
+                systemDatabase.CreateDatabaseAsync().BlockingWait();
+
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 

@@ -27,7 +27,7 @@ public class SystemDatabase(ILifetimeScope lifetimeScope)
     //
 
     // SEB:NOTE this is temporary until we have a proper migration system
-    public async Task CreateDatabaseAsync(bool dropExistingTables)
+    public async Task CreateDatabaseAsync(bool dropExistingTables = false)
     {
         await using var scope = lifetimeScope.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
