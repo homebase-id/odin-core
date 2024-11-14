@@ -113,7 +113,7 @@ public class JobManagerTests
                 // Jobs
                 //
 
-                services.AddSingleton<IJobManager, JobManager>();
+                services.AddTransient<IJobManager, JobManager>();
 
                 services.AddTransient<SimpleJobTest>();
                 services.AddTransient<SimpleJobWithDelayTest>();
@@ -389,11 +389,9 @@ public class JobManagerTests
             jobList.Add(jobId);
         }
 
-        // NOTE: moving this to before the job scheduling seems to trigger a rather hefty lock convoy on the db level
-        // and the performance drops significantly. 
+        // NOTE: moving this to before the job scheduling seems to trigger a rather hefty lock convoy on the sqlite level
+        // and the performance drops significantly.
         await StartBackgroundServices();
-
-        logger.LogInformation("Start check");
 
         // Act
         foreach (var jobId in jobList)

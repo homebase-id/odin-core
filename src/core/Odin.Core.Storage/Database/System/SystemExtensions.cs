@@ -50,15 +50,16 @@ public static class SystemExtensions
     private static ContainerBuilder RegisterSystemDatabase(this ContainerBuilder cb)
     {
         // Database
-        cb.RegisterType<SystemDatabase>().InstancePerLifetimeScope();
+        cb.RegisterType<SystemDatabase>().InstancePerDependency();
 
         // Connection
-        cb.RegisterType<ScopedSystemConnectionFactory>().InstancePerLifetimeScope();
+        cb.RegisterType<ScopedSystemConnectionFactory>()
+            .InstancePerLifetimeScope(); // Important!
         
         // Tables
         foreach (var tableType in SystemDatabase.TableTypes)
         {
-            cb.RegisterType(tableType).InstancePerLifetimeScope();
+            cb.RegisterType(tableType).InstancePerDependency();
         }
 
         return cb;

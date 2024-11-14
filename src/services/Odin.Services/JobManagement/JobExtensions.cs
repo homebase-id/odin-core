@@ -10,10 +10,7 @@ public static class JobExtensions
 {
     public static IServiceCollection AddJobManagerServices(this IServiceCollection services)
     {
-        // SEB:NOTE JobManager has to be registered as a singleton
-        // as it depends on the IBackgroundServiceTrigger which is registered in the root scope,
-        // and "overwritten" in the tenant scopes. This is not ideal. JobManager should be transient. Fix it.
-        services.AddSingleton<IJobManager, JobManager>();
+        services.AddTransient<IJobManager, JobManager>();
 
         services.AddTransient<ExportTenantJob>();
         services.AddTransient<DeleteTenantJob>();

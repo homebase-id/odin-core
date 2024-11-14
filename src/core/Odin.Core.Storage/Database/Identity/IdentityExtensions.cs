@@ -50,15 +50,16 @@ public static class IdentityExtensions
     private static ContainerBuilder RegisterIdentityDatabase(this ContainerBuilder cb)
     {
         // Database
-        cb.RegisterType<IdentityDatabase>().InstancePerLifetimeScope();
+        cb.RegisterType<IdentityDatabase>().InstancePerDependency();
 
         // Connection
-        cb.RegisterType<ScopedIdentityConnectionFactory>().InstancePerLifetimeScope();
+        cb.RegisterType<ScopedIdentityConnectionFactory>()
+            .InstancePerLifetimeScope(); // Important!
         
         // Tables
         foreach (var tableType in IdentityDatabase.TableTypes)
         {
-            cb.RegisterType(tableType).InstancePerLifetimeScope();
+            cb.RegisterType(tableType).InstancePerDependency();
         }
         
         return cb;
