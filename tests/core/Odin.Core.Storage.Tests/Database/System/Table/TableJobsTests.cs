@@ -1,5 +1,3 @@
-// SEB:TODO move me
-
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -13,7 +11,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
-namespace Odin.Core.Storage.Tests.ServerDatabaseTests;
+namespace Odin.Core.Storage.Tests.Database.System.Table;
 
 public class TableJobsTests
 {

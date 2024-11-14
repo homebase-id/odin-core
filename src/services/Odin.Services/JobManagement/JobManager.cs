@@ -279,7 +279,7 @@ public class JobManager(
                     record.name, record.id, record.runCount, record.lastError);
                 if (record.onFailureDeleteAfter == 0)
                 {
-                    logger.LogDebug("JobManager deleting failed job '{name}' id:{jobId}", record.name, record.id);
+                    logger.LogDebug("JobManager deleting unsuccessful job '{name}' id:{jobId}", record.name, record.id);
                     await DeleteAsync(record);
                 }
                 else

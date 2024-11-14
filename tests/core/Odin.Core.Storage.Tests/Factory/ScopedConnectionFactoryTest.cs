@@ -13,7 +13,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
-namespace Odin.Core.Storage.Tests.Database.Connection;
+namespace Odin.Core.Storage.Tests.Factory;
 
 public class ScopedConnectionFactoryTest
 {
