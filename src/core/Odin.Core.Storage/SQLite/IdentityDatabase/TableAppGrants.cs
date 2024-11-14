@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             item.identityId = _db._identityId;
             using var conn = _db.CreateDisposableConnection();
-            return await base.InsertAsync(conn, item);
+            return await base.UpsertAsync(conn, item);
         }
 
         public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId)
