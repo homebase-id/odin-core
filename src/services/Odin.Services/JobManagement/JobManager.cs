@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
+using Odin.Services.Base;
 
 namespace Odin.Services.JobManagement;
 
@@ -32,7 +33,7 @@ public class JobManager(
     ILogger<JobManager> logger,
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
-    IBackgroundServiceTrigger backgroundServiceTrigger)
+    IBackgroundServiceTrigger<JobRunnerBackgroundService> backgroundServiceTrigger)
     : IJobManager
 {
 
@@ -120,7 +121,7 @@ public class JobManager(
         }
         
         // Signal job runner to wake up
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
 
         return jobId;
     }

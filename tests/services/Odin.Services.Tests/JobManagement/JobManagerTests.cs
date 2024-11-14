@@ -33,7 +33,7 @@ public class JobManagerTests
 {
     private IHost? _host;
     private string? _tempPath;
-    private BackgroundServiceManager? _backgroundServiceManager;
+    private IBackgroundServiceManager? _backgroundServiceManager;
     private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
     private JobRunnerBackgroundService? _jobRunnerBackgroundService;
     
@@ -98,15 +98,16 @@ public class JobManagerTests
                 //  Background services
                 //
 
-                services.AddSingleton<BackgroundServiceManager>(provider => new BackgroundServiceManager(
+                services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
                     provider.GetRequiredService<ILifetimeScope>(),
                     "system"
                 ));
-                services.AddSingleton<IBackgroundServiceTrigger>(provider => provider.GetRequiredService<BackgroundServiceManager>());
-                services.AddSingleton<IBackgroundServiceManager>(provider => provider.GetRequiredService<BackgroundServiceManager>());
 
                 services.AddTransient<JobCleanUpBackgroundService>();
                 services.AddTransient<JobRunnerBackgroundService>();
+                services.AddSingleton<
+                    IBackgroundServiceTrigger<JobRunnerBackgroundService>,
+                    BackgroundServiceTrigger<JobRunnerBackgroundService>>();
 
                 //
                 // Jobs
@@ -146,7 +147,7 @@ public class JobManagerTests
         var systemDatabase = _host.Services.GetRequiredService<SystemDatabase>();
         await systemDatabase.CreateDatabaseAsync(true);
 
-        _backgroundServiceManager = _host.Services.GetRequiredService<BackgroundServiceManager>();
+        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
         _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
         _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
@@ -883,7 +884,7 @@ public class JobManagerTests
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
 
         await StartBackgroundServices();
 
@@ -1018,7 +1019,7 @@ public class JobManagerTests
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle
