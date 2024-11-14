@@ -2,7 +2,6 @@ using Autofac;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.Factory.Sqlite;
 
 namespace Odin.Core.Storage.Database.System;
 
@@ -12,22 +11,17 @@ public static class SystemExtensions
     {
         cb.RegisterSystemDatabase();
         
-        cb.RegisterType<SqlitePoolBoy>().InstancePerLifetimeScope();
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Shared,
+            Pooling = true
+        }.ToString();
 
-        cb.Register(c =>
-            {
-                c.Resolve<SqlitePoolBoy>(); // this makes sure pool boy goes to work when the scope is disposed
-                var connectionString = new SqliteConnectionStringBuilder
-                {
-                    DataSource = databasePath,
-                    Mode = SqliteOpenMode.ReadWriteCreate,
-                    Cache = SqliteCacheMode.Shared,
-                    Pooling = true
-                }.ToString();
-                return new SqliteSystemDbConnectionFactory(connectionString);
-            })
+        cb.Register(_ => new SqliteSystemDbConnectionFactory(connectionString))
             .As<ISystemDbConnectionFactory>()
-            .InstancePerLifetimeScope(); // Per scope so the pool boy can do his job when scope exists
+            .SingleInstance();
 
         return cb;
     }
