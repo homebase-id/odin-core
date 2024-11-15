@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -63,7 +64,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             using (var cmd = conn.db.CreateCommand())
             {
@@ -250,7 +251,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public async Task<int> DeleteAsync(DatabaseConnection conn, string attestationId)
+        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
@@ -301,7 +302,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public async Task<AttestationRequestRecord> GetAsync(DatabaseConnection conn, string attestationId)
+        public virtual async Task<AttestationRequestRecord> GetAsync(DatabaseConnection conn, string attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
@@ -334,7 +335,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // using
         }
 
-        public async Task<(List<AttestationRequestRecord>, string nextCursor)> PagingByAttestationIdAsync(DatabaseConnection conn, int count, string inCursor)
+        public virtual async Task<(List<AttestationRequestRecord>, string nextCursor)> PagingByAttestationIdAsync(DatabaseConnection conn, int count, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

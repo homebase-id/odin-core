@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests
 {

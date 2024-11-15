@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.DriveDatabaseTests

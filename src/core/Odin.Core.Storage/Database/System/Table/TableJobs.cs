@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.System.Table;

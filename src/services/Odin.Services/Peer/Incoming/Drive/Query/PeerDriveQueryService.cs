@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Base;

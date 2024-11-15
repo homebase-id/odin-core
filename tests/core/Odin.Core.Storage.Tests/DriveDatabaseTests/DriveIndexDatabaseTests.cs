@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Benchmark;

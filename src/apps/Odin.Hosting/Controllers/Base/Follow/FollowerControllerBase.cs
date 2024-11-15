@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Refit;

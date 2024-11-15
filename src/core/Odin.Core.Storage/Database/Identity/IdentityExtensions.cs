@@ -1,5 +1,7 @@
+using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 
@@ -7,9 +9,9 @@ namespace Odin.Core.Storage.Database.Identity;
 
 public static class IdentityExtensions
 {
-    public static ContainerBuilder AddSqliteIdentityDatabaseServices(this ContainerBuilder cb, string databasePath)
+    public static ContainerBuilder AddSqliteIdentityDatabaseServices(this ContainerBuilder cb, Guid identityId, string databasePath)
     {
-        cb.RegisterIdentityDatabase();
+        cb.RegisterIdentityDatabase(identityId);
 
         var connectionString = new SqliteConnectionStringBuilder
         {
@@ -28,9 +30,9 @@ public static class IdentityExtensions
 
     //
 
-    public static ContainerBuilder AddPgsqlIdentityDatabaseServices(this ContainerBuilder cb, string connectionString)
+    public static ContainerBuilder AddPgsqlIdentityDatabaseServices(this ContainerBuilder cb, Guid identityId, string connectionString)
     {
-        cb.RegisterIdentityDatabase();
+        cb.RegisterIdentityDatabase(identityId);
         
         cb.Register(_ => new PgsqlIdentityDbConnectionFactory(connectionString))
             .As<IIdentityDbConnectionFactory>()
@@ -41,19 +43,24 @@ public static class IdentityExtensions
     
     //
 
-    private static ContainerBuilder RegisterIdentityDatabase(this ContainerBuilder cb)
+    private static ContainerBuilder RegisterIdentityDatabase(this ContainerBuilder cb, Guid identityId)
     {
+        // IdentityKey
+        cb.RegisterInstance(new IdentityKey(identityId)).SingleInstance();
+
         // Database
         cb.RegisterType<IdentityDatabase>().InstancePerDependency();
 
         // Connection
         cb.RegisterType<ScopedIdentityConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!
-        
+
         // Tables
         foreach (var tableType in IdentityDatabase.TableTypes)
         {
-            cb.RegisterType(tableType).InstancePerDependency();
+            cb.RegisterType(tableType)
+                .WithParameter(new TypedParameter(typeof(Guid), identityId))
+                .InstancePerLifetimeScope();
         }
         
         return cb;

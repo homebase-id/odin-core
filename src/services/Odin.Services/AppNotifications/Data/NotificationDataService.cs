@@ -5,12 +5,13 @@ using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
+using AppNotificationsRecord = Odin.Core.Storage.SQLite.IdentityDatabase.AppNotificationsRecord;
 
 namespace Odin.Services.AppNotifications.Data;
 

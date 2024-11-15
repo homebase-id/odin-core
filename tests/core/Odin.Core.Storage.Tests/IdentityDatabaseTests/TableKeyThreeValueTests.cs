@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {

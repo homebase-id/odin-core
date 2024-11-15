@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -115,7 +116,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             using (var cmd = conn.db.CreateCommand())
             {
@@ -420,7 +421,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -521,7 +522,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public async Task<KeyChainRecord> GetAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");

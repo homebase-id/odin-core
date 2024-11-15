@@ -1,6 +1,5 @@
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.AppNotifications.SystemNotifications;

@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;

@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -74,7 +75,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -97,7 +98,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> InsertAsync(CircleRecord item)
+        public virtual async Task<int> InsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -131,7 +132,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(CircleRecord item)
+        public virtual async Task<int> TryInsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -165,7 +166,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(CircleRecord item)
+        public virtual async Task<int> UpsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -199,7 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(CircleRecord item)
+        public virtual async Task<int> UpdateAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -234,7 +235,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync()
+        public virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -260,7 +261,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,circleName,circleId,data
-        internal CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        public CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -312,7 +313,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<int> DeleteAsync(Guid identityId,Guid circleId)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -335,7 +336,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
+        public CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -369,7 +370,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
+        public virtual async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
@@ -404,7 +405,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        internal async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
+        public virtual async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

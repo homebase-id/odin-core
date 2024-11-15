@@ -8,7 +8,6 @@ using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
 

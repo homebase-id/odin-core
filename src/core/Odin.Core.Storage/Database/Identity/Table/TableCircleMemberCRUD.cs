@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -71,7 +72,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -94,7 +95,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> InsertAsync(CircleMemberRecord item)
+        public virtual async Task<int> InsertAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -129,7 +130,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(CircleMemberRecord item)
+        public virtual async Task<int> TryInsertAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -164,7 +165,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(CircleMemberRecord item)
+        public virtual async Task<int> UpsertAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -199,7 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(CircleMemberRecord item)
+        public virtual async Task<int> UpdateAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -235,7 +236,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync()
+        public virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -261,7 +262,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,circleId,memberId,data
-        internal CircleMemberRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        public CircleMemberRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleMemberRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -316,7 +317,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<int> DeleteAsync(Guid identityId,Guid circleId,Guid memberId)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId,Guid memberId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -343,7 +344,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
+        public CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -371,7 +372,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<CircleMemberRecord> GetAsync(Guid identityId,Guid circleId,Guid memberId)
+        public virtual async Task<CircleMemberRecord> GetAsync(Guid identityId,Guid circleId,Guid memberId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
             if (hit)
@@ -410,7 +411,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        internal CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid circleId)
+        public CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -447,7 +448,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid identityId,Guid circleId)
+        public virtual async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid identityId,Guid circleId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
@@ -484,7 +485,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        internal CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid memberId)
+        public CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -521,7 +522,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid identityId,Guid memberId)
+        public virtual async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid identityId,Guid memberId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();

@@ -24,7 +24,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Util;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;

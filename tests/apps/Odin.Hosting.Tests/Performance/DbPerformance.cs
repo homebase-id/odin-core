@@ -7,7 +7,6 @@ using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Hosting.Tests.Performance
 {

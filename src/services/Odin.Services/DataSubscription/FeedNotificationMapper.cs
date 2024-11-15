@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;

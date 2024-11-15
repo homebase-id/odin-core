@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -128,7 +129,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         }
 
 
-        public async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             using (var cmd = conn.db.CreateCommand())
             {
@@ -464,7 +465,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public async Task<int> DeleteAsync(DatabaseConnection conn, byte[] notarySignature)
+        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -568,7 +569,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn, byte[] notarySignature)
+        public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");

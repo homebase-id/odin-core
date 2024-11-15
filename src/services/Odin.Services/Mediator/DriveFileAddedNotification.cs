@@ -1,7 +1,6 @@
 using System;
 using MediatR;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Drives;

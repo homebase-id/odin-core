@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -232,7 +233,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -852,7 +853,7 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
-        public async Task<int> DeleteAsync(Guid id)
+        public virtual async Task<int> DeleteAsync(Guid id)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -1008,7 +1009,7 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
-        public async Task<JobsRecord> GetAsync(Guid id)
+        public virtual async Task<JobsRecord> GetAsync(Guid id)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();

@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -80,7 +81,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -104,7 +105,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DriveReactionsRecord item)
+        public virtual async Task<int> InsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -142,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DriveReactionsRecord item)
+        public virtual async Task<int> TryInsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -180,7 +181,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DriveReactionsRecord item)
+        public virtual async Task<int> UpsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -217,7 +218,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
+        public virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -256,7 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync()
+        public virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -282,7 +283,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        internal virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        public virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
@@ -302,7 +303,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,driveId,identity,postId,singleReaction
-        internal DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        public DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -358,7 +359,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<int> DeleteAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -394,7 +395,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
+        public virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
@@ -423,7 +424,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        public DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -443,7 +444,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        public virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");

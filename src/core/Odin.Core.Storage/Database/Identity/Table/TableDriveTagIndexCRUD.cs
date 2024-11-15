@@ -6,7 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -67,7 +68,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -91,7 +92,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> InsertAsync(DriveTagIndexRecord item)
+        public virtual async Task<int> InsertAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -126,7 +127,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> TryInsertAsync(DriveTagIndexRecord item)
+        public virtual async Task<int> TryInsertAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -161,7 +162,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> UpsertAsync(DriveTagIndexRecord item)
+        public virtual async Task<int> UpsertAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -195,7 +196,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        internal virtual async Task<int> UpdateAsync(DriveTagIndexRecord item)
+        public virtual async Task<int> UpdateAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -231,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal virtual async Task<int> GetCountDirtyAsync()
+        public virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -256,7 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        internal virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        public virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
@@ -276,7 +277,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,driveId,fileId,tagId
-        internal DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        public DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -328,7 +329,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -357,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
+        public virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
@@ -382,7 +383,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        internal DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        public DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -398,7 +399,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        internal async Task<DriveTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        public virtual async Task<DriveTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
@@ -436,7 +437,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        internal async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        public virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();

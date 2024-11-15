@@ -53,7 +53,7 @@ public static class SystemExtensions
         // Tables
         foreach (var tableType in SystemDatabase.TableTypes)
         {
-            cb.RegisterType(tableType).InstancePerDependency();
+            cb.RegisterType(tableType).InstancePerLifetimeScope();
         }
 
         return cb;

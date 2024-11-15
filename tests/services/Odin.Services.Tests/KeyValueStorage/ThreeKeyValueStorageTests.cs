@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Services.Tests.KeyValueStorage;
 
