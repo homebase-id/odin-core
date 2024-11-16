@@ -8,8 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.System;
-using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
@@ -414,7 +415,36 @@ public class ScopedConnectionFactoryTest
             Assert.That(result, Is.EqualTo(0));
         }
     }
-   
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldCreateCmdWithParamsBeforeTransaction(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        await using var cmd1 = cn.CreateCommand();
+        var nameParam = cmd1.CreateParameter();
+        nameParam.ParameterName = "@name";
+        nameParam.Value = "test";
+        cmd1.Parameters.Add(nameParam);
+        cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
+
+        await using var tx = await cn.BeginStackedTransactionAsync();
+        await cmd1.ExecuteNonQueryAsync();
+        await tx.CommitAsync();
+
+        await using var cmd2 = cn.CreateCommand();
+        cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+        var result2 = await cmd2.ExecuteScalarAsync();
+        Assert.That(result2, Is.EqualTo(1));
+    }
+
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]

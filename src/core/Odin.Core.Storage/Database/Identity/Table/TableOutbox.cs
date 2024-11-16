@@ -16,21 +16,20 @@ public class TableOutbox(
     : TableOutboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public async Task<List<OutboxRecord>> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(IdentityId, driveId, fileId);
+        return await base.GetAsync(identityKey, driveId, fileId);
     }
 
     public async Task<OutboxRecord> GetAsync(Guid driveId, Guid fileId, string recipient)
     {
-        return await base.GetAsync(IdentityId, driveId, fileId, recipient);
+        return await base.GetAsync(identityKey, driveId, fileId, recipient);
     }
 
     public override async Task<int> InsertAsync(OutboxRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         item.checkOutCount = 0;
         if (item.nextRunTime.milliseconds == 0)
             item.nextRunTime = UnixTimeUtc.Now();
@@ -47,7 +46,7 @@ public class TableOutbox(
         if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
             throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
 
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         if (item.nextRunTime.milliseconds == 0)
             item.nextRunTime = UnixTimeUtc.Now();
 
@@ -104,7 +103,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = SequentialGuid.CreateGuid().ToByteArray();
-        param2.Value = IdentityId.ToByteArray();
+        param2.Value = identityKey.ToByteArray();
         param3.Value = UnixTimeUtc.Now().milliseconds;
 
         var result = new List<OutboxRecord>();
@@ -140,7 +139,7 @@ public class TableOutbox(
         param1.ParameterName = "$identityId";
         cmd.Parameters.Add(param1);
 
-        param1.Value = IdentityId.ToByteArray();
+        param1.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -181,7 +180,7 @@ public class TableOutbox(
 
         param1.Value = checkOutStamp.ToByteArray();
         param2.Value = nextRunTime.milliseconds;
-        param3.Value = IdentityId.ToByteArray();
+        param3.Value = identityKey.ToByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -209,7 +208,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = checkOutStamp.ToByteArray();
-        param2.Value = IdentityId.ToByteArray();
+        param2.Value = identityKey.ToByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -241,7 +240,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
-        param2.Value = IdentityId.ToByteArray();
+        param2.Value = identityKey.ToByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -265,7 +264,7 @@ public class TableOutbox(
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "$identityId";
         cmd.Parameters.Add(param1);
-        param1.Value = IdentityId.ToByteArray();
+        param1.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -332,7 +331,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = driveId.ToByteArray();
-        param2.Value = IdentityId.ToByteArray();
+        param2.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

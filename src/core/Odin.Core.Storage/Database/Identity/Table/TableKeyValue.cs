@@ -13,27 +13,26 @@ public class TableKeyValue(
     : TableKeyValueCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public async Task<KeyValueRecord> GetAsync(byte[] key)
     {
-        return await base.GetAsync(IdentityId, key);
+        return await base.GetAsync(identityKey, key);
     }
 
     public override async Task<int> InsertAsync(KeyValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(byte[] key)
     {
-        return await base.DeleteAsync(IdentityId, key);
+        return await base.DeleteAsync(identityKey, key);
     }
 
     public override async Task<int> UpsertAsync(KeyValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
@@ -45,7 +44,7 @@ public class TableKeyValue(
         var affectedRows = 0;
         foreach (var item in items)
         {
-            item.identityId = IdentityId;
+            item.identityId = identityKey;
             affectedRows += await base.UpsertAsync(item);
         }
 
@@ -56,7 +55,7 @@ public class TableKeyValue(
 
     public override async Task<int> UpdateAsync(KeyValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpdateAsync(item);
     }
 }

@@ -15,43 +15,42 @@ public class TableDriveMainIndex(
     : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
-        return await base.GetByUniqueIdAsync(IdentityId, driveId, uniqueId);
+        return await base.GetByUniqueIdAsync(identityKey, driveId, uniqueId);
     }
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
     {
-        return await base.GetByGlobalTransitIdAsync(IdentityId, driveId, globalTransitId);
+        return await base.GetByGlobalTransitIdAsync(identityKey, driveId, globalTransitId);
     }
 
     public async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(IdentityId, driveId, fileId);
+        return await base.GetAsync(identityKey, driveId, fileId);
     }
 
     public override async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(Guid driveId, Guid fileId)
     {
-        return await base.DeleteAsync(IdentityId, driveId, fileId);
+        return await base.DeleteAsync(identityKey, driveId, fileId);
     }
 
     public override async Task<int> UpdateAsync(DriveMainIndexRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpdateAsync(item);
     }
 
     public override async Task<int> UpsertAsync(DriveMainIndexRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
@@ -229,7 +228,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam4);
         updateCommand.Parameters.Add(sparam5);
 
-        sparam1.Value = IdentityId.ToByteArray();
+        sparam1.Value = identityKey.ToByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = reactionSummary;
@@ -264,7 +263,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam4);
         updateCommand.Parameters.Add(sparam5);
 
-        sparam1.Value = IdentityId.ToByteArray();
+        sparam1.Value = identityKey.ToByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
@@ -291,7 +290,7 @@ public class TableDriveMainIndex(
         sizeCommand.Parameters.Add(sparam2);
 
         sparam1.Value = driveId.ToByteArray();
-        sparam2.Value = IdentityId.ToByteArray();
+        sparam2.Value = identityKey.ToByteArray();
 
         using (var rdr = await sizeCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -337,7 +336,7 @@ public class TableDriveMainIndex(
         tparam1.Value = fileId.ToByteArray();
         tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
         tparam3.Value = driveId.ToByteArray();
-        tparam4.Value = IdentityId.ToByteArray();
+        tparam4.Value = identityKey.ToByteArray();
 
         return await touchCommand.ExecuteNonQueryAsync();
     }

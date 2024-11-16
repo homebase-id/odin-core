@@ -13,23 +13,22 @@ public class TableAppGrants(
     : TableAppGrantsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public override async Task<int> InsertAsync(AppGrantsRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public override async Task<int> UpsertAsync(AppGrantsRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
     public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId)
     {
-        return await base.GetByOdinHashIdAsync(IdentityId, odinHashId);
+        return await base.GetByOdinHashIdAsync(identityKey, odinHashId);
     }
 
     public async Task DeleteByIdentityAsync(Guid odinHashId)
@@ -37,14 +36,14 @@ public class TableAppGrants(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var grants = await GetByOdinHashIdAsync(IdentityId, odinHashId);
+        var grants = await GetByOdinHashIdAsync(identityKey, odinHashId);
 
         if (grants == null)
             return;
 
         foreach (var grant in grants)
         {
-            await DeleteAsync(IdentityId, odinHashId, grant.appId, grant.circleId);
+            await DeleteAsync(identityKey, odinHashId, grant.appId, grant.circleId);
         }
 
         await tx.CommitAsync();

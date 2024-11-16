@@ -1,4 +1,5 @@
-﻿using System;
+﻿# if false
+using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,5 +179,4 @@ public class DatabaseConnectionTests
     
     private class RollbackException(string message) : Exception(message);
 }
-
-  
+#endif

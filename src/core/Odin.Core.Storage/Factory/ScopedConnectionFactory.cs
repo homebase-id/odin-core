@@ -437,6 +437,7 @@ public class ScopedConnectionFactory<T>(
         {
             using (await instance._mutex.LockAsync(cancellationToken))
             {
+                command.Transaction = instance._transaction;
                 return await command.ExecuteNonQueryAsync(cancellationToken);
             }
         }

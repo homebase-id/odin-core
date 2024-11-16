@@ -17,26 +17,25 @@ public class TableDriveAclIndex(
     : TableDriveAclIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
-
+    
     public new async Task<DriveAclIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid aclMemberId)
     {
-        return await base.GetAsync(IdentityId, driveId, fileId, aclMemberId);
+        return await base.GetAsync(identityKey, driveId, fileId, aclMemberId);
     }
 
     public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(IdentityId, driveId, fileId);
+        return await base.GetAsync(identityKey, driveId, fileId);
     }
 
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
-        return await base.DeleteAllRowsAsync(IdentityId, driveId, fileId);
+        return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
     public override async Task<int> InsertAsync(DriveAclIndexRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
@@ -48,7 +47,7 @@ public class TableDriveAclIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var item = new DriveAclIndexRecord { identityId = IdentityId, driveId = driveId, fileId = fileId };
+        var item = new DriveAclIndexRecord { identityId = identityKey, driveId = driveId, fileId = fileId };
 
         foreach (var memberId in accessControlList)
         {
@@ -69,7 +68,7 @@ public class TableDriveAclIndex(
 
         foreach (var memberId in accessControlList)
         {
-            await base.DeleteAsync(IdentityId, driveId, fileId, memberId);
+            await base.DeleteAsync(identityKey, driveId, fileId, memberId);
         }
 
         await tx.CommitAsync();

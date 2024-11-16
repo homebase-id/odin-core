@@ -21,11 +21,10 @@ public class TableFollowsMe(
 {
     public const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
-        return await base.DeleteAsync(IdentityId, identity.DomainName, driveId);
+        return await base.DeleteAsync(identityKey, identity.DomainName, driveId);
     }
 
     public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
@@ -39,7 +38,7 @@ public class TableFollowsMe(
 
         foreach (var item in items)
         {
-            item.identityId = IdentityId;
+            item.identityId = identityKey;
             recordsInserted += await base.InsertAsync(item);
         }
 
@@ -51,7 +50,7 @@ public class TableFollowsMe(
 
     public override async Task<int> InsertAsync(FollowsMeRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
@@ -64,7 +63,7 @@ public class TableFollowsMe(
     /// <exception cref="Exception"></exception>
     public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
     {
-        var r = await base.GetAsync(IdentityId, identity.DomainName) ?? [];
+        var r = await base.GetAsync(identityKey, identity.DomainName) ?? [];
         return r;
     }
 
@@ -72,7 +71,7 @@ public class TableFollowsMe(
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        var records = await base.GetAsync(IdentityId, identity.DomainName);
+        var records = await base.GetAsync(identityKey, identity.DomainName);
         if (records == null)
         {
             return 0;
@@ -83,7 +82,7 @@ public class TableFollowsMe(
         var n = 0;
         foreach (var record in records)
         {
-            n += await base.DeleteAsync(IdentityId, identity.DomainName, record.driveId);
+            n += await base.DeleteAsync(identityKey, identity.DomainName, record.driveId);
         }
 
         await tx.CommitAsync();
@@ -94,15 +93,15 @@ public class TableFollowsMe(
     // Returns # records inserted (1 or 0)
     public async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord record)
     {
-        record.identityId = IdentityId;
+        record.identityId = identityKey;
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var followerList = await base.GetAsync(IdentityId, record.identity);
+        var followerList = await base.GetAsync(identityKey, record.identity);
         foreach (var follower in followerList)
         {
-            await base.DeleteAsync(IdentityId, follower.identity, follower.driveId);
+            await base.DeleteAsync(identityKey, follower.identity, follower.driveId);
         }
         var n = await base.InsertAsync(record);
 
@@ -147,7 +146,7 @@ public class TableFollowsMe(
 
         param1.Value = inCursor;
         param2.Value = count + 1;
-        param3.Value = IdentityId.ToByteArray();
+        param3.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -219,7 +218,7 @@ public class TableFollowsMe(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1;
-        param4.Value = IdentityId.ToByteArray();
+        param4.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

@@ -1,78 +1,20 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
-using Odin.Test.Helpers.Logging;
 
 namespace Odin.Core.Storage.Tests.Database.System.Table;
 
-public class TableJobsTests
+public class TableJobsTests : IocTestBase
 {
-    private string _tempFolder;
-    private ILifetimeScope _services = null!;
-    private LogEventMemoryStore _logEventMemoryStore = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        _tempFolder = TempDirectory.Create();
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        _services?.Dispose();
-        Directory.Delete(_tempFolder, true);
-        LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
-
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-    }
-
-    private async Task RegisterServicesAsync(DatabaseType databaseType)
-    {
-        _logEventMemoryStore = new LogEventMemoryStore();
-
-        var builder = new ContainerBuilder();
-
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore))
-            .SingleInstance();
-
-        builder.AddDatabaseCacheServices();
-        switch (databaseType)
-        {
-            case DatabaseType.Sqlite:
-                builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
-                break;
-            case DatabaseType.Postgres:
-                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
-                break;
-            default:
-                throw new Exception("Unsupported database type");
-        }
-
-        _services = builder.Build();
-
-        var database = _services.Resolve<SystemDatabase>();
-        await database.CreateDatabaseAsync(true);
-    }
-
-
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldCountJobs(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var jobs = scope.Resolve<TableJobs>();
 
         var count = await jobs.GetCountAsync();
@@ -87,13 +29,12 @@ public class TableJobsTests
     
     //
 
-
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldGetTheNextJob(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var jobs = scope.Resolve<TableJobs>();
         
         var nextRun = await jobs.GetNextRunTimeAsync();
@@ -188,7 +129,6 @@ public class TableJobsTests
             Assert.That(nextJob, Is.Null);
         }
     }
-    
 
     //
 
@@ -197,7 +137,7 @@ public class TableJobsTests
     public async Task ItShouldGetJobByHash(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var jobs = scope.Resolve<TableJobs>();
 
         var record = NewJobsRecord();

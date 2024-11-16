@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+using Autofac;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity;
 
-public class IdentityDatabase(IServiceProvider services)
+public class IdentityDatabase(ILifetimeScope lifetimeScope)
 {
     //
     // Put all database tables alphabetically here:
@@ -35,23 +35,23 @@ public class IdentityDatabase(IServiceProvider services)
     //
     // Convenience properties (resolved, not injected)
     // SEB:TODO make these Lazy<T>
-    public TableAppGrants AppGrants => services.GetRequiredService<TableAppGrants>();
-    public TableAppNotifications AppNotifications => services.GetRequiredService<TableAppNotifications>();
-    public TableCircle Circle => services.GetRequiredService<TableCircle>();
-    public TableCircleMember CircleMember => services.GetRequiredService<TableCircleMember>();
-    public TableConnections Connections => services.GetRequiredService<TableConnections>();
-    public TableDriveAclIndex DriveAclIndex => services.GetRequiredService<TableDriveAclIndex>();
-    public TableDriveMainIndex DriveMainIndex => services.GetRequiredService<TableDriveMainIndex>();
-    public TableDriveReactions DriveReactions => services.GetRequiredService<TableDriveReactions>();
-    public TableDriveTagIndex DriveTagIndex => services.GetRequiredService<TableDriveTagIndex>();
-    public TableFollowsMe FollowsMe => services.GetRequiredService<TableFollowsMe>();
-    public TableImFollowing ImFollowing => services.GetRequiredService<TableImFollowing>();
-    public TableInbox Inbox => services.GetRequiredService<TableInbox>();
-    public TableKeyThreeValue KeyThreeValue => services.GetRequiredService<TableKeyThreeValue>();
-    public TableKeyTwoValue KeyTwoValue => services.GetRequiredService<TableKeyTwoValue>();
-    public TableKeyUniqueThreeValue KeyUniqueThreeValue => services.GetRequiredService<TableKeyUniqueThreeValue>();
-    public TableKeyValue KeyValue => services.GetRequiredService<TableKeyValue>();
-    public TableOutbox Outbox => services.GetRequiredService<TableOutbox>();
+    public TableAppGrants AppGrants => lifetimeScope.Resolve<TableAppGrants>();
+    public TableAppNotifications AppNotifications => lifetimeScope.Resolve<TableAppNotifications>();
+    public TableCircle Circle => lifetimeScope.Resolve<TableCircle>();
+    public TableCircleMember CircleMember => lifetimeScope.Resolve<TableCircleMember>();
+    public TableConnections Connections => lifetimeScope.Resolve<TableConnections>();
+    public TableDriveAclIndex DriveAclIndex => lifetimeScope.Resolve<TableDriveAclIndex>();
+    public TableDriveMainIndex DriveMainIndex => lifetimeScope.Resolve<TableDriveMainIndex>();
+    public TableDriveReactions DriveReactions => lifetimeScope.Resolve<TableDriveReactions>();
+    public TableDriveTagIndex DriveTagIndex => lifetimeScope.Resolve<TableDriveTagIndex>();
+    public TableFollowsMe FollowsMe => lifetimeScope.Resolve<TableFollowsMe>();
+    public TableImFollowing ImFollowing => lifetimeScope.Resolve<TableImFollowing>();
+    public TableInbox Inbox => lifetimeScope.Resolve<TableInbox>();
+    public TableKeyThreeValue KeyThreeValue => lifetimeScope.Resolve<TableKeyThreeValue>();
+    public TableKeyTwoValue KeyTwoValue => lifetimeScope.Resolve<TableKeyTwoValue>();
+    public TableKeyUniqueThreeValue KeyUniqueThreeValue => lifetimeScope.Resolve<TableKeyUniqueThreeValue>();
+    public TableKeyValue KeyValue => lifetimeScope.Resolve<TableKeyValue>();
+    public TableOutbox Outbox => lifetimeScope.Resolve<TableOutbox>();
 
     //
     // Migration
@@ -60,13 +60,13 @@ public class IdentityDatabase(IServiceProvider services)
     // SEB:NOTE this is temporary until we have a proper migration system
     public async Task CreateDatabaseAsync(bool dropExistingTables)
     {
-        using var scope = services.CreateScope();
-        var scopedConnectionFactory = scope.ServiceProvider.GetRequiredService<ScopedIdentityConnectionFactory>();
+        await using var scope = lifetimeScope.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
         foreach (var tableType in TableTypes)
         {
-            var table = (ITableMigrator)scope.ServiceProvider.GetRequiredService(tableType);
+            var table = (ITableMigrator)scope.Resolve(tableType);
             await table.EnsureTableExistsAsync(dropExistingTables);
         }
         await tx.CommitAsync();

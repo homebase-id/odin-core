@@ -20,17 +20,16 @@ public class TableImFollowing(
     : TableImFollowingCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    public Guid IdentityId { get; } = identityKey.Id;
 
     public override async Task<int> InsertAsync(ImFollowingRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
-        return await base.DeleteAsync(IdentityId, identity, driveId);
+        return await base.DeleteAsync(identityKey, identity, driveId);
     }
 
     /// <summary>
@@ -41,7 +40,7 @@ public class TableImFollowing(
     /// <exception cref="Exception"></exception>
     public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity)
     {
-        var r = await base.GetAsync(IdentityId, identity) ?? [];
+        var r = await base.GetAsync(identityKey, identity) ?? [];
         return r;
     }
 
@@ -49,7 +48,7 @@ public class TableImFollowing(
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        var records = await base.GetAsync(IdentityId, identity);
+        var records = await base.GetAsync(identityKey, identity);
 
         if (records == null)
         {
@@ -61,7 +60,7 @@ public class TableImFollowing(
         var n = 0;
         foreach (var record in records)
         {
-            n += await DeleteAsync(IdentityId, identity, record.driveId);
+            n += await DeleteAsync(identityKey, identity, record.driveId);
         }
 
         await tx.CommitAsync();
@@ -105,7 +104,7 @@ public class TableImFollowing(
 
         param1.Value = inCursor;
         param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
-        param3.Value = IdentityId.ToByteArray();
+        param3.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -178,7 +177,7 @@ public class TableImFollowing(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1; // +1 to check for EOD on nextCursor
-        param4.Value = IdentityId.ToByteArray();
+        param4.Value = identityKey.ToByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

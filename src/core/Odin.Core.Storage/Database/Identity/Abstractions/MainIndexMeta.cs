@@ -18,17 +18,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveTagIndex driveTagIndex,
         TableDriveMainIndex driveMainIndex)
     {
-        private readonly Guid _identityId  = identityKey.Id;
-
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
 
             var n = 0;
-            await driveAclIndex.DeleteAllRowsAsync(_identityId, driveId, fileId);
-            await driveTagIndex.DeleteAllRowsAsync(_identityId, driveId, fileId);
-            n = await driveMainIndex.DeleteAsync(_identityId, driveId, fileId);
+            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveId, fileId);
+            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveId, fileId);
+            n = await driveMainIndex.DeleteAsync(identityKey, driveId, fileId);
 
             await tx.CommitAsync();
             return n;
@@ -46,7 +44,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            driveMainIndexRecord.identityId = _identityId;
+            driveMainIndexRecord.identityId = identityKey;
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -54,9 +52,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord);
 
-            await driveAclIndex.DeleteAllRowsAsync(_identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-            await driveTagIndex.DeleteAllRowsAsync(_identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
@@ -72,7 +70,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            driveMainIndexRecord.identityId = _identityId;
+            driveMainIndexRecord.identityId = identityKey;
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -80,9 +78,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpdateAsync(driveMainIndexRecord);
 
-            await driveAclIndex.DeleteAllRowsAsync(_identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-            await driveTagIndex.DeleteAllRowsAsync(_identityId, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
@@ -105,7 +103,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         {
             string leftJoin = "";
 
-            listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(_identityId.ToByteArray())}'");
+            listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(identityKey.ToByteArray())}'");
             listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
             listWhere.Add($"(fileSystemType == {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");

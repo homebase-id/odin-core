@@ -13,32 +13,30 @@ public class TableAppNotifications(
     IdentityKey identityKey)
     : TableAppNotificationsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
-    public Guid IdentityId { get; } = identityKey.Id;
-
     public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {
-        return await base.GetAsync(IdentityId, notificationId);
+        return await base.GetAsync(identityKey, notificationId);
     }
 
     public override async Task<int> InsertAsync(AppNotificationsRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public override async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpdateAsync(item);
     }
 
     public async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
     {
-        return await base.PagingByCreatedAsync(count, IdentityId, inCursor);
+        return await base.PagingByCreatedAsync(count, identityKey, inCursor);
     }
 
     public async Task<int> DeleteAsync(Guid notificationId)
     {
-        return await base.DeleteAsync(IdentityId, notificationId);
+        return await base.DeleteAsync(identityKey, notificationId);
     }
 }

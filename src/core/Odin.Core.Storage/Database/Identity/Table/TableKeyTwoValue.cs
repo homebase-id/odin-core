@@ -12,38 +12,36 @@ public class TableKeyTwoValue(
     IdentityKey identityKey)
     : TableKeyTwoValueCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
-    public Guid IdentityId { get; } = identityKey.Id;
-
     public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2)
     {
-        return await base.GetByKeyTwoAsync(IdentityId, key2);
+        return await base.GetByKeyTwoAsync(identityKey, key2);
     }
 
     public async Task<KeyTwoValueRecord> GetAsync(byte[] key1)
     {
-        return await base.GetAsync(IdentityId, key1);
+        return await base.GetAsync(identityKey, key1);
     }
 
     public async Task<int> DeleteAsync(byte[] key1)
     {
-        return await base.DeleteAsync(IdentityId, key1);
+        return await base.DeleteAsync(identityKey, key1);
     }
 
     public override async Task<int> InsertAsync(KeyTwoValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
     public override async Task<int> UpsertAsync(KeyTwoValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
     public override async Task<int> UpdateAsync(KeyTwoValueRecord item)
     {
-        item.identityId = IdentityId;
+        item.identityId = identityKey;
         return await base.UpdateAsync(item);
     }
 }

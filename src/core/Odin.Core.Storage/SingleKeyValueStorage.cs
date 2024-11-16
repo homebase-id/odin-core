@@ -52,8 +52,7 @@ public class SingleKeyValueStorage
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
         {
             key = MakeStorageKey(pair.key),
-            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray(),
-            identityId = tblKeyValue.IdentityId
+            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray()
         }).ToList();
 
         await tblKeyValue.UpsertManyAsync(keyValueRecords);
