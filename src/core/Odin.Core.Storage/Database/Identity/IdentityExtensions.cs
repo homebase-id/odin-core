@@ -62,6 +62,9 @@ public static class IdentityExtensions
                 .WithParameter(new TypedParameter(typeof(Guid), identityId))
                 .InstancePerLifetimeScope();
         }
+
+        // Abstractions
+        cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
         
         return cb;
     }

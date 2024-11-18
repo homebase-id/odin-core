@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
@@ -33,7 +34,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope)
     ];
 
     //
-    // Convenience properties (resolved, not injected)
+    // Table convenience properties (resolved, not injected)
     // SEB:TODO make these Lazy<T>
     public TableAppGrants AppGrants => lifetimeScope.Resolve<TableAppGrants>();
     public TableAppNotifications AppNotifications => lifetimeScope.Resolve<TableAppNotifications>();
@@ -52,6 +53,11 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope)
     public TableKeyUniqueThreeValue KeyUniqueThreeValue => lifetimeScope.Resolve<TableKeyUniqueThreeValue>();
     public TableKeyValue KeyValue => lifetimeScope.Resolve<TableKeyValue>();
     public TableOutbox Outbox => lifetimeScope.Resolve<TableOutbox>();
+
+    //
+    // Abstraction convenience properties (resolved, not injected)
+    // SEB:TODO make these Lazy<T>
+    public MainIndexMeta MainIndexMeta => lifetimeScope.Resolve<MainIndexMeta>();
 
     //
     // Migration
