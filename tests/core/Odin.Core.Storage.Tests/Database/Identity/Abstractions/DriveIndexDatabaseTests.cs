@@ -12,7 +12,7 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Benchmark;
 
-namespace Odin.Core.Storage.Tests.Database.Identity.Table
+namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 {
     public class DriveIndexDatabaseTests : IocTestBase
     {

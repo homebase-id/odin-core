@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests
 {
     public class QueryBatchCursorTests
     {
