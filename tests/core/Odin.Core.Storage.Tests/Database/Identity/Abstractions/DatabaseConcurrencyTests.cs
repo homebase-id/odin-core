@@ -99,8 +99,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// This test passes because the Database class locks on it's _transactionLock() object
         /// </summary>
         [Test, Ignore("Deprecated since scoped connections")]
-        public async Task ReaderLockingTest()
+        public Task ReaderLockingTest()
         {
+            return Task.CompletedTask;
             // List<byte[]> Rows = new List<byte[]>();
             //
             // void writeDB1(IdentityDatabase db, DatabaseConnection myc)
@@ -149,8 +150,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// This test will fail because the two connections cannot both access the database (by design)
         /// </summary>
         [Test, Ignore("Deprecated since scoped connections")]
-        public async Task TwoInstanceLockingTest()
+        public Task TwoInstanceLockingTest()
         {
+            return Task.CompletedTask;
+
             // using var db1 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");
             //
             // using (var myc = db1.CreateDisposableConnection())
