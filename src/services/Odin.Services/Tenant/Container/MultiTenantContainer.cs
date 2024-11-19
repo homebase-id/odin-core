@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Loader;
@@ -76,6 +77,14 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : ICon
             applicationContainer.BeginLifetimeScope(tenant, configurationAction)));
 
         return lazyScope.Value;
+    }
+
+    //
+
+    // Only for diagnostics
+    public List<ILifetimeScope> GetTenantScopesForDiagnostics()
+    {
+        return _tenantLifetimeScopes.Values.Select(x => x.Value).ToList();
     }
 
     //
