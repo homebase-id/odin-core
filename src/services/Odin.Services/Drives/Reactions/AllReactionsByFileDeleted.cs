@@ -15,8 +15,6 @@ public class AllReactionsByFileDeleted : MediatorNotificationBase, IClientNotifi
     
     public Guid NotificationTypeId { get; }
 
-    public IdentityDatabase db { get; init; }
-
     public string GetClientData()
     {
         return OdinSystemSerializer.Serialize(this.FileId);

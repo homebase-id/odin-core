@@ -14,6 +14,7 @@ using Odin.Core.Fluff;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -61,6 +62,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly FollowerService _followerService;
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly TableKeyThreeValue _tblKeyThreeValue;
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
@@ -79,7 +81,8 @@ namespace Odin.Services.Membership.Connections.Requests
             FollowerService followerService,
             FileSystemResolver fileSystemResolver,
             CircleNetworkVerificationService verificationService,
-            OdinConfiguration odinConfiguration)
+            OdinConfiguration odinConfiguration,
+            TableKeyThreeValue tblKeyThreeValue)
             : base(odinHttpClientFactory, cns, fileSystemResolver)
         {
             _cns = cns;
@@ -96,6 +99,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _followerService = followerService;
             _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
+            _tblKeyThreeValue = tblKeyThreeValue;
 
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
@@ -110,9 +114,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public async Task<ConnectionRequest> GetPendingRequestAsync(OdinId sender, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(db, MakePendingRequestsKey(sender));
+            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
 
             if (null == header)
             {
@@ -156,9 +160,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns></returns>
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestsAsync(PageOptions pageOptions, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(db, _pendingRequestsDataType);
+            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, _pendingRequestsDataType);
             return new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList());
         }
 
@@ -168,9 +172,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns></returns>
         public async Task<PagedResult<ConnectionRequest>> GetSentRequestsAsync(PageOptions pageOptions, IOdinContext odinContext)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(db, _sentRequestsDataType);
+            var results = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(_tblKeyThreeValue, _sentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
@@ -287,13 +291,12 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             await UpsertPendingConnectionRequestAsync(request);
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             await _mediator.Publish(new ConnectionRequestReceived()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
                 OdinContext = odinContext,
-                db = db
             });
         }
 
@@ -322,19 +325,19 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task DeleteSentRequestInternalAsync(OdinId recipient)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             var newKey = MakeSentRequestsKey(recipient);
-            var recordFromNewKeyFormat = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(db, newKey);
+            var recordFromNewKeyFormat = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(_tblKeyThreeValue, newKey);
             if (null != recordFromNewKeyFormat)
             {
-                await _sentRequestValueStorage.DeleteAsync(db, newKey);
+                await _sentRequestValueStorage.DeleteAsync(_tblKeyThreeValue, newKey);
                 return;
             }
 
             try
             {
                 //old method
-                await _sentRequestValueStorage.DeleteAsync(db, recipient.ToHashId());
+                await _sentRequestValueStorage.DeleteAsync(_tblKeyThreeValue, recipient.ToHashId());
                 return;
             }
             catch (Exception e)
@@ -514,8 +517,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Establishes a connection between two individuals.  This must be called
         /// from a recipient who has accepted a sender's connection request
         /// </summary>
-        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, IOdinContext odinContext,
-            IdentityDatabase db)
+        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, IOdinContext odinContext)
         {
             // Note: This method runs under the Transit Context because it's called by another identity
             // therefore, all operations that require master key or owner access must have already been completed
@@ -588,7 +590,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (originalRequest.TempEncryptedFeedDriveStorageKey != null)
                 {
-                    var feedDriveId = await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive, db);
+                    var feedDriveId = await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
                     var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
                         feedDriveId.GetValueOrDefault(),
                         tempKey,
@@ -621,7 +623,6 @@ namespace Odin.Services.Membership.Connections.Requests
                     Recipient = recipient,
                     IntroducerOdinId = originalRequest.IntroducerOdinId.GetValueOrDefault(),
                     OdinContext = odinContext,
-                    db = db
                 });
             }
             else
@@ -631,7 +632,6 @@ namespace Odin.Services.Membership.Connections.Requests
                     Sender = (OdinId)originalRequest.SenderOdinId,
                     Recipient = recipient,
                     OdinContext = odinContext,
-                    db = db
                 });
             }
         }
@@ -665,26 +665,26 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task<bool> HasPendingRequestInternal(OdinId sender)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(db, MakePendingRequestsKey(sender));
+            
+            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
             return header != null;
         }
 
         private async Task DeletePendingRequestInternal(OdinId sender)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             var newKey = MakePendingRequestsKey(sender);
-            var recordFromNewKeyFormat = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(db, newKey);
+            var recordFromNewKeyFormat = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, newKey);
             if (null != recordFromNewKeyFormat)
             {
-                await _pendingRequestValueStorage.DeleteAsync(db, newKey);
+                await _pendingRequestValueStorage.DeleteAsync(_tblKeyThreeValue, newKey);
                 return;
             }
 
             //try the old key
             try
             {
-                await _pendingRequestValueStorage.DeleteAsync(db, sender.ToHashId());
+                await _pendingRequestValueStorage.DeleteAsync(_tblKeyThreeValue, sender.ToHashId());
                 return;
             }
             catch (Exception e)
@@ -695,23 +695,23 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task UpsertSentConnectionRequestAsync(ConnectionRequest request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             request.SenderOdinId = _tenantContext.HostOdinId; //store for when we support multiple domains per identity
-            await _sentRequestValueStorage.UpsertAsync(db, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, _sentRequestsDataType,
+            await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, _sentRequestsDataType,
                 request);
         }
 
         private async Task UpsertPendingConnectionRequestAsync(PendingConnectionRequestHeader request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _pendingRequestValueStorage.UpsertAsync(db, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, _pendingRequestsDataType,
+            
+            await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, _pendingRequestsDataType,
                 request);
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternalAsync(OdinId recipient)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var result = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(db, MakeSentRequestsKey(recipient));
+            
+            var result = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(_tblKeyThreeValue, MakeSentRequestsKey(recipient));
             return result;
         }
 

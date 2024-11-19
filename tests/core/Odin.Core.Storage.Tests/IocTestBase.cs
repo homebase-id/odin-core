@@ -25,6 +25,7 @@ public abstract class IocTestBase
     public void Setup()
     {
         IdentityId = Guid.NewGuid();
+        LogEventMemoryStore = new LogEventMemoryStore();
         TempFolder = TempDirectory.Create();
     }
 
@@ -42,8 +43,6 @@ public abstract class IocTestBase
 
     protected async Task RegisterServicesAsync(DatabaseType databaseType)
     {
-        LogEventMemoryStore = new LogEventMemoryStore();
-
         var builder = new ContainerBuilder();
 
         builder

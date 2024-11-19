@@ -33,7 +33,6 @@ public class IntroductionsAcceptedNotification : MediatorNotificationBase, IClie
 
     public OdinId IntroducerOdinId { get; init; }
     public OdinId Recipient { get; init; }
-    public IdentityDatabase db { get; set; }
 
     public string GetClientData()
     {

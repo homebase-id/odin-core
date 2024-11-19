@@ -11,9 +11,9 @@ namespace Odin.Services.Membership.Connections
     /// <summary>
     /// Manages the Icr keys
     /// </summary>
-    public class IcrKeyService(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
+    public class IcrKeyService(
+        CircleNetworkStorage circleNetworkStorage)
     {
-        private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
 
         /// <summary>
         /// Creates initial encryption keys
@@ -22,7 +22,7 @@ namespace Odin.Services.Membership.Connections
         {
             odinContext.Caller.AssertHasMasterKey();
             var masterKey = odinContext.Caller.GetMasterKey();
-            await _storage.CreateIcrKeyAsync(masterKey);
+            await circleNetworkStorage.CreateIcrKeyAsync(masterKey);
         }
 
         public async Task<SensitiveByteArray> GetDecryptedIcrKeyAsync(IOdinContext odinContext)
@@ -33,7 +33,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
         {
-            var masterKeyEncryptedIcrKey = await _storage.GetMasterKeyEncryptedIcrKeyAsync();
+            var masterKeyEncryptedIcrKey = await circleNetworkStorage.GetMasterKeyEncryptedIcrKeyAsync();
             return masterKeyEncryptedIcrKey;
         }
 
@@ -68,7 +68,7 @@ namespace Odin.Services.Membership.Connections
 
         private async Task<SensitiveByteArray> GetDecryptedIcrKeyInternalAsync(SensitiveByteArray masterKey)
         {
-            var masterKeyEncryptedIcrKey = await _storage.GetMasterKeyEncryptedIcrKeyAsync();
+            var masterKeyEncryptedIcrKey = await circleNetworkStorage.GetMasterKeyEncryptedIcrKeyAsync();
             return masterKeyEncryptedIcrKey.DecryptKeyClone(masterKey);
         }
     }

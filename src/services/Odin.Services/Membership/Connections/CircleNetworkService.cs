@@ -38,16 +38,15 @@ namespace Odin.Services.Membership.Connections
         ExchangeGrantService exchangeGrantService,
         TenantContext tenantContext,
         IAppRegistrationService appRegistrationService,
-        TenantSystemStorage tenantSystemStorage,
         CircleMembershipService circleMembershipService,
         IMediator mediator,
         CircleDefinitionService circleDefinitionService,
         DriveManager driveManager,
-        PublicPrivateKeyService publicPrivateKeyService)
+        PublicPrivateKeyService publicPrivateKeyService,
+        CircleNetworkStorage circleNetworkStorage)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
     {
-        private readonly CircleNetworkStorage _storage = new(tenantSystemStorage, circleMembershipService);
         private readonly KeyedAsyncLock _lock = new();
 
         /// <summary>
@@ -97,8 +96,6 @@ namespace Odin.Services.Membership.Connections
             AccessRegistration accessReg,
             IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -124,7 +121,7 @@ namespace Odin.Services.Membership.Connections
                 var transientTempDrive = SystemDriveConstants.TransientTempDrive;
                 var transientTempDriveGrant = new DriveGrant()
                 {
-                    DriveId = (await driveManager.GetDriveIdByAliasAsync(transientTempDrive, db)).GetValueOrDefault(),
+                    DriveId = (await driveManager.GetDriveIdByAliasAsync(transientTempDrive)).GetValueOrDefault(),
                     PermissionedDrive = new()
                     {
                         Drive = transientTempDrive,
@@ -161,20 +158,17 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             odinContext.AssertCanManageConnections();
 
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info is { Status: ConnectionStatus.Connected })
             {
-                await _storage.DeleteAsync(odinId);
+                await circleNetworkStorage.DeleteAsync(odinId);
 
                 await mediator.Publish(new ConnectionDeletedNotification()
                 {
                     OdinContext = odinContext,
                     OdinId = odinId,
-                    db = db
                 });
 
                 return true;
@@ -204,7 +198,6 @@ namespace Odin.Services.Membership.Connections
                 {
                     OdinContext = odinContext,
                     OdinId = odinId,
-                    db = tenantSystemStorage.IdentityDatabase
                 });
 
                 return true;
@@ -221,7 +214,6 @@ namespace Odin.Services.Membership.Connections
                 {
                     OdinContext = odinContext,
                     OdinId = odinId,
-                    db = tenantSystemStorage.IdentityDatabase
                 });
 
 
@@ -391,7 +383,6 @@ namespace Odin.Services.Membership.Connections
             {
                 OdinId = odinId,
                 OdinContext = odinContext,
-                db = tenantSystemStorage.IdentityDatabase
             });
         }
 
@@ -618,19 +609,16 @@ namespace Odin.Services.Membership.Connections
 
         public async Task RevokeConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
-            await _storage.DeleteAsync(odinId);
+            await circleNetworkStorage.DeleteAsync(odinId);
             await mediator.Publish(new ConnectionDeletedNotification()
             {
                 OdinId = odinId,
                 OdinContext = odinContext,
-                db = tenantSystemStorage.IdentityDatabase
             });
         }
 
         public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfoAsync(OdinId odinId, IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-
             odinContext.Caller.AssertHasMasterKey();
 
             // Need to see if the circle has the correct drives
@@ -677,8 +665,8 @@ namespace Odin.Services.Membership.Connections
                 {
                     foreach (var expectedDriveGrant in definition.DriveGrants)
                     {
-                        var driveId = await driveManager.GetDriveIdByAliasAsync(expectedDriveGrant.PermissionedDrive.Drive, db);
-                        var driveInfo = await driveManager.GetDriveAsync(driveId.GetValueOrDefault(), db);
+                        var driveId = await driveManager.GetDriveIdByAliasAsync(expectedDriveGrant.PermissionedDrive.Drive);
+                        var driveInfo = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
 
                         var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
                             dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
@@ -864,7 +852,7 @@ namespace Odin.Services.Membership.Connections
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
                 var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
 
-                await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
+                await circleNetworkStorage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
                 return true;
             }
@@ -928,13 +916,13 @@ namespace Odin.Services.Membership.Connections
                 AccessRegistration = accessRegistration
             };
 
-            await _storage.SavePeerIcrClientAsync(client);
+            await circleNetworkStorage.SavePeerIcrClientAsync(client);
             return token;
         }
 
         public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
         {
-            return await _storage.GetPeerIcrClientAsync(accessRegId);
+            return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
@@ -945,7 +933,6 @@ namespace Odin.Services.Membership.Connections
         {
             //map the exchange grant to a structure that matches ICR
             var grant = await exchangeGrantService.CreateExchangeGrantAsync(
-                tenantSystemStorage.IdentityDatabase,
                 keyStoreKey,
                 appReg.CircleMemberPermissionSetGrantRequest.PermissionSet,
                 appReg.CircleMemberPermissionSetGrantRequest.Drives,
@@ -1095,11 +1082,10 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
-            var db = tenantSystemStorage.IdentityDatabase;
 
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrantAsync(db, keyStoreKey, new Permissions_PermissionSet(),
+            var feedDriveWriteGrant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, new Permissions_PermissionSet(),
                 new List<DriveGrantRequest>()
                 {
                     new()
@@ -1124,7 +1110,6 @@ namespace Odin.Services.Membership.Connections
                 grants: grants,
                 accessReg: accessReg,
                 odinContext: odinContext,
-                db: tenantSystemStorage.IdentityDatabase,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
@@ -1138,7 +1123,7 @@ namespace Odin.Services.Membership.Connections
             ConnectionStatus status,
             IOdinContext odinContext)
         {
-            var (list, nextCursor) = await _storage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
+            var (list, nextCursor) = await circleNetworkStorage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
             return new CursoredResult<long, IdentityConnectionRegistration>()
             {
                 Cursor = nextCursor.GetValueOrDefault().uniqueTime,
@@ -1161,7 +1146,7 @@ namespace Odin.Services.Membership.Connections
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternalAsync(OdinId odinId)
         {
-            var registration = await _storage.GetAsync(odinId);
+            var registration = await circleNetworkStorage.GetAsync(odinId);
 
             if (null == registration)
             {
@@ -1183,12 +1168,12 @@ namespace Odin.Services.Membership.Connections
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
                 {
-                    await _storage.DeleteAsync(icr.OdinId);
+                    await circleNetworkStorage.DeleteAsync(icr.OdinId);
                 }
                 else
                 {
-                    await _storage.UpsertAsync(icr, odinContext);
-                    // _storage.UpsertUoW(icr, odinContext);
+                    await circleNetworkStorage.UpsertAsync(icr, odinContext);
+                    // circleNetworkStorage.UpsertUoW(icr, odinContext);
                 }
             }
         }
@@ -1207,7 +1192,7 @@ namespace Odin.Services.Membership.Connections
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, unencryptedCat);
 
-                await _storage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
+                await circleNetworkStorage.UpdateClientAccessTokenAsync(identity.OdinId, identity.Status, encryptedCat);
             }
         }
 
@@ -1223,7 +1208,7 @@ namespace Odin.Services.Membership.Connections
 
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                await _storage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
+                await circleNetworkStorage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
                 return true;
             }
 

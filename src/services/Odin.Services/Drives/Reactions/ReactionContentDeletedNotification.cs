@@ -16,8 +16,6 @@ public class ReactionContentDeletedNotification : MediatorNotificationBase, ICli
 
     public Guid NotificationTypeId { get; }
 
-    public IdentityDatabase db { get; init; }
-
     public string GetClientData()
     {
         return OdinSystemSerializer.Serialize(this.Reaction);

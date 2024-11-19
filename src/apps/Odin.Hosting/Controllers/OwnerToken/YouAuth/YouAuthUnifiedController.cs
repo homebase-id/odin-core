@@ -85,7 +85,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Authentication check and redirect to 'login' is done by controller attribute [AuthorizeValidOwnerToken]
             //
 
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
 
             //
             // Step [045] App registered?
@@ -98,8 +98,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientId,
                     authorize.PermissionRequest,
-                    WebOdinContext,
-                    db);
+                    WebOdinContext);
 
                 if (mustRegister)
                 {
@@ -122,8 +121,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientId,
                 authorize.PermissionRequest,
                 authorize.RedirectUri,
-                WebOdinContext,
-                db);
+                WebOdinContext);
 
             if (needConsent)
             {
@@ -153,8 +151,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientInfo,
                 authorize.PermissionRequest,
                 authorize.PublicKey,
-                WebOdinContext,
-                db);
+                WebOdinContext);
 
             //
             // [080] Return authorization code, public key and salt to client
@@ -233,8 +230,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
             }
 
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _youAuthService.StoreConsentAsync(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext, db);
+            
+            await _youAuthService.StoreConsentAsync(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext);
 
             // Redirect back to authorize
             _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);

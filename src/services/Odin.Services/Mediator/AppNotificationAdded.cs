@@ -16,7 +16,6 @@ public class AppNotificationAddedNotification(Guid typeId) : MediatorNotificatio
     public AppNotificationOptions AppNotificationOptions { get; set; }
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.AppNotificationAdded;
     public Guid NotificationTypeId { get; } = typeId;
-    public IdentityDatabase db { get; init; }
 
     public string GetClientData()
     {

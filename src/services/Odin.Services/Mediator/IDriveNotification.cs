@@ -21,8 +21,6 @@ public interface IDriveNotification : INotification
     public IOdinContext OdinContext { get; init; }
     // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
-    public IdentityDatabase db { get; init; }
-    
     /// <summary>
     /// Feed hack so I can ensure certain update events do not get distributed 
     /// </summary>

@@ -60,18 +60,18 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
+        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, db);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, IdentityDatabase db)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here, so we can ensure the right event is called
@@ -84,8 +84,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 targetFile,
                 metadata,
                 serverMetadata,
-                odinContext,
-                db);
+                odinContext);
 
             return;
         }
@@ -98,8 +97,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
-                odinContext: odinContext,
-                db);
+                odinContext: odinContext);
 
             return;
         }
@@ -107,10 +105,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
-        IdentityDatabase db)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, db);
+        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,

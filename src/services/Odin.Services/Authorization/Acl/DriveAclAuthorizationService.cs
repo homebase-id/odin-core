@@ -19,7 +19,7 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
         }
 
-        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
         {
             //there must be an acl
             if (acl == null)

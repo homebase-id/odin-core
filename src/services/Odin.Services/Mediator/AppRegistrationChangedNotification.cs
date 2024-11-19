@@ -6,5 +6,4 @@ public class AppRegistrationChangedNotification : MediatorNotificationBase
 {
     public AppRegistration NewAppRegistration { get; init; }
     public AppRegistration OldAppRegistration { get; init; }
-    public IdentityDatabase db { get; init; }
 }

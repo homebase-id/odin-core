@@ -22,14 +22,13 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext, IdentityDatabase db)
+    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext)
     {
         return await FileSystem.Storage.UpdatePayloads(
             // package.InternalFile,
             package.TempFile,
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors(),
-            odinContext,
-            db);
+            odinContext);
     }
 }

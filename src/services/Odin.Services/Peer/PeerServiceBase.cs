@@ -94,7 +94,7 @@ namespace Odin.Services.Peer
 
         protected async Task<(ClientAccessToken token, T client)> CreateHttpClientAsync<T>(
             OdinId odinId,
-            IdentityDatabase db,
+            
             IOdinContext odinContext)
         {
 
@@ -128,10 +128,10 @@ namespace Odin.Services.Peer
         /// Looks up a file by a global transit identifier
         /// </summary>
         protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             bool failIfNull = false)
         {
-            var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext, db);
+            var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext);
 
             if (failIfNull && fileId == null)
             {

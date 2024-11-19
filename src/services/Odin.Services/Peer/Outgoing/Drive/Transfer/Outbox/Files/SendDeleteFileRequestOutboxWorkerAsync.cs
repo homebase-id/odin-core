@@ -25,7 +25,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -46,7 +46,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, db, e);
+                return await HandleOutboxProcessingException(odinContext,  e);
             }
             catch (Exception exception)
             {
@@ -125,7 +125,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -133,8 +133,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     }
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }

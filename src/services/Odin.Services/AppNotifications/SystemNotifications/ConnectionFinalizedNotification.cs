@@ -21,9 +21,6 @@ public class ConnectionFinalizedNotification : MediatorNotificationBase, IClient
     /// The identity with which the connection was established
     /// </summary>
     public OdinId OdinId { get; init; }
-
-    public IdentityDatabase db { get; init; }
-
     public string GetClientData()
     {
         return OdinSystemSerializer.Serialize(new

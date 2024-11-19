@@ -6,22 +6,18 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
-using AppNotificationsRecord = Odin.Core.Storage.SQLite.IdentityDatabase.AppNotificationsRecord;
 
 namespace Odin.Services.AppNotifications.Data;
 
 /// <summary>
 /// Storage for notifications
 /// </summary>
-public class NotificationListService(TenantSystemStorage tenantSystemStorage, IMediator mediator)
+public class NotificationListService(TableAppNotifications appNotifications, IMediator mediator)
 {
-    private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
-
     public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
@@ -30,8 +26,6 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
     internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
     {
-        var db = tenantSystemStorage.IdentityDatabase;
-
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
         {
@@ -42,7 +36,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        await _storage.InsertAsync(record);
+        await appNotifications.InsertAsync(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -51,7 +45,6 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             Timestamp = request.Timestamp,
             AppNotificationOptions = request.AppNotificationOptions,
             OdinContext = odinContext,
-            db = db
         });
 
         return new AddNotificationResult()
@@ -64,7 +57,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var (results, cursor) = await _storage.PagingByCreatedAsync(request.Count, request.Cursor);
+        var (results, cursor) = await appNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -99,7 +92,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _) = await _storage.PagingByCreatedAsync(int.MaxValue, null);
+        var (results, _) = await appNotifications.PagingByCreatedAsync(int.MaxValue, null);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -122,7 +115,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var id in request.IdList)
         {
-            await _storage.DeleteAsync(id);
+            await appNotifications.DeleteAsync(id);
         }
     }
 
@@ -132,11 +125,11 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         foreach (var update in request.Updates)
         {
-            var record = await _storage.GetAsync(update.Id);
+            var record = await appNotifications.GetAsync(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                await _storage.UpdateAsync(record);
+                await appNotifications.UpdateAsync(record);
             }
         }
     }

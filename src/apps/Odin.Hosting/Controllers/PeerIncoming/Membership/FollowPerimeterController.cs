@@ -37,14 +37,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         {
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             var payloadBytes = await _publicPrivatePublicKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext);
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
 
-            await _followerPerimeterService.AcceptFollowerAsync(request, WebOdinContext, db);
+            await _followerPerimeterService.AcceptFollowerAsync(request, WebOdinContext);
 
             return Ok();
         }
@@ -53,8 +53,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            await _followerPerimeterService.AcceptUnfollowRequestAsync(WebOdinContext, db);
+            
+            await _followerPerimeterService.AcceptUnfollowRequestAsync(WebOdinContext);
             return Ok();
         }
     }

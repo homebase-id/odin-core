@@ -24,7 +24,7 @@ public class SendReadReceiptOutboxWorker(
     OdinConfiguration odinConfiguration
 ) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -47,7 +47,7 @@ public class SendReadReceiptOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, db, e);
+                return await HandleOutboxProcessingException(odinContext, e);
             }
             catch (Exception exception)
             {
@@ -126,7 +126,7 @@ public class SendReadReceiptOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -134,8 +134,7 @@ public class SendReadReceiptOutboxWorker(
     }
 
     protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }

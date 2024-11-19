@@ -277,7 +277,7 @@ public class TableDriveReactions(
                 rowid = rdr.GetInt32(0);
 
                 if (rdr.IsDBNull(1))
-                    throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                    throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
                     var s = rdr.GetString(1);
@@ -285,7 +285,7 @@ public class TableDriveReactions(
                 }
 
                 if (rdr.IsDBNull(2))
-                    throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                    throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
                     bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
@@ -295,7 +295,7 @@ public class TableDriveReactions(
                 }
 
                 if (rdr.IsDBNull(3))
-                    throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                    throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
                     item.singleReaction = rdr.GetString(3);

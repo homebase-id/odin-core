@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -16,16 +17,16 @@ namespace Odin.Services.Membership.Circles
 {
     public class CircleDefinitionService
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DriveManager _driveManager;
+        private readonly TableKeyThreeValue _tblKeyThreeValue;
 
         private readonly byte[] _circleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
+        public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
         {
-            _tenantSystemStorage = tenantSystemStorage;
             _driveManager = driveManager;
+            _tblKeyThreeValue = tblKeyThreeValue;
             const string circleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
             _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
         }
@@ -97,7 +98,7 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            await _circleValueStorage.UpsertAsync(_tenantSystemStorage.IdentityDatabase, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
+            await _circleValueStorage.UpsertAsync(_tblKeyThreeValue, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)
@@ -108,13 +109,13 @@ namespace Odin.Services.Membership.Circles
 
         public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
-            var def = await _circleValueStorage.GetAsync<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, circleId);
+            var def = await _circleValueStorage.GetAsync<CircleDefinition>(_tblKeyThreeValue, circleId);
             return def;
         }
         
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
-            var circles = (await _circleValueStorage.GetByCategoryAsync<CircleDefinition>(_tenantSystemStorage.IdentityDatabase, _circleDataType) ?? []).ToList();
+            var circles = (await _circleValueStorage.GetByCategoryAsync<CircleDefinition>(_tblKeyThreeValue, _circleDataType) ?? []).ToList();
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
@@ -133,7 +134,7 @@ namespace Odin.Services.Membership.Circles
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await _circleValueStorage.DeleteAsync(_tenantSystemStorage.IdentityDatabase, id);
+            await _circleValueStorage.DeleteAsync(_tblKeyThreeValue, id);
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
@@ -146,14 +147,14 @@ namespace Odin.Services.Membership.Circles
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var driveId = await _driveManager.GetDriveIdByAliasAsync(dgr.PermissionedDrive.Drive, _tenantSystemStorage.IdentityDatabase);
+                var driveId = await _driveManager.GetDriveIdByAliasAsync(dgr.PermissionedDrive.Drive);
 
                 if (driveId == null)
                 {
                     throw new OdinClientException("Invalid drive specified on DriveGrantRequest", OdinClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
-                var drive = await _driveManager.GetDriveAsync(driveId.GetValueOrDefault(), _tenantSystemStorage.IdentityDatabase);
+                var drive = await _driveManager.GetDriveAsync(driveId.GetValueOrDefault());
 
                 //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
                 var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||
@@ -221,7 +222,7 @@ namespace Odin.Services.Membership.Circles
                 Permissions = request.Permissions
             };
 
-            await _circleValueStorage.UpsertAsync(_tenantSystemStorage.IdentityDatabase, circle.Id, GuidId.Empty, _circleDataType, circle);
+            await _circleValueStorage.UpsertAsync(_tblKeyThreeValue, circle.Id, GuidId.Empty, _circleDataType, circle);
 
             return circle;
         }

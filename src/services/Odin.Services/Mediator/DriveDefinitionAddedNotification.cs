@@ -8,5 +8,4 @@ public class DriveDefinitionAddedNotification : MediatorNotificationBase // Even
 {
     public bool IsNewDrive { get; init; }
     public StorageDrive Drive { get; init; }
-    public IdentityDatabase db { get; init; }
 }

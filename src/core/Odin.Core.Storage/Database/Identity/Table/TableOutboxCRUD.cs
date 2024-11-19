@@ -562,14 +562,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new OutboxRecord();
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.rowid = rdr.GetInt32(0);
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
@@ -579,7 +579,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
@@ -589,7 +589,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
@@ -599,21 +599,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.recipient = rdr.GetString(4);
             }
 
             if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.type = rdr.GetInt32(5);
             }
 
             if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.priority = rdr.GetInt32(6);
@@ -630,14 +630,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.checkOutCount = rdr.GetInt32(8);
             }
 
             if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(9));
@@ -667,7 +667,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(12));
@@ -728,21 +728,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.recipient = rdr.GetString(0);
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.type = rdr.GetInt32(1);
             }
 
             if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.priority = rdr.GetInt32(2);
@@ -759,14 +759,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.checkOutCount = rdr.GetInt32(4);
             }
 
             if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(5));
@@ -796,7 +796,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(8));
@@ -869,14 +869,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.recipient = recipient;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.type = rdr.GetInt32(0);
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.priority = rdr.GetInt32(1);
@@ -893,14 +893,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.checkOutCount = rdr.GetInt32(3);
             }
 
             if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(4));
@@ -930,7 +930,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));

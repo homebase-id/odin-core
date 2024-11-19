@@ -19,40 +19,38 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
     }
 
     /// <summary />
-    protected async Task AddReaction(AddReactionRequest request, IdentityDatabase db)
+    protected async Task AddReaction(AddReactionRequest request)
     {
-        await _reactionContentService.AddReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
-            db);
+        await _reactionContentService.AddReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task DeleteReaction(DeleteReactionRequest request, IdentityDatabase db)
+    protected async Task DeleteReaction(DeleteReactionRequest request)
     {
-        await _reactionContentService.DeleteReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
-            db);
+        await _reactionContentService.DeleteReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task DeleteAllReactions(DeleteReactionRequest request, IdentityDatabase db)
+    protected async Task DeleteAllReactions(DeleteReactionRequest request)
     {
-        await _reactionContentService.DeleteAllReactionsAsync(MapToInternalFile(request.File), WebOdinContext, db);
+        await _reactionContentService.DeleteAllReactionsAsync(MapToInternalFile(request.File), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request, IdentityDatabase db)
+    protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request)
     {
         return await _reactionContentService.GetReactionsAsync(MapToInternalFile(request.File), cursor: request.Cursor,
-            maxCount: request.MaxRecords, WebOdinContext, db);
+            maxCount: request.MaxRecords, WebOdinContext);
     }
 
     /// <summary />
-    protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request, IdentityDatabase db)
+    protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request)
     {
-        return await _reactionContentService.GetReactionCountsByFileAsync(MapToInternalFile(request.File), WebOdinContext, db);
+        return await _reactionContentService.GetReactionCountsByFileAsync(MapToInternalFile(request.File), WebOdinContext);
     }
 
-    protected async Task<List<string>> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request, IdentityDatabase db)
+    protected async Task<List<string>> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request)
     {
-        return await _reactionContentService.GetReactionsByIdentityAndFileAsync(request.Identity, MapToInternalFile(request.File), WebOdinContext, db);
+        return await _reactionContentService.GetReactionsByIdentityAndFileAsync(request.Identity, MapToInternalFile(request.File), WebOdinContext);
     }
 }

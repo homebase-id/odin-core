@@ -5,5 +5,4 @@ namespace Odin.Services.Mediator;
 
 public class PushNotificationEnqueuedNotification : MediatorNotificationBase
 {
-    public IdentityDatabase db { get; init; }
 }

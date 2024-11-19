@@ -53,11 +53,11 @@ public class PeerAppNotificationService : PeerServiceBase
     /// </summary>
     public async Task<AppNotificationTokenResponse> GetRemoteNotificationToken(GetRemoteTokenRequest request, IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
-        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try

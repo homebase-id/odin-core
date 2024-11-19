@@ -12,15 +12,13 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
     public abstract class DriveQueryByUniqueIdControllerBase(
-        PeerOutgoingTransferService peerOutgoingTransferService,
-        TenantSystemStorage tenantSystemStorage)
+        PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
+            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (result == null)
             {
                 return NotFound();
@@ -35,8 +33,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
             {
                 return NotFound();
@@ -56,8 +53,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     },
                     Key = key,
                     Chunk = chunk
-                },
-                db);
+                });
         }
 
         [HttpGet("thumb")]
@@ -66,8 +62,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, db);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
             {
                 return NotFound();
@@ -87,11 +82,10 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     Width = width,
                     Height = height,
                     PayloadKey = payloadKey
-                },
-                db);
+                });
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type, IdentityDatabase db)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
@@ -101,8 +95,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 Type = type
             });
 
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext,
-                db: db);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
             return result;
         }
     }

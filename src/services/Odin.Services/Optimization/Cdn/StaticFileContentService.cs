@@ -8,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -46,9 +47,11 @@ public class StaticFileContentService
 
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
+    private readonly TableKeyValue _tableKeyValue;
 
     public StaticFileContentService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage,
-        DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter)
+        DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter,
+        TableKeyValue tableKeyValue)
     {
         _tenantContext = tenantContext;
         _tenantSystemStorage = tenantSystemStorage;
@@ -56,6 +59,7 @@ public class StaticFileContentService
         _driveManager = driveManager;
         _fileSystem = fileSystem;
         _driveFileReaderWriter = driveFileReaderWriter;
+        _tableKeyValue = tableKeyValue;
 
         const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
         _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
@@ -64,7 +68,7 @@ public class StaticFileContentService
     public async Task<StaticFilePublishResult> PublishAsync(string filename, StaticFileConfiguration config,
         List<QueryParamSection> sections, IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
@@ -90,7 +94,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveManager.GetDriveIdByAliasAsync(qp.TargetDrive, db, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAliasAsync(qp.TargetDrive, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {
@@ -100,7 +104,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _fileSystem.Query.GetBatch(driveId, qp, options,odinContext, db);
+            var results = await _fileSystem.Query.GetBatch(driveId, qp, options,odinContext);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -129,7 +133,7 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext, db);
+                        var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
                         try
                         {
                             payloads.Add(new PayloadStaticFileResponse()
@@ -177,14 +181,14 @@ public class StaticFileContentService
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
-        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
+        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
 
         return result;
     }
 
     public async Task PublishProfileImageAsync(string image64, string contentType)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
         string filename = StaticFileConstants.ProfileImageFileName;
         string targetFolder = EnsurePath();
@@ -200,12 +204,12 @@ public class StaticFileContentService
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
+        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
     }
 
     public async Task PublishProfileCardAsync(string json)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
         string filename = StaticFileConstants.PublicProfileCardFileName;
         string targetFolder = EnsurePath();
@@ -221,7 +225,7 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        await _staticFileConfigStorage.UpsertAsync(db, GetConfigKey(filename), config);
+        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
     }
 
     private GuidId GetConfigKey(string filename)
@@ -232,8 +236,8 @@ public class StaticFileContentService
     public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStreamAsync(string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(db, GetConfigKey(filename));
+        
+        var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(_tableKeyValue, GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 
         if (config == null || !File.Exists(targetFile))

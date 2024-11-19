@@ -262,7 +262,10 @@ namespace Odin.Hosting
             cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
-            
+
+            cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
+            // cb.RegisterType<PeerDriveIncomingTransferService>().InstancePerDependency();
+
             // Tenant background services
             cb.AddTenantBackgroundServices(registration);
 
@@ -290,11 +293,11 @@ namespace Odin.Hosting
                         registration.Id.ToString(),
                         "headers");
                     Directory.CreateDirectory(headersPath);
-                    cb.AddSqliteIdentityDatabaseServices(Path.Combine(headersPath, "identity.db"));
+                    cb.AddSqliteIdentityDatabaseServices(registration.Id, Path.Combine(headersPath, "identity.db"));
                     break;
                 }
                 case DatabaseType.Postgres:
-                    cb.AddPgsqlIdentityDatabaseServices(config.Database.ConnectionString);
+                    cb.AddPgsqlIdentityDatabaseServices(registration.Id, config.Database.ConnectionString);
                     break;
                 default:
                     throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");

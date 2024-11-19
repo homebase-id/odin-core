@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             return Task.CompletedTask;
             // List<byte[]> Rows = new List<byte[]>();
             //
-            // void writeDB1(IdentityDatabase db, DatabaseConnection myc)
+            // void writeDB1( DatabaseConnection myc)
             // {
             //     for (int i = 0; i < 10000; i++)
             //     {
@@ -112,7 +112,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             //     }
             // }
             //
-            // void readDB(IdentityDatabase db, DatabaseConnection myc)
+            // void readDB( DatabaseConnection myc)
             // {
             //     for (int i = 0; i < 3; i++)
             //     {

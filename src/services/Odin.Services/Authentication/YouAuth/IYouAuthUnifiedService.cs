@@ -20,7 +20,7 @@ public enum ClientType
 
 public interface IYouAuthUnifiedService
 {
-    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, IdentityDatabase db);
+    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext);
 
     Task<bool> NeedConsent(
         string tenant,
@@ -28,11 +28,10 @@ public interface IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        IOdinContext odinContext,
-        IdentityDatabase db);
+        IOdinContext odinContext);
 
     Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
-        IOdinContext odinContext, IdentityDatabase db);
+        IOdinContext odinContext);
 
     Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessTokenAsync(
         ClientType clientType,
@@ -40,8 +39,7 @@ public interface IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string publicKey,
-        IOdinContext odinContext,
-        IdentityDatabase db);
+        IOdinContext odinContext);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
 }

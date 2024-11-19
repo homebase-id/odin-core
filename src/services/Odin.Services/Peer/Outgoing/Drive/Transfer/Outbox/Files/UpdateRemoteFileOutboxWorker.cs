@@ -27,7 +27,7 @@ public class UpdateRemoteFileOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, fileSystemResolver, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db,
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
         try
@@ -41,7 +41,7 @@ public class UpdateRemoteFileOutboxWorker(
             await PerformanceCounter.MeasureExecutionTime("Outbox UpdateRemoteFileOutboxWorker",
                 async () =>
                 {
-                    (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, db, cancellationToken);
+                    (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, cancellationToken);
                 });
 
             logger.LogDebug("Success Sending updated file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient,
@@ -49,7 +49,7 @@ public class UpdateRemoteFileOutboxWorker(
 
             if (!FileItem.State.IsTransientFile)
             {
-                await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext, db);
+                await UpdateFileTransferHistory(globalTransitId, versionTag, odinContext);
             }
 
             return (true, UnixTimeUtc.ZeroTime);
@@ -58,7 +58,7 @@ public class UpdateRemoteFileOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, db, e);
+                return await HandleOutboxProcessingException(odinContext, e);
             }
             catch (Exception exception)
             {
@@ -77,7 +77,7 @@ public class UpdateRemoteFileOutboxWorker(
 
     private async Task<(Guid versionTag, Guid globalTransitId)> SendUpdatedFileItemAsync(OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
-        IdentityDatabase db,
+        
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -85,7 +85,7 @@ public class UpdateRemoteFileOutboxWorker(
 
         var instructionSet = outboxFileItem.State.DeserializeData<EncryptedRecipientFileUpdateInstructionSet>();
         var fileSystem = FileSystemResolver.ResolveFileSystem(instructionSet.FileSystemType);
-        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext, db);
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
@@ -100,7 +100,7 @@ public class UpdateRemoteFileOutboxWorker(
             };
         }
 
-        // var theDrive = await driveManager.GetDrive(file.DriveId, db);
+        // var theDrive = await driveManager.GetDrive(file.DriveId);
         var redactedAcl = header.ServerMetadata.AccessControlList;
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
@@ -110,7 +110,7 @@ public class UpdateRemoteFileOutboxWorker(
             "transferInstructionSet.encrypted", "application/json",
             Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, true, odinContext, db);
+        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, true, odinContext);
 
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
@@ -165,7 +165,7 @@ public class UpdateRemoteFileOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
@@ -174,8 +174,7 @@ public class UpdateRemoteFileOutboxWorker(
     }
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
         return Task.CompletedTask;

@@ -28,12 +28,12 @@ public class TransitAuthenticationService :
     /// <summary>
     /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext, db);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -50,7 +50,7 @@ public class TransitAuthenticationService :
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
-        ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
         var cc = new CallerContext(

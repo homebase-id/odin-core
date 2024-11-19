@@ -43,15 +43,15 @@ public class OwnerSecurityController : OdinControllerBase
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
         return await _recoveryService.GetKeyAsync(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _ss.ResetPasswordAsync(request, WebOdinContext, db);
+        
+        await _ss.ResetPasswordAsync(request, WebOdinContext);
         return new OkResult();
     }
 

@@ -46,7 +46,7 @@ public abstract class OutboxWorkerBase(
     }
 
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
-        IdentityDatabase db,
+        
         OdinOutboxProcessingException e)
     {
         logger.LogDebug(e, "Failed to process outbox item for recipient: {recipient} " +
@@ -64,7 +64,7 @@ public abstract class OutboxWorkerBase(
             case LatestTransferStatus.SendingServerTooManyAttempts:
                 logger.LogDebug(e, "Unrecoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Unrecoverable Error");
-                await HandleUnrecoverableTransferStatus(e, odinContext, db);
+                await HandleUnrecoverableTransferStatus(e, odinContext);
                 return (true, UnixTimeUtc.ZeroTime);
 
             case LatestTransferStatus.RecipientIdentityReturnedServerError:
@@ -72,7 +72,7 @@ public abstract class OutboxWorkerBase(
             case LatestTransferStatus.SourceFileDoesNotAllowDistribution:
                 logger.LogDebug(e, "Recoverable Error for file {file} to recipient:{recipient}", fileItem.File, FileItem.Recipient);
                 PerformanceCounter.IncrementCounter("Outbox Recoverable Error");
-                var nextRun = await HandleRecoverableTransferStatus(odinContext, db, e);
+                var nextRun = await HandleRecoverableTransferStatus(odinContext, e);
                 return (false, nextRun);
 
             default:
@@ -80,12 +80,11 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, IdentityDatabase db,
+    protected abstract Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e);
 
     protected abstract Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        IdentityDatabase db);
+        IOdinContext odinContext);
 
     protected LatestTransferStatus MapPeerErrorResponseHttpStatus<T>(ApiResponse<T> response)
     {
@@ -123,7 +122,7 @@ public abstract class OutboxWorkerBase(
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
-        IdentityDatabase db,
+        
         Guid? overrideGlobalTransitId = null
     )
     {
@@ -169,7 +168,7 @@ public abstract class OutboxWorkerBase(
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext, db);
+                var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
                 var payloadStream = p.Stream;
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -180,7 +179,7 @@ public abstract class OutboxWorkerBase(
                     var (thumbStream, thumbHeader) =
                         await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key,
                             descriptor.Uid,
-                            odinContext, db);
+                            odinContext);
 
                     var thumbnailKey =
                         $"{payloadKey}" +
@@ -198,7 +197,7 @@ public abstract class OutboxWorkerBase(
         return (metaDataStream, payloadStreams);
     }
 
-    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext, IdentityDatabase db)
+    protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext)
     {
         logger.LogDebug("Success Sending file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient,
             globalTransitId);
@@ -215,7 +214,7 @@ public abstract class OutboxWorkerBase(
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, db);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
 
         logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);

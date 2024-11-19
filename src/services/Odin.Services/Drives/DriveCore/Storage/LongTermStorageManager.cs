@@ -56,44 +56,44 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a file header to the database
         /// </summary>
-        public async Task SaveFileHeader(ServerFileHeader header, IdentityDatabase db)
+        public async Task SaveFileHeader(ServerFileHeader header)
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SaveFileHeaderAsync(header, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SaveFileHeaderAsync(header);
         }
 
-        public async Task SoftDeleteFileHeader(ServerFileHeader header, IdentityDatabase db)
+        public async Task SoftDeleteFileHeader(ServerFileHeader header)
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SoftDeleteFileHeader(header, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SoftDeleteFileHeader(header);
         }
 
-        public async Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history, IdentityDatabase db)
+        public async Task SaveTransferHistory(Guid fileId, RecipientTransferHistory history)
         {
             OdinValidationUtils.AssertNotNull(history, nameof(history));
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SaveTransferHistoryAsync(fileId, history, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SaveTransferHistoryAsync(fileId, history);
         }
 
-        public async Task DeleteTransferHistory(Guid fileId, IdentityDatabase db)
+        public async Task DeleteTransferHistory(Guid fileId)
         {
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SaveTransferHistoryAsync(fileId, null, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SaveTransferHistoryAsync(fileId, null);
         }
 
-        public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary, IdentityDatabase db)
+        public async Task SaveReactionHistory(Guid fileId, ReactionSummary summary)
         {
             OdinValidationUtils.AssertNotNull(summary, nameof(summary));
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SaveReactionSummary(fileId, summary, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SaveReactionSummary(fileId, summary);
         }
 
-        public async Task DeleteReactionSummary(Guid fileId, IdentityDatabase db)
+        public async Task DeleteReactionSummary(Guid fileId)
         {
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.SaveReactionSummary(fileId, null, db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.SaveReactionSummary(fileId, null);
         }
 
         public async Task DeleteThumbnailFile(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height, int width)
@@ -219,9 +219,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Checks if the header file exists on disk.  Does not check the validity of the header
         /// </summary>
-        public async Task<bool> HeaderFileExists(Guid fileId, IdentityDatabase db)
+        public async Task<bool> HeaderFileExists(Guid fileId)
         {
-            var header = await this.GetServerFileHeader(fileId, db);
+            var header = await this.GetServerFileHeader(fileId);
             if (header == null)
             {
                 return false;
@@ -233,13 +233,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDelete(Guid fileId, IdentityDatabase db)
+        public async Task HardDelete(Guid fileId)
         {
             await DeleteAllThumbnails(fileId);
             await DeleteAllPayloadFiles(fileId);
 
-            var mgr = await GetDbManagerAsync(db);
-            await mgr.HardDeleteFileHeaderAsync(GetInternalFile(fileId), db);
+            var mgr = await GetDbManagerAsync();
+            await mgr.HardDeleteFileHeaderAsync(GetInternalFile(fileId));
         }
 
         /// <summary>
@@ -278,9 +278,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId, IdentityDatabase db)
+        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
-            var mgr = await GetDbManagerAsync(db);
+            var mgr = await GetDbManagerAsync();
             var header = await mgr.GetFileHeaderAsync(fileId, _fileSystemType);
             return header;
         }
@@ -420,9 +420,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
         }
 
-        private async Task<IDriveDatabaseManager> GetDbManagerAsync(IdentityDatabase db)
+        private async Task<IDriveDatabaseManager> GetDbManagerAsync()
         {
-            var mgr = await _driveDatabaseHost.TryGetOrLoadQueryManagerAsync(this.Drive.Id, db);
+            var mgr = await _driveDatabaseHost.TryGetOrLoadQueryManagerAsync(this.Drive.Id);
             return mgr;
         }
 

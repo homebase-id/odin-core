@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveFileStream(IdentityDatabase db)
+        protected async Task<UploadResult> ReceiveFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             AssertIsPart(section, MultipartUploadParts.Instructions);
             try
             {
-                await driveUploadService.StartUpload(section!.Body, WebOdinContext, db);
+                await driveUploadService.StartUpload(section!.Body, WebOdinContext);
             }
             catch (JsonException e)
             {
@@ -46,7 +46,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(section!.Body, WebOdinContext, db);
+            await driveUploadService.AddMetadata(section!.Body, WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -55,26 +55,26 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultiPartSection);
-                    await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext, db);
+                    await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultiPartSection);
-                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext, db);
+                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext, db);
+            var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
             return status;
         }
 
         /// <summary>
         /// Receives the stream for a new thumbnail being added to an existing file
         /// </summary>
-        protected async Task<UploadPayloadResult> ReceivePayloadStream(IdentityDatabase db)
+        protected async Task<UploadPayloadResult> ReceivePayloadStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -89,7 +89,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
 
-            await writer.StartUpload(section!.Body, WebOdinContext, db);
+            await writer.StartUpload(section!.Body, WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -98,19 +98,19 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, db);
+                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, db);
+                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await writer.FinalizeUpload(WebOdinContext, db);
+            var status = await writer.FinalizeUpload(WebOdinContext);
             return status;
         }
 

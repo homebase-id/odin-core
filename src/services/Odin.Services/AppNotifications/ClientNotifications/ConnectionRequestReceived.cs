@@ -14,7 +14,6 @@ namespace Odin.Services.AppNotifications.ClientNotifications
         public OdinId Sender { get; init; }
         public OdinId Recipient { get; init; }
         public Guid NotificationTypeId { get; } = Guid.Parse("8ee62e9e-c224-47ad-b663-21851207f768");
-        public IdentityDatabase db { get; init; }
 
         public string GetClientData()
         {

@@ -10,7 +10,6 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
     [AuthorizeValidAppToken]
     public class AppCircleNetworkRequestsController(
         CircleNetworkRequestService cn,
-        CircleNetworkIntroductionService introductionService,
-        TenantSystemStorage tenantSystemStorage)
-        : CircleNetworkRequestsControllerBase(cn, tenantSystemStorage, introductionService);
+        CircleNetworkIntroductionService introductionService)
+        : CircleNetworkRequestsControllerBase(cn, introductionService);
 }

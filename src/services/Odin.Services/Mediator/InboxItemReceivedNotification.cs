@@ -14,6 +14,5 @@ public class InboxItemReceivedNotification : MediatorNotificationBase
     public TargetDrive TargetDrive { get; init; }
     public FileSystemType FileSystemType { get; init; }
     public TransferFileType TransferFileType { get; init; }
-    public IdentityDatabase db { get; init; }
-    
+
 }

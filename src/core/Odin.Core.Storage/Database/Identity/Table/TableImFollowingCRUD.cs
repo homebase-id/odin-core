@@ -312,7 +312,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new ImFollowingRecord();
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
@@ -322,14 +322,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.identity = new OdinId(rdr.GetString(1));
             }
 
             if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
@@ -339,7 +339,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(3));
@@ -395,7 +395,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
@@ -462,7 +462,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identity = identity;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
@@ -472,7 +472,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                throw new Exception("Impossible, item is null in but set as NOT NULL");
             else
             {
                 item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));

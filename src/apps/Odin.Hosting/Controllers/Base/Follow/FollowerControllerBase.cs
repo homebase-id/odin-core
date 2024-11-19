@@ -88,7 +88,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<IActionResult> Follow([Body] FollowRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var _);
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             await _followerService.FollowAsync(request, WebOdinContext);
             return NoContent();
         }
@@ -108,7 +108,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             await _followerService.SynchronizeChannelFilesAsync(id, WebOdinContext);
         }
     }

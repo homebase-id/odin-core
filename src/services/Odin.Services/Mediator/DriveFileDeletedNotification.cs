@@ -23,7 +23,6 @@ public class DriveFileDeletedNotification : MediatorNotificationBase, IDriveNoti
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
     public ServerFileHeader PreviousServerFileHeader { get; set; }
 
-    public IdentityDatabase db { get; init; }
     public bool IgnoreFeedDistribution { get; set; }
     public bool IgnoreReactionPreviewCalculation { get; set; }
 }

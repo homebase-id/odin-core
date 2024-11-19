@@ -53,10 +53,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
-        await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext, db);
+        await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
         if (_tempConsent.ContainsKey(clientIdOrDomain))
@@ -87,7 +86,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     //
 
     public async Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
-        IOdinContext odinContext, IdentityDatabase db)
+        IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {
@@ -131,8 +130,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string publicKey,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -218,7 +216,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (!Guid.TryParse(clientIdOrDomain, out var appId))
         {
@@ -241,11 +239,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, IdentityDatabase db)
+    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {
-            if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext, db))
+            if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext))
             {
                 throw new OdinSystemException("App must be registered before consent check is possible");
             }

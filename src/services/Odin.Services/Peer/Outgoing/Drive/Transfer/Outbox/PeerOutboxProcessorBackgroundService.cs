@@ -33,13 +33,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver,
         ILoggerFactory loggerFactory,
-        TenantSystemStorage tenantSystemStorage,
         TenantContext tenantContext,
         IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
             var domain = tenantContext.HostOdinId.DomainName;
 
             var tasks = new List<Task>();
@@ -57,13 +55,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
-                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync(db) is { } item)
+                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync() is { } item)
                 {
                     var task = ProcessItemThread(item, stoppingToken);
                     tasks.Add(task);
                 }
 
-                nextRun = await peerOutbox.NextRunAsync(db) ?? MaxSleepDuration;
+                nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
@@ -97,38 +95,37 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             odinContext.SetPermissionContext(new PermissionContext(null, null, true));
 
             logger.LogDebug("Processing outbox item type: {type} (logref:{originalCorrelationId})", fileItem.Type, originalCorrelationId);
-            var db = tenantSystemStorage.IdentityDatabase;
 
             try
             {
-                var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(fileItem, odinContext, db, cancellationToken);
+                var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(fileItem, odinContext, cancellationToken);
                 if (shouldMarkComplete)
                 {
-                    await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
+                    await peerOutbox.MarkCompleteAsync(fileItem.Marker);
 
-                    await CleanupIfTransientItem(fileItem, odinContext, db);
+                    await CleanupIfTransientItem(fileItem, odinContext);
                 }
                 else
                 {
-                    await RescheduleItem(fileItem, nextRun, db);
+                    await RescheduleItem(fileItem, nextRun);
                 }
             }
             catch (OperationCanceledException oce)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now(), db);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now());
 
                 // Expected when using cancellation token
                 logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
             }
             catch (OdinFileReadException fileReadException)
             {
-                await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
+                await peerOutbox.MarkCompleteAsync(fileItem.Marker);
 
                 logger.LogError(fileReadException, "Source file not found {file} item (type: {itemType})", fileItem.File, fileItem.Type);
             }
             catch (OdinOutboxProcessingException e)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now(), db);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now());
 
                 logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -138,7 +135,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now(), db);
+                await RescheduleItem(fileItem, UnixTimeUtc.Now());
 
                 logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -148,7 +145,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task CleanupIfTransientItem(OutboxFileItem fileItem, IOdinContext odinContext, IdentityDatabase db)
+        private async Task CleanupIfTransientItem(OutboxFileItem fileItem, IOdinContext odinContext)
         {
             try
             {
@@ -160,10 +157,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         async () =>
                         {
                             // Try to clean up the transient file
-                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem, db))
+                            if (!await peerOutbox.HasOutboxFileItemAsync(fileItem))
                             {
                                 logger.LogDebug("File was transient and all other outbox records sent; deleting");
-                                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext, db);
+                                await fs.Storage.HardDeleteLongTermFile(fileItem.File, odinContext);
                             }
                         });
                 }
@@ -174,11 +171,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun, IdentityDatabase db)
+        private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun)
         {
             if (fileItem.AttemptCount > odinConfiguration.Host.OutboxOperationMaxAttempts)
             {
-                await peerOutbox.MarkCompleteAsync(fileItem.Marker, db);
+                await peerOutbox.MarkCompleteAsync(fileItem.Marker);
                 logger.LogInformation(
                     "Outbox: item of type {type} and file {file} failed too many times (attempts: {attempts}) to send.  Action: Marking Complete",
                     fileItem.Type,
@@ -187,39 +184,39 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 return;
             }
 
-            await peerOutbox.MarkFailureAsync(fileItem.Marker, nextRun, db);
+            await peerOutbox.MarkFailureAsync(fileItem.Marker, nextRun);
             InternalPulseBackgroundProcessor();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             switch (fileItem.Type)
             {
                 case OutboxItemType.PushNotification:
-                    return await SendPushNotification(fileItem, odinContext, db, cancellationToken);
+                    return await SendPushNotification(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.File:
-                    return await SendFileOutboxItem(fileItem, odinContext, db, cancellationToken);
+                    return await SendFileOutboxItem(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.RemoteFileUpdate:
-                    return await UpdateRemoteFile(fileItem, odinContext, db, cancellationToken);
+                    return await UpdateRemoteFile(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.UnencryptedFeedItem:
-                    return await SendUnencryptedFeedItem(fileItem, odinContext, db, cancellationToken);
+                    return await SendUnencryptedFeedItem(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.DeleteRemoteFile:
-                    return await SendDeleteFileRequest(fileItem, odinContext, db, cancellationToken);
+                    return await SendDeleteFileRequest(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.ReadReceipt:
-                    return await SendReadReceipt(fileItem, odinContext, db, cancellationToken);
+                    return await SendReadReceipt(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.AddRemoteReaction:
-                    return await AddRemoteReaction(fileItem, odinContext, db, cancellationToken);
+                    return await AddRemoteReaction(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.DeleteRemoteReaction:
-                    return await DeleteRemoteReaction(fileItem, odinContext, db, cancellationToken);
+                    return await DeleteRemoteReaction(fileItem, odinContext, cancellationToken);
 
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -227,34 +224,34 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> AddRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<AddRemoteReactionOutboxWorker>();
             var worker = new AddRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> DeleteRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<DeleteRemoteReactionOutboxWorker>();
             var worker = new DeleteRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendReadReceiptOutboxWorker>();
             var worker = new SendReadReceiptOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendFileOutboxItem(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendFileOutboxWorkerAsync>();
@@ -265,11 +262,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinHttpClientFactory
             );
 
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> UpdateRemoteFile(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<UpdateRemoteFileOutboxWorker>();
@@ -280,12 +277,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinHttpClientFactory
             );
 
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
         
         
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendPushNotificationOutboxWorker>();
@@ -294,11 +291,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 appRegistrationService,
                 pushNotificationService);
 
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendUnencryptedFeedItem(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendUnencryptedFeedFileOutboxWorkerAsync>();
@@ -306,16 +303,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 driveAcl
             );
 
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendDeleteFileRequest(OutboxFileItem fileItem, IOdinContext odinContext,
-            IdentityDatabase db,
+            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();
             var worker = new SendDeleteFileRequestOutboxWorkerAsync(fileItem, workLogger, odinConfiguration, odinHttpClientFactory);
-            return await worker.Send(odinContext, db, cancellationToken);
+            return await worker.Send(odinContext, cancellationToken);
         }
     }
 }

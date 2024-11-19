@@ -42,8 +42,8 @@ public class HomePageCacheController : OdinControllerBase
     [HttpPost("qbc")]
     public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        return await this.GetOrCache(request, db);
+        
+        return await this.GetOrCache(request);
     }
 
     [SwaggerOperation(Tags = new[] { HomePageSwaggerTag })]
@@ -63,16 +63,15 @@ public class HomePageCacheController : OdinControllerBase
             Queries = sections
         };
 
-        var db = _tenantSystemStorage.IdentityDatabase;
-        var result = await GetOrCache(request, db);
+        var result = await GetOrCache(request);
         return result;
     }
 
-    private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request, IdentityDatabase db)
+    private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request)
     {
         // tell the browser to check in ever 1 minutes
         const int minutes = 1;
         AddGuestApiCacheHeader(minutes);
-        return await _cachingService.GetResult(request, WebOdinContext, _tenantContext.HostOdinId, db);
+        return await _cachingService.GetResult(request, WebOdinContext, _tenantContext.HostOdinId);
     }
 }

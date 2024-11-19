@@ -26,7 +26,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
     FileSystemResolver fileSystemResolver)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
 {
-    public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Payload, nameof(request.Payload));
@@ -35,11 +35,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    public async Task<PeerResponseCode> DeleteReaction(RemoteReactionRequestRedux request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PeerResponseCode> DeleteReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Payload, nameof(request.Payload));
@@ -48,12 +48,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext,
-        IdentityDatabase db)
+    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext)
     {
         var file = request.File;
 
@@ -83,7 +82,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
             TransferFileType = TransferFileType.Normal,
             FileSystemType = item.FileSystemType,
             OdinContext = odinContext,
-            db = db
+
         });
     }
 }

@@ -30,7 +30,7 @@ public class IdentitiesIFollowAuthenticationService
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IdentityDatabase db)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -49,7 +49,7 @@ public class IdentitiesIFollowAuthenticationService
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, tempToken, db);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, tempToken);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -67,7 +67,7 @@ public class IdentitiesIFollowAuthenticationService
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
-        ClientAuthenticationToken token, IdentityDatabase db)
+        ClientAuthenticationToken token)
     {
         var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollowAsync(callerOdinId, token);
         var cc = new CallerContext(

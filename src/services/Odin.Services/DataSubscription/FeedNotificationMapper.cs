@@ -39,7 +39,7 @@ namespace Odin.Services.DataSubscription
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
             var driveId = notification.Reaction.FileId.DriveId;
-            if (await IsFeedDriveRelatedAsync(driveId, notification.db))
+            if (await IsFeedDriveRelatedAsync(driveId))
             {
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
@@ -53,8 +53,7 @@ namespace Odin.Services.DataSubscription
                         TagId = notification.Reaction.FileId.FileId,
                         Silent = false,
                     },
-                        newContext,
-                        notification.db);
+                        newContext);
                 }
             }
         }
@@ -72,8 +71,7 @@ namespace Odin.Services.DataSubscription
                 TagId = notification.GlobalTransitId,
                 Silent = false,
             },
-                newContext,
-                notification.db);
+                newContext);
         }
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
@@ -100,8 +98,7 @@ namespace Odin.Services.DataSubscription
                     TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     Silent = false,
                 },
-                    newContext,
-                    notification.db);
+                    newContext);
             }
         }
 
@@ -116,13 +113,12 @@ namespace Odin.Services.DataSubscription
                     TagId = notification.Sender.ToHashId(),
                     Silent = false
                 },
-                newContext,
-                notification.db);
+                newContext);
         }
 
-        private async Task<bool> IsFeedDriveRelatedAsync(Guid driveId, IdentityDatabase db)
+        private async Task<bool> IsFeedDriveRelatedAsync(Guid driveId)
         {
-            var drive = await driveManager.GetDriveAsync(driveId, db);
+            var drive = await driveManager.GetDriveAsync(driveId);
             if (null == drive)
             {
                 logger.LogDebug("notification sent with invalid driveId - this is totes rare");

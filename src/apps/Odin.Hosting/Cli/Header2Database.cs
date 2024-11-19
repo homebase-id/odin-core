@@ -105,7 +105,7 @@ public static class Header2Database
         var tenantContainer = _serviceProvider.GetRequiredService<IMultiTenantContainerAccessor>().Container();
         var tenantScope = tenantContainer.GetTenantScope(tenant);
         var tenantSystemStorage = tenantScope.Resolve<TenantSystemStorage>(); 
-        var db = tenantSystemStorage.IdentityDatabase;
+        
         var driveDatabaseHost = tenantScope.Resolve<DriveDatabaseHost>();
         var tenantHome = Path.Combine(odinConfig.Host.TenantDataRootPath, "registrations", registration.Id.ToString());
         
@@ -157,10 +157,10 @@ public static class Header2Database
             
             File.Move(headerPath, headerPath + ".backup");
             
-            var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
-            sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
-            sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
-            sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
+            var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId).Result;
+            sqliteDatabaseManager.SaveFileHeader(header).Wait();
+            sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory).Wait();
+            sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview).Wait();
         }
         
         // var headerFiles = Directory.GetFiles(tenantHome, "*.header", SearchOption.AllDirectories);
@@ -189,12 +189,12 @@ public static class Header2Database
         //         throw new Exception("AppData.UniqueId is null-guid");
         //     }   
         //     
-        //     var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId, db).Result;
-        //     sqliteDatabaseManager.SaveFileHeader(header, db).Wait();
+        //     var sqliteDatabaseManager = driveDatabaseHost.TryGetOrLoadQueryManager(header.FileMetadata.File.DriveId).Result;
+        //     sqliteDatabaseManager.SaveFileHeader(header).Wait();
         //     
         //     // SEB:TODO
-        //     // sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory, db).Wait();
-        //     // sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview, db).Wait();
+        //     // sqliteDatabaseManager.SaveTransferHistory(header.FileMetadata.File.FileId, header.ServerMetadata.TransferHistory).Wait();
+        //     // sqliteDatabaseManager.SaveReactionSummary(header.FileMetadata.File.FileId, header.FileMetadata.ReactionPreview).Wait();
         // }        
     }
 }

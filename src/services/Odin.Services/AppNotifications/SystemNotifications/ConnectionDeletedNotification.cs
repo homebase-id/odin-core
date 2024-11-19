@@ -10,6 +10,4 @@ public class ConnectionDeletedNotification : MediatorNotificationBase
     /// The identity that was deleted
     /// </summary>
     public OdinId OdinId { get; init; }
-    
-    public IdentityDatabase db { get; init; }
 }

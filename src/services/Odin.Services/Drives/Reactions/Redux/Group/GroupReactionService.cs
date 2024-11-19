@@ -31,25 +31,25 @@ public class GroupReactionService(
     private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
     public async Task<AddReactionResult> AddReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
-        IdentityDatabase db, FileSystemType fileSystemType)
+         FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        var localFile = await GetLocalFileIdAsync(fileId, odinContext, db, fileSystemType);
+        var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new AddReactionResult();
 
-        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext);
 
         if (options?.Recipients?.Any() ?? false)
         {
             foreach (var recipient in options.Recipients)
             {
                 var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
-                    odinContext, db, fileSystemType);
+                    odinContext, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
@@ -60,24 +60,24 @@ public class GroupReactionService(
     }
 
     public async Task<DeleteReactionResult> DeleteReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
-        IdentityDatabase db, FileSystemType fileSystemType)
+         FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        var localFile = await GetLocalFileIdAsync(fileId, odinContext, db, fileSystemType);
+        var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, db);
+        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext);
 
         if (options?.Recipients?.Any() ?? false)
         {
             foreach (var recipient in options.Recipients)
             {
                 var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
-                    odinContext, db, fileSystemType);
+                    odinContext, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
@@ -88,44 +88,44 @@ public class GroupReactionService(
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFileAsync(FileIdentifier fileId, IOdinContext odinContext,
-        IdentityDatabase db, FileSystemType fileSystemType)
+         FileSystemType fileSystemType)
     {
-        var file = await GetLocalFileIdAsync(fileId, odinContext, db, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext, db);
+        return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
-        IdentityDatabase db, FileSystemType fileSystemType)
+         FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertIsValidOdinId(identity, out _);
 
-        var file = await GetLocalFileIdAsync(fileId, odinContext, db, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext, db);
+        return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext);
     }
 
     public async Task<GetReactionsResponse> GetReactionsAsync(FileIdentifier fileId, int cursor, int maxCount, IOdinContext odinContext,
-        IdentityDatabase db, FileSystemType fileSystemType)
+         FileSystemType fileSystemType)
     {
-        var file = await GetLocalFileIdAsync(fileId, odinContext, db, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext, db);
+        return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }
 
     //
 
-    private async Task<InternalDriveFileId> GetLocalFileIdAsync(FileIdentifier fileId, IOdinContext odinContext, IdentityDatabase db,
+    private async Task<InternalDriveFileId> GetLocalFileIdAsync(FileIdentifier fileId, IOdinContext odinContext,
         FileSystemType fileSystemType)
     {
         var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
-        var localFileId = (await fs.Query.ResolveFileId(fileId.ToGlobalTransitIdFileIdentifier(), odinContext, db)).GetValueOrDefault();
+        var localFileId = (await fs.Query.ResolveFileId(fileId.ToGlobalTransitIdFileIdentifier(), odinContext)).GetValueOrDefault();
 
         if (!localFileId.IsValid())
         {
@@ -141,7 +141,7 @@ public class GroupReactionService(
         string reaction,
         InternalDriveFileId localFile,
         IOdinContext odinContext,
-        IdentityDatabase db,
+        
         FileSystemType fileSystemType)
     {
         var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);

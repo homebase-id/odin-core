@@ -49,14 +49,14 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId, IdentityDatabase db)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId)
         {
             var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
             {
 #if DEBUG
                 CacheMiss++;
 #endif
-                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext, db);
+                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
                 return collection;
             });
 
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var drive = await _driveManager.GetDriveAsync(notification.File.DriveId, notification.db);
+            var drive = await _driveManager.GetDriveAsync(notification.File.DriveId);
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason
