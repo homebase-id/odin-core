@@ -49,6 +49,7 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
+using Odin.Services.Util;
 
 namespace Odin.Hosting
 {
@@ -491,6 +492,8 @@ namespace Odin.Hosting
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
+                var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+                AutofacDiagnostics.AssertSingletonDependencies(root, logger);
 
                 // Create system database
                 var systemDatabase = services.GetRequiredService<SystemDatabase>();
