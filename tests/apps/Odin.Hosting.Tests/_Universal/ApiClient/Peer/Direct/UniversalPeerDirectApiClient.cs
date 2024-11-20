@@ -55,8 +55,10 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata))
             };
 
             var svc = RestService.For<IUniversalRefitPeerDirect>(client);
@@ -104,8 +106,10 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
 
             List<StreamPart> parts =
             [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata))
             ];
 
             foreach (var payloadDefinition in payloads)
@@ -115,7 +119,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
 
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
-                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    var thumbnailKey =
+                        $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
                     parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
@@ -138,10 +143,12 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         Guid? overwriteGlobalTransitFileId,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
+        AppNotificationOptions notificationOptions = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
+
 
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
@@ -149,7 +156,8 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
             Recipients = recipients.Select(d => d.DomainName).ToList(),
-            Manifest = uploadManifest
+            Manifest = uploadManifest,
+            NotificationOptions = notificationOptions
         };
 
         var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
@@ -170,18 +178,22 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
 
             List<StreamPart> parts =
             [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata))
             ];
 
             foreach (var payloadDefinition in payloads)
             {
                 var pc = keyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
-                parts.Add(new StreamPart(pc, payloadDefinition.Key, payloadDefinition.ContentType, Enum.GetName(MultipartUploadParts.Payload)));
+                parts.Add(new StreamPart(pc, payloadDefinition.Key, payloadDefinition.ContentType,
+                    Enum.GetName(MultipartUploadParts.Payload)));
 
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
-                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    var thumbnailKey =
+                        $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
                     var tc = keyHeader.EncryptDataAesAsStream(thumbnail.Content);
                     parts.Add(new StreamPart(tc, thumbnailKey, thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
@@ -250,8 +262,10 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata)),
             };
 
             var transitSvc = RestService.For<IUniversalRefitPeerDirect>(client);

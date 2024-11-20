@@ -1,6 +1,5 @@
-﻿using System.Threading.Tasks;
-using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Services.Drives;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using Odin.Services.Peer.AppNotification;
 using Refit;
 
@@ -12,6 +11,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.AppNotifications
             
         [Post(RootEndpoint + "/token")]
         Task<ApiResponse<AppNotificationTokenResponse>> GetRemoteNotificationToken([Body]GetRemoteTokenRequest request);
+
+        [Post(RootEndpoint + "/subscriptions/push-notification")]
+        Task<ApiResponse<HttpContent>> SubscribePeer([Body]PeerNotificationSubscription request);
+
+        [Delete(RootEndpoint + "/subscriptions/push-notification")]
+        Task<ApiResponse<HttpContent>> UnsubscribePeer([Body]PeerNotificationSubscription request);
 
     }
 }

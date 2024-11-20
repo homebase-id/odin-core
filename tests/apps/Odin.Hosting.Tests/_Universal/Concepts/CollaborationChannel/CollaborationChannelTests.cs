@@ -470,8 +470,9 @@ public class CollaborationChannelTests
     private async Task CleanupScenario(OwnerApiClientRedux collabChannel, OwnerApiClientRedux member1, OwnerApiClientRedux member2)
     {
         await collabChannel.Connections.DisconnectFrom(member1.OdinId);
-        await member1.Connections.DisconnectFrom(member1.OdinId);
-        await member2.Connections.DisconnectFrom(member1.OdinId);
+        await collabChannel.Connections.DisconnectFrom(member2.OdinId);
+        await member1.Connections.DisconnectFrom(collabChannel.OdinId);
+        await member2.Connections.DisconnectFrom(collabChannel.OdinId);
 
         Assert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member1 failed to unfollow collab channel");
         Assert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member2 failed to unfollow collab channel");

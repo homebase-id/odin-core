@@ -160,6 +160,40 @@ public class DriveManager
             });
         }
     }
+    
+    public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext, IdentityDatabase db)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        StorageDrive storageDrive = await GetDriveAsync(driveId, db);
+
+        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinSecurityException("Cannot change system drive");
+        }
+
+        if (storageDrive.OwnerOnly && allowSubscriptions)
+        {
+            throw new OdinSecurityException("Cannot set Owner Only drive to allow anonymous");
+        }
+
+        //only change if needed
+        if (storageDrive.AllowSubscriptions != allowSubscriptions)
+        {
+            storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await _driveStorage.UpsertAsync(db, driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+
+            CacheDrive(storageDrive);
+
+            await _mediator.Publish(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext,
+                db = db
+            });
+        }
+    }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext, IdentityDatabase db)
     {
