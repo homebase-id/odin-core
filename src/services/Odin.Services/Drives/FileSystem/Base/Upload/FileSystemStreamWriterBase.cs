@@ -349,10 +349,6 @@ public abstract class FileSystemStreamWriterBase
         {
             OdinValidationUtils.AssertValidRecipientList(transitOptions.Recipients, allowEmpty: true);
 
-            // since the file is being sent, we're going to remove any notification-specific recipients
-            // because we don't want to share that with the recipients; also, they will process their own app notifications
-            // package.InstructionSet.TransitOptions.AppNotificationOptions?.Recipients.Clear();
-
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
