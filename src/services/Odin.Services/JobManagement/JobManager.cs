@@ -352,7 +352,7 @@ public class JobManager(
     private async Task<int> UpdateAsync(JobsRecord record)
     {
         var updated = await tableJobs.UpdateAsync(record);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
 
@@ -361,7 +361,7 @@ public class JobManager(
     private async Task<int> UpsertAsync(JobsRecord record)
     {
         var updated = await tableJobs.UpsertAsync(record);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
     
@@ -370,7 +370,7 @@ public class JobManager(
     private async Task<int> DeleteAsync(JobsRecord record)
     {
         var deleted = await tableJobs.DeleteAsync(record.id);
-        backgroundServiceTrigger.PulseBackgroundProcessor(nameof(JobRunnerBackgroundService));
+        backgroundServiceTrigger.PulseBackgroundProcessor();
         return deleted;
     } 
    
