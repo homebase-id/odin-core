@@ -16,7 +16,7 @@ public class InboxOutboxReconciliationBackgroundService(
     TenantSystemStorage tenantSystemStorage,
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
-    IBackgroundServiceTrigger backgroundServiceTrigger)
+    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
     : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -37,7 +37,7 @@ public class InboxOutboxReconciliationBackgroundService(
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                backgroundServiceTrigger.PulseBackgroundProcessor(nameof(PeerOutboxProcessorBackgroundService)); // signal outbox processor to get to work
+                backgroundServiceTrigger.PulseBackgroundProcessor(); // signal outbox processor to get to work
             }
 
             if (recoveredInboxItems > 0)

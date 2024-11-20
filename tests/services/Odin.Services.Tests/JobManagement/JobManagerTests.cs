@@ -32,7 +32,7 @@ public class JobManagerTests
 {
     private IHost? _host;
     private string? _tempPath;
-    private BackgroundServiceManager? _backgroundServiceManager;
+    private IBackgroundServiceManager? _backgroundServiceManager;
     private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
     private JobRunnerBackgroundService? _jobRunnerBackgroundService;
     
@@ -43,10 +43,10 @@ public class JobManagerTests
         Directory.CreateDirectory(_tempPath);
         
         _host = CreateHostedJobManager();
-        _backgroundServiceManager = _host.Services.GetRequiredService<BackgroundServiceManager>();
+        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
 
-        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
-        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
+        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>();
+        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>();
     }
 
     //
@@ -100,12 +100,10 @@ public class JobManagerTests
                 //  Background services
                 //
 
-                services.AddSingleton<BackgroundServiceManager>(provider => new BackgroundServiceManager(
+                services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
                     provider.GetRequiredService<ILifetimeScope>(),
                     "system"
                 ));
-                services.AddSingleton<IBackgroundServiceTrigger>(provider => provider.GetRequiredService<BackgroundServiceManager>());
-                services.AddSingleton<IBackgroundServiceManager>(provider => provider.GetRequiredService<BackgroundServiceManager>());
 
                 services.AddTransient<JobCleanUpBackgroundService>();
                 services.AddTransient<JobRunnerBackgroundService>();
@@ -115,6 +113,9 @@ public class JobManagerTests
                 //
 
                 services.AddSingleton<IJobManager, JobManager>();
+                services.AddSingleton<
+                    IBackgroundServiceTrigger<JobRunnerBackgroundService>,
+                    BackgroundServiceTrigger<JobRunnerBackgroundService>>();
 
                 services.AddTransient<SimpleJobTest>();
                 services.AddTransient<SimpleJobWithDelayTest>();
@@ -830,7 +831,7 @@ public class JobManagerTests
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
 
         await StartBackgroundServices();
 
@@ -963,7 +964,7 @@ public class JobManagerTests
     {
         // Arrange
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<BackgroundServiceManager>();
+        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle

@@ -15,25 +15,23 @@ namespace Odin.Services.Background;
 
 #nullable enable
 
-public interface IBackgroundServiceTrigger
-{
-    void PulseBackgroundProcessor(string serviceIdentifier);
-}
-
 public interface IBackgroundServiceManager
 {
-    T Create<T>(string serviceIdentifier) where T : AbstractBackgroundService;
+    T Create<T>(string? serviceIdentifier = null) where T : AbstractBackgroundService;
     Task StartAsync(AbstractBackgroundService service);
-    Task<T> StartAsync<T>(string serviceIdentifier) where T : AbstractBackgroundService;
+    Task<T> StartAsync<T>(string? serviceIdentifier = null) where T : AbstractBackgroundService;
     Task StopAsync(string serviceIdentifier);
+    Task StopAsync<T>();
     Task StopAllAsync();
     Task ShutdownAsync();
+    void PulseBackgroundProcessor(string serviceIdentifier);
+    void PulseBackgroundProcessor<T>();
 }
 
 //
 
 public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, string owner)
-    : IBackgroundServiceTrigger, IBackgroundServiceManager, IDisposable
+    : IBackgroundServiceManager, IDisposable
 {
     private readonly CancellationTokenSource _stoppingCts = new();
     private readonly AsyncReaderWriterLock _lock = new();
@@ -48,9 +46,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     
     //
 
-    public T Create<T>(string serviceIdentifier) where T : AbstractBackgroundService
+    public T Create<T>(string? serviceIdentifier = null) where T : AbstractBackgroundService
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(serviceIdentifier);
+        serviceIdentifier ??= typeof(T).Name;
         
         if (_stoppingCts.IsCancellationRequested)
         {
@@ -103,8 +101,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     
     //
     
-    public async Task<T> StartAsync<T>(string serviceIdentifier) where T : AbstractBackgroundService
+    public async Task<T> StartAsync<T>(string? serviceIdentifier = null) where T : AbstractBackgroundService
     {
+        serviceIdentifier ??= typeof(T).Name;
         var service = Create<T>(serviceIdentifier);
         await StartAsync(service);
         return service;
@@ -114,6 +113,8 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public async Task StopAsync(string serviceIdentifier)
     {
+        ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
+
         UpdateLogContext();
 
         ScopedAbstractBackgroundService? scopedAbstractBackgroundService;
@@ -128,6 +129,13 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             scopedAbstractBackgroundService.Scope.Dispose();
             _logger.LogInformation("Stopped background service '{serviceIdentifier}'", serviceIdentifier);
         }
+    }
+
+    //
+
+    public Task StopAsync<T>()
+    {
+        return StopAsync(typeof(T).Name);
     }
 
     //
@@ -157,11 +165,11 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public void PulseBackgroundProcessor(string serviceIdentifier)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(serviceIdentifier);
+        ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
         if (_stoppingCts.IsCancellationRequested)
         {
-            throw new InvalidOperationException("The background service manager is stopping.");
+            return;
         }
 
         ScopedAbstractBackgroundService? backgroundService;
@@ -173,6 +181,13 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             }
         }
         backgroundService.BackgroundService.InternalPulseBackgroundProcessor();
+    }
+
+    //
+
+    public void PulseBackgroundProcessor<T>()
+    {
+        PulseBackgroundProcessor(typeof(T).Name);
     }
 
     //
