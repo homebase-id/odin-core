@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -27,6 +28,14 @@ public class UniversalPeerAppNotificationApiClient(OdinId identity, IApiClientFa
             SubscriptionId = peerSubscriptionId,
             Identity = peerIdentity
         });
+        return response;
+    }
+    
+    public async Task<ApiResponse<List<PeerNotificationSubscription>>> GetAllSubscriptions()
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerAppNotification>(client, sharedSecret);
+        var response = await svc.GetAllSubscriptions();
         return response;
     }
 

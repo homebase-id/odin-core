@@ -58,7 +58,10 @@ public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermission
 
     public async Task Cleanup()
     {
-        await this._api.YouAuth.DeleteDomainRegistration(identity);
+        if (null != this._api)
+        {
+            await this._api.YouAuth.DeleteDomainRegistration(identity);
+        }
     }
 
     public override string ToString()

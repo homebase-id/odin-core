@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Peer.AppNotification;
@@ -33,6 +34,13 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
         {
             await peerAppNotificationService.UnsubscribePeerAsync(request, WebOdinContext);
             return NoContent();
+        }
+
+        [HttpGet("subscriptions/push-notification")]
+        public async Task<List<PeerNotificationSubscription>> GetSubscriptions()
+        {
+            var list = await peerAppNotificationService.GetAllSubscriptions(WebOdinContext);
+            return list;
         }
     }
 }

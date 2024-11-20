@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Services.Peer.AppNotification;
 using Refit;
@@ -17,6 +18,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.AppNotifications
 
         [Delete(RootEndpoint + "/subscriptions/push-notification")]
         Task<ApiResponse<HttpContent>> UnsubscribePeer([Body]PeerNotificationSubscription request);
+        
+        [Get(RootEndpoint + "/subscriptions/push-notification")]
+        Task<ApiResponse<List<PeerNotificationSubscription>>> GetAllSubscriptions();
 
     }
 }
