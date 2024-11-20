@@ -351,7 +351,7 @@ public abstract class FileSystemStreamWriterBase
 
             // since the file is being sent, we're going to remove any notification-specific recipients
             // because we don't want to share that with the recipients; also, they will process their own app notifications
-            package.InstructionSet.TransitOptions.AppNotificationOptions?.Recipients.Clear();
+            // package.InstructionSet.TransitOptions.AppNotificationOptions?.Recipients.Clear();
 
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
@@ -367,56 +367,16 @@ public abstract class FileSystemStreamWriterBase
         if (transitOptions.UseAppNotification && (transitOptions.AppNotificationOptions.Recipients?.Any() ?? false))
         {
             var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId, db, true);
-            if (!drive.IsCollaborationDrive())
+            if (!drive.IsCollaborationDrive() || !drive.AllowSubscriptions)
             {
-                throw new OdinClientException("App notification recipients can only be specified if the drive is a collaboration drive");
+                throw new OdinClientException("App notification recipients can only be specified if the drive is a " +
+                                              "collaboration drive and allows subscriptions");
             }
-
-            //TODO: merge in this logic
-
-            // if (null != notificationOptions)
-            // {
-            //     if (notificationOptions.Recipients?.Any() ?? false)
-            //     {
-            //         var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive,
-            //             tenantSystemStorage.IdentityDatabase);
-            //         if (!drive.AllowSubscriptions)
-            //         {
-            //             throw new OdinSecurityException(
-            //                 "Attempt to distribute app notifications to drive which does not allow subscriptions");
-            //         }
-            //
-            //         foreach (var recipient in notificationOptions.Recipients.Without(odinContext.Tenant))
-            //         {
-            //             try
-            //             {
-            //                 await EnqueuePeerPushNotificationDistribution(recipient, notificationOptions, drive, odinContext);
-            //             }
-            //             catch (Exception e)
-            //             {
-            //                 logger.LogInformation(e, "Failed why enqueueing peer push notification for recipient ({r})", recipient);
-            //             }
-            //         }
-            //
-            //         // also send to me
-            //         if (notificationOptions.Recipients.Any(r => r == odinContext.Tenant))
-            //         {
-            //             var senderId = odinContext.GetCallerOdinIdOrFail();
-            //             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            //             await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, db);
-            //         }
-            //     }
-            //     else
-            //     {
-            //         var senderId = odinContext.GetCallerOdinIdOrFail();
-            //         var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            //         await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, db);
-            //     }
-            // }
 
             await _peerOutgoingTransferService.SendPeerPushNotification(
                 transitOptions.AppNotificationOptions,
                 package.InternalFile.DriveId,
+                db,
                 odinContext);
         }
 

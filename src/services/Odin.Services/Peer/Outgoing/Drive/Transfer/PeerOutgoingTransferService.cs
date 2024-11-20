@@ -36,7 +36,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger
+        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
+        PushNotificationService pushNotificationService
     )
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
@@ -220,10 +221,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Tells a peer identity to send a push notification to its owner
         /// </summary>
-        public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IOdinContext odinContext)
+        public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IdentityDatabase db,
+            IOdinContext odinContext)
         {
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, false);
-            
+
             //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
             // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
             // if (null == clientAuthToken)
@@ -232,38 +234,51 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //     return;
             // }
 
-            foreach (var recipient in options.Recipients)
+            foreach (var recipient in options.Recipients.Without(odinContext.Tenant))
             {
-                var item = new OutboxFileItem
+                try
                 {
-                    Recipient = recipient,
-                    Priority = 0, //super high priority to ensure these are sent quickly,
-                    Type = OutboxItemType.PeerPushNotification,
-                    AttemptCount = 0,
-                    File = new InternalDriveFileId()
+                    var item = new OutboxFileItem
                     {
-                        DriveId = driveId,
-                        FileId = SequentialGuid.CreateGuid()
-                    },
-                    DependencyFileId = default,
-                    State = new OutboxItemState
-                    {
-                        TransferInstructionSet = null,
-                        OriginalTransitOptions = null,
-                        // EncryptedClientAuthToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes(),
-                        Data = OdinSystemSerializer.Serialize(new PushNotificationOutboxRecord()
-                            {
-                                SenderId = odinContext.GetCallerOdinIdOrFail(),
-                                Options = options,
-                                Timestamp = UnixTimeUtc.Now()
-                                    .milliseconds
-                            })
-                            .ToUtf8ByteArray()
-                    },
-                };
-                
-                await peerOutbox.AddItemAsync(item, useUpsert: true);
-                
+                        Recipient = recipient,
+                        Priority = 0, //super high priority to ensure these are sent quickly,
+                        Type = OutboxItemType.PeerPushNotification,
+                        AttemptCount = 0,
+                        File = new InternalDriveFileId()
+                        {
+                            DriveId = driveId,
+                            FileId = SequentialGuid.CreateGuid()
+                        },
+                        DependencyFileId = default,
+                        State = new OutboxItemState
+                        {
+                            TransferInstructionSet = null,
+                            OriginalTransitOptions = null,
+                            // EncryptedClientAuthToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes(),
+                            Data = OdinSystemSerializer.Serialize(new PushNotificationOutboxRecord()
+                                {
+                                    SenderId = odinContext.GetCallerOdinIdOrFail(),
+                                    Options = options,
+                                    Timestamp = UnixTimeUtc.Now()
+                                        .milliseconds
+                                })
+                                .ToUtf8ByteArray()
+                        },
+                    };
+
+                    await peerOutbox.AddItemAsync(item, useUpsert: true);
+                }
+                catch (Exception e)
+                {
+                    logger.LogInformation(e, "Failed why enqueueing peer push notification for recipient ({r})", recipient);
+                }
+            }
+
+            if (options.Recipients.Any(r => r == odinContext.Tenant))
+            {
+                var senderId = odinContext.GetCallerOdinIdOrFail();
+                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                await pushNotificationService.EnqueueNotification(senderId, options, newContext, db);
             }
         }
 

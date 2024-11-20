@@ -138,7 +138,7 @@ public class CollaborationChatPushNotificationTests
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
-                    .Where(notification => notification.SenderId == member1.OdinId);
+                    .Where(notification => notification.SenderId == collabChatIdentity.OdinId);
 
                 Assert.IsTrue(notificationsFromCollabChat.Any());
                 //TODO: where do we check this? in the notifications or the log?
@@ -174,8 +174,8 @@ public class CollaborationChatPushNotificationTests
         {
             AppId = collabChatAppId,
             PeerSubscriptionId = peerSubscriptionId,
-            Recipients = [collabChatIdentity.OdinId, member2.OdinId]
-
+            Recipients = [collabChatIdentity.OdinId, member2.OdinId],
+            UnEncryptedMessage = "unencrypted message from unit test"
             // TypeId = default,
             // TagId = default,
             // Silent = false,
