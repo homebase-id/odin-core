@@ -57,7 +57,6 @@ public class AutofacDiagnostics
             }
 
             var service = registration.Target.Activator.LimitType;
-            Console.WriteLine($"XXXXXXXX {service} XXXXXXXXXXXXXX");
 
             // Use the constructor finder to get available constructors
             var constructorFinder = reflectionActivator.ConstructorFinder;
