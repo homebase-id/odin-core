@@ -55,7 +55,7 @@ public class PeerAppNotificationService : PeerServiceBase
         odinContext.Caller.AssertCallerIsAuthenticated();
 
         var caller = odinContext.GetCallerOdinIdOrFail();
-        
+
         var isConnected = (await CircleNetworkService.GetIcrAsync(caller, odinContext, true)).IsConnected();
         if (!isConnected)
         {
@@ -84,14 +84,14 @@ public class PeerAppNotificationService : PeerServiceBase
     public async Task SubscribePeerAsync(PeerNotificationSubscription request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var db = _tenantSystemStorage.IdentityDatabase;
         await _notificationSubscriptionStorage.UpsertAsync(db, request.ToKey(), request.Identity.ToHashId().ToByteArray(),
             _subscriptionsCategoryKey, request);
     }
 
-    
+
     /// <summary>
     /// Revokes a peer identity from sending this identity push notifications
     /// </summary>
@@ -103,7 +103,7 @@ public class PeerAppNotificationService : PeerServiceBase
         var db = _tenantSystemStorage.IdentityDatabase;
         await _notificationSubscriptionStorage.DeleteAsync(db, request.ToKey());
     }
-    
+
     public async Task<List<PeerNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
@@ -125,7 +125,7 @@ public class PeerAppNotificationService : PeerServiceBase
     }
 
     /// <summary>
-    /// Calls to a remote identity to get an <see cref="ClientAccessToken"/> 
+    /// Calls to a remote identity to get an <see cref="ClientAccessToken"/>
     /// </summary>
     public async Task<AppNotificationTokenResponse> GetRemoteNotificationToken(GetRemoteTokenRequest request, IOdinContext odinContext)
     {
@@ -240,12 +240,12 @@ public class PeerAppNotificationService : PeerServiceBase
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
     }
-    
+
 
     private async Task<List<PeerNotificationSubscription>> GetSubscriptionsByIdentityInternal(OdinId identity)
     {
         var db = _tenantSystemStorage.IdentityDatabase;
-        
+
         var list = await _notificationSubscriptionStorage.GetByKey2And3Async<PeerNotificationSubscription>(db,
             identity.ToHashId().ToByteArray(), _subscriptionsCategoryKey);
         return list.ToList();
