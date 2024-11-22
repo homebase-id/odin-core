@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Cache;
 
@@ -550,6 +551,96 @@ public class GenericMemoryCacheTest
 
     //
 
+    [Test]
+    public void ItShouldSupportDiUsingSpecificGenerics()
+    {
+        var serviceCollection = new ServiceCollection();
+
+        serviceCollection.AddSingleton<
+            IGenericMemoryCache<GenericMemoryCacheTest>,
+            GenericMemoryCache<GenericMemoryCacheTest>>();
+
+        serviceCollection.AddSingleton<
+            IGenericMemoryCache<SampleValue>,
+            GenericMemoryCache<SampleValue>>();
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        {
+            var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<GenericMemoryCacheTest>>();
+            cache.Set("aaa", "aaa", TimeSpan.FromSeconds(10));
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<SampleValue>>();
+            cache.Set("111", "111", TimeSpan.FromSeconds(10));
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<GenericMemoryCacheTest>>();
+            var hit = cache.TryGet("aaa", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("aaa", value);
+
+            hit = cache.TryGet("111", out value);
+            Assert.IsFalse(hit);
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<SampleValue>>();
+            var hit = cache.TryGet("111", out var value);
+            Assert.IsTrue(hit);
+            Assert.AreEqual("111", value);
+
+            hit = cache.TryGet("aaa", out value);
+            Assert.IsFalse(hit);
+        }
+    }
+
+    //
+
+    [Test]
+    public void ItShouldSupportDiUsingOpenGenericRegistration()
+    {
+        var serviceCollection = new ServiceCollection();
+
+        serviceCollection.AddSingleton(typeof(IGenericMemoryCache<>), typeof(GenericMemoryCache<>));
+        serviceCollection.AddTransient<OpenGenericTestA>();
+        serviceCollection.AddTransient<OpenGenericTestB>();
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        {
+            var cache = serviceProvider.GetRequiredService<OpenGenericTestA>();
+            cache.Store("aaa", "aaa");
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<OpenGenericTestB>();
+            cache.Store("111", "111");
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<OpenGenericTestA>();
+            var (hit, value) = cache.Load("aaa");
+            Assert.IsTrue(hit);
+            Assert.AreEqual("aaa", value);
+
+            (hit, _) = cache.Load("111");
+            Assert.IsFalse(hit);
+        }
+
+        {
+            var cache = serviceProvider.GetRequiredService<OpenGenericTestB>();
+            var (hit, value) = cache.Load("111");
+            Assert.IsTrue(hit);
+            Assert.AreEqual("111", value);
+
+            (hit, _) = cache.Load("aaa");
+            Assert.IsFalse(hit);
+        }
+    }
+
     private class SampleValue
     {
         public string Name { get; set; } = "bar";
@@ -569,5 +660,34 @@ public class GenericMemoryCacheTest
     {
         public override string Value { get; } = "Hello";
     }
+
+    private class OpenGenericTestA(IGenericMemoryCache<OpenGenericTestA> cache)
+    {
+        public (bool, string?) Load(string key)
+        {
+            var hit = cache.TryGet<string>(key, out var value);
+            return (hit, value);
+        }
+
+        public void Store(string key, string value)
+        {
+            cache.Set(key, value, TimeSpan.FromSeconds(10));
+        }
+    }
+
+    private class OpenGenericTestB(IGenericMemoryCache<OpenGenericTestB> cache)
+    {
+        public (bool, string?) Load(string key)
+        {
+            var hit = cache.TryGet<string>(key, out var value);
+            return (hit, value);
+        }
+
+        public void Store(string key, string value)
+        {
+            cache.Set(key, value, TimeSpan.FromSeconds(10));
+        }
+    }
+
 
 }
