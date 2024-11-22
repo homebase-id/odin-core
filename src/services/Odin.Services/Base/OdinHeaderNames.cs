@@ -21,5 +21,8 @@ namespace Odin.Services.Base
 
         public const string RequiresUpgrade = "X-REQUIRES-UPGRADE";
         public const string UpgradeIsRunning = "X-UPGRADE-RUNNING";
+        
+        public const string RequiresInitialConfiguration = "X-REQUIRES-INITIAL-CONFIGURATION";
+
     }
 }

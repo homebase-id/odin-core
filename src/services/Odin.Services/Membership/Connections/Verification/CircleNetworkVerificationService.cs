@@ -120,6 +120,9 @@ public class CircleNetworkVerificationService(
                         break;
 
                     case PeerRequestIssueType.DnsResolutionFailure:
+                    case PeerRequestIssueType.HttpRequestFailed:
+                    case PeerRequestIssueType.OperationCancelled:
+
                     case PeerRequestIssueType.ServiceUnavailable:
                     case PeerRequestIssueType.InternalServerError:
                         throw new OdinSystemException("Cannot verify connection.");
@@ -228,7 +231,7 @@ public class CircleNetworkVerificationService(
             {
                 RandomCode = randomCode
             });
-            
+
             var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
             var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
                 clientAuthToken.ToAuthenticationToken());
@@ -245,10 +248,16 @@ public class CircleNetworkVerificationService(
                 case PeerRequestIssueType.DnsResolutionFailure:
                     return false;
 
+                case PeerRequestIssueType.OperationCancelled:
+                    return false;
+
+                case PeerRequestIssueType.HttpRequestFailed:
+                    return false;
+                
                 case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
                     await CircleNetworkService.DisconnectAsync(recipient, odinContext);
-                    throw new OdinSecurityException("Remote server returned 403");
-
+                    return false;
+                
                 case PeerRequestIssueType.Forbidden:
                     throw new OdinSecurityException("Remote server returned 403");
 

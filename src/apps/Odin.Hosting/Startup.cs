@@ -326,6 +326,7 @@ namespace Odin.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseIdentityReadyState();
             app.UseVersionUpgrade();
 
             app.UseMiddleware<OdinContextMiddleware>();

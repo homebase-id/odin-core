@@ -23,6 +23,8 @@ namespace Odin.Services.Peer
         Forbidden = 30,
         ServiceUnavailable = 40,
         InternalServerError = 50,
-        Unhandled = 3000,
+        OperationCancelled = 60,
+        HttpRequestFailed = 70,
+        Unhandled = 3000
     }
 }

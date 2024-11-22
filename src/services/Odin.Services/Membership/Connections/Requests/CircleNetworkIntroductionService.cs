@@ -21,7 +21,6 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;

@@ -113,6 +113,28 @@ public class VerifyConnectionTests
 
         await Disconnect();
     }
+    
+    [Test]
+    public async Task CanHandleTheLaubScenario()
+    {
+        Assert.Fail("TODO: work out this scenario");
+        // this scenairo occurs when the identity exists but the user has not logged in 
+        // how do i detect this?
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        var response = await frodo.Network.VerifyConnection(sam.OdinId);
+        var result = response.Content;
+        Assert.IsNotNull(result);
+        Assert.IsTrue(response.IsSuccessStatusCode);
+        Assert.IsTrue(result.IsValid);
+        Assert.IsTrue(result.RemoteIdentityWasConnected);
+
+        await Disconnect();
+    }
 
     [Test]
     public async Task VerifyConnectionFailsWhenRecipientNotConnected()

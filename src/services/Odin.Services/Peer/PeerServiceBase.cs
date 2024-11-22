@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -155,47 +154,6 @@ namespace Odin.Services.Peer
             return fileId;
         }
 
-        protected async Task<PeerTryRetryResult<TApiResponse>> ExecuteRequestWithHandlingAsync<TApiResponse>(
-            OdinId remoteIdentity,
-            Task<ApiResponse<TApiResponse>> task,
-            CancellationToken cancellationToken,
-            IOdinContext odinContext)
-        {
-            var result = await this.ExecuteRequestAsync(task, cancellationToken);
-            var response = result.Response;
-            if (!response.IsSuccessStatusCode)
-            {
-                var issueType = MapIssueType(response);
-
-                switch (issueType)
-                {
-                    case PeerRequestIssueType.None:
-                    case PeerRequestIssueType.DnsResolutionFailure:
-                        break;
-
-                    case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
-                    case PeerRequestIssueType.Forbidden:
-                        await CircleNetworkService.DisconnectAsync(remoteIdentity, odinContext);
-                        throw new OdinSecurityException("Remote server returned 403");
-
-                    case PeerRequestIssueType.ServiceUnavailable:
-                        throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
-
-                    case PeerRequestIssueType.InternalServerError:
-                        throw new OdinClientException("Remote server returned 500",
-                            OdinClientErrorCode.RemoteServerReturnedInternalServerError);
-
-                    case PeerRequestIssueType.Unhandled:
-                        throw new OdinSystemException($"Unhandled peer error response: {response.StatusCode}");
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-            }
-
-            return result;
-        }
-
         /// <summary>
         /// Executes a http request with retry and error mapping
         /// </summary>
@@ -213,20 +171,30 @@ namespace Odin.Services.Peer
                     async () => { result.Response = await task; });
 
                 result.IssueType = MapIssueType(result.Response);
-            }
-            catch (TryRetryException tryRetryException)
-            {
-                var e = tryRetryException.InnerException!;
 
-                // these can be thrown when the remote identity's DNS is not resolving
-                if (e is TaskCanceledException or HttpRequestException or OperationCanceledException or SocketException)
-                {
-                    result.IssueType = PeerRequestIssueType.DnsResolutionFailure;
-                }
-                else
-                {
-                    throw e;
-                }
+                var ric = result.Response.Headers.IsTrue(OdinHeaderNames.RequiresInitialConfiguration);
+                
+            }
+            catch (TryRetryException tryRetryException) when
+                (tryRetryException.InnerException is SocketException)
+            {
+                // if (socketException.SocketErrorCode == SocketError.HostNotFound) // SocketError.HostUnreachable
+                result.IssueType = PeerRequestIssueType.DnsResolutionFailure;
+            }
+            catch (TryRetryException tryRetryException) when
+                (tryRetryException.InnerException is HttpRequestException hx)
+            {
+                result.IssueType = PeerRequestIssueType.HttpRequestFailed;
+            }
+            catch (TryRetryException tryRetryException) when
+                (tryRetryException.InnerException is TaskCanceledException)
+            {
+                result.IssueType = PeerRequestIssueType.OperationCancelled;
+            }
+            catch (TryRetryException tryRetryException) when
+                (tryRetryException.InnerException is OperationCanceledException)
+            {
+                result.IssueType = PeerRequestIssueType.OperationCancelled;
             }
 
             return result;
@@ -239,10 +207,7 @@ namespace Odin.Services.Peer
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                var remoteIcrIsInvalid = response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
-                                         bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue) && isIcrIssue;
-
-                if (remoteIcrIsInvalid)
+                if (response.Headers.IsTrue(HttpHeaderConstants.RemoteServerIcrIssue))
                 {
                     issueType = PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr;
                 }
