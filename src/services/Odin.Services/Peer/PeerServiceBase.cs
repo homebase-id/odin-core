@@ -172,7 +172,8 @@ namespace Odin.Services.Peer
 
                 result.IssueType = MapIssueType(result.Response);
 
-                var ric = result.Response.Headers.IsTrue(OdinHeaderNames.RequiresInitialConfiguration);
+                //TODO: how do i handle this scenario?
+                // var ric = result.Response.Headers.IsTrue(OdinHeaderNames.RequiresInitialConfiguration);
                 
             }
             catch (TryRetryException tryRetryException) when
