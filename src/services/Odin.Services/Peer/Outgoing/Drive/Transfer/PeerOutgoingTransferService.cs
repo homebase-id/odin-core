@@ -13,6 +13,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Background;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -34,9 +35,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger
-    )
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
+        OdinConfiguration odinConfiguration)
+        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 

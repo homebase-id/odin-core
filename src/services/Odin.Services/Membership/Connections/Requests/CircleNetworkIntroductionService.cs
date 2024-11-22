@@ -60,7 +60,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         TenantSystemStorage tenantSystemStorage,
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
-        PushNotificationService pushNotificationService) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        PushNotificationService pushNotificationService) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver,
+        odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         _circleNetworkRequestService = circleNetworkRequestService;
@@ -138,7 +139,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 continue;
             }
-            
+
             var iid = new IdentityIntroduction()
             {
                 IntroducerOdinId = introducer,
@@ -288,7 +289,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 if (intro.SendAttemptCount <= maxSendAttempts)
                 {
-                    await this.TrySendConnectionRequestAsync(intro, newOdinContext);
+                    await this.TrySendConnectionRequestAsync(intro, cancellationToken, newOdinContext);
                 }
                 else
                 {
@@ -426,7 +427,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <summary>
     /// Sends connection requests for pending introductions if one has not already been sent or received
     /// </summary>
-    private async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, IOdinContext odinContext)
+    private async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
         var recipient = intro.Identity;
         var introducer = intro.IntroducerOdinId;
@@ -459,7 +461,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         intro.LastProcessed = UnixTimeUtc.Now();
         await UpsertIntroductionAsync(intro);
 
-        await _circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, odinContext);
+        await _circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, cancellationToken, odinContext);
     }
 
     private async Task UpsertIntroductionAsync(IdentityIntroduction intro)

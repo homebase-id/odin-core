@@ -52,6 +52,7 @@ using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
+using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 

@@ -81,7 +81,7 @@ namespace Odin.Services.Membership.Connections.Requests
             FileSystemResolver fileSystemResolver,
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration)
-            : base(odinHttpClientFactory, cns, fileSystemResolver)
+            : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
             _logger = logger;
@@ -136,7 +136,8 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             else
             {
-                (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
+                (isValidPublicKey, payloadBytes) =
+                    await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
 
                 if (isValidPublicKey == false)
                 {
@@ -155,11 +156,13 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestsAsync(PageOptions pageOptions, IOdinContext odinContext)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestsAsync(PageOptions pageOptions,
+            IOdinContext odinContext)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(db, _pendingRequestsDataType);
+            var results =
+                await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(db, _pendingRequestsDataType);
             return new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList());
         }
 
@@ -179,7 +182,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-        public async Task SendConnectionRequestAsync(ConnectionRequestHeader header, IOdinContext odinContext)
+        public async Task SendConnectionRequestAsync(ConnectionRequestHeader header, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
@@ -203,7 +207,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if ((await _verificationService.VerifyConnectionAsync(recipient, odinContext)).IsValid)
+                if ((await _verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext)).IsValid)
                 {
                     // connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -226,7 +230,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
-        public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, IOdinContext odinContext)
+        public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsAuthenticated();
 
@@ -252,7 +257,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 try
                 {
-                    if ((await _verificationService.VerifyConnectionAsync(sender, odinContext)).IsValid)
+                    if ((await _verificationService.VerifyConnectionAsync(sender, cancellationToken, odinContext)).IsValid)
                     {
                         _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
 
@@ -698,14 +703,16 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             request.SenderOdinId = _tenantContext.HostOdinId; //store for when we support multiple domains per identity
-            await _sentRequestValueStorage.UpsertAsync(db, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, _sentRequestsDataType,
+            await _sentRequestValueStorage.UpsertAsync(db, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty,
+                _sentRequestsDataType,
                 request);
         }
 
         private async Task UpsertPendingConnectionRequestAsync(PendingConnectionRequestHeader request)
         {
             var db = _tenantSystemStorage.IdentityDatabase;
-            await _pendingRequestValueStorage.UpsertAsync(db, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, _pendingRequestsDataType,
+            await _pendingRequestValueStorage.UpsertAsync(db, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty,
+                _pendingRequestsDataType,
                 request);
         }
 
