@@ -119,7 +119,7 @@ public class CircleNetworkVerificationService(
                         result.IsValid = false;
                         break;
 
-                    case PeerRequestIssueType.DnsResolutionFailure:
+                    case PeerRequestIssueType.SocketError:
                     case PeerRequestIssueType.HttpRequestFailed:
                     case PeerRequestIssueType.OperationCancelled:
 
@@ -245,7 +245,7 @@ public class CircleNetworkVerificationService(
 
             switch (executionResult.IssueType)
             {
-                case PeerRequestIssueType.DnsResolutionFailure:
+                case PeerRequestIssueType.SocketError:
                     return false;
 
                 case PeerRequestIssueType.OperationCancelled:

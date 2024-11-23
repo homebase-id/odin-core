@@ -179,8 +179,7 @@ namespace Odin.Services.Peer
             catch (TryRetryException tryRetryException) when
                 (tryRetryException.InnerException is SocketException)
             {
-                // if (socketException.SocketErrorCode == SocketError.HostNotFound) // SocketError.HostUnreachable
-                result.IssueType = PeerRequestIssueType.DnsResolutionFailure;
+                result.IssueType = PeerRequestIssueType.SocketError;
             }
             catch (TryRetryException tryRetryException) when
                 (tryRetryException.InnerException is HttpRequestException hx)
