@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autofac;
 using Autofac.Core;
@@ -7,10 +8,35 @@ using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Tenant.Container;
 
-namespace Odin.Services.Util;
+namespace Odin.Hosting._dev;
 
-public class AutofacDiagnostics
+public static class AutofacDiagnostics
 {
+    // The types below (interface and implementations) are verified to not have any (problematic) non-singleton dependencies
+    private static readonly HashSet<Type> ManualCheckSingletonWhitelist = [
+        typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor),
+        typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory),
+        typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory),
+        typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory),
+        typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory),
+        typeof(Odin.Core.Storage.CacheHelper),
+        typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute),
+        typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute),
+        typeof(Odin.Services.Email.IEmailSender),
+        typeof(Odin.Services.Certificate.ICertesAcme),
+        typeof(Odin.Services.Dns.IDnsRestClient),
+        typeof(Odin.Services.Certificate.AcmeAccountConfig),
+        typeof(Odin.Services.Configuration.OdinConfiguration),
+        typeof(Odin.Services.Certificate.CertificateCache),
+        typeof(Odin.Core.Logging.Hostname.StickyHostname),
+        typeof(Odin.Core.Logging.CorrelationId.CorrelationContext),
+        typeof(Odin.Services.Certificate.CertificateServiceFactory),
+        typeof(Odin.Core.Storage.Database.Identity.Abstractions.IdentityKey),
+        typeof(Odin.Services.Background.BackgroundServiceManager),
+        typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter),
+        
+    ]; 
+
     public static void AssertSingletonDependencies(IContainer root, ILogger logger)
     {
 #if DEBUG
@@ -42,6 +68,11 @@ public class AutofacDiagnostics
 
             if (registration.Activator is not ReflectionActivator reflectionActivator)
             {
+                if (ManualCheckSingletonWhitelist.Contains(serviceType))
+                {
+                    continue;
+                }
+                
                 // ProvidedInstanceActivator:
                 // This activator is used when a specific instance is provided to the container.
                 // e.g. builder.RegisterInstance(myServiceInstance).As<IMyService>();
@@ -49,9 +80,15 @@ public class AutofacDiagnostics
                 // DelegateActivator:
                 // This activator is used when a delegate is provided to the container.
                 // e.g. builder.Register(c => new MyService()).As<IMyService>();
+                
+                // Autofac.Core.Registration.ExternalComponentRegistration+NoOpActivator:
+                // is used internally by Autofac for services registered through the .NET IServiceCollection
+                // integration (when integrating Autofac with ASP.NET Core). These registrations are placeholders
+                // that indicate the service was registered in the IServiceCollection but does not need additional
+                // instantiation or activation logic within Autofac.
 
-                logger.LogWarning("MANUAL CHECK REQUIRED: {registration} ({activator}) ",
-                    registration.Target.Activator.LimitType, registration.Activator.GetType());
+                logger.LogError("MANUAL CHECK AND WHITE LISTING REQUIRED: {serviceType} ({activator}) ",
+                    serviceType, registration.Activator.GetType());
 
                 continue;
             }
