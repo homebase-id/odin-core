@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using Autofac;
 using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
@@ -13,29 +15,30 @@ namespace Odin.Hosting._dev;
 public static class AutofacDiagnostics
 {
     // The types below (interface and implementations) are verified to not have any (problematic) non-singleton dependencies
-    private static readonly HashSet<Type> ManualCheckSingletonWhitelist = [
-        typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor),
-        typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory),
-        typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory),
-        typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory),
-        typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory),
-        typeof(Odin.Core.Storage.CacheHelper),
-        typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute),
-        typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute),
-        typeof(Odin.Services.Email.IEmailSender),
-        typeof(Odin.Services.Certificate.ICertesAcme),
-        typeof(Odin.Services.Dns.IDnsRestClient),
-        typeof(Odin.Services.Certificate.AcmeAccountConfig),
-        typeof(Odin.Services.Configuration.OdinConfiguration),
-        typeof(Odin.Services.Certificate.CertificateCache),
-        typeof(Odin.Core.Logging.Hostname.StickyHostname),
-        typeof(Odin.Core.Logging.CorrelationId.CorrelationContext),
-        typeof(Odin.Services.Certificate.CertificateServiceFactory),
-        typeof(Odin.Core.Storage.Database.Identity.Abstractions.IdentityKey),
-        typeof(Odin.Services.Background.BackgroundServiceManager),
-        typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter),
-        
-    ]; 
+    private static readonly Dictionary<Type, string> ManualCheckSingletonWhitelist = new()
+    {
+        {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
+        {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "todo"},
+        {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "todo"},
+        {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
+        {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
+        {typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute), "509d6046"},
+        {typeof(Odin.Services.Email.IEmailSender), "eacd5b8f"},
+        {typeof(Odin.Services.Certificate.ICertesAcme), "c742bc8f"},
+        {typeof(Odin.Services.Dns.IDnsRestClient), "c363ae45"},
+        {typeof(Odin.Services.Certificate.AcmeAccountConfig), "e6f1c919"},
+        {typeof(Odin.Services.Configuration.OdinConfiguration), "6fba0459"},
+        {typeof(Odin.Services.Certificate.CertificateCache), "e6f1c919"},
+        {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
+        {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
+        {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
+        {typeof(Odin.Core.Storage.Database.Identity.Abstractions.IdentityKey), "cfcb55a8"},
+        {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "80cf458d"},
+        {typeof(Odin.Services.Registry.IIdentityRegistry), "b5cdf13e"},
+    };
 
     public static void AssertSingletonDependencies(IContainer root, ILogger logger)
     {
@@ -68,11 +71,6 @@ public static class AutofacDiagnostics
 
             if (registration.Activator is not ReflectionActivator reflectionActivator)
             {
-                if (ManualCheckSingletonWhitelist.Contains(serviceType))
-                {
-                    continue;
-                }
-                
                 // ProvidedInstanceActivator:
                 // This activator is used when a specific instance is provided to the container.
                 // e.g. builder.RegisterInstance(myServiceInstance).As<IMyService>();
@@ -87,8 +85,14 @@ public static class AutofacDiagnostics
                 // that indicate the service was registered in the IServiceCollection but does not need additional
                 // instantiation or activation logic within Autofac.
 
-                logger.LogError("MANUAL CHECK AND WHITE LISTING REQUIRED: {serviceType} ({activator}) ",
-                    serviceType, registration.Activator.GetType());
+                var serviceHash = GetConstructorSignatureHash(serviceType);
+                if (ManualCheckSingletonWhitelist.ContainsKey(serviceType) && ManualCheckSingletonWhitelist[serviceType] == serviceHash)
+                {
+                    continue;
+                }
+
+                logger.LogError("MANUAL CHECK AND WHITE LISTING REQUIRED: {serviceType}={hash} ({activator}) ",
+                    serviceType, GetConstructorSignatureHash(serviceType), registration.Activator.GetType());
 
                 continue;
             }
@@ -132,5 +136,61 @@ public static class AutofacDiagnostics
                 }
             }
         }
+
+
+    }
+
+    //
+
+    private static string GetConstructorSignatureHash(Type type)
+    {
+        if (type.IsInterface)
+        {
+            // Iterate over all implementations of the interface
+            var implementations = GetImplementationsOfInterface(type);
+            var hashes = implementations.Select(GetConstructorSignatureHash);
+
+            // Combine all implementation hashes
+            return string.Join(";", hashes);
+        }
+
+        // Get all public constructors of the type
+        var constructors = type.GetConstructors();
+
+        // Create a string representation of each constructor
+        var constructorSignatures = constructors
+            .Select(ctor => new
+            {
+                Name = ctor.Name,
+                Parameters = ctor.GetParameters()
+                    .Select(param => $"{param.ParameterType.FullName} {param.Name}")
+                    .ToArray()
+            })
+            .Select(ctor =>
+                $"{ctor.Name}({string.Join(", ", ctor.Parameters)})"
+            )
+            .OrderBy(signature => signature); // Ensure consistent ordering
+
+        // Combine all signatures into a single string
+        var combinedSignatures = string.Join(";", constructorSignatures);
+
+        // Hash the combined string
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combinedSignatures));
+
+        // Convert hash to a readable string
+        return BitConverter.ToString(hashBytes, 0, 8 / 2).Replace("-", "").ToLower();
+    }
+
+    private static IEnumerable<Type> GetImplementationsOfInterface(Type interfaceType)
+    {
+        // Check all loaded assemblies
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+        return assemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => interfaceType.IsAssignableFrom(t) // Check if the type implements the interface
+                        && !t.IsAbstract                // Exclude abstract classes
+                        && !t.IsInterface);             // Exclude the interface itself
     }
 }
