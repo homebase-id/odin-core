@@ -88,7 +88,8 @@ namespace Odin.Hosting
             // - Use SetHandlerLifetime to control how long connections are pooled (this also controls when existing
             //   HttpClientHandlers are called)
             //
-            services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
+            var httpClientFactory = new HttpClientFactory();
+            services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
@@ -198,7 +199,9 @@ namespace Odin.Hosting
             });
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
-            services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
+
+            services.AddIdentityRegistrationServices(httpClientFactory, _config);
+
             services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
             services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
@@ -493,7 +496,7 @@ namespace Odin.Hosting
             {
                 var services = app.ApplicationServices;
                 var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                // AutofacDiagnostics.AssertSingletonDependencies(root, logger);
+                AutofacDiagnostics.AssertSingletonDependencies(root, logger);
 
                 // Create system database
                 var systemDatabase = services.GetRequiredService<SystemDatabase>();
