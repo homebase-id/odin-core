@@ -242,7 +242,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerReactionSenderService>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<PeerIncomingReactionService>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
