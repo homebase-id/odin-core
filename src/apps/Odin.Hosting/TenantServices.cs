@@ -245,7 +245,7 @@ namespace Odin.Hosting
             cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerIncomingReactionService>().AsSelf().SingleInstance();
-            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<PublicPrivateKeyService>()
                 .AsSelf()
