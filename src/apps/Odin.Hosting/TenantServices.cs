@@ -67,13 +67,13 @@ namespace Odin.Hosting
     {
         internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
         {
-            cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
+            cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerLifetimeScope();
 
             cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
 
@@ -87,7 +87,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerLifetimeScope();
 
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
@@ -119,7 +119,7 @@ namespace Odin.Hosting
                 .SingleInstance();
             
 
-            cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
+            cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
             cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
@@ -232,7 +232,7 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingTransferService>().SingleInstance();
+            cb.RegisterType<PeerOutgoingTransferService>().InstancePerLifetimeScope();
 
             cb.RegisterType<PeerOutboxProcessorMediatorAdapter>()
                 .As<INotificationHandler<OutboxItemAddedNotification>>()

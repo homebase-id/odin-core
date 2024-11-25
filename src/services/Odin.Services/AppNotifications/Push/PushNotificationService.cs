@@ -40,7 +40,6 @@ namespace Odin.Services.AppNotifications.Push;
 public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
-    
     PublicPrivateKeyService keyService,
     NotificationListService notificationListService,
     IHttpClientFactory httpClientFactory,
@@ -54,8 +53,8 @@ public class PushNotificationService(
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
-    private readonly TwoKeyValueStorage _deviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
-    private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
+    private static readonly TwoKeyValueStorage DeviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
+    private static readonly byte[] DeviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
     /// Adds a notification to the outbox
@@ -77,13 +76,13 @@ public class PushNotificationService(
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        await _deviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+        await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
     }
 
     public async Task<PushNotificationSubscription> GetDeviceSubscriptionAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        return await _deviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(twoKeyValue, GetDeviceKey(odinContext));
+        return await DeviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(twoKeyValue, GetDeviceKey(odinContext));
     }
 
     public async Task RemoveDeviceAsync(IOdinContext odinContext)
@@ -95,7 +94,7 @@ public class PushNotificationService(
     public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        await _deviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
+        await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
     public async Task RemoveAllDevicesAsync(IOdinContext odinContext)
@@ -104,14 +103,14 @@ public class PushNotificationService(
         var subscriptions = await GetAllSubscriptionsAsync(odinContext);
         foreach (var sub in subscriptions)
         {
-            await _deviceSubscriptionStorage.DeleteAsync(twoKeyValue, sub.AccessRegistrationId);
+            await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, sub.AccessRegistrationId);
         }
     }
 
     public async Task<List<PushNotificationSubscription>> GetAllSubscriptionsAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        var subscriptions = await _deviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(twoKeyValue, _deviceStorageDataType);
+        var subscriptions = await DeviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(twoKeyValue, DeviceStorageDataType);
         return subscriptions?.ToList() ?? new List<PushNotificationSubscription>();
     }
 

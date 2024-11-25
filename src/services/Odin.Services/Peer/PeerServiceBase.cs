@@ -24,12 +24,9 @@ namespace Odin.Services.Peer
         FileSystemResolver fileSystemResolver)
     {
         protected readonly IOdinHttpClientFactory OdinHttpClientFactory = odinHttpClientFactory;
-
-
         protected readonly CircleNetworkService CircleNetworkService = circleNetworkService;
-
         protected FileSystemResolver FileSystemResolver { get; } = fileSystemResolver;
-        
+
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);

@@ -487,6 +487,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
+
+        var tenantConfigService = scope.Resolve<TenantConfigService>();
+        await tenantConfigService.InitializeAsync();
+
     }
 
     private async Task UnloadRegistration(IdentityRegistration registration)
