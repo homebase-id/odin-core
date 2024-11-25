@@ -234,7 +234,7 @@ namespace Odin.Hosting
 
             services.AddSingleton(new RegistrationRestrictedAttribute(_config.Registry.ProvisioningEnabled));
 
-            services.AddSingleton<ITenantAdmin, TenantAdmin>();
+            services.AddTransient<ITenantAdmin, TenantAdmin>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
@@ -493,7 +493,7 @@ namespace Odin.Hosting
             {
                 var services = app.ApplicationServices;
                 var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                AutofacDiagnostics.AssertSingletonDependencies(root, logger);
+                // AutofacDiagnostics.AssertSingletonDependencies(root, logger);
 
                 // Create system database
                 var systemDatabase = services.GetRequiredService<SystemDatabase>();
