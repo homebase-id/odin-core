@@ -249,7 +249,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<PublicPrivateKeyService>()
                 .AsSelf()
-                .SingleInstance();
+                .InstancePerLifetimeScope();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().InstancePerLifetimeScope();
 

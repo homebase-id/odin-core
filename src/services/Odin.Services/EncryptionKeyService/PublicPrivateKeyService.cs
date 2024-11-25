@@ -40,17 +40,18 @@ namespace Odin.Services.EncryptionKeyService
         private readonly ILogger<PublicPrivateKeyService> _logger;
         private readonly TableKeyValue _tblKeyValue;
 
-
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService( IcrKeyService icrKeyService, IOdinHttpClientFactory odinHttpClientFactory,
-            ILogger<PublicPrivateKeyService> logger, TableKeyValue tblKeyValue)
+        public PublicPrivateKeyService(
+            IcrKeyService icrKeyService,
+            IOdinHttpClientFactory odinHttpClientFactory,
+            ILogger<PublicPrivateKeyService> logger,
+            TableKeyValue tblKeyValue)
         {
-            
             _icrKeyService = icrKeyService;
             _odinHttpClientFactory = odinHttpClientFactory;
             _logger = logger;
