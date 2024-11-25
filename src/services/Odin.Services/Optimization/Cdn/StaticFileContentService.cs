@@ -43,18 +43,18 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-
-
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
     private readonly TableKeyValue _tableKeyValue;
 
-    public StaticFileContentService(TenantContext tenantContext, 
-        DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter,
+    public StaticFileContentService(
+        TenantContext tenantContext,
+        DriveManager driveManager,
+        StandardFileSystem fileSystem,
+        DriveFileReaderWriter driveFileReaderWriter,
         TableKeyValue tableKeyValue)
     {
         _tenantContext = tenantContext;
-        
 
         _driveManager = driveManager;
         _fileSystem = fileSystem;

@@ -251,7 +251,7 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
+            cb.RegisterType<StaticFileContentService>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
