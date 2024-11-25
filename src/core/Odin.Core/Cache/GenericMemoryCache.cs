@@ -36,6 +36,8 @@ public interface IGenericMemoryCache
     string GenerateKey(string prefix, params byte[][] values);
 }
 
+public interface IGenericMemoryCache<TRegistration> : IGenericMemoryCache;
+
 //
 
 public class GenericMemoryCache : IGenericMemoryCache, IDisposable
@@ -322,3 +324,5 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
         return GenerateKey(prefix, strings);
     }
 }
+
+public class GenericMemoryCache<TRegistration> : GenericMemoryCache, IGenericMemoryCache<TRegistration>;
