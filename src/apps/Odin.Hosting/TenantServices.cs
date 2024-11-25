@@ -261,7 +261,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
-            cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().SingleInstance();
+            cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
             // cb.RegisterType<PeerDriveIncomingTransferService>().InstancePerDependency();
