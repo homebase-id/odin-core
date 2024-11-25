@@ -16,6 +16,7 @@ public static class AutofacDiagnostics
 {
     // The types below (interface and implementations) are verified to not have any (problematic) non-singleton dependencies
     private static readonly Dictionary<Type, string> ManualCheckSingletonWhitelist = new()
+#if DEBUG
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
         {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "74c23c98"},
@@ -38,7 +39,10 @@ public static class AutofacDiagnostics
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "80cf458d"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "b5cdf13e"},
-    };
+
+    }
+#endif
+    ;
 
     public static void AssertSingletonDependencies(IContainer root, ILogger logger)
     {
