@@ -18,19 +18,19 @@ public class RecoveryService
     
     private readonly SingleKeyValueStorage _storage;
     private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
     private readonly OdinConfiguration _odinConfiguration;
     private readonly TableKeyValue _tblKeyValue;
 
-    public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue, TenantSystemStorage tenantSystemStorage)
+    public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue)
     {
-        _tenantSystemStorage = tenantSystemStorage;
+        
         _odinConfiguration = odinConfiguration;
         _tblKeyValue = tblKeyValue;
 
         const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
         Guid contextKey = Guid.Parse(k);
-        _storage = tenantSystemStorage.CreateSingleKeyValueStorage(contextKey);
+        _storage = TenantSystemStorage.CreateSingleKeyValueStorage(contextKey);
     }
 
     /// <summary>

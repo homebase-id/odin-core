@@ -23,12 +23,12 @@ namespace Odin.Services.Membership.Circles
         private readonly byte[] _circleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
+        public CircleDefinitionService( DriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
         {
             _driveManager = driveManager;
             _tblKeyThreeValue = tblKeyThreeValue;
             const string circleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
-            _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
+            _circleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
         }
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)

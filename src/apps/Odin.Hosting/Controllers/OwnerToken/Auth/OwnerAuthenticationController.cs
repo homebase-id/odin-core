@@ -24,20 +24,19 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         private readonly OwnerSecretService _ss;
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ILogger<OwnerAuthenticationController> _logger;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         public OwnerAuthenticationController(
             OwnerAuthenticationService authService,
             OwnerSecretService ss,
             PublicPrivateKeyService publicPrivateKeyService,
-            ILogger<OwnerAuthenticationController> logger,
-            TenantSystemStorage tenantSystemStorage)
+            ILogger<OwnerAuthenticationController> logger)
         {
             _authService = authService;
             _ss = ss;
             _publicPrivateKeyService = publicPrivateKeyService;
             _logger = logger;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         [HttpGet("verifyToken")]

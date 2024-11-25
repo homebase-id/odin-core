@@ -16,12 +16,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveReactionContentController : DriveReactionContentControllerBase
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         /// <summary />
-        public OwnerDriveReactionContentController(ReactionContentService reactionContentService, TenantSystemStorage tenantSystemStorage) : base(reactionContentService)
+        public OwnerDriveReactionContentController(ReactionContentService reactionContentService) : base(reactionContentService)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary />

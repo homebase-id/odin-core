@@ -42,7 +42,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly ILoggerFactory _loggerFactory;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly DriveManager _driveManager;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly PushNotificationService _pushNotificationService;
         private PeerDriveIncomingFileUpdateService _fileUpdateService;
@@ -51,11 +51,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
+             IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage)
         {
             _driveManager = driveManager;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;

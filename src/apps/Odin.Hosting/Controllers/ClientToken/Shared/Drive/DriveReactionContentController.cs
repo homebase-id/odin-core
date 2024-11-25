@@ -17,11 +17,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidGuestOrAppToken]
     public class DriveReactionContentController : DriveReactionContentControllerBase
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         /// <summary />
-        public DriveReactionContentController(ReactionContentService reactionContentService, TenantSystemStorage tenantSystemStorage) : base(reactionContentService)
+        public DriveReactionContentController(ReactionContentService reactionContentService) : base(reactionContentService)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>

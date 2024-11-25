@@ -26,7 +26,6 @@ namespace Odin.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
         private readonly ILogger<AppRegistrationService> _logger;
@@ -43,13 +42,13 @@ namespace Odin.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(TenantSystemStorage tenantSystemStorage,
+        public AppRegistrationService(
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator,
             IcrKeyService icrKeyService,
             ILogger<AppRegistrationService> logger,
             TableKeyThreeValue tblKeyThreeValue)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _mediator = mediator;
@@ -58,10 +57,10 @@ namespace Odin.Services.Authorization.Apps
             _tblKeyThreeValue = tblKeyThreeValue;
 
             const string appRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
-            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appRegContextKey));
+            _appRegistrationValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appRegContextKey));
 
             const string appClientContextKey = "fb080b07-0566-4db8-bc0d-daed6b50b104";
-            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appClientContextKey));
+            _appClientValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appClientContextKey));
 
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
@@ -494,7 +493,7 @@ namespace Odin.Services.Authorization.Apps
 
             //
             // var clientsByApp = _appClientValueStorage.GetByKey2<AppClient>(appId);
-            // using (_tenantSystemStorage.CreateCommitUnitOfWork())
+            // using (_TenantSystemStorage.CreateCommitUnitOfWork())
             // {
             //     foreach (var c in clientsByApp)
             //     {

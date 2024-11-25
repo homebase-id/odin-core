@@ -20,12 +20,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveManagementController : OdinControllerBase
     {
         private readonly DriveManager _driveManager;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public OwnerDriveManagementController(DriveManager driveManager, TenantSystemStorage tenantSystemStorage)
+
+        public OwnerDriveManagementController(DriveManager driveManager)
         {
             _driveManager = driveManager;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]

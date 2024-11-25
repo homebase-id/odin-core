@@ -31,7 +31,7 @@ namespace Odin.Services.DataSubscription.Follower
     /// <summary/>
     public class FollowerService
     {
-        private readonly TenantSystemStorage _tenantStorage;
+        
         private readonly ILogger<FollowerService> _logger;
         private readonly DriveManager _driveManager;
         private readonly IOdinHttpClientFactory _httpClientFactory;
@@ -47,7 +47,7 @@ namespace Odin.Services.DataSubscription.Follower
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
 
-        public FollowerService(TenantSystemStorage tenantStorage,
+        public FollowerService(
             ILogger<FollowerService> logger,
             DriveManager driveManager,
             IOdinHttpClientFactory httpClientFactory,
@@ -58,7 +58,7 @@ namespace Odin.Services.DataSubscription.Follower
             TableImFollowing tableImFollowing,
             TableFollowsMe tableFollowsMe)
         {
-            _tenantStorage = tenantStorage;
+            
             _logger = logger;
             _driveManager = driveManager;
             _httpClientFactory = httpClientFactory;

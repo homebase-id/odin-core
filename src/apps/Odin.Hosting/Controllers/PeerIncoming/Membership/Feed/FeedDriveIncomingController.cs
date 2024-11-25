@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
         private readonly TransitInboxBoxStorage _transitInboxStorage;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly DriveManager _driveManager;
         private readonly ILoggerFactory _loggerFactory;
 
@@ -34,13 +34,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         /// <summary />
         public FeedDriveIncomingController(
             FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage,
-            TenantSystemStorage tenantSystemStorage, DriveManager driveManager, ILoggerFactory loggerFactory)
+             DriveManager driveManager, ILoggerFactory loggerFactory)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
             _transitInboxStorage = transitInboxStorage;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _driveManager = driveManager;
             _loggerFactory = loggerFactory;
         }

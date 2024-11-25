@@ -42,7 +42,7 @@ public class DriveManager
 
     public DriveManager(
         ILogger<DriveManager> logger,
-        TenantSystemStorage tenantSystemStorage,
+        
         IMediator mediator,
         TenantContext tenantContext,
         TableKeyThreeValue tblKeyThreeValue)
@@ -54,7 +54,7 @@ public class DriveManager
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
 
         const string driveContextKey = "4cca76c6-3432-4372-bef8-5f05313c0376";
-        _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(driveContextKey));
+        _driveStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(driveContextKey));
         LoadCacheAsync().Wait(); // SEB:TODO move out of ctor and make async
     }
 

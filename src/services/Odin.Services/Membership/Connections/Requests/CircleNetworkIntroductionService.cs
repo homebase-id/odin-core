@@ -57,7 +57,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         CircleNetworkRequestService circleNetworkRequestService,
         ILogger<CircleNetworkIntroductionService> logger,
         IOdinHttpClientFactory odinHttpClientFactory,
-        TenantSystemStorage tenantSystemStorage,
+        
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
         TableKeyThreeValue tblKeyThreeValue,
@@ -73,7 +73,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _pushNotificationService = pushNotificationService;
 
         const string receivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
-        _receivedIntroductionValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(receivedIntroductionContextKey));
+        _receivedIntroductionValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(receivedIntroductionContextKey));
     }
 
 

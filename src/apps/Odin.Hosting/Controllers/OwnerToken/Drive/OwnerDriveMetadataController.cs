@@ -18,12 +18,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveMetadataController : OdinControllerBase
     {
         private readonly DriveManager _driveManager;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public OwnerDriveMetadataController(DriveManager driveManager, TenantSystemStorage tenantSystemStorage)
+
+        public OwnerDriveMetadataController(DriveManager driveManager)
         {
             _driveManager = driveManager;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>

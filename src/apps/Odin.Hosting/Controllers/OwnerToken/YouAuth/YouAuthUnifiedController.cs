@@ -29,18 +29,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly string _currentTenant;
 
         public YouAuthUnifiedController(
             ILogger<YouAuthUnifiedController> logger,
             ITenantProvider tenantProvider,
-            IYouAuthUnifiedService youAuthService, TenantSystemStorage tenantSystemStorage)
+            IYouAuthUnifiedService youAuthService)
         {
             _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         //

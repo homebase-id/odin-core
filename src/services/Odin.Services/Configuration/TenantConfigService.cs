@@ -30,7 +30,7 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private readonly CircleNetworkService _dbs;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
@@ -44,7 +44,7 @@ public class TenantConfigService
     private readonly TableKeyValue _tblKeyValue;
 
     public TenantConfigService(CircleNetworkService dbs,
-        TenantSystemStorage storage,
+        
         TenantContext tenantContext,
         IIdentityRegistry registry,
         DriveManager driveManager,
@@ -56,7 +56,7 @@ public class TenantConfigService
         TableKeyValue tblKeyValue)
     {
         _dbs = dbs;
-        _tenantSystemStorage = storage;
+
 
         _tenantContext = tenantContext;
         _registry = registry;
@@ -69,7 +69,7 @@ public class TenantConfigService
         _icrKeyService = icrKeyService;
 
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
-        _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
+        _configStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
         _tenantContext.UpdateSystemConfig(GetTenantSettingsAsync().Result); // SEB:TODO move async call out of constructor 
     }

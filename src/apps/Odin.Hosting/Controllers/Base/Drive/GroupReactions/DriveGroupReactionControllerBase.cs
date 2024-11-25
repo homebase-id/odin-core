@@ -14,13 +14,13 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
 {
     private const string SwaggerSection = "Group Reactions";
     private readonly GroupReactionService _groupReactionService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
-    public DriveGroupReactionControllerBase(GroupReactionService groupReactionService, TenantSystemStorage tenantSystemStorage)
+    public DriveGroupReactionControllerBase(GroupReactionService groupReactionService)
     {
         _groupReactionService = groupReactionService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>

@@ -50,7 +50,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
@@ -70,7 +70,7 @@ namespace Odin.Services.Membership.Connections.Requests
             CircleNetworkService cns,
             ILogger<CircleNetworkRequestService> logger,
             IOdinHttpClientFactory odinHttpClientFactory,
-            TenantSystemStorage tenantSystemStorage,
+            
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
@@ -88,7 +88,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _cns = cns;
             _logger = logger;
             _odinHttpClientFactory = odinHttpClientFactory;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _mediator = mediator;
             _tenantContext = tenantContext;
             _publicPrivateKeyService = publicPrivateKeyService;
@@ -103,10 +103,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
-            _pendingRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(pendingContextKey));
+            _pendingRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(pendingContextKey));
 
             const string sentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
-            _sentRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
+            _sentRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
         }
 
         /// <summary>

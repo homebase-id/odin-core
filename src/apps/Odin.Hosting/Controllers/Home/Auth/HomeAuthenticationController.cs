@@ -31,16 +31,16 @@ namespace Odin.Hosting.Controllers.Home.Auth
         private readonly HomeAuthenticatorService _homeAuthenticatorService;
         private readonly string _currentTenant;
         private readonly PublicPrivateKeyService _pkService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         public HomeAuthenticationController(ITenantProvider tenantProvider, HomeAuthenticatorService homeAuthenticatorService,
-            PublicPrivateKeyService pkService, IOdinHttpClientFactory odinHttpClientFactory, TenantSystemStorage tenantSystemStorage)
+            PublicPrivateKeyService pkService, IOdinHttpClientFactory odinHttpClientFactory)
         {
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _homeAuthenticatorService = homeAuthenticatorService;
             _pkService = pkService;
             _odinHttpClientFactory = odinHttpClientFactory;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         //

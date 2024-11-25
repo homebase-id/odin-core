@@ -19,13 +19,13 @@ public class HomePageCacheController : OdinControllerBase
 {
     private readonly HomeCachingService _cachingService;
     private readonly TenantContext _tenantContext;
-    private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public HomePageCacheController(HomeCachingService cachingService, TenantContext tenantContext, TenantSystemStorage tenantSystemStorage)
+
+    public HomePageCacheController(HomeCachingService cachingService, TenantContext tenantContext)
     {
         _cachingService = cachingService;
         _tenantContext = tenantContext;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     private const string HomePageSwaggerTag = "Home Page Data";

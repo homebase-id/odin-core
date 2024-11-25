@@ -28,7 +28,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly SingleKeyValueStorage _passwordDataStorage;
         private readonly SingleKeyValueStorage _rsaStorage;
 
-        public OwnerSecretService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage, RecoveryService recoveryService,
+        public OwnerSecretService(TenantContext tenantContext,  RecoveryService recoveryService,
             PublicPrivateKeyService publicPrivateKeyService, TableKeyValue tblKeyValue)
         {
             _tenantContext = tenantContext;
@@ -38,13 +38,13 @@ namespace Odin.Services.Authentication.Owner
 
 
             const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
-            _nonceDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
+            _nonceDataStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
             
             const string passwordKeyContextKey = "febf5105-a2b3-4a17-937d-582ecd8a427b";
-            _passwordDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(passwordKeyContextKey));
+            _passwordDataStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(passwordKeyContextKey));
 
             const string rsaKeyContextKey = "8caa641d-6346-4845-a859-fae9af4ab19b";
-            _rsaStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(rsaKeyContextKey));
+            _rsaStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(rsaKeyContextKey));
         }
 
         /// <summary>

@@ -32,7 +32,7 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext, TenantSystemStorage tenantSystemStorage)
+        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;

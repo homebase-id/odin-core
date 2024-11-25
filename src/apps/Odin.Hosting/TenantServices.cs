@@ -67,8 +67,6 @@ namespace Odin.Hosting
     {
         internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
         {
-            cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
-
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PushNotificationService>()
@@ -257,9 +255,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().SingleInstance();
             cb.RegisterType<VersionUpgradeService>().AsSelf().SingleInstance();
-            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().SingleInstance();
+            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().InstancePerLifetimeScope();
 
-            cb.RegisterType<PeerAppNotificationService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerAppNotificationService>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
 

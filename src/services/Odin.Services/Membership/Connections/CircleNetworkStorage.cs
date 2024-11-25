@@ -33,7 +33,7 @@ public class CircleNetworkStorage
     private readonly SingleKeyValueStorage _peerIcrClientStorage;
 
     public CircleNetworkStorage(
-        TenantSystemStorage tenantSystemStorage,
+        
         CircleMembershipService circleMembershipService,
         TableConnections tblConnections,
         TableAppGrants tblAppGrants,
@@ -45,10 +45,10 @@ public class CircleNetworkStorage
         _tblKeyValue = tblKeyValue;
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
-        _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+        _icrKeyStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
         
         const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
-        _peerIcrClientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
+        _peerIcrClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
     }
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)

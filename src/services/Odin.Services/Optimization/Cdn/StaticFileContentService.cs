@@ -43,18 +43,18 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
     private readonly TableKeyValue _tableKeyValue;
 
-    public StaticFileContentService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage,
+    public StaticFileContentService(TenantContext tenantContext, 
         DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter,
         TableKeyValue tableKeyValue)
     {
         _tenantContext = tenantContext;
-        _tenantSystemStorage = tenantSystemStorage;
+        
 
         _driveManager = driveManager;
         _fileSystem = fileSystem;
@@ -62,7 +62,7 @@ public class StaticFileContentService
         _tableKeyValue = tableKeyValue;
 
         const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
-        _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
+        _staticFileConfigStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
     }
 
     public async Task<StaticFilePublishResult> PublishAsync(string filename, StaticFileConfiguration config,

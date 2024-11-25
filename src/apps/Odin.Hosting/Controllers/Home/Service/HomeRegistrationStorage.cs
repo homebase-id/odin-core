@@ -16,11 +16,11 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly TableKeyValue _tblKeyValue;
         private readonly SingleKeyValueStorage _clientStorage;
 
-        public HomeRegistrationStorage(TenantSystemStorage tenantSystemStorage, TableKeyValue tblKeyValue)
+        public HomeRegistrationStorage( TableKeyValue tblKeyValue)
         {
             _tblKeyValue = tblKeyValue;
             const string homeClientContextKey = "7daac4aa-5088-4b46-96bd-47f03704dab4";
-            _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
+            _clientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
         public async Task<HomeAppClient?> GetClientAsync(Guid id)

@@ -18,16 +18,16 @@ public class OwnerSecurityController : OdinControllerBase
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
     public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
-        OwnerAuthenticationService ownerAuthenticationService, TenantSystemStorage tenantSystemStorage)
+        OwnerAuthenticationService ownerAuthenticationService)
     {
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>

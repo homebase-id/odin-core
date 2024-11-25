@@ -28,7 +28,7 @@ namespace Odin.Services.Membership.YouAuth
         private readonly CircleNetworkService _circleNetworkService;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         private readonly byte[] _domainRegistrationDataType = Guid.Parse("0c2c70c2-86e9-4214-818d-8b57c8d59762").ToByteArray();
         private readonly ThreeKeyValueStorage _domainStorage;
@@ -39,12 +39,12 @@ namespace Odin.Services.Membership.YouAuth
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
-        public YouAuthDomainRegistrationService(TenantSystemStorage tenantSystemStorage,
+        public YouAuthDomainRegistrationService(
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext,
             CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService,
             TableKeyThreeValue tblKeyThreeValue)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
@@ -52,10 +52,10 @@ namespace Odin.Services.Membership.YouAuth
             _tblKeyThreeValue = tblKeyThreeValue;
 
             const string domainStorageContextKey = "e11ff091-0edf-4532-8b0f-b9d9ebe0880f";
-            _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
+            _domainStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
 
             const string domainClientStorageContextKey = "8994c20a-179c-469c-a3b9-c4d6a8d2eb3c";
-            _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
+            _clientStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
 
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }

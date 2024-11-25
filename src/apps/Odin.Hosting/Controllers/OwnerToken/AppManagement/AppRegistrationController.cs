@@ -17,12 +17,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
     public class AppRegistrationController : OdinControllerBase
     {
         private readonly IAppRegistrationService _appRegistrationService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public AppRegistrationController(IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage)
+
+        public AppRegistrationController(IAppRegistrationService appRegistrationService)
         {
             _appRegistrationService = appRegistrationService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
 

@@ -40,7 +40,7 @@ namespace Odin.Services.Authentication.Owner
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly OwnerSecretService _secretService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly OdinConfiguration _configuration;
         private readonly TableKeyValue _tblKeyValue;
 
@@ -57,7 +57,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly SingleKeyValueStorage _firstRunInfoStorage;
         
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
-            TenantSystemStorage tenantSystemStorage,
+            
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IIdentityRegistry identityRegistry,
             OdinConfiguration configuration,
@@ -65,7 +65,7 @@ namespace Odin.Services.Authentication.Owner
         {
             _logger = logger;
             _secretService = secretService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _tenantContext = tenantContext;
             _driveManager = driveManager;
             _icrKeyService = icrKeyService;
@@ -78,13 +78,13 @@ namespace Odin.Services.Authentication.Owner
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
             const string nonceDataContextKey = "cc5430e7-cc05-49aa-bc8b-d8c1f261f5ee";
-            _nonceDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
+            _nonceDataStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
 
             const string serverTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
-            _serverTokenStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(serverTokenContextKey));
+            _serverTokenStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(serverTokenContextKey));
 
             const string firstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
-            _firstRunInfoStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(firstRunContextKey));
+            _firstRunInfoStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(firstRunContextKey));
 
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }

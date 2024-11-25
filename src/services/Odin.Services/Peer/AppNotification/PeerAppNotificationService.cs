@@ -21,7 +21,7 @@ public class PeerAppNotificationService : PeerServiceBase
 {
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary>
     /// Handles incoming reactions and queries from followers
@@ -29,12 +29,12 @@ public class PeerAppNotificationService : PeerServiceBase
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
-        TenantSystemStorage tenantSystemStorage,
+        
         OdinConfiguration config,
         FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
     {
         _odinConfiguration = odinConfiguration;
-        _tenantSystemStorage = tenantSystemStorage;
+        
 
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }

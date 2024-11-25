@@ -21,14 +21,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         /// <summary />
-        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService, TenantSystemStorage tenantSystemStorage)
+        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService)
         {
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _followerPerimeterService = followerPerimeterService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary />

@@ -39,7 +39,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ILogger<PublicPrivateKeyService> _logger;
         private readonly TableKeyValue _tblKeyValue;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
@@ -47,17 +47,17 @@ namespace Odin.Services.EncryptionKeyService
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, IcrKeyService icrKeyService, IOdinHttpClientFactory odinHttpClientFactory,
+        public PublicPrivateKeyService( IcrKeyService icrKeyService, IOdinHttpClientFactory odinHttpClientFactory,
             ILogger<PublicPrivateKeyService> logger, TableKeyValue tblKeyValue)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _icrKeyService = icrKeyService;
             _odinHttpClientFactory = odinHttpClientFactory;
             _logger = logger;
             _tblKeyValue = tblKeyValue;
 
             const string keyCacheStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
-            _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(keyCacheStorageContextKey));
+            _storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(keyCacheStorageContextKey));
         }
 
         /// <summary>

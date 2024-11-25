@@ -14,14 +14,14 @@ namespace Odin.Hosting.Controllers.Base.Follow
     public abstract class FollowerControllerBase : OdinControllerBase
     {
         private readonly FollowerService _followerService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
 
         /// <summary />
-        protected FollowerControllerBase(FollowerService fs, TenantSystemStorage tenantSystemStorage)
+        protected FollowerControllerBase(FollowerService fs)
         {
             _followerService = fs;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>
