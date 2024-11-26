@@ -806,7 +806,7 @@ namespace Odin.Services.Membership.Connections
 
             var result = new VerifyConnectionResponse()
             {
-                IsConnected = odinContext.Caller.IsConnected,
+                IsConnected = callerIcr.IsConnected(),
                 Hash = callerIcr.VerificationHash
             };
 

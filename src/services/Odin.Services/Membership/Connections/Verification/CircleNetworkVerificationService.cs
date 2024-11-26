@@ -109,10 +109,10 @@ public class CircleNetworkVerificationService(
                 var vcr = executionResult.Response.Content;
                 result.RemoteIdentityWasConnected = vcr.IsConnected;
 
-                logger.LogDebug("Comparing verification-hash: remote identity has hash {remoteYesNo} | " +
-                                "local identity has has: {localYesNo}",
-                    vcr.Hash?.Length > 0,
-                    expectedHash?.Length > 0);
+                logger.LogDebug("Comparing verification-hash: remote identity has hash {removeHash} | " +
+                                "local identity has has: {localHash}",
+                    vcr.Hash?.ToBase64(),
+                    expectedHash.ToBase64());
 
                 if (result.RemoteIdentityWasConnected.GetValueOrDefault())
                 {
