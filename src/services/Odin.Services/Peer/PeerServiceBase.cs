@@ -181,7 +181,7 @@ namespace Odin.Services.Peer
                 result.IssueType = PeerRequestIssueType.SocketError;
             }
             catch (TryRetryException tryRetryException) when
-                (tryRetryException.InnerException is HttpRequestException hx)
+                (tryRetryException.InnerException is HttpRequestException)
             {
                 result.IssueType = PeerRequestIssueType.HttpRequestFailed;
             }

@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using DnsClient.Protocol;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -74,9 +73,10 @@ public class CircleNetworkVerificationService(
         if (expectedHash.IsNullOrEmpty())
         {
             //try syncing 
-            var issueType = await SynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
+            logger.LogDebug("Missing expected verification hash.  attempting synchronization");
+            var (success, _) = await SynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
 
-            if (issueType != PeerRequestIssueType.None)
+            if (success)
             {
                 throw new OdinClientException("Missing expected verification hash; tried to sync but that failed",
                     OdinClientErrorCode.MissingVerificationHash);
@@ -109,8 +109,8 @@ public class CircleNetworkVerificationService(
                 var vcr = executionResult.Response.Content;
                 result.RemoteIdentityWasConnected = vcr.IsConnected;
 
-                logger.LogDebug("Comparing verification-hash: remote identity has hash {removeHash} | " +
-                                "local identity has has: {localHash}",
+                logger.LogDebug("Comparing verification-hash: remote identity has hash:[{removeHash}] | " +
+                                "local identity has hash:[{localHash}]",
                     vcr.Hash?.ToBase64(),
                     expectedHash.ToBase64());
 
@@ -181,8 +181,8 @@ public class CircleNetworkVerificationService(
                 {
                     try
                     {
-                        var issueType = await SynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
-                        if (issueType != PeerRequestIssueType.None)
+                        var (success, issueType) = await SynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
+                        if (!success)
                         {
                             failedIdentities.Add(identity.OdinId, issueType);
                         }
@@ -208,7 +208,8 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<PeerRequestIssueType> SynchronizeVerificationHashAsync(OdinId odinId, CancellationToken cancellationToken,
+    public async Task<(bool Updated, PeerRequestIssueType IssueType)> SynchronizeVerificationHashAsync(OdinId odinId,
+        CancellationToken cancellationToken,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -222,42 +223,47 @@ public class CircleNetworkVerificationService(
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var issueType = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
+            //TODO CONNECTIONS
+            // @seb - this needs to be in a transaction
+            var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+            var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
+                odinContext);
 
-            if (issueType == PeerRequestIssueType.None)
+            if (success)
             {
-                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
-                    odinContext);
-
-                if (!success)
+                var result = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
+                if (result.RemoteWasUpdated)
                 {
-                    logger.LogDebug("Failed to update local verification hash for targetIdentity: {identity}", targetIdentity);
+                    // @seb - commit tx here
+                    return (true, PeerRequestIssueType.None);
                 }
-            }
-            else
-            {
-                return issueType;
+                // @seb - rollback here
             }
         }
 
-        return PeerRequestIssueType.None;
+        return (false, PeerRequestIssueType.None);
     }
 
-    public async Task SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
+    public async Task<SyncRemoteVerificationHashResult> SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode,
+        var wasUpdated = await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode,
             odinContext.PermissionsContext.SharedSecretKey, odinContext);
+
+        return new SyncRemoteVerificationHashResult()
+        {
+            RemoteWasUpdated = wasUpdated
+        };
     }
 
-    private async Task<PeerRequestIssueType> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode,
+    private async Task<SyncRemoteVerificationHashResult> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode,
         CancellationToken cancellationToken, IOdinContext odinContext)
     {
-        async Task<ApiResponse<HttpContent>> UpdatePeer()
+        async Task<ApiResponse<SyncRemoteVerificationHashResult>> UpdatePeer()
         {
             var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
 
@@ -276,12 +282,17 @@ public class CircleNetworkVerificationService(
         try
         {
             var executionResult = await ExecuteRequestAsync(UpdatePeer(), cancellationToken);
-            
-            return executionResult.IssueType;
+
+            return executionResult.Response.Content;
         }
         catch (TryRetryException e)
         {
             throw e.InnerException!;
         }
     }
+}
+
+public class SyncRemoteVerificationHashResult
+{
+    public bool RemoteWasUpdated { get; init; }
 }

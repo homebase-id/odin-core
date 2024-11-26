@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Services.Base;
+using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Refit;
 
@@ -23,7 +24,7 @@ namespace Odin.Services.Membership.Connections
         /// Verifies a connection is valid between two identities
         /// </summary>
         [Post(RootPath + "/update-remote-verification-hash")]
-        Task<ApiResponse<HttpContent>> UpdateRemoteVerificationHash(SharedSecretEncryptedPayload payload);
+        Task<ApiResponse<SyncRemoteVerificationHashResult>> UpdateRemoteVerificationHash(SharedSecretEncryptedPayload payload);
 
         /// <summary>
         /// Makes an introduction between two identities

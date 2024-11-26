@@ -26,10 +26,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         }
 
         [HttpPost("update-remote-verification-hash")]
-        public async Task<IActionResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
+        public async Task<SyncRemoteVerificationHashResult> UpdateRemoteVerificationHash([Body] SharedSecretEncryptedPayload payload)
         {
-            await verificationService.SynchronizeVerificationHashFromRemoteAsync(payload, WebOdinContext);
-            return Ok();
+            return await verificationService.SynchronizeVerificationHashFromRemoteAsync(payload, WebOdinContext);
         }
         
         
