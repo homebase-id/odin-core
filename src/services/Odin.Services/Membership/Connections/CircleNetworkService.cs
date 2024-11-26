@@ -902,7 +902,7 @@ namespace Odin.Services.Membership.Connections
                 }
                 catch (Exception e)
                 {
-                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity);
+                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
                 }
 
                 if (odinContext.Caller.HasMasterKey)
@@ -913,7 +913,7 @@ namespace Odin.Services.Membership.Connections
                     }
                     catch (Exception e)
                     {
-                        logger.LogInformation(e, "Failed while upgrading KSK   for {identity}", identity);
+                        logger.LogInformation(e, "Failed while upgrading KSK for {identity}", identity.OdinId);
                     }
                 }
             }

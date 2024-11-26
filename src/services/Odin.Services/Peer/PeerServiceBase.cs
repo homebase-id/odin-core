@@ -174,7 +174,6 @@ namespace Odin.Services.Peer
 
                 //TODO: how do i handle this scenario?
                 // var ric = result.Response.Headers.IsTrue(OdinHeaderNames.RequiresInitialConfiguration);
-                
             }
             catch (TryRetryException tryRetryException) when
                 (tryRetryException.InnerException is SocketException)
@@ -203,36 +202,32 @@ namespace Odin.Services.Peer
 
         private PeerRequestIssueType MapIssueType<T>(ApiResponse<T> response)
         {
-            PeerRequestIssueType issueType = PeerRequestIssueType.None;
+            if (response.IsSuccessStatusCode)
+            {
+                return PeerRequestIssueType.None;
+            }
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
                 if (response.Headers.IsTrue(HttpHeaderConstants.RemoteServerIcrIssue))
                 {
-                    issueType = PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr;
+                    return PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr;
                 }
-                else
-                {
-                    issueType = PeerRequestIssueType.Forbidden;
-                }
+
+                return PeerRequestIssueType.Forbidden;
             }
 
             if (response.StatusCode == HttpStatusCode.InternalServerError)
             {
-                issueType = PeerRequestIssueType.InternalServerError;
+                return PeerRequestIssueType.InternalServerError;
             }
 
             if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
             {
-                issueType = PeerRequestIssueType.ServiceUnavailable;
+                return PeerRequestIssueType.ServiceUnavailable;
             }
 
-            if (!response.IsSuccessStatusCode || response.Content == null)
-            {
-                issueType = PeerRequestIssueType.Unhandled;
-            }
-
-            return issueType;
+            return PeerRequestIssueType.Unhandled;
         }
     }
 }

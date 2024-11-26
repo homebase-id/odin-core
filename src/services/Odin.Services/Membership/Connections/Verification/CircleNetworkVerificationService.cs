@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -158,6 +160,8 @@ public class CircleNetworkVerificationService(
 
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
+        var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
+
         //TODO CONNECTIONS
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
@@ -169,14 +173,25 @@ public class CircleNetworkVerificationService(
                 {
                     try
                     {
-                        var success = await SynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
-                        logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
+                        var issueType = await SynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
+                        if (issueType != PeerRequestIssueType.None)
+                        {
+                            failedIdentities.Add(identity.OdinId, issueType);
+                        }
+
+                        logger.LogDebug("EnsureVerificationHash for {odinId}.  Issue: {success}", identity.OdinId, issueType);
                     }
                     catch (Exception e)
                     {
                         logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
                     }
                 }
+            }
+
+            if (failedIdentities.Any())
+            {
+                logger.LogInformation("Failed synchronizing verification hashes for identities:[{list}]",
+                    string.Join(",", failedIdentities.Select(kvp => kvp.Key + ":" + kvp.Value)));
             }
         }
         //);
@@ -185,7 +200,8 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHashAsync(OdinId odinId, CancellationToken cancellationToken, IOdinContext odinContext)
+    public async Task<PeerRequestIssueType> SynchronizeVerificationHashAsync(OdinId odinId, CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -198,16 +214,26 @@ public class CircleNetworkVerificationService(
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var success = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
+            var issueType = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
 
-            if (success)
+            if (issueType == PeerRequestIssueType.None)
             {
                 var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret, odinContext);
+                var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
+                    odinContext);
+
+                if (!success)
+                {
+                    logger.LogDebug("Failed to update local verification hash for targetIdentity: {identity}", targetIdentity);
+                }
+            }
+            else
+            {
+                return issueType;
             }
         }
 
-        return false;
+        return PeerRequestIssueType.None;
     }
 
     public async Task SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
@@ -220,7 +246,7 @@ public class CircleNetworkVerificationService(
             odinContext.PermissionsContext.SharedSecretKey, odinContext);
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode,
+    private async Task<PeerRequestIssueType> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode,
         CancellationToken cancellationToken, IOdinContext odinContext)
     {
         async Task<ApiResponse<HttpContent>> UpdatePeer()
@@ -242,37 +268,7 @@ public class CircleNetworkVerificationService(
         try
         {
             var executionResult = await ExecuteRequestAsync(UpdatePeer(), cancellationToken);
-
-            switch (executionResult.IssueType)
-            {
-                case PeerRequestIssueType.SocketError:
-                    return false;
-
-                case PeerRequestIssueType.OperationCancelled:
-                    return false;
-
-                case PeerRequestIssueType.HttpRequestFailed:
-                    return false;
-                
-                case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
-                    await CircleNetworkService.DisconnectAsync(recipient, odinContext);
-                    return false;
-                
-                case PeerRequestIssueType.Forbidden:
-                    throw new OdinSecurityException("Remote server returned 403");
-
-                case PeerRequestIssueType.ServiceUnavailable:
-                    throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
-
-                case PeerRequestIssueType.InternalServerError:
-                    throw new OdinClientException("Remote server returned 500",
-                        OdinClientErrorCode.RemoteServerReturnedInternalServerError);
-
-                case PeerRequestIssueType.Unhandled:
-                    throw new OdinSystemException($"Unhandled peer error response: {executionResult.Response.StatusCode}");
-            }
-
-            return executionResult.Response.IsSuccessStatusCode;
+            return executionResult.IssueType;
         }
         catch (TryRetryException e)
         {

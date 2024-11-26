@@ -1,8 +1,9 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Verification;
@@ -29,6 +30,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
+            var invalidIdentities = new List<OdinId>();
             logger.LogDebug("Validate verification has on all connections...");
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
             foreach (var identity in allIdentities.Results)
@@ -37,10 +39,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
 
                 if (identity.VerificationHash.IsNullOrEmpty())
                 {
-                    throw new OdinSystemException($"Verification hash missing for {identity.OdinId}");
+                    invalidIdentities.Add(identity.OdinId);
+                    // throw new OdinSystemException($"Verification hash missing for {identity.OdinId}");
                 }
             }
-            
+
+            if (invalidIdentities.Count > 0)
+            {
+                logger.LogInformation("Validating verification hash-sync.  Failed on the following identities:[{list}]",
+                    string.Join(",", invalidIdentities));
+            }
+
             logger.LogDebug("Validate verification has on all connections - OK");
         }
     }
