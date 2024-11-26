@@ -42,7 +42,6 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
-using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Background;
@@ -58,248 +57,257 @@ using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 
-namespace Odin.Hosting
+namespace Odin.Hosting;
+
+/// <summary>
+/// Set up per-tenant services
+/// </summary>
+public static class TenantServices
 {
-    /// <summary>
-    /// Set up per-tenant services
-    /// </summary>
-    public static class TenantServices
+    internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
     {
-        internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
-        {
-            cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<PushNotificationService>()
-                .As<INotificationHandler<ConnectionRequestReceived>>()
-                .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
-                .AsSelf()
-                .InstancePerLifetimeScope();
-
-            cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
-
-            cb.RegisterType<PushNotificationOutboxAdapter>()
-                .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
-                .AsSelf().SingleInstance();
-
-            cb.RegisterType<FeedNotificationMapper>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<NewFeedItemReceived>>()
-                .As<INotificationHandler<NewFollowerNotification>>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .AsSelf()
-                .InstancePerLifetimeScope();
-
-            cb.RegisterType<AppNotificationHandler>()
-                .As<INotificationHandler<FileAddedNotification>>()
-                .As<INotificationHandler<ConnectionRequestReceived>>()
-                .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<InboxItemReceivedNotification>>()
-                .As<INotificationHandler<NewFollowerNotification>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<ReactionContentDeletedNotification>>()
-                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
-                .As<INotificationHandler<AppNotificationAddedNotification>>()
-                .As<INotificationHandler<ConnectionFinalizedNotification>>()
-                .AsSelf()
-                .SingleInstance();
-            
-            cb.RegisterType<PeerAppNotificationHandler>()
-                // .As<INotificationHandler<FileAddedNotification>>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<ReactionContentDeletedNotification>>()
-                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
-                // .As<INotificationHandler<AppNotificationAddedNotification>>()
-                .AsSelf()
-                .SingleInstance();
-            
-
-            cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-
-            cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
-
-            cb.RegisterType<HomeCachingService>()
-                .AsSelf()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
-                .SingleInstance();
-
-            cb.RegisterType<HomeAuthenticatorService>()
-                .AsSelf()
-                .As<INotificationHandler<ConnectionBlockedNotification>>()
-                .As<INotificationHandler<ConnectionFinalizedNotification>>()
-                .As<INotificationHandler<ConnectionDeletedNotification>>()
-                .SingleInstance();
-            cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
-
-            cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
-            cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
-            cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
-            cb.RegisterType<OwnerAuthenticationService>()
-                .AsSelf()
-                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
-                .SingleInstance();
-
-            cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
-            cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-
-            cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
-            cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
-
-            cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileUpdateWriter>().AsSelf().InstancePerDependency();
-
-            cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
-
-            cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
-
-            cb.RegisterType<DriveDatabaseHost>()
-                .AsSelf()
-                .SingleInstance();
-
-            cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
-            cb.RegisterType<GroupReactionService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<ReactionPreviewCalculator>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<ReactionContentDeletedNotification>>()
-                .As<INotificationHandler<AllReactionsByFileDeleted>>();
-
-            cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
-
-            cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
-            cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
-            cb.RegisterType<CircleDefinitionService>().SingleInstance();
-            cb.RegisterType<CircleNetworkService>()
-                .AsSelf()
-                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
-                .As<INotificationHandler<AppRegistrationChangedNotification>>()
-                .SingleInstance();
-
-            cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
-            cb.RegisterType<CircleNetworkIntroductionService>().AsSelf()
-                .As<INotificationHandler<ConnectionFinalizedNotification>>()
-                .As<INotificationHandler<ConnectionBlockedNotification>>()
-                .As<INotificationHandler<ConnectionDeletedNotification>>()
-                .SingleInstance();
-            cb.RegisterType<CircleNetworkVerificationService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<FollowerService>().SingleInstance();
-            cb.RegisterType<FollowerPerimeterService>().SingleInstance();
-
-            cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
-
-            cb.RegisterType<PeerInboxProcessor>().AsSelf()
-                .SingleInstance();
-
-            cb.RegisterType<TransitAuthenticationService>()
-                .As<INotificationHandler<ConnectionFinalizedNotification>>()
-                .As<INotificationHandler<ConnectionBlockedNotification>>()
-                .As<INotificationHandler<ConnectionDeletedNotification>>()
-                .AsSelf()
-                .SingleInstance();
-
-            cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
-            cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
-            cb.RegisterType<FeedDriveDistributionRouter>()
-                .As<INotificationHandler<DriveFileAddedNotification>>()
-                .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
-                .AsSelf()
-                .SingleInstance();
-
-            cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerOutgoingTransferService>().InstancePerLifetimeScope();
-
-            cb.RegisterType<PeerOutboxProcessorMediatorAdapter>()
-                .As<INotificationHandler<OutboxItemAddedNotification>>()
-                .AsSelf();
-
-            cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<PeerReactionSenderService>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<PeerIncomingReactionService>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<PublicPrivateKeyService>()
-                .AsSelf()
-                .InstancePerLifetimeScope();
-
-            cb.RegisterType<StaticFileContentService>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<VersionUpgradeService>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<VersionUpgradeScheduler>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<PeerAppNotificationService>().AsSelf().InstancePerLifetimeScope();
-            cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
-            cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
-            // cb.RegisterType<PeerDriveIncomingTransferService>().InstancePerDependency();
-
-            // Tenant background services
-            cb.AddTenantBackgroundServices(registration);
-
-            // Tenant database services
-            cb.ConfigureDatabaseServices(registration, config);
-        }
-
+        //
+        // DO NOT CREATE ANY SINGLETONS HERE!
+        //
+        // Unless you are sure that ALL their dependencies are, and always will be, either:
+        // - Singletons
+        // - Thread-safe scoped or transient
+        //
+        // Absolutely do not create singletons that depend on OdinContext or any database related classes.
         //
 
-        private static void ConfigureDatabaseServices(
-            this ContainerBuilder cb,
-            IdentityRegistration registration,
-            OdinConfiguration config)
+        cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<PushNotificationService>()
+            .As<INotificationHandler<ConnectionRequestReceived>>()
+            .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
+
+        cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
+
+        cb.RegisterType<PushNotificationOutboxAdapter>()
+            .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
+            .AsSelf().SingleInstance();
+
+        cb.RegisterType<FeedNotificationMapper>()
+            .As<INotificationHandler<ReactionContentAddedNotification>>()
+            .As<INotificationHandler<NewFeedItemReceived>>()
+            .As<INotificationHandler<NewFollowerNotification>>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
+
+        cb.RegisterType<AppNotificationHandler>()
+            .As<INotificationHandler<FileAddedNotification>>()
+            .As<INotificationHandler<ConnectionRequestReceived>>()
+            .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .As<INotificationHandler<InboxItemReceivedNotification>>()
+            .As<INotificationHandler<NewFollowerNotification>>()
+            .As<INotificationHandler<ReactionContentAddedNotification>>()
+            .As<INotificationHandler<ReactionContentDeletedNotification>>()
+            .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+            .As<INotificationHandler<AppNotificationAddedNotification>>()
+            .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<PeerAppNotificationHandler>()
+            // .As<INotificationHandler<FileAddedNotification>>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .As<INotificationHandler<ReactionContentAddedNotification>>()
+            .As<INotificationHandler<ReactionContentDeletedNotification>>()
+            .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+            // .As<INotificationHandler<AppNotificationAddedNotification>>()
+            .AsSelf()
+            .SingleInstance();
+
+
+        cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+
+        cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+
+        cb.RegisterType<HomeCachingService>()
+            .AsSelf()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+            .SingleInstance();
+
+        cb.RegisterType<HomeAuthenticatorService>()
+            .AsSelf()
+            .As<INotificationHandler<ConnectionBlockedNotification>>()
+            .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionDeletedNotification>>()
+            .SingleInstance();
+        cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
+
+        cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
+        cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
+
+        cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
+        cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
+        cb.RegisterType<OwnerAuthenticationService>()
+            .AsSelf()
+            .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+            .SingleInstance();
+
+        cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
+        cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
+
+        cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
+        cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
+
+        cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFileUpdateWriter>().AsSelf().InstancePerDependency();
+
+        cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
+
+        cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
+
+        cb.RegisterType<DriveDatabaseHost>()
+            .AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
+        cb.RegisterType<GroupReactionService>().AsSelf().SingleInstance();
+
+        cb.RegisterType<ReactionPreviewCalculator>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .As<INotificationHandler<ReactionContentAddedNotification>>()
+            .As<INotificationHandler<ReactionContentDeletedNotification>>()
+            .As<INotificationHandler<AllReactionsByFileDeleted>>();
+
+        cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
+
+        cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
+        cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
+        cb.RegisterType<CircleDefinitionService>().SingleInstance();
+        cb.RegisterType<CircleNetworkService>()
+            .AsSelf()
+            .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+            .As<INotificationHandler<AppRegistrationChangedNotification>>()
+            .SingleInstance();
+
+        cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
+        cb.RegisterType<CircleNetworkIntroductionService>().AsSelf()
+            .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionBlockedNotification>>()
+            .As<INotificationHandler<ConnectionDeletedNotification>>()
+            .SingleInstance();
+        cb.RegisterType<CircleNetworkVerificationService>().AsSelf().SingleInstance();
+
+        cb.RegisterType<FollowerService>().SingleInstance();
+        cb.RegisterType<FollowerPerimeterService>().SingleInstance();
+
+        cb.RegisterType<PeerOutbox>().AsSelf().SingleInstance();
+
+        cb.RegisterType<PeerInboxProcessor>().AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<TransitAuthenticationService>()
+            .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionBlockedNotification>>()
+            .As<INotificationHandler<ConnectionDeletedNotification>>()
+            .AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
+        cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
+        cb.RegisterType<FeedDriveDistributionRouter>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+            .AsSelf()
+            .SingleInstance();
+
+        cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
+        cb.RegisterType<PeerOutgoingTransferService>().InstancePerLifetimeScope();
+
+        cb.RegisterType<PeerOutboxProcessorMediatorAdapter>()
+            .As<INotificationHandler<OutboxItemAddedNotification>>()
+            .AsSelf();
+
+        cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
+
+        cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
+
+        cb.RegisterType<PeerReactionSenderService>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<PeerIncomingReactionService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<PublicPrivateKeyService>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
+
+        cb.RegisterType<StaticFileContentService>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<VersionUpgradeService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<VersionUpgradeScheduler>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<PeerAppNotificationService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<IcrKeyAvailableBackgroundService>().AsSelf().SingleInstance();
+        cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
+
+        cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
+        // cb.RegisterType<PeerDriveIncomingTransferService>().InstancePerDependency();
+
+        // Tenant background services
+        cb.AddTenantBackgroundServices(registration);
+
+        // Tenant database services
+        cb.ConfigureDatabaseServices(registration, config);
+    }
+
+    //
+
+    private static void ConfigureDatabaseServices(
+        this ContainerBuilder cb,
+        IdentityRegistration registration,
+        OdinConfiguration config)
+    {
+        cb.AddDatabaseCacheServices();
+        switch (config.Database.Type)
         {
-            cb.AddDatabaseCacheServices();
-            switch (config.Database.Type)
+            case DatabaseType.Sqlite:
             {
-                case DatabaseType.Sqlite:
-                {
-                    // SEB:TODO move this out of service registration
-                    // SEB:TODO duplicated from registration code. Don't do that.
-                    var headersPath = Path.Combine(
-                        config.Host.TenantDataRootPath,
-                        "registrations",
-                        registration.Id.ToString(),
-                        "headers");
-                    Directory.CreateDirectory(headersPath);
-                    cb.AddSqliteIdentityDatabaseServices(registration.Id, Path.Combine(headersPath, "identity.db"));
-                    break;
-                }
-                case DatabaseType.Postgres:
-                    cb.AddPgsqlIdentityDatabaseServices(registration.Id, config.Database.ConnectionString);
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");
+                // SEB:TODO move this out of service registration
+                // SEB:TODO duplicated from registration code. Don't do that.
+                var headersPath = Path.Combine(
+                    config.Host.TenantDataRootPath,
+                    "registrations",
+                    registration.Id.ToString(),
+                    "headers");
+                Directory.CreateDirectory(headersPath);
+                cb.AddSqliteIdentityDatabaseServices(registration.Id, Path.Combine(headersPath, "identity.db"));
+                break;
             }
+            case DatabaseType.Postgres:
+                cb.AddPgsqlIdentityDatabaseServices(registration.Id, config.Database.ConnectionString);
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");
         }
     }
 }
