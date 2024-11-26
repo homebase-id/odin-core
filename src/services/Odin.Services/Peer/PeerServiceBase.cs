@@ -207,6 +207,11 @@ namespace Odin.Services.Peer
                 return PeerRequestIssueType.None;
             }
 
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                return PeerRequestIssueType.BadRequest;
+            }
+
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
                 if (response.Headers.IsTrue(HttpHeaderConstants.RemoteServerIcrIssue))

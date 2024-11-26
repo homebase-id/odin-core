@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,7 +73,14 @@ public class CircleNetworkVerificationService(
         var expectedHash = icr!.VerificationHash;
         if (expectedHash.IsNullOrEmpty())
         {
-            throw new OdinClientException("Missing verification hash", OdinClientErrorCode.MissingVerificationHash);
+            //try syncing 
+            var issueType = await SynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
+
+            if (issueType != PeerRequestIssueType.None)
+            {
+                throw new OdinClientException("Missing expected verification hash; tried to sync but that failed",
+                    OdinClientErrorCode.MissingVerificationHash);
+            }
         }
 
         var result = new IcrVerificationResult();
@@ -268,6 +276,7 @@ public class CircleNetworkVerificationService(
         try
         {
             var executionResult = await ExecuteRequestAsync(UpdatePeer(), cancellationToken);
+            
             return executionResult.IssueType;
         }
         catch (TryRetryException e)

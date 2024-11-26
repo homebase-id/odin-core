@@ -855,10 +855,14 @@ namespace Odin.Services.Membership.Connections
             }
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
-
-
-            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
+            
+            if (icr.Status == ConnectionStatus.Connected)
             {
+                if (!icr.VerificationHash.IsNullOrEmpty())
+                {
+                    throw new OdinClientException("Verification hash already exists");
+                }
+                
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
                 // for a connected identity; but #paranoid
