@@ -28,4 +28,5 @@ jobs:
 
       - name: Test
         # run: dotnet test --no-build --configuration Debug --verbosity normal ./odin-core.sln
-        run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+        run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
