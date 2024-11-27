@@ -846,7 +846,8 @@ namespace Odin.Services.Membership.Connections
             //);
         }
 
-        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret, IOdinContext odinContext)
+        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret,
+            IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsOwner)
             {
@@ -855,7 +856,7 @@ namespace Odin.Services.Membership.Connections
             }
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
-            
+
             if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
@@ -869,9 +870,16 @@ namespace Odin.Services.Membership.Connections
 
                 var hash = this.CreateVerificationHash(randomCode, sharedSecret);
 
+                logger.LogDebug("Saving identity [{identity}] with hash [{hash}]", icr.OdinId, hash.ToBase64());
+                
                 await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
                 return true;
+            }
+            else
+            {
+                logger.LogDebug("Update verification hash for identity [{identity}] called " +
+                                "but one is already set; skipping", icr.OdinId);
             }
 
             return false;
