@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core;
+using Odin.Core.Cache;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
@@ -22,22 +23,25 @@ namespace Odin.Services.Authentication.YouAuth;
 
 public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
-    private readonly IMemoryCache _encryptedTokens = new MemoryCache(new MemoryCacheOptions());
     private readonly IAppRegistrationService _appRegistrationService;
-
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
-    private readonly Dictionary<string, bool> _tempConsent;
     private readonly CircleNetworkService _circleNetwork;
+    private readonly IGenericMemoryCache<YouAuthUnifiedService> _encryptedTokens;
+    private readonly SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> _tempConsent;
 
-    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
-        YouAuthDomainRegistrationService domainRegistrationService, CircleNetworkService circleNetwork)
+    public YouAuthUnifiedService(
+        IAppRegistrationService appRegistrationService,
+        YouAuthDomainRegistrationService domainRegistrationService,
+        CircleNetworkService circleNetwork,
+        IGenericMemoryCache<YouAuthUnifiedService> encryptedTokens,
+        SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> tempConsent)
     {
         _appRegistrationService = appRegistrationService;
 
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
-
-        _tempConsent = new Dictionary<string, bool>(StringComparer.InvariantCultureIgnoreCase);
+        _encryptedTokens = encryptedTokens;
+        _tempConsent = tempConsent;
     }
 
     //
@@ -60,7 +64,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         //TODO: need to talk with Seb about the redirecting loop issue here
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
-            _tempConsent.Remove(clientIdOrDomain);
+            _tempConsent.Remove(clientIdOrDomain, out _);
             return false;
         }
 
@@ -202,9 +206,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ec = _encryptedTokens.Get<EncryptedTokenExchange>(exchangeSharedSecretDigest);
+        var found = _encryptedTokens.TryGet<EncryptedTokenExchange>(exchangeSharedSecretDigest, out var ec);
 
-        if (ec == null)
+        if (!found || ec == null)
         {
             return Task.FromResult<EncryptedTokenExchange?>(null);
         }

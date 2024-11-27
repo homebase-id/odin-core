@@ -22,6 +22,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Odin.Services.Util;
@@ -64,11 +65,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
         _tempFolderRoot = tenantDataRootPath;
 
-        if (!Directory.Exists(tenantDataRootPath))
-        {
-            throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
-        }
-
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _logger = logger;
@@ -82,7 +78,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
 
         RegisterCertificateInitializerHttpClient();
-        LoadRegistrations().BlockingWait(); // SEB:TODO get this out of the constructor
     }
 
     public Guid? ResolveId(string domain)
@@ -409,11 +404,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
     }
 
-    private async Task LoadRegistrations()
+    public async Task LoadRegistrations()
     {
+        Directory.CreateDirectory(RegistrationRoot);
         if (!Directory.Exists(RegistrationRoot))
         {
-            return;
+            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
+        }
+
+        Directory.CreateDirectory(ShardablePayloadRoot);
+        if (!Directory.Exists(RegistrationRoot))
+        {
+            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
         }
 
         var directories = Directory.GetDirectories(RegistrationRoot);
@@ -476,20 +478,25 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
 
+        // SEB:TODO move this to the bottom when stuff is working
+        _trie.AddDomain(registration.PrimaryDomainName, registration);
+        _cache[registration.Id] = registration;
+
         var scope = CreateMultiTenantScope(registration);
         await using var dbScope = scope.BeginLifetimeScope();
         var identityDatabase = dbScope.Resolve<IdentityDatabase>();
         await identityDatabase.CreateDatabaseAsync(false);
 
-        _trie.AddDomain(registration.PrimaryDomainName, registration);
-        _cache[registration.Id] = registration;
-
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
 
+        var driveManager = scope.Resolve<DriveManager>();
+        await driveManager.LoadCacheAsync();
+
         var tenantConfigService = scope.Resolve<TenantConfigService>();
         await tenantConfigService.InitializeAsync();
+
 
     }
 

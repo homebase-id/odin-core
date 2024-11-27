@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly HomeRegistrationStorage _storage;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly ILogger<HomeAuthenticatorService> _logger;
-        private readonly OdinContextCache _cache;
+        private readonly SharedOdinContextCache<HomeAuthenticatorService> _cache;
 
         //
 
@@ -38,7 +38,8 @@ namespace Odin.Hosting.Controllers.Home.Service
             TenantContext tenantContext,
             HomeRegistrationStorage storage,
             CircleMembershipService circleMembershipService,
-            ILogger<HomeAuthenticatorService> logger
+            ILogger<HomeAuthenticatorService> logger,
+            SharedOdinContextCache<HomeAuthenticatorService> cache
         )
         {
             _circleNetworkService = circleNetworkService;
@@ -47,7 +48,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             _storage = storage;
             _circleMembershipService = circleMembershipService;
             _logger = logger;
-            _cache = new OdinContextCache();
+            _cache = cache;
         }
 
         //

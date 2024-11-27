@@ -16,13 +16,13 @@ public class TransitAuthenticationService :
     INotificationHandler<ConnectionBlockedNotification>,
     INotificationHandler<ConnectionDeletedNotification>
 {
-    private readonly OdinContextCache _cache;
+    private readonly SharedOdinContextCache<TransitAuthenticationService> _cache;
     private readonly CircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
+    public TransitAuthenticationService(SharedOdinContextCache<TransitAuthenticationService> cache, CircleNetworkService circleNetworkService)
     {
+        _cache = cache;
         _circleNetworkService = circleNetworkService;
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
     /// <summary>

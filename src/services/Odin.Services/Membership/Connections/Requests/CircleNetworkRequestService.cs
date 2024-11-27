@@ -41,16 +41,18 @@ namespace Odin.Services.Membership.Connections.Requests
     public class CircleNetworkRequestService : PeerServiceBase
     {
         private const PublicPrivateKeyType KeyType = PublicPrivateKeyType.OnlineIcrEncryptedKey;
+        private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
+        private static readonly byte[] SentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
 
-        private readonly byte[] _pendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
+        private const string PendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
+        private readonly ThreeKeyValueStorage _pendingRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(PendingContextKey));
 
-        private readonly byte[] _sentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
-
+        private const string SentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
+        private readonly ThreeKeyValueStorage _sentRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(SentContextKey));
 
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-
 
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
@@ -63,14 +65,11 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-        private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
-        private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
             ILogger<CircleNetworkRequestService> logger,
             IOdinHttpClientFactory odinHttpClientFactory,
-            
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
@@ -88,7 +87,6 @@ namespace Odin.Services.Membership.Connections.Requests
             _cns = cns;
             _logger = logger;
             _odinHttpClientFactory = odinHttpClientFactory;
-            
             _mediator = mediator;
             _tenantContext = tenantContext;
             _publicPrivateKeyService = publicPrivateKeyService;
@@ -100,13 +98,6 @@ namespace Odin.Services.Membership.Connections.Requests
             _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
             _tblKeyThreeValue = tblKeyThreeValue;
-
-
-            const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
-            _pendingRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(pendingContextKey));
-
-            const string sentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
-            _sentRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
         }
 
         /// <summary>
@@ -162,7 +153,7 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, _pendingRequestsDataType);
+            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, PendingRequestsDataType);
             return new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList());
         }
 
@@ -174,7 +165,7 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(_tblKeyThreeValue, _sentRequestsDataType);
+            var results = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(_tblKeyThreeValue, SentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
@@ -697,14 +688,14 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             
             request.SenderOdinId = _tenantContext.HostOdinId; //store for when we support multiple domains per identity
-            await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, _sentRequestsDataType,
+            await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, SentRequestsDataType,
                 request);
         }
 
         private async Task UpsertPendingConnectionRequestAsync(PendingConnectionRequestHeader request)
         {
             
-            await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, _pendingRequestsDataType,
+            await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, PendingRequestsDataType,
                 request);
         }
 
@@ -717,14 +708,14 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private Guid MakeSentRequestsKey(OdinId recipient)
         {
-            var combined = ByteArrayUtil.Combine(recipient.ToHashId().ToByteArray(), _sentRequestsDataType);
+            var combined = ByteArrayUtil.Combine(recipient.ToHashId().ToByteArray(), SentRequestsDataType);
             var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
             return new Guid(bytes);
         }
 
         private Guid MakePendingRequestsKey(OdinId sender)
         {
-            var combined = ByteArrayUtil.Combine(sender.ToHashId().ToByteArray(), _pendingRequestsDataType);
+            var combined = ByteArrayUtil.Combine(sender.ToHashId().ToByteArray(), PendingRequestsDataType);
             var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
             return new Guid(bytes);
         }

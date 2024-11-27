@@ -6,7 +6,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -15,22 +14,17 @@ namespace Odin.Services.Authentication.Owner;
 
 public class RecoveryService
 {
-    
-    private readonly SingleKeyValueStorage _storage;
-    private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
+    private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
+    private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
+    private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
     private readonly OdinConfiguration _odinConfiguration;
     private readonly TableKeyValue _tblKeyValue;
 
     public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue)
     {
-        
         _odinConfiguration = odinConfiguration;
         _tblKeyValue = tblKeyValue;
-
-        const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
-        Guid contextKey = Guid.Parse(k);
-        _storage = TenantSystemStorage.CreateSingleKeyValueStorage(contextKey);
     }
 
     /// <summary>
@@ -51,7 +45,7 @@ public class RecoveryService
     public async Task CreateInitialKeyAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var keyRecord = await _storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, _recordStorageId);
+        var keyRecord = await Storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, RecordStorageId);
         if (null != keyRecord)
         {
             throw new OdinSystemException("Recovery key already exists");
@@ -100,7 +94,7 @@ public class RecoveryService
 
     private async Task<RecoveryKeyRecord> GetKeyInternalAsync()
     {
-        var existingKey = await _storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, _recordStorageId);
+        var existingKey = await Storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, RecordStorageId);
         return existingKey;
     }
 
@@ -116,6 +110,6 @@ public class RecoveryService
             RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
         };
 
-        await _storage.UpsertAsync(_tblKeyValue, _recordStorageId, record);
+        await Storage.UpsertAsync(_tblKeyValue, RecordStorageId, record);
     }
 }

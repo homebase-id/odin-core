@@ -16,15 +16,18 @@ namespace Odin.Services.DataSubscription;
 
 public class IdentitiesIFollowAuthenticationService
 {
-    private readonly OdinContextCache _cache;
+    private readonly SharedOdinContextCache<IdentitiesIFollowAuthenticationService> _cache;
     private readonly TenantContext _tenantContext;
     private readonly FollowerService _followerService;
 
-    public IdentitiesIFollowAuthenticationService(OdinConfiguration config, FollowerService followerService, TenantContext tenantContext)
+    public IdentitiesIFollowAuthenticationService(
+        SharedOdinContextCache<IdentitiesIFollowAuthenticationService> cache,
+        FollowerService followerService,
+        TenantContext tenantContext)
     {
         _followerService = followerService;
         _tenantContext = tenantContext;
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
+        _cache = cache;
     }
 
     /// <summary>

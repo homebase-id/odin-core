@@ -10,8 +10,8 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Threading;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
@@ -35,6 +35,7 @@ namespace Odin.Services.Membership.Connections
     /// </summary>
     public class CircleNetworkService(
         ILogger<CircleNetworkService> logger,
+        SharedKeyedAsyncLock<CircleNetworkService> keyedAsyncLock,
         ExchangeGrantService exchangeGrantService,
         TenantContext tenantContext,
         IAppRegistrationService appRegistrationService,
@@ -47,8 +48,6 @@ namespace Odin.Services.Membership.Connections
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
     {
-        private readonly KeyedAsyncLock _lock = new();
-
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
@@ -1163,7 +1162,8 @@ namespace Odin.Services.Membership.Connections
 
         private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
-            using (await _lock.LockAsync(icr.OdinId))
+            // SEB:TODO does not scale
+            using (await keyedAsyncLock.LockAsync(icr.OdinId))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)

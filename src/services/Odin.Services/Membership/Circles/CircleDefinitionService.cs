@@ -17,18 +17,17 @@ namespace Odin.Services.Membership.Circles
 {
     public class CircleDefinitionService
     {
+        private const string CircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
+        private static readonly ThreeKeyValueStorage CircleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(CircleValueContextKey));
+        private static readonly byte[] CircleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
+
         private readonly DriveManager _driveManager;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-
-        private readonly byte[] _circleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
-        private readonly ThreeKeyValueStorage _circleValueStorage;
 
         public CircleDefinitionService( DriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
         {
             _driveManager = driveManager;
             _tblKeyThreeValue = tblKeyThreeValue;
-            const string circleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
-            _circleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
         }
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
@@ -98,7 +97,7 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            await _circleValueStorage.UpsertAsync(_tblKeyThreeValue, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
+            await CircleValueStorage.UpsertAsync(_tblKeyThreeValue, existingCircle.Id, GuidId.Empty, CircleDataType, newCircleDefinition);
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)
@@ -109,13 +108,13 @@ namespace Odin.Services.Membership.Circles
 
         public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
-            var def = await _circleValueStorage.GetAsync<CircleDefinition>(_tblKeyThreeValue, circleId);
+            var def = await CircleValueStorage.GetAsync<CircleDefinition>(_tblKeyThreeValue, circleId);
             return def;
         }
         
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
-            var circles = (await _circleValueStorage.GetByCategoryAsync<CircleDefinition>(_tblKeyThreeValue, _circleDataType) ?? []).ToList();
+            var circles = (await CircleValueStorage.GetByCategoryAsync<CircleDefinition>(_tblKeyThreeValue, CircleDataType) ?? []).ToList();
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
@@ -134,7 +133,7 @@ namespace Odin.Services.Membership.Circles
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await _circleValueStorage.DeleteAsync(_tblKeyThreeValue, id);
+            await CircleValueStorage.DeleteAsync(_tblKeyThreeValue, id);
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
@@ -222,7 +221,7 @@ namespace Odin.Services.Membership.Circles
                 Permissions = request.Permissions
             };
 
-            await _circleValueStorage.UpsertAsync(_tblKeyThreeValue, circle.Id, GuidId.Empty, _circleDataType, circle);
+            await CircleValueStorage.UpsertAsync(_tblKeyThreeValue, circle.Id, GuidId.Empty, CircleDataType, circle);
 
             return circle;
         }

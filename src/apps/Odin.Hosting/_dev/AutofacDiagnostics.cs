@@ -8,15 +8,16 @@ using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
 using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Authentication.Transit;
+using Odin.Services.DataSubscription;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting._dev;
 
-public static class AutofacDiagnostics
+public class AutofacDiagnostics(IContainer root, ILogger logger)
 {
     // The types below (interface and implementations) are verified to not have any (problematic) non-singleton dependencies
-    private static readonly Dictionary<Type, string> ManualCheckSingletonWhitelist = new()
-#if DEBUG
+    private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
         {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "74c23c98"},
@@ -39,24 +40,23 @@ public static class AutofacDiagnostics
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "80cf458d"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "b5cdf13e"},
+        {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
+        {typeof(Odin.Services.Base.SharedOdinContextCache<IdentitiesIFollowAuthenticationService>), "822f02f2"},
+        {typeof(Odin.Services.Base.SharedOdinContextCache<TransitAuthenticationService>), "822f02f2"},
 
-    }
-#endif
-    ;
+    };
 
-    public static void AssertSingletonDependencies(IContainer root, ILogger logger)
+    public void AssertSingletonDependencies()
     {
-#if DEBUG
         // Check root
         CheckSingletonDependencies(root, logger);
 
         // Check tenant
         var tenantScope = root.Resolve<IMultiTenantContainerAccessor>().GetTenantScopesForDiagnostics().First();
         CheckSingletonDependencies(tenantScope, logger);
-#endif
     }
     
-    private static void CheckSingletonDependencies(ILifetimeScope container, ILogger logger)
+    private void CheckSingletonDependencies(ILifetimeScope container, ILogger logger)
     {
         var allRegistrations = container.ComponentRegistry.Registrations;
 
@@ -90,7 +90,7 @@ public static class AutofacDiagnostics
                 // instantiation or activation logic within Autofac.
 
                 var serviceHash = GetConstructorSignatureHash(serviceType);
-                if (ManualCheckSingletonWhitelist.ContainsKey(serviceType) && ManualCheckSingletonWhitelist[serviceType] == serviceHash)
+                if (_manualCheckSingletonWhitelist.ContainsKey(serviceType) && _manualCheckSingletonWhitelist[serviceType] == serviceHash)
                 {
                     continue;
                 }
@@ -112,7 +112,7 @@ public static class AutofacDiagnostics
                 {
                     var parameterType = parameter.ParameterType;
 
-                    if (parameterType == typeof(ILifetimeScope))
+                    if (parameterType == typeof(ILifetimeScope) || parameterType == typeof(IServiceProvider))
                     {
                         continue;
                     }

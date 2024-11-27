@@ -13,20 +13,20 @@ namespace Odin.Hosting.Controllers.Home.Service
 {
     public class HomeRegistrationStorage
     {
-        private readonly TableKeyValue _tblKeyValue;
-        private readonly SingleKeyValueStorage _clientStorage;
+        private const string HomeClientContextKey = "7daac4aa-5088-4b46-96bd-47f03704dab4";
+        private static readonly SingleKeyValueStorage ClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(HomeClientContextKey));
 
-        public HomeRegistrationStorage( TableKeyValue tblKeyValue)
+        private readonly TableKeyValue _tblKeyValue;
+
+        public HomeRegistrationStorage(TableKeyValue tblKeyValue)
         {
             _tblKeyValue = tblKeyValue;
-            const string homeClientContextKey = "7daac4aa-5088-4b46-96bd-47f03704dab4";
-            _clientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
         public async Task<HomeAppClient?> GetClientAsync(Guid id)
         {
             
-            var client = await _clientStorage.GetAsync<HomeAppClient>(_tblKeyValue, id);
+            var client = await ClientStorage.GetAsync<HomeAppClient>(_tblKeyValue, id);
             return client;
         }
 
@@ -38,13 +38,13 @@ namespace Odin.Hosting.Controllers.Home.Service
                 throw new OdinClientException("Invalid client id");
             }
 
-            await _clientStorage.UpsertAsync(_tblKeyValue, client.AccessRegistration.Id, client);
+            await ClientStorage.UpsertAsync(_tblKeyValue, client.AccessRegistration.Id, client);
         }
 
         public async Task DeleteClientAsync(GuidId accessRegistrationId)
         {
             
-            await _clientStorage.DeleteAsync(_tblKeyValue, accessRegistrationId);
+            await ClientStorage.DeleteAsync(_tblKeyValue, accessRegistrationId);
         }
     }
 }

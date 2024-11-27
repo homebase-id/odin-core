@@ -260,7 +260,6 @@ namespace Odin.Hosting
             switch (_config.Database.Type)
             {
                 case DatabaseType.Sqlite:
-                    Directory.CreateDirectory(_config.Host.SystemDataRootPath); // SEB:TODO move this out of service registration
                     builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
                     break;
                 case DatabaseType.Postgres:
@@ -495,15 +494,22 @@ namespace Odin.Hosting
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
-                var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                AutofacDiagnostics.AssertSingletonDependencies(root, logger);
 
                 // Create system database
                 var systemDatabase = services.GetRequiredService<SystemDatabase>();
                 systemDatabase.CreateDatabaseAsync().BlockingWait();
 
+                // Load identity registry
                 var registry = services.GetRequiredService<IIdentityRegistry>();
+                registry.LoadRegistrations().BlockingWait();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+
+                // Check for singleton dependencies
+                if (env.IsDevelopment())
+                {
+                    var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+                    new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+                }
 
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
