@@ -857,7 +857,13 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash.IsNullOrEmpty())
+            if (!icr.IsConnected())
+            {
+                logger.LogDebug("Skipping UpdateVerificationHash -[{icr}] is not connected", icr.OdinId);
+                return false;
+            }
+
+            if (icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
@@ -871,16 +877,16 @@ namespace Odin.Services.Membership.Connections
                 var hash = this.CreateVerificationHash(randomCode, sharedSecret);
 
                 logger.LogDebug("Saving identity [{identity}] with hash [{hash}]", icr.OdinId, hash.ToBase64());
-                
+
                 await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
                 return true;
             }
-            else
-            {
-                logger.LogDebug("Update verification hash for identity [{identity}] called " +
-                                "but one is already set; skipping", icr.OdinId);
-            }
+
+            logger.LogDebug("Skipping verification hash update for identity [{identity}] " +
+                            "called but one is already set [hash:{value}]",
+                icr.OdinId,
+                icr.VerificationHash.ToBase64());
 
             return false;
         }

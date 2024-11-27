@@ -105,17 +105,18 @@ public class CircleNetworkVerificationService(
             // an ICR because the remote server is not responding
             if (executionResult.Response.IsSuccessStatusCode)
             {
-                var vcr = executionResult.Response.Content;
-                result.RemoteIdentityWasConnected = vcr.IsConnected;
+                var remoteHash = executionResult.Response.Content;
+                result.RemoteIdentityWasConnected = remoteHash.IsConnected;
 
-                logger.LogDebug("Comparing verification-hash: remote identity has hash:[{remoteHash}] | " +
+                logger.LogDebug("Comparing verification-hash: remote identity ({remoteIdentity}) returned hash:[{remoteHash}] | " +
                                 "local identity has hash:[{localHash}]",
-                    vcr.Hash?.ToBase64(),
+                    recipient,
+                    remoteHash.Hash?.ToBase64(),
                     expectedHash.ToBase64());
 
                 if (result.RemoteIdentityWasConnected.GetValueOrDefault())
                 {
-                    result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
+                    result.IsValid = ByteArrayUtil.EquiByteArrayCompare(remoteHash.Hash, expectedHash);
                 }
             }
             else
