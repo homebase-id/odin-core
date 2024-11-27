@@ -162,6 +162,26 @@ public class CircleNetworkVerificationService(
         }
     }
 
+    public async Task ClearLocalVerificationHashOnAllIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+
+        foreach (var identity in allIdentities.Results)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await CircleNetworkService.ClearVerificationHashAsync(identity.OdinId, odinContext);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Clearing verification hash for {odinId}.  Failed", identity.OdinId);
+            }
+        }
+    }
+
     public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -177,7 +197,7 @@ public class CircleNetworkVerificationService(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // if (identity.VerificationHash.IsNullOrEmpty())
+                if (identity.VerificationHash.IsNullOrEmpty())
                 {
                     try
                     {
@@ -194,11 +214,11 @@ public class CircleNetworkVerificationService(
                         logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
                     }
                 }
-                // else
-                // {
-                //     logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId,
-                //         identity.VerificationHash.ToBase64());
-                // }
+                else
+                {
+                    logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId,
+                        identity.VerificationHash.ToBase64());
+                }
             }
 
             if (failedIdentities.Any())

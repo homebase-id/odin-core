@@ -846,6 +846,23 @@ namespace Odin.Services.Membership.Connections
             //);
         }
 
+        public async Task<bool> ClearVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            
+            var icr = await this.GetIcrAsync(odinId, odinContext);
+
+            if (!icr.VerificationHash.IsNullOrEmpty())
+            {
+                await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, []);
+                logger.LogDebug("Hash was cleared for identity [{identity}]", icr.OdinId);
+                return true;
+            }
+
+            return false;
+        }
+
+        
         public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret,
             IOdinContext odinContext)
         {
