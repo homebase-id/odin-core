@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -23,21 +24,23 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessorBackgroundService(
+        //
+        // DO NOT inject any scoped classes that are to be used in ProcessItemThread.
+        // They must be resolved in the method (and passed along to the methods it calls).
+        //
+        ILifetimeScope lifetimeScope,
         ICorrelationContext correlationContext,
         ICertificateCache certificateCache,
-        PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessorBackgroundService> logger,
-        PushNotificationService pushNotificationService,
-        IAppRegistrationService appRegistrationService,
-        FileSystemResolver fileSystemResolver,
         ILoggerFactory loggerFactory,
-        TenantContext tenantContext,
-        IDriveAclAuthorizationService driveAcl) : AbstractBackgroundService(logger)
+        TenantContext tenantContext
+        ) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
             var domain = tenantContext.HostOdinId.DomainName;
 
             var tasks = new List<Task>();
@@ -77,6 +80,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         private async Task ProcessItemThread(OutboxFileItem fileItem, CancellationToken cancellationToken)
         {
+            await using var childScope = lifetimeScope.BeginLifetimeScope();
+            var peerOutbox = childScope.Resolve<PeerOutbox>();
+
             var originalCorrelationId = correlationContext.Id;
             correlationContext.Id = Guid.NewGuid().ToString();
 
@@ -95,24 +101,23 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             odinContext.SetPermissionContext(new PermissionContext(null, null, true));
 
             logger.LogDebug("Processing outbox item type: {type} (logref:{originalCorrelationId})", fileItem.Type, originalCorrelationId);
-
             try
             {
-                var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(fileItem, odinContext, cancellationToken);
+                var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(childScope, fileItem, odinContext, cancellationToken);
                 if (shouldMarkComplete)
                 {
                     await peerOutbox.MarkCompleteAsync(fileItem.Marker);
 
-                    await CleanupIfTransientItem(fileItem, odinContext);
+                    await CleanupIfTransientItem(childScope, fileItem, odinContext);
                 }
                 else
                 {
-                    await RescheduleItem(fileItem, nextRun);
+                    await RescheduleItem(peerOutbox, fileItem, nextRun);
                 }
             }
             catch (OperationCanceledException oce)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now());
+                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
                 // Expected when using cancellation token
                 logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
@@ -125,7 +130,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now());
+                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
                 logger.LogError(e, "An outbox worker did not handle the outbox processing exception.  Action: Marking Failure" +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -135,7 +140,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (Exception e)
             {
-                await RescheduleItem(fileItem, UnixTimeUtc.Now());
+                await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
                 logger.LogError(e, "Unhandled exception occured while processing an outbox.  Action: Marking Failure." +
                                    "item (type: {itemType}).  File:{file}\t Marker:{marker}",
@@ -145,8 +150,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task CleanupIfTransientItem(OutboxFileItem fileItem, IOdinContext odinContext)
+        private async Task CleanupIfTransientItem(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext)
         {
+            var peerOutbox = childScope.Resolve<PeerOutbox>();
+            var fileSystemResolver = childScope.Resolve<FileSystemResolver>();
             try
             {
                 if (fileItem.State.IsTransientFile)
@@ -171,7 +181,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task RescheduleItem(OutboxFileItem fileItem, UnixTimeUtc nextRun)
+        private async Task RescheduleItem(PeerOutbox peerOutbox, OutboxFileItem fileItem, UnixTimeUtc nextRun)
         {
             if (fileItem.AttemptCount > odinConfiguration.Host.OutboxOperationMaxAttempts)
             {
@@ -188,23 +198,25 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             InternalPulseBackgroundProcessor();
         }
 
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(OutboxFileItem fileItem, IOdinContext odinContext,
-            
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
             switch (fileItem.Type)
             {
                 case OutboxItemType.PushNotification:
-                    return await SendPushNotification(fileItem, odinContext, cancellationToken);
+                    return await SendPushNotification(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.File:
-                    return await SendFileOutboxItem(fileItem, odinContext, cancellationToken);
+                    return await SendFileOutboxItem(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.RemoteFileUpdate:
-                    return await UpdateRemoteFile(fileItem, odinContext, cancellationToken);
+                    return await UpdateRemoteFile(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.UnencryptedFeedItem:
-                    return await SendUnencryptedFeedItem(fileItem, odinContext, cancellationToken);
+                    return await SendUnencryptedFeedItem(childScope, fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.DeleteRemoteFile:
                     return await SendDeleteFileRequest(fileItem, odinContext, cancellationToken);
@@ -250,10 +262,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
 
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendFileOutboxItem(OutboxFileItem fileItem, IOdinContext odinContext,
-            
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendFileOutboxItem(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            var fileSystemResolver = childScope.Resolve<FileSystemResolver>();
             var workLogger = loggerFactory.CreateLogger<SendFileOutboxWorkerAsync>();
             var worker = new SendFileOutboxWorkerAsync(fileItem,
                 fileSystemResolver,
@@ -265,12 +280,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
 
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> UpdateRemoteFile(OutboxFileItem fileItem, IOdinContext odinContext,
-            
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> UpdateRemoteFile(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            var fileSystemResolver = childScope.Resolve<FileSystemResolver>();
             var workLogger = loggerFactory.CreateLogger<UpdateRemoteFileOutboxWorker>();
-            var worker = new UpdateRemoteFileOutboxWorker(fileItem,
+            var worker = new UpdateRemoteFileOutboxWorker(
+                fileItem,
                 fileSystemResolver,
                 workLogger,
                 odinConfiguration,
@@ -281,10 +300,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
         
         
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(OutboxFileItem fileItem, IOdinContext odinContext,
-            
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            var pushNotificationService = childScope.Resolve<PushNotificationService>();
+            var appRegistrationService = childScope.Resolve<IAppRegistrationService>();
             var workLogger = loggerFactory.CreateLogger<SendPushNotificationOutboxWorker>();
             var worker = new SendPushNotificationOutboxWorker(fileItem,
                 workLogger,
@@ -294,12 +317,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
 
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendUnencryptedFeedItem(OutboxFileItem fileItem, IOdinContext odinContext,
-            
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendUnencryptedFeedItem(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            var fileSystemResolver = childScope.Resolve<FileSystemResolver>();
+            var driveAcl = childScope.Resolve<IDriveAclAuthorizationService>();
             var workLogger = loggerFactory.CreateLogger<SendUnencryptedFeedFileOutboxWorkerAsync>();
-            var worker = new SendUnencryptedFeedFileOutboxWorkerAsync(fileItem, fileSystemResolver, workLogger, odinConfiguration, odinHttpClientFactory,
+            var worker = new SendUnencryptedFeedFileOutboxWorkerAsync(
+                fileItem,
+                fileSystemResolver,
+                workLogger,
+                odinConfiguration,
+                odinHttpClientFactory,
                 driveAcl
             );
 

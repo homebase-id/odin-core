@@ -186,23 +186,23 @@ public static class TenantServices
 
         cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
-        cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
+        cb.RegisterType<FileSystemResolver>().InstancePerDependency();
+        cb.RegisterType<FileSystemHttpRequestResolver>().InstancePerDependency();
 
-        cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-        cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
-        cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
-        cb.RegisterType<StandardFileUpdateWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFileStreamWriter>().InstancePerDependency();
+        cb.RegisterType<StandardFilePayloadStreamWriter>().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveStorageService>().InstancePerDependency();
+        cb.RegisterType<StandardFileDriveQueryService>().InstancePerDependency();
+        cb.RegisterType<StandardFileUpdateWriter>().InstancePerDependency();
 
-        cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
+        cb.RegisterType<StandardFileSystem>().InstancePerDependency();
 
-        cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
-        cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
-        cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
-        cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
-        cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
-        cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
+        cb.RegisterType<CommentStreamWriter>().InstancePerDependency();
+        cb.RegisterType<CommentPayloadStreamWriter>().InstancePerDependency();
+        cb.RegisterType<CommentFileStorageService>().InstancePerDependency();
+        cb.RegisterType<CommentFileQueryService>().InstancePerDependency();
+        cb.RegisterType<CommentFileSystem>().InstancePerDependency();
+        cb.RegisterType<CommentFileUpdateWriter>().InstancePerDependency();
 
         cb.RegisterType<ReactionContentService>().InstancePerLifetimeScope();
         cb.RegisterType<GroupReactionService>().InstancePerLifetimeScope();
