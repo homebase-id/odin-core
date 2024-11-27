@@ -108,7 +108,7 @@ public class CircleNetworkVerificationService(
                 var vcr = executionResult.Response.Content;
                 result.RemoteIdentityWasConnected = vcr.IsConnected;
 
-                logger.LogDebug("Comparing verification-hash: remote identity has hash:[{removeHash}] | " +
+                logger.LogDebug("Comparing verification-hash: remote identity has hash:[{remoteHash}] | " +
                                 "local identity has hash:[{localHash}]",
                     vcr.Hash?.ToBase64(),
                     expectedHash.ToBase64());

@@ -253,7 +253,7 @@ public class CircleNetworkStorage
 
             ConnectionRequestOrigin = connectionOrigin,
             IntroducerOdinId = introducerOdinId,
-            VerificationHash = data.VerificationHash64?.ToUtf8ByteArray()
+            VerificationHash = data.VerificationHash64?.FromBase64()
         };
     }
 
