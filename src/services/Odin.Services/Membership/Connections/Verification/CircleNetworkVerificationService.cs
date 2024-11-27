@@ -177,7 +177,7 @@ public class CircleNetworkVerificationService(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (identity.VerificationHash.IsNullOrEmpty())
+                // if (identity.VerificationHash.IsNullOrEmpty())
                 {
                     try
                     {
@@ -194,10 +194,11 @@ public class CircleNetworkVerificationService(
                         logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
                     }
                 }
-                else
-                {
-                    logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId, identity.VerificationHash.ToBase64());
-                }
+                // else
+                // {
+                //     logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId,
+                //         identity.VerificationHash.ToBase64());
+                // }
             }
 
             if (failedIdentities.Any())
@@ -227,21 +228,17 @@ public class CircleNetworkVerificationService(
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            //TODO CONNECTIONS
-            // @seb - this needs to be in a transaction
-            var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-            var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
-                odinContext);
-
-            if (success)
+            var result = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
+            if (result.RemoteWasUpdated)
             {
-                var result = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
-                if (result.RemoteWasUpdated)
+                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+                var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
+                    odinContext);
+
+                if (success)
                 {
-                    // @seb - commit tx here
                     return (true, PeerRequestIssueType.None);
                 }
-                // @seb - rollback here
             }
         }
 
