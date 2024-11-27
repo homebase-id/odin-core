@@ -27,6 +27,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 
@@ -424,7 +425,10 @@ namespace Odin.Hosting.Tests
 
         private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
         {
+            LogEvents.DumpEvents(logEvents[LogEventLevel.Error]);
             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
+
+            LogEvents.DumpEvents(logEvents[LogEventLevel.Fatal]);
             Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
         }
 
