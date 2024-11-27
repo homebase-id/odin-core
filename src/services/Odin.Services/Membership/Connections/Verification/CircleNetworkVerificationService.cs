@@ -99,7 +99,8 @@ public class CircleNetworkVerificationService(
                 };
             }
 
-            var executionResult = await ExecuteRequestAsync(VerifyPeerConnection(clientAuthToken), cancellationToken);
+            var executionResult =
+                await ExecuteRequestAsync(async () => await VerifyPeerConnection(clientAuthToken), cancellationToken);
 
             // Only compare if we get back a good code, so we don't kill
             // an ICR because the remote server is not responding
@@ -207,7 +208,7 @@ public class CircleNetworkVerificationService(
         odinContext.Caller.AssertHasMasterKey();
 
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-        
+
         //TODO CONNECTIONS
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
@@ -231,7 +232,6 @@ public class CircleNetworkVerificationService(
                         logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
                         await ForceSync(identity);
                     }
-                    
                 }
             }
 
@@ -316,7 +316,7 @@ public class CircleNetworkVerificationService(
 
         try
         {
-            var executionResult = await ExecuteRequestAsync(UpdatePeer(), cancellationToken);
+            var executionResult = await ExecuteRequestAsync(async () => await UpdatePeer(), cancellationToken);
 
             return executionResult.Response.Content;
         }

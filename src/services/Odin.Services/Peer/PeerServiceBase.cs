@@ -158,7 +158,7 @@ namespace Odin.Services.Peer
         /// Executes a http request with retry and error mapping
         /// </summary>
         protected async Task<PeerTryRetryResult<TApiResponse>> ExecuteRequestAsync<TApiResponse>(
-            Task<ApiResponse<TApiResponse>> task, CancellationToken cancellationToken)
+            Func<Task<ApiResponse<TApiResponse>>> action, CancellationToken cancellationToken)
         {
             var result = new PeerTryRetryResult<TApiResponse>();
 
@@ -168,7 +168,7 @@ namespace Odin.Services.Peer
                     OdinConfiguration.Host.PeerOperationMaxAttempts,
                     OdinConfiguration.Host.PeerOperationDelayMs,
                     cancellationToken,
-                    async () => { result.Response = await task; });
+                    async () => { result.Response = await action(); });
 
                 result.IssueType = MapIssueType(result.Response);
 
