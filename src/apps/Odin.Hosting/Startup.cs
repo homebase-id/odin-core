@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -273,6 +274,8 @@ namespace Odin.Hosting
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
+            logger.LogInformation("Environment: {Environment}", env.EnvironmentName);
+
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
 
             // Note 1: see NotificationSocketController

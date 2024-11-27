@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.Management;
@@ -15,10 +16,10 @@ namespace Odin.Services.Drives.FileSystem.Standard
     {
         public StandardFileDriveQueryService(
             ILogger<StandardFileDriveQueryService> logger,
-            DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager,
+            SqliteDatabaseManager driveQuery,
             StandardFileDriveStorageService storage) :
-            base(logger, driveDatabaseHost, driveManager, storage)
+            base(logger, driveManager, driveQuery, storage)
         {
         }
 

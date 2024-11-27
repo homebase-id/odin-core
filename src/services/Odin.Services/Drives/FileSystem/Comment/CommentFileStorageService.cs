@@ -17,10 +17,15 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 
 public class CommentFileStorageService : DriveStorageServiceBase
 {
-    public CommentFileStorageService(ILoggerFactory loggerFactory, IMediator mediator,
-        IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter, DriveDatabaseHost driveDatabaseHost) :
-        base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, driveFileReaderWriter, driveDatabaseHost)
+    public CommentFileStorageService(
+        ILoggerFactory loggerFactory,
+        IMediator mediator,
+        IDriveAclAuthorizationService driveAclAuthorizationService,
+        DriveManager driveManager,
+        LongTermStorageManager longTermStorageManager,
+        TempStorageManager tempStorageManager,
+        DriveFileReaderWriter driveFileReaderWriter) :
+        base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, tempStorageManager)
     {
     }
 

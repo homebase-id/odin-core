@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -48,12 +49,16 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
 
     public void AssertSingletonDependencies()
     {
+        var sw = Stopwatch.StartNew();
+
         // Check root
         CheckSingletonDependencies(root, logger);
 
         // Check tenant
         var tenantScope = root.Resolve<IMultiTenantContainerAccessor>().GetTenantScopesForDiagnostics().First();
         CheckSingletonDependencies(tenantScope, logger);
+
+        logger.LogDebug("Singleton dependency check took {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
     }
     
     private void CheckSingletonDependencies(ILifetimeScope container, ILogger logger)

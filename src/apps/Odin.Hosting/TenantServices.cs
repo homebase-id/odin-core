@@ -22,7 +22,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.DataSubscription;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Comment.Attachments;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -52,7 +51,8 @@ using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
-using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.AppNotification;
@@ -87,6 +87,8 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
 
+        cb.RegisterType<SqliteDatabaseManager>().InstancePerLifetimeScope();
+
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<PushNotificationService>()
@@ -99,7 +101,8 @@ public static class TenantServices
 
         cb.RegisterType<PushNotificationOutboxAdapter>()
             .As<INotificationHandler<PushNotificationEnqueuedNotification>>()
-            .AsSelf().SingleInstance();
+            .AsSelf()
+            .InstancePerLifetimeScope();
 
         cb.RegisterType<FeedNotificationMapper>()
             .As<INotificationHandler<ReactionContentAddedNotification>>()
@@ -161,15 +164,12 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .InstancePerLifetimeScope();
-        // cb.RegisterType<SharedOdinContextCache<HomeAuthenticatorService>>().SingleInstance();
 
         cb.RegisterType<HomeRegistrationStorage>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
-        // cb.RegisterType<SharedConcurrentDictionary<YouAuthUnifiedService, string, bool>>().SingleInstance();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
-        // cb.RegisterType<SharedOdinContextCache<YouAuthDomainRegistrationService>>().SingleInstance();
 
         cb.RegisterType<RecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
@@ -178,11 +178,11 @@ public static class TenantServices
             .AsSelf()
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .InstancePerLifetimeScope();
-        // cb.RegisterType<SharedOdinContextCache<OwnerAuthenticationService>>().SingleInstance();
 
         cb.RegisterType<DriveManager>().InstancePerLifetimeScope();
-        // cb.RegisterType<SharedConcurrentDictionary<DriveManager, Guid, StorageDrive>>().SingleInstance();
-        // cb.RegisterType<SharedAsyncLock<DriveManager>>().SingleInstance();
+
+        cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
+        cb.RegisterType<TempStorageManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().InstancePerLifetimeScope();
 
@@ -204,10 +204,6 @@ public static class TenantServices
         cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
         cb.RegisterType<CommentFileUpdateWriter>().AsSelf().InstancePerDependency();
 
-        cb.RegisterType<DriveDatabaseHost>().InstancePerLifetimeScope();
-        // SEB:TODO switch to Nito's AsyncLazy if possible
-        // cb.RegisterType<SharedConcurrentDictionary<DriveDatabaseHost, Guid, AsyncLazy<IDriveDatabaseManager>>>().SingleInstance();
-
         cb.RegisterType<ReactionContentService>().InstancePerLifetimeScope();
         cb.RegisterType<GroupReactionService>().InstancePerLifetimeScope();
 
@@ -222,7 +218,6 @@ public static class TenantServices
         cb.RegisterType<AppRegistrationService>()
             .As<IAppRegistrationService>()
             .InstancePerLifetimeScope();
-        // cb.RegisterType<SharedOdinContextCache<AppRegistrationService>>().SingleInstance();
 
         cb.RegisterType<CircleMembershipService>().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyService>().InstancePerLifetimeScope();
@@ -233,7 +228,6 @@ public static class TenantServices
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .As<INotificationHandler<AppRegistrationChangedNotification>>()
             .InstancePerLifetimeScope();
-        // cb.RegisterType<SharedKeyedAsyncLock<CircleNetworkService>>().SingleInstance();
 
         cb.RegisterType<CircleNetworkRequestService>().InstancePerLifetimeScope();
         cb.RegisterType<CircleNetworkIntroductionService>().AsSelf()
@@ -306,7 +300,6 @@ public static class TenantServices
         cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
-        // cb.RegisterType<PeerDriveIncomingTransferService>().InstancePerDependency();
 
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
