@@ -373,10 +373,6 @@ public class ScopedConnectionFactory<T>(
     //
     // CommandWrapper
     // A wrapper around a DbCommand that ensures that the command is disposed correctly.
-    // All non-trivial access to the underlying DbCommand is synchronized. This is necessary because DbConnection is
-    // not thread-safe and the DbConnection may be shared between multiple threads when running parallel tasks
-    // and having "forgotten" to create a new scope foreach parallel task (or thread). Since DbCommand directly
-    // accesses the DbConnection, we make sure it is synchronized.
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command)
         : IDisposable, IAsyncDisposable
@@ -416,30 +412,21 @@ public class ScopedConnectionFactory<T>(
 
         public void Cancel()
         {
-            using (instance._mutex.Lock())
-            {
-                command.Cancel();
-            }
+            command.Cancel();
         }
 
         //
         public DbParameter CreateParameter()
         {
-            using (instance._mutex.Lock())
-            {
-                return command.CreateParameter();
-            }
+            return command.CreateParameter();
         }
 
         //
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                command.Transaction = instance._transaction;
-                return await command.ExecuteNonQueryAsync(cancellationToken);
-            }
+            command.Transaction = instance._transaction;
+            return await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
         //
@@ -447,30 +434,21 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                return await command.ExecuteReaderAsync(behavior, cancellationToken);
-            }
+            return await command.ExecuteReaderAsync(behavior, cancellationToken);
         }
 
         //
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                return await command.ExecuteScalarAsync(cancellationToken);
-            }
+            return await command.ExecuteScalarAsync(cancellationToken);
         }
 
         //
 
         public async Task PrepareAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                await command.PrepareAsync(cancellationToken);
-            }
+            await command.PrepareAsync(cancellationToken);
         }
 
         //
