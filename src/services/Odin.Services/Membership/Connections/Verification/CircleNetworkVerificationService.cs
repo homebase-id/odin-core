@@ -194,6 +194,10 @@ public class CircleNetworkVerificationService(
                         logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
                     }
                 }
+                else
+                {
+                    logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId, identity.VerificationHash.ToBase64());
+                }
             }
 
             if (failedIdentities.Any())
