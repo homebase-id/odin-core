@@ -73,7 +73,7 @@ public class CircleNetworkVerificationService(
         {
             //try syncing 
             logger.LogDebug("Missing expected verification hash.  attempting synchronization");
-            var (success, _) = await SynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
+            var (success, _) = await ForceSynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
 
             if (success)
             {
@@ -184,12 +184,30 @@ public class CircleNetworkVerificationService(
 
     public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
     {
+        var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
+
+        async Task ForceSync(IdentityConnectionRegistration identity)
+        {
+            try
+            {
+                var (success, issueType) = await ForceSynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
+                if (!success)
+                {
+                    failedIdentities.Add(identity.OdinId, issueType);
+                }
+
+                logger.LogDebug("EnsureVerificationHash for {odinId}.  Issue: {success}", identity.OdinId, issueType);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
+            }
+        }
+
         odinContext.Caller.AssertHasMasterKey();
 
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-
-        var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
-
+        
         //TODO CONNECTIONS
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
@@ -199,25 +217,21 @@ public class CircleNetworkVerificationService(
 
                 if (identity.VerificationHash.IsNullOrEmpty())
                 {
-                    try
-                    {
-                        var (success, issueType) = await SynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
-                        if (!success)
-                        {
-                            failedIdentities.Add(identity.OdinId, issueType);
-                        }
-
-                        logger.LogDebug("EnsureVerificationHash for {odinId}.  Issue: {success}", identity.OdinId, issueType);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
-                    }
+                    await ForceSync(identity);
                 }
                 else
                 {
-                    logger.LogDebug("EnsureVerificationHash - skipping [{odinId}].  Value already set [{value}]", identity.OdinId,
-                        identity.VerificationHash.ToBase64());
+                    var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
+                    if (verifyResponse.IsValid)
+                    {
+                        logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
+                    }
+                    else
+                    {
+                        logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
+                        await ForceSync(identity);
+                    }
+                    
                 }
             }
 
@@ -233,7 +247,7 @@ public class CircleNetworkVerificationService(
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<(bool Updated, PeerRequestIssueType IssueType)> SynchronizeVerificationHashAsync(OdinId odinId,
+    public async Task<(bool Updated, PeerRequestIssueType IssueType)> ForceSynchronizeVerificationHashAsync(OdinId odinId,
         CancellationToken cancellationToken,
         IOdinContext odinContext)
     {

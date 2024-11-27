@@ -880,7 +880,7 @@ namespace Odin.Services.Membership.Connections
                 return false;
             }
 
-            if (icr.VerificationHash.IsNullOrEmpty())
+            // if (icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
@@ -899,13 +899,13 @@ namespace Odin.Services.Membership.Connections
 
                 return true;
             }
-
-            logger.LogDebug("Skipping verification hash update for identity [{identity}] " +
-                            "called but one is already set [hash:{value}]",
-                icr.OdinId,
-                icr.VerificationHash.ToBase64());
-
-            return false;
+            //
+            // logger.LogDebug("Skipping verification hash update for identity [{identity}] " +
+            //                 "called but one is already set [hash:{value}]",
+            //     icr.OdinId,
+            //     icr.VerificationHash.ToBase64());
+            //
+            // return false;
         }
 
         public byte[] CreateVerificationHash(Guid randomCode, SensitiveByteArray sharedSecret)

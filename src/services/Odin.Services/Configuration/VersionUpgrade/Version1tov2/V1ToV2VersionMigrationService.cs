@@ -22,11 +22,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
         {
             odinContext.Caller.AssertHasMasterKey();
             
-            // 
-            // Clear the verification hash on all identities
-            //
-            await verificationService.ClearLocalVerificationHashOnAllIdentities(odinContext, cancellationToken);
-            
             //
             // Sync verification hash's across all connections
             //
