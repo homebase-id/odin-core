@@ -67,7 +67,7 @@ public class TenantConfigService
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
 
-        _tenantContext.UpdateSystemConfig(GetTenantSettingsAsync().Result); // SEB:TODO move async call out of constructor 
+        _tenantContext.UpdateSystemConfig(GetTenantSettingsAsync().Result); // SEB:TODO move async call out of constructor
     }
 
     public async Task<TenantVersionInfo> ForceVersionNumberAsync(int version)
@@ -393,7 +393,7 @@ public class TenantConfigService
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
+                        Permission = DrivePermission.ReadWrite
                     }
                 },
                 new()
