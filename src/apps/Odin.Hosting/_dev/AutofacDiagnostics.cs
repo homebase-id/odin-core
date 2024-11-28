@@ -44,7 +44,6 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<IdentitiesIFollowAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<TransitAuthenticationService>), "822f02f2"},
-
     };
 
     public void AssertSingletonDependencies()
@@ -94,14 +93,14 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
                 // that indicate the service was registered in the IServiceCollection but does not need additional
                 // instantiation or activation logic within Autofac.
 
-                var serviceHash = GetConstructorSignatureHash(serviceType);
-                if (_manualCheckSingletonWhitelist.ContainsKey(serviceType) && _manualCheckSingletonWhitelist[serviceType] == serviceHash)
+                var ctorHash = GetConstructorSignatureHash(serviceType);
+                if (_manualCheckSingletonWhitelist.ContainsKey(serviceType) && _manualCheckSingletonWhitelist[serviceType] == ctorHash)
                 {
                     continue;
                 }
 
-                logger.LogError("MANUAL CHECK AND WHITE LISTING REQUIRED: {serviceType}={hash} ({activator}) ",
-                    serviceType, GetConstructorSignatureHash(serviceType), registration.Activator.GetType());
+                logger.LogError("MANUAL CHECK AND WHITE LISTING REQUIRED: {serviceType}={ctorhash} ({activator}) ",
+                    serviceType, ctorHash, registration.Activator.GetType());
 
                 continue;
             }
@@ -117,7 +116,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
                 {
                     var parameterType = parameter.ParameterType;
 
-                    if (parameterType == typeof(ILifetimeScope) || parameterType == typeof(IServiceProvider))
+                    var ctorHash = GetConstructorSignatureHash(serviceType);
+                    if (_manualCheckSingletonWhitelist.ContainsKey(serviceType) && _manualCheckSingletonWhitelist[serviceType] == ctorHash)
                     {
                         continue;
                     }
@@ -138,8 +138,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
                         if (dependencyLifetime is not RootScopeLifetime && dependencyLifetime is not MatchingScopeLifetime)
                         {
                             // It's either scoped or transient
-                            logger.LogError("Singleton service '{service}' depends on non-singleton service '{parameter}' with lifetime '{lifetime}'",
-                                service, parameterType.FullName, dependencyLifetime.GetType().Name);
+                            logger.LogError("Singleton service {service}={ctorhash} depends on non-singleton service '{parameter}' with lifetime '{lifetime}'",
+                                service, ctorHash, parameterType.FullName, dependencyLifetime.GetType().Name);
                         }
                     }
                 }

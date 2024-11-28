@@ -21,13 +21,13 @@ public static class LogEvents
     {
         foreach (var logEvent in logEvents)
         {
-            Console.WriteLine("Begin log event");
+            Console.WriteLine("Begin LogEvent dump");
             Console.WriteLine($"Message: {logEvent.RenderMessage()}");
             if (logEvent.Exception != null)
             {
                 Console.WriteLine(logEvent.Exception);
             }
-            Console.WriteLine("End log event");
+            Console.WriteLine("End LogEvent dump");
         }
     }
 
