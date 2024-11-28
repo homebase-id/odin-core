@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -41,6 +42,7 @@ public class TenantConfigService
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
+    private readonly ScopedIdentityConnectionFactory _scopedIdentityConnectionFactory;
     private readonly TableKeyValue _tblKeyValue;
 
     public TenantConfigService(
@@ -53,6 +55,7 @@ public class TenantConfigService
         RecoveryService recoverService,
         CircleMembershipService circleMembershipService,
         IAppRegistrationService appRegistrationService,
+        ScopedIdentityConnectionFactory scopedIdentityConnectionFactory,
         TableKeyValue tblKeyValue)
     {
         _dbs = dbs;
@@ -60,12 +63,12 @@ public class TenantConfigService
         _registry = registry;
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
+        _icrKeyService = icrKeyService;
         _recoverService = recoverService;
         _circleMembershipService = circleMembershipService;
         _appRegistrationService = appRegistrationService;
+        _scopedIdentityConnectionFactory = scopedIdentityConnectionFactory;
         _tblKeyValue = tblKeyValue;
-        _icrKeyService = icrKeyService;
-
     }
 
     public async Task InitializeAsync()
@@ -214,6 +217,9 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
+        await using var cn = await _scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync();
+
         if (request.FirstRunToken.HasValue)
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
@@ -237,10 +243,6 @@ public class TenantConfigService
         }
 
         await this.EnsureBuiltInApps(odinContext);
-        
-
-        // TODO CONNECTIONS
-        // db.CreateCommitUnitOfWork(() => {
 
         var keyValuePairs = new List<(Guid key, object value)>
         {
@@ -249,6 +251,8 @@ public class TenantConfigService
         };
 
         await ConfigStorage.UpsertManyAsync(_tblKeyValue, keyValuePairs);
+
+        await tx.CommitAsync();
     }
 
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
