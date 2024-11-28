@@ -48,8 +48,6 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
 
     public void AssertSingletonDependencies()
     {
-        logger.LogError("This log event will fail all tests");
-
         var sw = Stopwatch.StartNew();
 
         // Check root
