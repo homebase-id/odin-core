@@ -359,8 +359,7 @@ public class CollaborationChatPushNotificationTests
         var appPermissions = new PermissionSetGrantRequest
         {
             Drives = [],
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead,
-                PermissionKeys.SendIntroductions)
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead, PermissionKeys.SendPushNotifications)
         };
 
         var member1AppToken = await client.AppManager.RegisterAppAndClient(appId, appPermissions);

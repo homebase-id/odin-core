@@ -156,7 +156,7 @@ public class PeerNotificationTests
         await ownerClient.DriveManager.CreateDrive(targetDrive, "Chat Drive", "", false);
         await ownerClient.Network.CreateCircle(circleId, "Chat Participants", new PermissionSetGrantRequest()
         {
-            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow) //does not matter, just need to create the circle
+            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow, PermissionKeys.SendPushNotifications) //does not matter, just need to create the circle
         });
 
         // Both need the same app

@@ -274,7 +274,7 @@ public class PeerAppPushNotificationTests
         {
             Drives = [],
             PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead,
-                PermissionKeys.SendIntroductions)
+                PermissionKeys.SendPushNotifications)
         };
 
         var member2AppToken = await client.AppManager.RegisterAppAndClient(appId, appPermissions);
