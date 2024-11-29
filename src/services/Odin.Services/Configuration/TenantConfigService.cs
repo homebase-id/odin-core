@@ -42,7 +42,7 @@ public class TenantConfigService
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
-    private readonly ScopedIdentityConnectionFactory _scopedIdentityConnectionFactory;
+    private readonly ScopedIdentityTransactionFactory _scopedIdentityTransactionFactory;
     private readonly TableKeyValue _tblKeyValue;
 
     public TenantConfigService(
@@ -55,7 +55,7 @@ public class TenantConfigService
         RecoveryService recoverService,
         CircleMembershipService circleMembershipService,
         IAppRegistrationService appRegistrationService,
-        ScopedIdentityConnectionFactory scopedIdentityConnectionFactory,
+        ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableKeyValue tblKeyValue)
     {
         _dbs = dbs;
@@ -67,7 +67,7 @@ public class TenantConfigService
         _recoverService = recoverService;
         _circleMembershipService = circleMembershipService;
         _appRegistrationService = appRegistrationService;
-        _scopedIdentityConnectionFactory = scopedIdentityConnectionFactory;
+        _scopedIdentityTransactionFactory = scopedIdentityTransactionFactory;
         _tblKeyValue = tblKeyValue;
     }
 
@@ -217,8 +217,7 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await using var cn = await _scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
+        await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
         if (request.FirstRunToken.HasValue)
         {
