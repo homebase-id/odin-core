@@ -108,7 +108,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext, db);
 
             var drive = await _driveManager.GetDriveAsync(transferInstructionSet.TargetDrive, _tenantSystemStorage.IdentityDatabase);
-            if ((transferInstructionSet.AppNotificationOptions?.Recipients.Any() ?? false) && !drive.AllowSubscriptions)
+            if ((transferInstructionSet.AppNotificationOptions?.Recipients?.Any() ?? false) && !drive.AllowSubscriptions)
             {
                 throw new OdinSecurityException("Attempt to distribute app notifications to drive which does not allow subscriptions");
             }
