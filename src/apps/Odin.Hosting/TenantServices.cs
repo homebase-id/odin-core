@@ -51,6 +51,7 @@ using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
+using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -296,9 +297,10 @@ public static class TenantServices
 
         cb.RegisterType<StaticFileContentService>().AsSelf().InstancePerLifetimeScope();
 
-        cb.RegisterType<V0ToV1VersionMigrationService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<VersionUpgradeService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<VersionUpgradeScheduler>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<V0ToV1VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V1ToV2VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
+        cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerAppNotificationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<IcrKeyAvailableBackgroundService>().InstancePerLifetimeScope();
