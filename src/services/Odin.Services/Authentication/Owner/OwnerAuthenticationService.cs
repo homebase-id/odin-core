@@ -92,9 +92,9 @@ namespace Odin.Services.Authentication.Owner
         {
             var db = _tenantSystemStorage.IdentityDatabase;
             var salts = await _secretService.GetStoredSaltsAsync(db);
-            var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKeyAsync(db);
+            var (publicKeyCrc32C, publicKeyJwk) = await _secretService.GetCurrentAuthenticationEccKeyAsync(db);
 
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyJwk, publicKeyCrc32C);
 
             await _nonceDataStorage.UpsertAsync(db, nonce.Id, nonce);
 
@@ -115,7 +115,7 @@ namespace Odin.Services.Authentication.Owner
             var noncePackage = await AssertValidPasswordAsync(reply);
 
             //now that the password key matches, we set return the client auth token
-            var keys = await this._secretService.GetOfflineRsaKeyListAsync(db);
+            var keys = await this._secretService.GetOfflineEccKeyListAsync(db);
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
             await _serverTokenStorage.UpsertAsync(db, serverToken.Id, serverToken);
