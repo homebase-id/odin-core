@@ -217,8 +217,6 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
-
         if (request.FirstRunToken.HasValue)
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
@@ -242,6 +240,8 @@ public class TenantConfigService
         }
 
         await this.EnsureBuiltInApps(odinContext);
+
+        await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
         var keyValuePairs = new List<(Guid key, object value)>
         {

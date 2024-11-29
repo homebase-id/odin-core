@@ -68,7 +68,11 @@ namespace Odin.Hosting;
 /// </summary>
 public static class TenantServices
 {
-    internal static void ConfigureTenantServices(ContainerBuilder cb, IdentityRegistration registration, OdinConfiguration config)
+    internal static void ConfigureTenantServices(
+        ContainerBuilder cb,
+        IdentityRegistration registration,
+        TenantStorageConfig storageConfig,
+        OdinConfiguration odinConfig)
     {
         //
         // DO NOT CREATE ANY SINGLETONS HERE!
@@ -252,15 +256,15 @@ public static class TenantServices
             .AsSelf()
             .InstancePerLifetimeScope();
         cb.RegisterInstance(
-            new SharedOdinContextCache<TransitAuthenticationService>(config.Host.CacheSlidingExpirationSeconds));
+            new SharedOdinContextCache<TransitAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<IdentitiesIFollowAuthenticationService>().InstancePerLifetimeScope();
         cb.RegisterInstance(
-            new SharedOdinContextCache<IdentitiesIFollowAuthenticationService>(config.Host.CacheSlidingExpirationSeconds));
+            new SharedOdinContextCache<IdentitiesIFollowAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<FollowerAuthenticationService>().InstancePerLifetimeScope();
         cb.RegisterInstance(
-            new SharedOdinContextCache<FollowerAuthenticationService>(config.Host.CacheSlidingExpirationSeconds));
+            new SharedOdinContextCache<FollowerAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<FeedDriveDistributionRouter>()
             .As<INotificationHandler<DriveFileAddedNotification>>()
@@ -305,7 +309,7 @@ public static class TenantServices
         cb.AddTenantBackgroundServices(registration);
 
         // Tenant database services
-        cb.ConfigureDatabaseServices(registration, config);
+        cb.ConfigureDatabaseServices(registration, storageConfig, odinConfig);
     }
 
     //
@@ -313,6 +317,7 @@ public static class TenantServices
     private static void ConfigureDatabaseServices(
         this ContainerBuilder cb,
         IdentityRegistration registration,
+        TenantStorageConfig storageConfig,
         OdinConfiguration config)
     {
         cb.AddDatabaseCacheServices();
@@ -320,19 +325,15 @@ public static class TenantServices
         {
             case DatabaseType.Sqlite:
             {
-                // SEB:TODO move this out of service registration
-                // SEB:TODO duplicated from registration code. Don't do that.
-                var headersPath = Path.Combine(
-                    config.Host.TenantDataRootPath,
-                    "registrations",
-                    registration.Id.ToString(),
-                    "headers");
-                Directory.CreateDirectory(headersPath);
-                cb.AddSqliteIdentityDatabaseServices(registration.Id, Path.Combine(headersPath, "identity.db"));
+                cb.AddSqliteIdentityDatabaseServices(
+                    registration.Id,
+                    Path.Combine(storageConfig.HeaderDataStoragePath, "identity.db"));
                 break;
             }
             case DatabaseType.Postgres:
-                cb.AddPgsqlIdentityDatabaseServices(registration.Id, config.Database.ConnectionString);
+                cb.AddPgsqlIdentityDatabaseServices(
+                    registration.Id,
+                    config.Database.ConnectionString);
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");

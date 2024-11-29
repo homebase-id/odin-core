@@ -1,13 +1,13 @@
 using System;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Factory;
@@ -111,6 +111,9 @@ public class ScopedConnectionFactory<T>(
     T connectionFactory,
     CacheHelper cache) where T : IDbConnectionFactory
 {
+    // ReSharper disable once StaticMemberInGenericType
+    private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
+
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
@@ -119,18 +122,22 @@ public class ScopedConnectionFactory<T>(
     private int _connectionRefCount;
     private DbTransaction? _transaction;
     private int _transactionRefCount;
+    private Guid _connectionId;
 
     //
 
-    public async Task<ConnectionWrapper> CreateScopedConnectionAsync()
+    public async Task<ConnectionWrapper> CreateScopedConnectionAsync(
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
     {
-        _logger.LogTrace("Creating connection");
-
         using (await _mutex.LockAsync())
         {
             if (++_connectionRefCount == 1)
             {
                 _connection = await _connectionFactory.CreateAsync();
+                _connectionId = Guid.NewGuid();
+                Diagnostics[_connectionId] = $"{filePath}:{lineNumber}";
+                _logger.LogTrace("Created connection {id}", _connectionId);
             }
 
             // Sanity
@@ -161,7 +168,15 @@ public class ScopedConnectionFactory<T>(
 
             if (++_transactionRefCount == 1)
             {
-                _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                try
+                {
+                    _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                }
+                catch (Exception)
+                {
+                    LogDiagnostics();
+                    throw;
+                }
             }
 
             // Sanity
@@ -186,6 +201,16 @@ public class ScopedConnectionFactory<T>(
                 throw new ScopedDbConnectionException("No connection available to create command");
             }
             return new CommandWrapper(this, _connection.CreateCommand());
+        }
+    }
+
+    //
+
+    private void LogDiagnostics()
+    {
+        foreach (var (guid, info) in Diagnostics)
+        {
+            _logger.LogInformation("Connection {id} was created at {info}", guid, info);
         }
     }
 
@@ -241,6 +266,10 @@ public class ScopedConnectionFactory<T>(
 
                     await instance._connection!.DisposeAsync();
                     instance._connection = null;
+
+                    Diagnostics.TryRemove(instance._connectionId, out _);
+                    instance._logger.LogTrace("Disposed connection {id}", instance._connectionId);
+                    instance._connectionId = Guid.Empty;
                 }
 
                 // Sanity
