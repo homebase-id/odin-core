@@ -128,9 +128,9 @@ public class PeerNotificationTests
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
         Assert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
 
-        
+
         await ownerFrodo.DriveRedux.WaitForEmptyOutbox(targetDrive);
-        
+
         // Frodo should have the notification in his list
 
         var getNotificationsResponse = await ownerFrodo.AppNotifications.GetList(1000);
@@ -156,7 +156,7 @@ public class PeerNotificationTests
         await ownerClient.DriveManager.CreateDrive(targetDrive, "Chat Drive", "", false);
         await ownerClient.Network.CreateCircle(circleId, "Chat Participants", new PermissionSetGrantRequest()
         {
-            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow, PermissionKeys.SendPushNotifications) //does not matter, just need to create the circle
+            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow) //does not matter, just need to create the circle
         });
 
         // Both need the same app
@@ -176,7 +176,9 @@ public class PeerNotificationTests
                     }
                 }
             },
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite) //TODO: add permissions for sending notifications?
+            PermissionSet =
+                new PermissionSet(PermissionKeys.UseTransitWrite,
+                    PermissionKeys.SendPushNotifications) //TODO: add permissions for sending notifications?
         };
 
         // Register a 'chat' app that has readwrite access to the chat drive
