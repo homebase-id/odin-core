@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -14,16 +13,15 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
-namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
+namespace Odin.Services.Drives.DriveCore.Query;
 
-// SEB:TODO fix this class name SqliteDatabaseManager and namespace
-// SEB:TODO can we merge this class with DriveDatabaseHost?
-public class SqliteDatabaseManager(
-    ILogger<SqliteDatabaseManager> logger,
+public class DriveQuery(
+    ILogger<DriveQuery> logger,
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
     TableDriveReactions tblDriveReactions

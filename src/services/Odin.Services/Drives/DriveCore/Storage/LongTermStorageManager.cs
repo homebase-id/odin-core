@@ -22,7 +22,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
         private readonly DriveManager _driveManager;
-        private readonly SqliteDatabaseManager _driveQuery;
+        private readonly DriveQuery _driveQuery;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
@@ -32,7 +32,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             ILogger<LongTermStorageManager> logger,
             DriveFileReaderWriter driveFileReaderWriter,
             DriveManager driveManager,
-            SqliteDatabaseManager driveQuery)
+            DriveQuery driveQuery)
         {
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;

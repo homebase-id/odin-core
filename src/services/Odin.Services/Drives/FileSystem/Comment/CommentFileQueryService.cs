@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -16,7 +17,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
         public CommentFileQueryService(
             ILogger<CommentFileQueryService> logger,
             DriveManager driveManager,
-            SqliteDatabaseManager driveQuery,
+            DriveQuery driveQuery,
             CommentFileStorageService commentStorage) :
             base(logger, driveManager, driveQuery, commentStorage)
         {

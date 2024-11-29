@@ -18,13 +18,13 @@ namespace Odin.Services.Drives.FileSystem.Base
     public abstract class DriveQueryServiceBase : RequirePermissionsBase
     {
         private readonly ILogger _logger;
-        private readonly SqliteDatabaseManager _driveQuery;
+        private readonly DriveQuery _driveQuery;
         private readonly DriveStorageServiceBase _storage;
 
         protected DriveQueryServiceBase(
             ILogger logger,
             DriveManager driveManager,
-            SqliteDatabaseManager driveQuery,
+            DriveQuery driveQuery,
             DriveStorageServiceBase storage)
         {
             _logger = logger;

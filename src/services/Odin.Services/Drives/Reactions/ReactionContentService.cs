@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.Management;
 
@@ -16,7 +17,7 @@ namespace Odin.Services.Drives.Reactions;
 /// <summary>
 /// Manages reactions to files
 /// </summary>
-public class ReactionContentService(DriveManager driveManager, SqliteDatabaseManager driveQuery, IMediator mediator)
+public class ReactionContentService(DriveManager driveManager, DriveQuery driveQuery, IMediator mediator)
 {
     public async Task AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext)
     {

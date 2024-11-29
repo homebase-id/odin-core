@@ -51,6 +51,7 @@ using Odin.Services.Drives.FileSystem.Comment.Update;
 using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
@@ -91,7 +92,7 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
 
-        cb.RegisterType<SqliteDatabaseManager>().InstancePerLifetimeScope();
+        cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
 
