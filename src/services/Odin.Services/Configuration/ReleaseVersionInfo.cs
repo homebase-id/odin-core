@@ -8,5 +8,5 @@ public static class ReleaseVersionInfo
     public const int DataVersionNumber = 2;
 
     //TODO: need to automate changing this per build
-    public const string BuildVersion = "86c45bb5-4f76-4ee2-b2e9-a161ffc90f85";
+    public const string BuildVersion = "4d4b69c8-fb54-4c25-966d-e7f989fc0950";
 }
