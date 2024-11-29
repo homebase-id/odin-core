@@ -47,6 +47,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
 
             if (invalidIdentities.Count > 0)
             {
+                // Option - if there are any identities that are not upgraded, this could be enqueued to run again
+                // maybe use a job?
+                
                 logger.LogInformation("Validating verification hash-sync.  Failed on the following identities:[{list}]",
                     string.Join(",", invalidIdentities));
             }

@@ -73,22 +73,22 @@ public class VersionUpgradeService(
             {
                 _isRunning = true;
                 logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
-                
+
                 await v2.UpgradeAsync(odinContext, cancellationToken);
 
                 await v2.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-                
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
 
+                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
             }
 
             // ...
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Upgrading from {currentVersion} failed");
+            await tenantConfigService.SetVersionFailureInfoAsync(currentVersion + 1);
+            logger.LogError(ex, $"Upgrading from {currentVersion} failed.  Release Info: {ReleaseVersionInfo.BuildVersion}");
         }
         finally
         {

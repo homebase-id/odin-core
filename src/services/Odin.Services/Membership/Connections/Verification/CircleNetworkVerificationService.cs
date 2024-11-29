@@ -99,14 +99,27 @@ public class CircleNetworkVerificationService(
                 };
             }
 
-            var executionResult =
-                await ExecuteRequestAsync(async () => await VerifyPeerConnection(clientAuthToken), cancellationToken);
+            var executionResult = await ExecuteRequestAsync(
+                async () => await VerifyPeerConnection(clientAuthToken),
+                cancellationToken);
 
             // Only compare if we get back a good code, so we don't kill
             // an ICR because the remote server is not responding
             if (executionResult.Response.IsSuccessStatusCode)
             {
                 var remoteHash = executionResult.Response.Content;
+                if (remoteHash == null)
+                {
+                    logger.LogDebug("VerifyConnectionAsync - returned content was null, compensating...");
+                    
+                    remoteHash = new VerifyConnectionResponse
+                    {
+                        IsConnected = false,
+                        Hash = null
+                    };
+                }
+
+
                 result.RemoteIdentityWasConnected = remoteHash.IsConnected;
 
                 logger.LogDebug("Comparing verification-hash: remote identity ({remoteIdentity}) returned hash:[{remoteHash}] | " +
@@ -162,27 +175,7 @@ public class CircleNetworkVerificationService(
             return response;
         }
     }
-
-    public async Task ClearLocalVerificationHashOnAllIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-
-        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-
-        foreach (var identity in allIdentities.Results)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
-                await CircleNetworkService.ClearVerificationHashAsync(identity.OdinId, odinContext);
-            }
-            catch (Exception e)
-            {
-                logger.LogDebug(e, "Clearing verification hash for {odinId}.  Failed", identity.OdinId);
-            }
-        }
-    }
-
+    
     public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
@@ -215,23 +208,29 @@ public class CircleNetworkVerificationService(
             foreach (var identity in allIdentities.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (identity.VerificationHash.IsNullOrEmpty())
+                try
                 {
-                    await ForceSync(identity);
-                }
-                else
-                {
-                    var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
-                    if (verifyResponse.IsValid)
+                    if (identity.VerificationHash.IsNullOrEmpty())
                     {
-                        logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
+                        await ForceSync(identity);
                     }
                     else
                     {
-                        logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
-                        await ForceSync(identity);
+                        var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
+                        if (verifyResponse.IsValid)
+                        {
+                            logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
+                        }
+                        else
+                        {
+                            logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
+                            await ForceSync(identity);
+                        }
                     }
+                }
+                catch (Exception e)
+                {
+                    logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
                 }
             }
 
