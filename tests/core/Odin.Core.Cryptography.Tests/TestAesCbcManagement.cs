@@ -5,7 +5,7 @@ using Odin.Core.Cryptography.Crypto;
 
 namespace Odin.Core.Cryptography.Tests
 {
-    public class TestAesManagement
+    public class TestAesCbcManagement
     {
         [SetUp]
         public void Setup()

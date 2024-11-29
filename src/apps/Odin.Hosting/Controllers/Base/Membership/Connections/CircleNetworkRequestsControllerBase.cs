@@ -149,7 +149,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
 
-            await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, WebOdinContext);
+            await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, HttpContext.RequestAborted, WebOdinContext);
             return true;
         }
 

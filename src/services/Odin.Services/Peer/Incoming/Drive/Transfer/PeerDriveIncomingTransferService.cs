@@ -15,6 +15,7 @@ using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
@@ -39,8 +40,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
-        FileSystemResolver fileSystemResolver
-    ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        FileSystemResolver fileSystemResolver,
+        OdinConfiguration odinConfiguration
+    ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
 

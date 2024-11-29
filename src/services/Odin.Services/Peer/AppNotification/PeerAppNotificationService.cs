@@ -39,7 +39,7 @@ public class PeerAppNotificationService : PeerServiceBase
         TenantSystemStorage tenantSystemStorage,
         OdinConfiguration config,
         PushNotificationService pushNotificationService,
-        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         _tenantSystemStorage = tenantSystemStorage;

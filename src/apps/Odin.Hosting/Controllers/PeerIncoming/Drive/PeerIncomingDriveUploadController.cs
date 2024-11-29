@@ -29,6 +29,7 @@ using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
@@ -46,6 +47,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly PeerOutbox _peerOutbox;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly CircleNetworkService _circleNetworkService;
+        private readonly OdinConfiguration _odinConfiguration;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -59,7 +61,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory, PeerOutbox peerOutbox,
             IOdinHttpClientFactory odinHttpClientFactory,
-            CircleNetworkService circleNetworkService)
+            CircleNetworkService circleNetworkService,
+            OdinConfiguration odinConfiguration)
         {
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
@@ -70,6 +73,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _peerOutbox = peerOutbox;
             _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetworkService = circleNetworkService;
+            _odinConfiguration = odinConfiguration;
         }
 
         /// <summary />
@@ -405,7 +409,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _peerOutbox,
                 _odinHttpClientFactory,
                 _circleNetworkService,
-                _fileSystemResolver);
+                _fileSystemResolver,
+                _odinConfiguration);
         }
     }
 }

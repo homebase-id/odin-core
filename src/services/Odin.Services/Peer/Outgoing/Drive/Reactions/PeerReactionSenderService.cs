@@ -28,7 +28,7 @@ public class PeerReactionSenderService(
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
     : PeerServiceBase(odinHttpClientFactory,
-        circleNetworkService, fileSystemResolver)
+        circleNetworkService, fileSystemResolver,odinConfiguration)
 {
     /// <summary />
     public async Task AddReactionAsync(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
@@ -40,8 +40,8 @@ public class PeerReactionSenderService(
         try
         {
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.AddReaction(payload); });
         }
@@ -65,8 +65,8 @@ public class PeerReactionSenderService(
         {
             ApiResponse<GetReactionsPerimeterResponse> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactions(payload); });
 
@@ -92,8 +92,8 @@ public class PeerReactionSenderService(
         {
             ApiResponse<GetReactionCountsResponse> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionCountsByFile(payload); });
 
@@ -118,8 +118,8 @@ public class PeerReactionSenderService(
         {
             ApiResponse<List<string>> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionsByIdentity(payload); });
 
@@ -142,8 +142,8 @@ public class PeerReactionSenderService(
         {
             ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.DeleteReactionContent(payload); });
 
@@ -166,8 +166,8 @@ public class PeerReactionSenderService(
             ApiResponse<List<string>> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionsByIdentity(payload); });
 

@@ -39,7 +39,7 @@ public class IcrKeyAvailableBackgroundService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Upgrading from {currentVersion} failed");
+            logger.LogError(ex, $"Upgrading from v{currentVersion} failed");
         }
     }
 
