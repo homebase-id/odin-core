@@ -120,6 +120,31 @@ public class TenantConfigService
         return newVersion;
     }
 
+    /// <summary>
+    /// Increments the version number and returns the new version
+    /// </summary>
+    public async Task SetVersionFailureInfoAsync(int dataVersionNumber)
+    {
+        //TODO CONNECTIONS
+        // cn.CreateCommitUnitOfWork(() =>
+        {
+            var info = new FailedUpgradeVersionInfo
+            {
+                FailedDataVersionNumber = dataVersionNumber,
+                BuildVersion = ReleaseVersionInfo.BuildVersion,
+                LastAttempted = UnixTimeUtc.Now().milliseconds
+            };
+
+            await ConfigStorage.UpsertAsync(_tblKeyValue, FailedUpgradeVersionInfo.Key, info);
+        }
+        //);
+    }
+
+    public async Task<FailedUpgradeVersionInfo> GetVersionFailureInfoAsync()
+    {
+        return await ConfigStorage.GetAsync<FailedUpgradeVersionInfo>(_tblKeyValue, FailedUpgradeVersionInfo.Key);
+    }
+
     public async Task<TenantVersionInfo> GetVersionInfoAsync()
     {
         
@@ -448,7 +473,8 @@ public class TenantConfigService
 
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
-        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
+        var existingApp =
+            await _appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
         if (null == existingApp)
         {
             await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
@@ -457,7 +483,8 @@ public class TenantConfigService
 
     private async Task RegisterMailAppAsync(IOdinContext odinContext)
     {
-        var existingApp = await _appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
+        var existingApp =
+            await _appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
         if (null == existingApp)
         {
             await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);

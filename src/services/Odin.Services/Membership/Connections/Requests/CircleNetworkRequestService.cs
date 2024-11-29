@@ -82,7 +82,7 @@ namespace Odin.Services.Membership.Connections.Requests
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
             TableKeyThreeValue tblKeyThreeValue)
-            : base(odinHttpClientFactory, cns, fileSystemResolver)
+            : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
             _logger = logger;
@@ -105,7 +105,6 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public async Task<ConnectionRequest> GetPendingRequestAsync(OdinId sender, IOdinContext odinContext)
         {
-            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
 
@@ -130,7 +129,8 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             else
             {
-                (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
+                (isValidPublicKey, payloadBytes) =
+                    await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
 
                 if (isValidPublicKey == false)
                 {
@@ -149,9 +149,9 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestsAsync(PageOptions pageOptions, IOdinContext odinContext)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestsAsync(PageOptions pageOptions,
+            IOdinContext odinContext)
         {
-            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, PendingRequestsDataType);
             return new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList());
@@ -163,7 +163,6 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <returns></returns>
         public async Task<PagedResult<ConnectionRequest>> GetSentRequestsAsync(PageOptions pageOptions, IOdinContext odinContext)
         {
-            
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = await _sentRequestValueStorage.GetByCategoryAsync<ConnectionRequest>(_tblKeyThreeValue, SentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
@@ -173,7 +172,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-        public async Task SendConnectionRequestAsync(ConnectionRequestHeader header, IOdinContext odinContext)
+        public async Task SendConnectionRequestAsync(ConnectionRequestHeader header, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
@@ -197,7 +197,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (existingConnection.IsConnected())
             {
-                if ((await _verificationService.VerifyConnectionAsync(recipient, odinContext)).IsValid)
+                if ((await _verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext)).IsValid)
                 {
                     // connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -220,7 +220,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
-        public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, IOdinContext odinContext)
+        public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsAuthenticated();
 
@@ -246,7 +247,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 try
                 {
-                    if ((await _verificationService.VerifyConnectionAsync(sender, odinContext)).IsValid)
+                    if ((await _verificationService.VerifyConnectionAsync(sender, cancellationToken, odinContext)).IsValid)
                     {
                         _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
 
@@ -282,7 +283,7 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             await UpsertPendingConnectionRequestAsync(request);
-            
+
             await _mediator.Publish(new ConnectionRequestReceived()
             {
                 Sender = request.SenderOdinId,
@@ -316,7 +317,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task DeleteSentRequestInternalAsync(OdinId recipient)
         {
-            
+
             var newKey = MakeSentRequestsKey(recipient);
             var recordFromNewKeyFormat = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(_tblKeyThreeValue, newKey);
             if (null != recordFromNewKeyFormat)
@@ -656,14 +657,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task<bool> HasPendingRequestInternal(OdinId sender)
         {
-            
             var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
             return header != null;
         }
 
         private async Task DeletePendingRequestInternal(OdinId sender)
         {
-            
             var newKey = MakePendingRequestsKey(sender);
             var recordFromNewKeyFormat = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, newKey);
             if (null != recordFromNewKeyFormat)
@@ -686,7 +685,6 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task UpsertSentConnectionRequestAsync(ConnectionRequest request)
         {
-            
             request.SenderOdinId = _tenantContext.HostOdinId; //store for when we support multiple domains per identity
             await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, SentRequestsDataType,
                 request);
@@ -694,14 +692,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task UpsertPendingConnectionRequestAsync(PendingConnectionRequestHeader request)
         {
-            
             await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, PendingRequestsDataType,
                 request);
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternalAsync(OdinId recipient)
         {
-            
             var result = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(_tblKeyThreeValue, MakeSentRequestsKey(recipient));
             return result;
         }

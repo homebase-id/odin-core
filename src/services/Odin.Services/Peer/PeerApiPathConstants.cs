@@ -12,6 +12,7 @@ public static class PeerApiPathConstants
     public const string ReactionsV1 = HostV1 + "/reactions";
     public const string GroupReactionsV1 = HostV1 + "/reactions/group";
     public const string InvitationsV1 = HostV1 + "/invitations";
+    public const string ConnectionsV1 = HostV1 + "/connections";
     public const string FollowersV1 = HostV1 + "/followers";
     public const string EncryptionV1 = HostV1 + "/encryption";
 }

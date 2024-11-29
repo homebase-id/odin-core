@@ -31,7 +31,7 @@ public class PeerAppNotificationService : PeerServiceBase
         CircleNetworkService circleNetworkService,
         
         OdinConfiguration config,
-        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         
@@ -81,7 +81,7 @@ public class PeerAppNotificationService : PeerServiceBase
         var clientAccessToken = ClientAccessToken.FromPortableBytes(portableBytes);
         return new AppNotificationTokenResponse
         {
-            AuthenticationToken64= clientAccessToken.ToAuthenticationToken().ToPortableBytes64(),
+            AuthenticationToken64 = clientAccessToken.ToAuthenticationToken().ToPortableBytes64(),
             SharedSecret = clientAccessToken.SharedSecret.GetKey()
         };
     }
@@ -99,7 +99,8 @@ public class PeerAppNotificationService : PeerServiceBase
 
             var accessReg = peerIcrClient.AccessRegistration;
             var odinContext =
-                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg, currentOdinContext);
+                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg,
+                    currentOdinContext);
             return odinContext;
         }
 
