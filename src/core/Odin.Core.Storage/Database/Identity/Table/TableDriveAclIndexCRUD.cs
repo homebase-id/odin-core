@@ -288,7 +288,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new DriveAclIndexRecord();
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
@@ -298,7 +298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
@@ -308,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
@@ -318,7 +318,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
@@ -474,7 +474,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
 
                         if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in but set as NOT NULL");
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
                             bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);

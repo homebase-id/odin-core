@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyTwoValueRecord();
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
@@ -281,7 +281,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 48+1);
@@ -362,7 +362,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.key2 = key2;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in but set as NOT NULL");
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
                 bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 48+1);
