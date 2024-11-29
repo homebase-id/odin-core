@@ -202,9 +202,11 @@ public class ScopedConnectionFactory<T>(
 
         //
 
-        public async Task<TransactionWrapper> BeginStackedTransactionAsync()
+        public async Task<TransactionWrapper> BeginStackedTransactionAsync(
+            IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+            CancellationToken cancellationToken = default)
         {
-            return await instance.BeginStackedTransactionAsync();
+            return await instance.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
         }
 
         //

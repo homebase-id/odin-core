@@ -3,7 +3,6 @@ using Autofac;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
 
@@ -53,6 +52,10 @@ public static class IdentityExtensions
 
         // Connection
         cb.RegisterType<ScopedIdentityConnectionFactory>()
+            .InstancePerLifetimeScope(); // Important!
+
+        // Transaction
+        cb.RegisterType<ScopedIdentityTransactionFactory>()
             .InstancePerLifetimeScope(); // Important!
 
         // Tables

@@ -92,6 +92,7 @@ public class ScopedConnectionFactoryTest
 
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = "DROP TABLE IF EXISTS test;";
+        await cmd.ExecuteNonQueryAsync();
     }
   
     //    
@@ -515,27 +516,27 @@ public class ScopedConnectionFactoryTest
     }
     
     //
-    
-}
 
-public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-{
-    public async Task<long> GetCountAsync()
+    public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM test;";
-        return (long) (await cmd.ExecuteScalarAsync() ?? 0);
+        public async Task<long> GetCountAsync()
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            return (long) (await cmd.ExecuteScalarAsync() ?? 0);
+        }
+    }
+
+    public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
+    {
+        public async Task<long> GetCountAsync()
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            return (long) (await cmd.ExecuteScalarAsync() ?? 0);
+        }
     }
 }
 
-public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-{
-    public async Task<long> GetCountAsync()
-    {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM test;";
-        return (long) (await cmd.ExecuteScalarAsync() ?? 0);
-    }
-}

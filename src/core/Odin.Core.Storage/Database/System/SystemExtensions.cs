@@ -1,7 +1,6 @@
 using Autofac;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.System;
 
@@ -49,7 +48,11 @@ public static class SystemExtensions
         // Connection
         cb.RegisterType<ScopedSystemConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!
-        
+
+        // Transaction
+        cb.RegisterType<ScopedSystemTransactionFactory>()
+            .InstancePerLifetimeScope(); // Important!
+
         // Tables
         foreach (var tableType in SystemDatabase.TableTypes)
         {
