@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -49,9 +50,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
             {
                 // Option - if there are any identities that are not upgraded, this could be enqueued to run again
                 // maybe use a job?
-                
-                logger.LogInformation("Validating verification hash-sync.  Failed on the following identities:[{list}]",
+                logger.LogDebug("Validating verification hash-sync.  Failed on the following identities:[{list}]",
                     string.Join(",", invalidIdentities));
+                throw new OdinSystemException($"Validating verification failed for {invalidIdentities.Count} identities");
             }
 
             logger.LogDebug("Validate verification has on all connections - OK");
