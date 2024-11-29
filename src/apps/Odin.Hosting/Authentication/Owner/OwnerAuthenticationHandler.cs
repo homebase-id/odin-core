@@ -20,6 +20,7 @@ using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Tenant;
+using Version = Odin.Hosting.Extensions.Version;
 
 namespace Odin.Hosting.Authentication.Owner
 {

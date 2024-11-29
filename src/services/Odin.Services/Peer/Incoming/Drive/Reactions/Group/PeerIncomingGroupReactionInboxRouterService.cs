@@ -7,6 +7,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
@@ -24,8 +25,9 @@ public class PeerIncomingGroupReactionInboxRouterService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     IMediator mediator,
-    FileSystemResolver fileSystemResolver)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration odinConfiguration)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext, IdentityDatabase db)
     {
@@ -53,7 +55,8 @@ public class PeerIncomingGroupReactionInboxRouterService(
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext,
+    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,
+        IOdinContext odinContext,
         IdentityDatabase db)
     {
         var file = request.File;

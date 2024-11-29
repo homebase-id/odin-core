@@ -641,6 +641,8 @@ namespace Odin.Services.Membership.Connections
             var circleDefinitions = (await circleDefinitionService.GetCirclesAsync(true)).ToList();
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
+            info.Icr = icr.Redacted();
+
             ArgumentNullException.ThrowIfNull(icr);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant);
             ArgumentNullException.ThrowIfNull(icr.AccessGrant.CircleGrants);
@@ -779,10 +781,14 @@ namespace Odin.Services.Membership.Connections
             //
         }
 
-        public async Task<VerifyConnectionResponse> VerifyConnectionCodeAsync(IOdinContext odinContext)
+        public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsConnected)
             {
+                logger.LogDebug("Verification Connection Code - not connected, " +
+                                "returning null hash.(AuthContext:{ac})",
+                    odinContext.AuthContext);
+
                 return new VerifyConnectionResponse
                 {
                     IsConnected = false,
@@ -793,14 +799,14 @@ namespace Odin.Services.Membership.Connections
             //look up the verification hash on the caller's icr
             var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
 
-            if (callerIcr.VerificationHash?.Length == 0)
+            if (callerIcr.VerificationHash.IsNullOrEmpty())
             {
                 throw new OdinSecurityException("Cannot verify caller");
             }
 
             var result = new VerifyConnectionResponse()
             {
-                IsConnected = odinContext.Caller.IsConnected,
+                IsConnected = callerIcr.IsConnected(),
                 Hash = callerIcr.VerificationHash
             };
 
@@ -840,7 +846,25 @@ namespace Odin.Services.Membership.Connections
             //);
         }
 
-        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, IOdinContext odinContext)
+        public async Task<bool> ClearVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            
+            var icr = await this.GetIcrAsync(odinId, odinContext);
+
+            if (!icr.VerificationHash.IsNullOrEmpty())
+            {
+                await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, []);
+                logger.LogDebug("Hash was cleared for identity [{identity}]", icr.OdinId);
+                return true;
+            }
+
+            return false;
+        }
+
+        
+        public async Task<bool> UpdateVerificationHashAsync(OdinId odinId, Guid randomCode, SensitiveByteArray sharedSecret,
+            IOdinContext odinContext)
         {
             if (!odinContext.Caller.IsOwner)
             {
@@ -850,7 +874,13 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, odinContext);
 
-            if (icr.Status == ConnectionStatus.Connected && icr.VerificationHash?.Length == 0)
+            if (!icr.IsConnected())
+            {
+                logger.LogDebug("Skipping UpdateVerificationHash -[{icr}] is not connected", icr.OdinId);
+                return false;
+            }
+
+            // if (icr.VerificationHash.IsNullOrEmpty())
             {
                 // this should not occur since this process is running at the same time
                 // we introduce the ability to have a null EncryptedClientAccessToken
@@ -861,15 +891,21 @@ namespace Odin.Services.Membership.Connections
                     return false;
                 }
 
-                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
-                var hash = this.CreateVerificationHash(randomCode, cat.SharedSecret);
+                var hash = this.CreateVerificationHash(randomCode, sharedSecret);
+
+                logger.LogDebug("Saving identity [{identity}] with hash [{hash}]", icr.OdinId, hash.ToBase64());
 
                 await _storage.UpdateVerificationHashAsync(icr.OdinId, icr.Status, hash);
 
                 return true;
             }
-
-            return false;
+            //
+            // logger.LogDebug("Skipping verification hash update for identity [{identity}] " +
+            //                 "called but one is already set [hash:{value}]",
+            //     icr.OdinId,
+            //     icr.VerificationHash.ToBase64());
+            //
+            // return false;
         }
 
         public byte[] CreateVerificationHash(Guid randomCode, SensitiveByteArray sharedSecret)
@@ -896,7 +932,7 @@ namespace Odin.Services.Membership.Connections
                 }
                 catch (Exception e)
                 {
-                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity);
+                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
                 }
 
                 if (odinContext.Caller.HasMasterKey)
@@ -907,7 +943,7 @@ namespace Odin.Services.Membership.Connections
                     }
                     catch (Exception e)
                     {
-                        logger.LogInformation(e, "Failed while upgrading KSK   for {identity}", identity);
+                        logger.LogInformation(e, "Failed while upgrading KSK for {identity}", identity.OdinId);
                     }
                 }
             }
@@ -1211,7 +1247,8 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
+        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity,
+            IOdinContext odinContext)
         {
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {

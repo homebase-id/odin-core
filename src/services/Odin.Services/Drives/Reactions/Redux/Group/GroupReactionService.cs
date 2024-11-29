@@ -11,6 +11,7 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Background;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
@@ -27,11 +28,14 @@ public class GroupReactionService(
     IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    FileSystemResolver fileSystemResolver) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration odinConfiguration)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
-    public async Task<AddReactionResult> AddReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
+    public async Task<AddReactionResult> AddReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options,
+        IOdinContext odinContext,
         IdentityDatabase db, FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -49,7 +53,8 @@ public class GroupReactionService(
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
+                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId,
+                    reaction, localFile,
                     odinContext, db, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
@@ -60,7 +65,8 @@ public class GroupReactionService(
         return result;
     }
 
-    public async Task<DeleteReactionResult> DeleteReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
+    public async Task<DeleteReactionResult> DeleteReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options,
+        IOdinContext odinContext,
         IdentityDatabase db, FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -77,7 +83,8 @@ public class GroupReactionService(
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
+                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId,
+                    reaction, localFile,
                     odinContext, db, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }

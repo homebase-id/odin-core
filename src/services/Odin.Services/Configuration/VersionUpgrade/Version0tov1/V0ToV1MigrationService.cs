@@ -10,7 +10,6 @@ using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.Connections.Verification;
 
 namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 {
@@ -22,7 +21,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         IAppRegistrationService appRegistrationService,
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
-        CircleNetworkVerificationService verificationService,
         TenantConfigService tenantConfigService,
         PublicPrivateKeyService publicPrivateKeyService)
     {
@@ -94,23 +92,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await VerifyApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             logger.LogDebug("Verifying system apps have new circles and permissions - OK");
             cancellationToken.ThrowIfCancellationRequested();
-
-            //
-            // Sync verification hash's across all connections
-            //
-            logger.LogDebug("Validate verification has on all connections...");
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-            foreach (var identity in allIdentities.Results)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (identity.VerificationHash?.Length == 0)
-                {
-                    throw new OdinSystemException($"Verification hash missing for {identity.OdinId}");
-                }
-            }
-            logger.LogDebug("Validate verification has on all connections - OK");
-
         }
 
         private async Task AssertCircleDefinitionIsCorrect(CircleDefinition expectedDefinition)
@@ -231,30 +212,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
 
-            //
-            // Sync verification hash's across all connections
-            //
-            logger.LogDebug("Syncing verification hashes");
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-
-            //TODO CONNECTIONS
-            // await db.CreateCommitUnitOfWorkAsync(async () =>
-            {
-                foreach (var identity in allIdentities.Results)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    //
-                    // Sync verification hash
-                    //
-                    if (identity.VerificationHash?.Length == 0)
-                    {
-                        var success = await verificationService.SynchronizeVerificationHashAsync(identity.OdinId, odinContext);
-                        logger.LogDebug("EnsureVerificationHash for {odinId}.  Succeeded: {success}", identity.OdinId, success);
-                    }
-                }
-            }
-            //);
         }
 
         private async Task DeleteOldCirclesAsync(IOdinContext odinContext)
@@ -342,8 +299,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                                               $"Drives does not match");
             }
         }
-
-
+        
         private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
