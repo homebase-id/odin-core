@@ -34,7 +34,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
 ) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -91,7 +92,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var versionTag = header.FileMetadata.VersionTag;
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
-        var authorized = await driveAcl.IdentityHasPermissionAsync(recipient,
+        var authorized = await driveAcl.IdentityMatchesAclAsync(file.DriveId, recipient,
             header.ServerMetadata.AccessControlList, odinContext, db);
 
         if (!authorized)
@@ -156,7 +157,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem, OdinId recipient,
+    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem,
+        OdinId recipient,
         CancellationToken cancellationToken)
     {
         var request = new UpdateFeedFileMetadataRequest()
@@ -184,7 +186,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         return httpResponse;
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient, FileSystemType fileSystemType,
+    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient,
+        FileSystemType fileSystemType,
         CancellationToken cancellationToken)
     {
         var request = new DeleteFeedFileMetadataRequest()

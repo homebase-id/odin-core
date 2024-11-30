@@ -247,7 +247,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await tsm.EnsureDeleted(file.FileId);
         }
 
-        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file, int width,
+        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
+            int width,
             int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, IdentityDatabase db, bool directMatchOnly = false)
         {
@@ -375,7 +376,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return false;
             }
 
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            return await driveAclAuthorizationService.CallerMatchesAclAsync(file.DriveId, header.ServerMetadata.AccessControlList, db,
+                odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext, IdentityDatabase db)
@@ -424,7 +426,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
-        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk, IOdinContext odinContext,
+        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext, db);
@@ -1123,7 +1126,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             logger.LogDebug("GetLongTermStorageManager lookup - driveId: {d}", driveId);
             var drive = await DriveManager.GetDriveAsync(driveId, db, failIfInvalid: true);
             logger.LogDebug("GetLongTermStorageManager lookup drive: {d}", drive.Name);
-            
+
             var manager = new LongTermStorageManager(drive, logger, driveFileReaderWriter, driveDatabaseHost, GetFileSystemType());
             return manager;
         }
@@ -1245,7 +1248,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+            await driveAclAuthorizationService.AssertCallerMatchesAclAsync(file.DriveId, header.ServerMetadata.AccessControlList, db,
+                odinContext);
 
             return header;
         }

@@ -6,30 +6,43 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService(
         CircleNetworkService circleNetwork,
+        DriveManager driveManager,
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
-        public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
+        public async Task AssertCallerMatchesAclAsync(Guid driveId, AccessControlList acl, IdentityDatabase db, IOdinContext odinContext)
         {
-            ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
+            ThrowWhenFalse(await CallerMatchesAclAsync(driveId, acl, db, odinContext));
         }
 
-        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> IdentityMatchesAclAsync(Guid driveId,
+            OdinId odinId,
+            AccessControlList acl,
+            IOdinContext odinContext,
+            IdentityDatabase db)
         {
-            //there must be an acl
-            if (acl == null)
+            var appliedAcl = acl;
+
+            if (appliedAcl == null)
             {
-                return false;
+                appliedAcl = (await driveManager.GetDriveAsync(driveId, db)).DefaultReadAcl;
+
+                //there must be an acl
+                if (appliedAcl == null)
+                {
+                    return false;
+                }
             }
 
             //if file has required circles, see if caller has at least one
-            var requiredCircles = acl.GetRequiredCircles().ToList();
+            var requiredCircles = appliedAcl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
                 var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
@@ -42,17 +55,18 @@ namespace Odin.Services.Authorization.Acl
                     //let it continue on
                 }
 
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
+                var hasAtLeastOneCircle = requiredCircles
+                    .Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
                     .Any();
                 return hasAtLeastOneCircle;
             }
 
-            if (acl.GetRequiredIdentities().Any())
+            if (appliedAcl.GetRequiredIdentities().Any())
             {
                 return false;
             }
 
-            switch (acl.RequiredSecurityGroup)
+            switch (appliedAcl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     return true;
@@ -64,51 +78,57 @@ namespace Odin.Services.Authorization.Acl
             return false;
         }
 
-        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
+        public async Task<bool> CallerMatchesAclAsync(Guid driveId, AccessControlList acl, IdentityDatabase db, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
             if (caller?.SecurityLevel == SecurityGroupType.System)
             {
-                return Task.FromResult(true);
+                return true;
             }
 
-            //there must be an acl
-            if (acl == null)
+            var appliedAcl = acl;
+            if (appliedAcl == null)
             {
-                return Task.FromResult(false);
+                appliedAcl = (await driveManager.GetDriveAsync(driveId, db)).DefaultReadAcl;
+
+                //there must be an acl
+                if (appliedAcl == null)
+                {
+                    return false;
+                }
             }
 
             //if file has required circles, see if caller has at least one
-            var requiredCircles = acl.GetRequiredCircles().ToList();
+            var requiredCircles = appliedAcl.GetRequiredCircles().ToList();
             if (requiredCircles.Any() && !requiredCircles.Intersect(caller!.Circles.Select(c => c.Value)).Any())
             {
-                return Task.FromResult(false);
+                return false;
             }
 
-            if (acl.GetRequiredIdentities().Any())
+            if (appliedAcl.GetRequiredIdentities().Any())
             {
                 throw new NotImplementedException("TODO: enforce logic for required identities");
             }
 
-            switch (acl.RequiredSecurityGroup)
+            switch (appliedAcl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
-                    return Task.FromResult(true);
+                    return true;
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
+                    return ((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated;
 
                 case SecurityGroupType.AutoConnected:
                 case SecurityGroupType.Connected:
-                    return CallerIsConnected(odinContext);
+                    return await CallerIsConnected(odinContext);
             }
 
-            return Task.FromResult(false);
+            return false;
         }
 
         private void ThrowWhenFalse(bool eval)

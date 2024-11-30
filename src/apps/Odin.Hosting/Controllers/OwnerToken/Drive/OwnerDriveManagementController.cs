@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
@@ -70,6 +72,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return true;
         }
         
+        [HttpPost("update-default-read-acl")]
+        public async Task<bool> UpdateDefaultReadAclAsync([FromBody] UpdateDriveDefinitionRequest request)
+        {
+            var db = _tenantSystemStorage.IdentityDatabase;
+            var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, db, true);
+            await _driveManager.UpdateDefaultReadAclAsync(driveId.GetValueOrDefault(), request.DefaultReadAcl, WebOdinContext, db);
+            return true;
+        }
+        
         [HttpPost("UpdateAttributes")]
         public async Task<bool> UpdateDriveAttributes([FromBody] UpdateDriveDefinitionRequest request)
         {
@@ -119,6 +130,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public string Metadata { get; set; }
         
         public Dictionary<string,string> Attributes { get; set; }
+        
+        public AccessControlList DefaultReadAcl { get; set; }
     }
 
     public class UpdateDriveReadModeRequest

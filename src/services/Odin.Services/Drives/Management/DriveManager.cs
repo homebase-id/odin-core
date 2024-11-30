@@ -13,6 +13,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
 
@@ -101,7 +102,8 @@ public class DriveManager
                 AllowAnonymousReads = request.AllowAnonymousReads,
                 AllowSubscriptions = request.AllowSubscriptions,
                 OwnerOnly = request.OwnerOnly,
-                Attributes = request.Attributes
+                Attributes = request.Attributes,
+                DefaultReadAcl = request.DefaultReadAcl
             };
 
             storageKey.Wipe();
@@ -160,7 +162,19 @@ public class DriveManager
             });
         }
     }
+    
+    public async Task UpdateDefaultReadAclAsync(Guid driveId, AccessControlList readAcl, IOdinContext odinContext, IdentityDatabase db)
+    {
+        odinContext.Caller.AssertHasMasterKey();
 
+        var sdb = await _driveStorage.GetAsync<StorageDriveBase>(db, driveId);
+        sdb.DefaultReadAcl = readAcl;
+        await _driveStorage.UpsertAsync(db, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+
+        CacheDrive(ToStorageDrive(sdb));
+    }
+
+    
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext, IdentityDatabase db)
     {
         odinContext.Caller.AssertHasMasterKey();

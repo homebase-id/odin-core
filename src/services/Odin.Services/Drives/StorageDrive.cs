@@ -6,6 +6,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives
@@ -107,6 +108,11 @@ namespace Odin.Services.Drives
             set { }
         }
 
+        public override AccessControlList DefaultReadAcl {  
+            get => _inner.DefaultReadAcl;
+            set { _inner.DefaultReadAcl = value; }
+        }
+
         public string GetLongTermPayloadStoragePath()
         {
             return Path.Combine(_longTermPayloadPath, "files");
@@ -195,5 +201,10 @@ namespace Odin.Services.Drives
         public virtual bool AllowSubscriptions { get; set; }
 
         public virtual Dictionary<string, string> Attributes { get; set; }
+
+        /// <summary>
+        /// A default <see cref="AccessControlList"/> for reading files when the file has a null acl
+        /// </summary>
+        public virtual AccessControlList DefaultReadAcl { get; set; }
     }
 }

@@ -132,7 +132,8 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification, IdentityDatabase db)
+        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification,
+            IdentityDatabase db)
         {
             var item = new FeedDistributionItem()
             {
@@ -192,7 +193,8 @@ namespace Odin.Services.DataSubscription
             return true;
         }
 
-        private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification, IOdinContext odinContext, IdentityDatabase db)
+        private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var header = notification.ServerFileHeader;
 
@@ -237,7 +239,8 @@ namespace Odin.Services.DataSubscription
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
         /// </summary>
-        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext, IdentityDatabase db)
+        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var connectedFollowers = await GetConnectedFollowersWithFilePermissionAsync(notification, odinContext, db);
             if (connectedFollowers.Any())
@@ -277,7 +280,8 @@ namespace Odin.Services.DataSubscription
             return recipients;
         }
 
-        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext, IdentityDatabase db)
+        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             var file = header.FileMetadata.File;
 
@@ -311,13 +315,15 @@ namespace Odin.Services.DataSubscription
                 else
                 {
                     // this should not happen
-                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient, file.FileId,
+                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient,
+                        file.FileId,
                         file.DriveId);
                 }
             }
         }
 
-        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext, IdentityDatabase db)
+        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext,
+            IdentityDatabase db)
         {
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
@@ -370,7 +376,8 @@ namespace Odin.Services.DataSubscription
             await _peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
-        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermissionAsync(IDriveNotification notification, IOdinContext odinContext,
+        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermissionAsync(IDriveNotification notification,
+            IOdinContext odinContext,
             IdentityDatabase db)
         {
             var followers = await GetFollowersAsync(notification.File.DriveId, odinContext);
@@ -378,10 +385,11 @@ namespace Odin.Services.DataSubscription
             {
                 return [];
             }
-            
+
             // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            
+            var connectedIdentities =
+                await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+
             // NOTE!
             // 
             // ChatGPT has refactored the original code below to run asynchronously.
@@ -394,7 +402,7 @@ namespace Odin.Services.DataSubscription
             //             db)
             //         .GetAwaiter().GetResult()).ToList();
             // return connectedFollowers;
-            
+
             //
             // ChatGPT from here:
             //
@@ -406,7 +414,8 @@ namespace Odin.Services.DataSubscription
             var permissionTasks = intersectedFollowers.Select(async follower => new
             {
                 OdinId = (OdinId)follower.DomainName,
-                HasPermission = await _driveAcl.IdentityHasPermissionAsync(
+                HasPermission = await _driveAcl.IdentityMatchesAclAsync(
+                    notification.ServerFileHeader.FileMetadata.File.DriveId,
                     (OdinId)follower.DomainName,
                     notification.ServerFileHeader.ServerMetadata.AccessControlList,
                     odinContext,
