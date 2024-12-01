@@ -367,7 +367,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (Exception e)
             {
-                logger.LogError(e, "[Experimental collaborative channel support inbox processing failed; swallowing error]");
+                logger.LogDebug(e, "[Experimental collaborative channel support inbox processing failed; ignoring error]");
             }
         }
 
