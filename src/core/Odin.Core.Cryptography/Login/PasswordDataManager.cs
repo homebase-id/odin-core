@@ -109,7 +109,7 @@ namespace Odin.Core.Cryptography.Login
 
             try
             {
-                var ss = clientEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicEcc, nonce);
+                using var ss = clientEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicEcc, nonce);
                 encryptedGcm = AesGcm.Encrypt(dataToEncrypt, ss, nonce).ToBase64();
             }
             catch
@@ -134,7 +134,7 @@ namespace Odin.Core.Cryptography.Login
 
             try
             {
-                var ss = hostEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce);
+                using var ss = hostEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce);
                 decryptedGcm = AesGcm.Decrypt(dataToDecrypt, ss, nonce);
             }
             catch
@@ -146,18 +146,18 @@ namespace Odin.Core.Cryptography.Login
         }
 
 
-        // From the PasswordReply package received from the client, try to decrypt the RSA
+        // From the PasswordReply package received from the client, try to decrypt the ECC
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
         public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordEccReply(PasswordReply reply, EccFullKeyListData listHostEcc)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
-            var key = EccKeyListManagement.FindKey(listHostEcc, reply.crc);
+            var hostEccFullKey = EccKeyListManagement.FindKey(listHostEcc, reply.crc);
 
-            if (key == null)
+            if (hostEccFullKey == null)
                 throw new Exception("no matching ECC key");
 
-            var decryptedGcm = DeriveSsAndGcmDecrypt(key, EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk), reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
+            var decryptedGcm = DeriveSsAndGcmDecrypt(hostEccFullKey, EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk), reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
 
             string originalResult = decryptedGcm.ToStringFromUtf8Bytes();
 
