@@ -96,6 +96,55 @@ namespace Odin.Core.Cryptography.Login
             return passwordKey;
         }
 
+        /// <summary>
+        /// Derives the shared-secret from the ECC keys and the nonce and then GCM encrypts the data with the SS and the nonce
+        /// and returns the result as a base64 encoded string.
+        /// </summary>
+        /// <param name="clientEcc"></param>
+        /// <param name="hostPublicEcc"></param>
+        /// <returns>base64 encoded encrypted string</returns>
+        private static string DeriveSsAndGcmEncrypt(EccFullKeyData clientEcc, EccPublicKeyData hostPublicEcc, byte[] dataToEncrypt, byte[] nonce)
+        {
+            string encryptedGcm;
+
+            try
+            {
+                var ss = clientEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicEcc, nonce);
+                encryptedGcm = AesGcm.Encrypt(dataToEncrypt, ss, nonce).ToBase64();
+            }
+            catch
+            {
+                throw new Exception("Unable to AES GCM decrypt password header");
+            }
+
+            return encryptedGcm;
+        }
+
+
+        /// <summary>
+        /// Derives the shared-secret from the ECC keys and the nonce and then GCM decrypts the ciper with the SS and the nonce.
+        /// </summary>
+        /// <param name="hostEcc"></param>
+        /// <param name="clientPublicEcc"></param>
+        /// <param name="gcmEncrypted64"></param>
+        /// <returns></returns>
+        private static byte[] DeriveSsAndGcmDecrypt(EccFullKeyData hostEcc, EccPublicKeyData clientPublicEcc, byte[] dataToDecrypt, byte[] nonce)
+        {
+            byte[] decryptedGcm;
+
+            try
+            {
+                var ss = hostEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce);
+                decryptedGcm = AesGcm.Decrypt(dataToDecrypt, ss, nonce);
+            }
+            catch
+            {
+                throw new Exception("Unable to AES GCM decrypt password header");
+            }
+
+            return decryptedGcm;
+        }
+
 
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
@@ -106,22 +155,11 @@ namespace Odin.Core.Cryptography.Login
             var key = EccKeyListManagement.FindKey(listHostEcc, reply.crc);
 
             if (key == null)
-                throw new Exception("no matching RSA key");
+                throw new Exception("no matching ECC key");
 
-            byte[] decryptedGcm;
+            var decryptedGcm = DeriveSsAndGcmDecrypt(key, EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk), reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
 
-            try
-            {
-                var clientPublicEccKey = EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk);
-                var ss = key.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEccKey, reply.Nonce64.FromBase64());
-                decryptedGcm = AesGcm.Decrypt(reply.GcmEncrypted64.FromBase64(), ss, reply.Nonce64.FromBase64());
-            }
-            catch
-            {
-                throw new Exception("Unable to AES GCM decrypt password header");
-            }
-
-            string originalResult = Encoding.Default.GetString(decryptedGcm);
+            string originalResult = decryptedGcm.ToStringFromUtf8Bytes();
 
             // I guess / hope if it fails it throws an exception :-))
             //
@@ -140,7 +178,7 @@ namespace Odin.Core.Cryptography.Login
             }
             catch
             {
-                throw new Exception("Unable to parse the decrypted RSA password header");
+                throw new Exception("Unable to parse the decrypted GCM password header");
             }
 
             if ((Convert.FromBase64String(hpwd64).Length != 16) ||
@@ -233,14 +271,9 @@ namespace Odin.Core.Cryptography.Login
 
             var hostEccPublicKey = EccFullKeyData.FromJwkPublicKey(nonce.PublicJwk);
 
-            //Derive the shared secret between the server and client based on 
-            var eccSharedSecret = clientEccKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostEccPublicKey, nonce.Nonce64.FromBase64());
-
             pr.crc = nonce.CRC;
-            pr.GcmEncrypted64 = AesGcm.Encrypt(str.ToUtf8ByteArray(), eccSharedSecret, nonce.Nonce64.FromBase64()).ToBase64();
+            pr.GcmEncrypted64 = DeriveSsAndGcmEncrypt(clientEccKey, hostEccPublicKey, str.ToUtf8ByteArray(), nonce.Nonce64.FromBase64());
             pr.PublicKeyJwk = clientEccKey.PublicKeyJwk();
-
-            eccSharedSecret.Wipe();
 
             // If the login is successful then the client will get the cookie
             // and will have to use this sharedsecret on all requests. So store securely in 
