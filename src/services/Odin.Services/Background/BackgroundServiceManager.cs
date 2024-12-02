@@ -9,6 +9,7 @@ using Nito.AsyncEx;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Tasks;
+using Odin.Core.Util;
 using Odin.Services.Background.Services;
 
 namespace Odin.Services.Background;
@@ -167,20 +168,29 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
     {
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
-        if (_stoppingCts.IsCancellationRequested)
-        {
-            return;
-        }
-
         ScopedAbstractBackgroundService? backgroundService;
         using (_lock.ReaderLock())
         {
-            if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
-            {
-                throw new InvalidOperationException($"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
-            }
+            _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
-        backgroundService.BackgroundService.InternalPulseBackgroundProcessor();
+
+        // This fixes a race condition during startup where one background service can pulse
+        // another background service that hasn't started yet.
+        if (backgroundService == null)
+        {
+            TryRetry.WithDelay(30, TimeSpan.FromSeconds(1), _stoppingCts.Token, () =>
+            {
+                using (_lock.ReaderLock())
+                {
+                    if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
+                    {
+                        throw new InvalidOperationException($"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+                    }
+                }
+            });
+        }
+
+        backgroundService?.BackgroundService.InternalPulseBackgroundProcessor();
     }
 
     //
