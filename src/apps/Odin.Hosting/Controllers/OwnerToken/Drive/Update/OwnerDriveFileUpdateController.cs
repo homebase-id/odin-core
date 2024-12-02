@@ -9,7 +9,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Update
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveFileUpdateController(TenantSystemStorage tenantSystemStorage) : DriveFileUpdateControllerBase(tenantSystemStorage)
+    public class OwnerDriveFileUpdateController : DriveFileUpdateControllerBase
     {
     }
 }

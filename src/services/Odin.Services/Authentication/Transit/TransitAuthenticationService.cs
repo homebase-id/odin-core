@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -17,24 +16,24 @@ public class TransitAuthenticationService :
     INotificationHandler<ConnectionBlockedNotification>,
     INotificationHandler<ConnectionDeletedNotification>
 {
-    private readonly OdinContextCache _cache;
+    private readonly SharedOdinContextCache<TransitAuthenticationService> _cache;
     private readonly CircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
+    public TransitAuthenticationService(SharedOdinContextCache<TransitAuthenticationService> cache, CircleNetworkService circleNetworkService)
     {
+        _cache = cache;
         _circleNetworkService = circleNetworkService;
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
     /// <summary>
     /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext, db);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -51,7 +50,7 @@ public class TransitAuthenticationService :
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
-        ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
         var cc = new CallerContext(

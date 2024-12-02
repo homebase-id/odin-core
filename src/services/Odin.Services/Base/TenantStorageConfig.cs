@@ -1,4 +1,7 @@
-﻿namespace Odin.Services.Base
+﻿using System;
+using System.IO;
+
+namespace Odin.Services.Base
 {
     /// <summary>
     /// Configuration for how data is stored.  This can include paths for storing images as well as database connection strings.
@@ -14,15 +17,22 @@
         }
 
         public string HeaderDataStoragePath { get; }
-
         public string PayloadStoragePath { get; }
-
         public string TempStoragePath { get; }
-        
-        /// <summary>
-        /// The root path for static files
-        /// </summary>
         public string StaticFileStoragePath { get; }
+
+        public void CreateDirectories()
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(HeaderDataStoragePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(TempStoragePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(PayloadStoragePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(StaticFileStoragePath);
+
+            Directory.CreateDirectory(HeaderDataStoragePath);
+            Directory.CreateDirectory(TempStoragePath);
+            Directory.CreateDirectory(PayloadStoragePath);
+            Directory.CreateDirectory(StaticFileStoragePath);
+        }
 
     }
 }

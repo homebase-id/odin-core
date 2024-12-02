@@ -15,7 +15,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveUploadController(TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
+    public class ClientTokenDriveUploadController : DriveUploadControllerBase
     {
         
         /// <summary>
@@ -26,8 +26,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await base.ReceiveFileStream(db);
+            
+            return await base.ReceiveFileStream();
         }
         
         /// <summary>
@@ -37,8 +37,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayloadOnly()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await base.ReceivePayloadStream(db);
+            
+            return await base.ReceivePayloadStream();
         }
     }
 }

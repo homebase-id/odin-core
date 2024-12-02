@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Membership.CircleMembership
     [AuthorizeValidAppToken]
     public class AppCircleMembershipController : CircleMembershipControllerBase
     {
-        public AppCircleMembershipController(CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage):base(circleMembershipService, tenantSystemStorage)
+        public AppCircleMembershipController(CircleMembershipService circleMembershipService):base(circleMembershipService)
         {
         }
     }

@@ -35,7 +35,6 @@ namespace Odin.Hosting.Authentication.YouAuth
         IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        TenantSystemStorage tenantSystemStorage,
         IcrKeyAvailableScheduler icrKeyAvailableScheduler)
         : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
@@ -186,7 +185,6 @@ namespace Odin.Hosting.Authentication.YouAuth
         private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken,
             IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {
                 if (Boolean.TryParse(values.FirstOrDefault(), out var shouldIgnoreAuth))
@@ -199,7 +197,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
-            var ctx = await homeAuthenticatorService.GetDotYouContextAsync(clientAuthToken, odinContext, db);
+            var ctx = await homeAuthenticatorService.GetDotYouContextAsync(clientAuthToken, odinContext);
 
             if (null == ctx)
             {
@@ -243,9 +241,8 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticationTicket> CreateAnonYouAuthTicketAsync(IOdinContext odinContext)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
             var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
-            var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext, db);
+            var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
 
             if (!anonymousDrives.Results.Any())
             {
