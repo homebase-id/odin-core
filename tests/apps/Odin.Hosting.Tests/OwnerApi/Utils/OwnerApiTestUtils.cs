@@ -205,7 +205,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
-            var pkData = new EccPublicKeyData()
+            var hostPublicKey = new EccPublicKeyData()
             {
                 publicKey = publicKey.PublicKey,
                 crc32c = publicKey.Crc32,
@@ -213,6 +213,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             };
 
             var keyHeader = KeyHeader.NewRandom16();
+
+            var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicKey, saltyReply.Nonce64.FromBase64());
+
             var encryptedRecoveryKey = new EccEncryptedPayload()
             {
                 //Note: i exclude the key type here because the methods that receive
@@ -220,14 +223,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 RemotePublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
                 Salt = saltyReply.Nonce64.FromBase64(),
                 Iv = saltyReply.Nonce64.FromBase64(),
-                EncryptionPublicKeyCrc32 = pkData.crc32c,
-                EncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
+                EncryptionPublicKeyCrc32 = hostPublicKey.crc32c,
+                EncryptedData = AesCbc.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64())
             };
 
             var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()
             {
                 EncryptedRecoveryKey = encryptedRecoveryKey,
-                PasswordReply = saltyReply
+                PasswordReply = saltyReply // WTH ? TODO SECURITY -> These are the secrets, right? We can't transfer them
             };
 
             return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
