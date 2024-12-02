@@ -23,7 +23,7 @@ namespace Odin.Core.Storage.SQLite
         private readonly AsyncLock _lock = new ();
         internal int _nestedCounter = 0;
 
-        public DbConnection Connection { get { return _connection; } } // SEB:TODO make internal
+        internal DbConnection Connection { get { return _connection; } } // SEB:TODO make internal
 
         public DatabaseConnection(DatabaseBase db, string connectionString)
         {
@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.SQLite
 #endif
         }
 
-        public async Task VacuumAsync()
+        internal async Task VacuumAsync()
         {
             await using var cmd = db.CreateCommand();
             cmd.CommandText = "VACUUM;";
@@ -240,7 +240,7 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
-        public int TransactionCount()
+        internal int TransactionCount()
         {
             return _transactionCount;
         }

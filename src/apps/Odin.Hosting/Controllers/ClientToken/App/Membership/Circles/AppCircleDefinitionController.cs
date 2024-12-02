@@ -13,8 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Circles
     {
         public AppCircleDefinitionController(
             CircleMembershipService circleMembershipService,
-            CircleNetworkService cns,
-            TenantSystemStorage tenantSystemStorage) : base(cns, circleMembershipService, tenantSystemStorage)
+            CircleNetworkService cns) : base(cns, circleMembershipService)
         {
         }
     }

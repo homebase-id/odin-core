@@ -21,7 +21,7 @@ public class PeerAppNotificationService : PeerServiceBase
 {
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary>
     /// Handles incoming reactions and queries from followers
@@ -29,12 +29,12 @@ public class PeerAppNotificationService : PeerServiceBase
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
-        TenantSystemStorage tenantSystemStorage,
+        
         OdinConfiguration config,
         FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
-        _tenantSystemStorage = tenantSystemStorage;
+        
 
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
@@ -53,11 +53,11 @@ public class PeerAppNotificationService : PeerServiceBase
     /// </summary>
     public async Task<AppNotificationTokenResponse> GetRemoteNotificationToken(GetRemoteTokenRequest request, IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
-        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try

@@ -108,7 +108,7 @@ public static class BackgroundServiceExtensions
 
         cb.RegisterType<BackgroundServiceTrigger<TService>>()
             .As<IBackgroundServiceTrigger<TService>>()
-            .SingleInstance();
+            .SingleInstance(); // Important!
 
         return cb;
     }

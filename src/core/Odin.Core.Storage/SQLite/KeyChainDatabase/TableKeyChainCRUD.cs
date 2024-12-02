@@ -1,10 +1,14 @@
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -102,38 +106,38 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
     } // End of class KeyChainRecord
 
-    public class TableKeyChainCRUD : TableBase
+    public class TableKeyChainCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableKeyChainCRUD(CacheHelper cache) : base("keyChain")
+        public TableKeyChainCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
 
 
-        public sealed override async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = conn.db.CreateCommand())
+            using (var cmd = conn.db.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
-                       await conn.ExecuteNonQueryAsync(cmd);
-                    }
-                    cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyChain("
-                     +"previousHash BLOB NOT NULL UNIQUE, "
-                     +"identity STRING NOT NULL, "
-                     +"timestamp INT NOT NULL, "
-                     +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                     +"algorithm STRING NOT NULL, "
-                     +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
-                     +"recordHash BLOB NOT NULL UNIQUE "
-                     +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
-                     +");"
-                     ;
-                    await conn.ExecuteNonQueryAsync(cmd);
+                   cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
+                   await conn.ExecuteNonQueryAsync(cmd);
+                }
+                cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyChain("
+                 +"previousHash BLOB NOT NULL UNIQUE, "
+                 +"identity STRING NOT NULL, "
+                 +"timestamp INT NOT NULL, "
+                 +"signedPreviousHash BLOB NOT NULL UNIQUE, "
+                 +"algorithm STRING NOT NULL, "
+                 +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
+                 +"recordHash BLOB NOT NULL UNIQUE "
+                 +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
+                 +");"
+                 ;
+                 await conn.ExecuteNonQueryAsync(cmd);
             }
         }
 
@@ -177,7 +181,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyChainRecord item)
@@ -220,7 +224,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyChainRecord item)
@@ -264,7 +268,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 return count;
-            } // Using
+            }
         }
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyChainRecord item)
         {
@@ -307,7 +311,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
-            } // Using
+            }
         }
 
         public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
@@ -324,7 +328,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public override List<string> GetColumnNames()
+        public List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("previousHash");
@@ -417,7 +421,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -442,7 +446,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 if (count > 0)
                     _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
-            } // Using
+            }
         }
 
         public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr, string identity,string publicKeyJwkBase64Url)
@@ -518,7 +522,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public async Task<KeyChainRecord> GetAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");

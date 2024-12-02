@@ -17,13 +17,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, TenantSystemStorage tenantSystemStorage)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>

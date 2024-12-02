@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -29,7 +28,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly HomeRegistrationStorage _storage;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly ILogger<HomeAuthenticatorService> _logger;
-        private readonly OdinContextCache _cache;
+        private readonly SharedOdinContextCache<HomeAuthenticatorService> _cache;
 
         //
 
@@ -39,7 +38,8 @@ namespace Odin.Hosting.Controllers.Home.Service
             TenantContext tenantContext,
             HomeRegistrationStorage storage,
             CircleMembershipService circleMembershipService,
-            ILogger<HomeAuthenticatorService> logger
+            ILogger<HomeAuthenticatorService> logger,
+            SharedOdinContextCache<HomeAuthenticatorService> cache
         )
         {
             _circleNetworkService = circleNetworkService;
@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             _storage = storage;
             _circleMembershipService = circleMembershipService;
             _logger = logger;
-            _cache = new OdinContextCache();
+            _cache = cache;
         }
 
         //
@@ -56,14 +56,13 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Creates a <see cref="ClientAccessToken"/> for access the Home app via the browser
         /// </summary>
-        public async Task<ClientAccessToken?> RegisterBrowserAccessAsync(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken,
-            IdentityDatabase db)
+        public async Task<ClientAccessToken?> RegisterBrowserAccessAsync(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken)
         {
             //if the remote identity gave us an ICR token, the remote identity is saying we are connected
             if (remoteClientAuthToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
                 //so let's grant the browser token connected level access
-                var result = await TryCreateIdentityConnectionClientAsync(odinId, remoteClientAuthToken, db);
+                var result = await TryCreateIdentityConnectionClientAsync(odinId, remoteClientAuthToken);
                 if (result.success)
                 {
                     return result.clientAccessToken;
@@ -92,12 +91,12 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<IOdinContext?> GetDotYouContextAsync(ClientAuthenticationToken token, IOdinContext odinContext, IdentityDatabase db)
+        public async Task<IOdinContext?> GetDotYouContextAsync(ClientAuthenticationToken token, IOdinContext odinContext)
         {
             var creator = new Func<Task<IOdinContext?>>(async delegate
             {
                 var dotYouContext = new OdinContext();
-                var (callerContext, permissionContext) = await GetPermissionContextAsync(token, odinContext, db);
+                var (callerContext, permissionContext) = await GetPermissionContextAsync(token, odinContext);
 
                 if (null == permissionContext || callerContext == null)
                 {
@@ -113,7 +112,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             return await _cache.GetOrAddContextAsync(token, creator);
         }
 
-        public async Task<bool> DeleteSessionAsync(IOdinContext odinContext, IdentityDatabase db)
+        public async Task<bool> DeleteSessionAsync(IOdinContext odinContext)
         {
             try
             {
@@ -138,8 +137,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+            IOdinContext odinContext)
         {
             var (grants, enabledCircles) = await 
                 _circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
@@ -153,7 +151,6 @@ namespace Odin.Hosting.Controllers.Home.Service
                 grants: grants,
                 accessReg: accessReg,
                 odinContext: odinContext,
-                db: db,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
@@ -164,7 +161,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private async Task<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContextAsync(
             ClientAuthenticationToken authToken,
-            IOdinContext odinContext, IdentityDatabase db)
+            IOdinContext odinContext)
         {
             /*
              * trying to determine if the icr token given was valid but was blocked
@@ -182,20 +179,20 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 try
                 {
-                    var (cc, permissionContext) = await CreateConnectedPermissionContextAsync(authToken, odinContext, db);
+                    var (cc, permissionContext) = await CreateConnectedPermissionContextAsync(authToken, odinContext);
                     return (cc, permissionContext);
                 }
                 catch (OdinSecurityException)
                 {
                     //if you're no longer connected, we can mark you as authenticated because you still have a client.
-                    var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client, odinContext, db);
+                    var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client, odinContext);
                     return (cc, permissionCtx);
                 }
             }
 
             if (client.ClientType == HomeAppClientType.UnconnectedIdentity)
             {
-                var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client, odinContext, db);
+                var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client, odinContext);
                 return (cc, permissionCtx);
             }
 
@@ -203,7 +200,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         }
 
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
-            ClientAuthenticationToken authToken, HomeAppClient client, IOdinContext odinContext, IdentityDatabase db)
+            ClientAuthenticationToken authToken, HomeAppClient client, IOdinContext odinContext)
         {
             if (null == client)
             {
@@ -228,7 +225,6 @@ namespace Odin.Hosting.Controllers.Home.Service
                 grants,
                 client.AccessRegistration!,
                 odinContext: odinContext,
-                db,
                 additionalPermissionKeys: permissionKeys, //read_connections
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
@@ -302,7 +298,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         }
 
         private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClientAsync(string odinId,
-            ClientAuthenticationToken remoteClientAuthToken, IdentityDatabase db)
+            ClientAuthenticationToken remoteClientAuthToken)
         {
             var icr = await _circleNetworkService.GetIcrAsync(new OdinId(odinId), remoteClientAuthToken);
 
@@ -339,7 +335,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedPermissionContextAsync(
-            ClientAuthenticationToken authToken, IOdinContext odinContext, IdentityDatabase db)
+            ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             _logger.LogDebug("Create Connected Permission Context");
 
@@ -364,8 +360,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                     icr: icr,
                     accessReg: client.AccessRegistration,
                     odinContext: odinContext,
-                    authToken: authToken,
-                    db: db);
+                    authToken: authToken);
 
                 var cc = new CallerContext(
                     odinId: client.OdinId,

@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
     /// <summary />
     [ApiController]
-    public class DriveFileUpdateControllerBase(TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
+    public class DriveFileUpdateControllerBase : DriveUploadControllerBase
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -37,9 +37,9 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            var db = tenantSystemStorage.IdentityDatabase;
+            
 
-            await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext, db);
+            await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
             //
             // Firstly, collect everything and store in the temp drive
@@ -49,25 +49,25 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             {
                 if (IsMetadataPart(section))
                 {
-                    await updateWriter.AddMetadata(section!.Body, WebOdinContext, db);
+                    await updateWriter.AddMetadata(section!.Body, WebOdinContext);
                 }
 
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
+                    await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, db);
+                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext, db);
+            var result = await updateWriter.FinalizeFileUpdate(WebOdinContext);
             return result;
         }
     }

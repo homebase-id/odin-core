@@ -10,12 +10,14 @@ public static class JobExtensions
 {
     public static IServiceCollection AddJobManagerServices(this IServiceCollection services)
     {
-        services.AddSingleton<IJobManager, JobManager>();
+        services.AddTransient<IJobManager, JobManager>();
+
         services.AddTransient<ExportTenantJob>();
         services.AddTransient<DeleteTenantJob>();
         services.AddTransient<SendProvisioningCompleteEmailJob>();
         services.AddTransient<VersionUpgradeJob>();
         services.AddTransient<IcrKeyAvailableJob>();
+
         return services;
     }
 }

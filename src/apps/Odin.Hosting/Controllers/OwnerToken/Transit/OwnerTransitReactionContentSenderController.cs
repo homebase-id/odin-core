@@ -15,8 +15,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     public class OwnerPeerReactionContentSenderController : PeerReactionContentSenderControllerBase
     {
         public OwnerPeerReactionContentSenderController(
-            PeerReactionSenderService peerReactionSenderService,
-            TenantSystemStorage tenantSystemStorage): base(peerReactionSenderService, tenantSystemStorage)
+            PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
         {
         }
     }
