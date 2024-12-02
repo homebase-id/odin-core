@@ -145,7 +145,7 @@ namespace Odin.Services.EncryptionKeyService
 
             return new EccEncryptedPayload
             {
-                PublicKeyJwk = senderEccFullKey.PublicKeyJwk(),  //reminder, this must be the sender's public key
+                RemotePublicKeyJwk = senderEccFullKey.PublicKeyJwk(),  //reminder, this must be the sender's public key
                 Iv = iv,
                 EncryptedData = AesCbc.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
@@ -167,7 +167,7 @@ namespace Odin.Services.EncryptionKeyService
 
             return new EccEncryptedPayload
             {
-                PublicKeyJwk = fullKey.PublicKeyJwk(),
+                RemotePublicKeyJwk = fullKey.PublicKeyJwk(),
                 Iv = iv,
                 EncryptedData = AesGcm.Encrypt(payload, ss, iv),
                 Salt = randomSalt,
@@ -177,7 +177,7 @@ namespace Odin.Services.EncryptionKeyService
 
         public async Task<byte[]> EccDecryptPayload(PublicPrivateKeyType keyType, EccEncryptedPayload payload, IOdinContext odinContext)
         {
-            var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKeyJwk);
+            var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.RemotePublicKeyJwk);
 
             if (!await IsValidEccPublicKeyAsync(keyType, payload.EncryptionPublicKeyCrc32))
             {

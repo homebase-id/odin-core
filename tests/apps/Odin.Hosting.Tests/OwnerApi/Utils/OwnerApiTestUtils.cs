@@ -217,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 //Note: i exclude the key type here because the methods that receive
                 //this must decide the encryption they expect
-                PublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
+                RemotePublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
                 Salt = saltyReply.Nonce64.FromBase64(),
                 Iv = saltyReply.Nonce64.FromBase64(),
                 EncryptionPublicKeyCrc32 = pkData.crc32c,
