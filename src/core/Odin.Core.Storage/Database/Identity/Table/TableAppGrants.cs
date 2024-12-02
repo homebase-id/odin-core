@@ -46,6 +46,6 @@ public class TableAppGrants(
             await DeleteAsync(identityKey, odinHashId, grant.appId, grant.circleId);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 }

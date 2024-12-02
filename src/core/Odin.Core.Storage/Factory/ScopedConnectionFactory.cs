@@ -122,6 +122,7 @@ public class ScopedConnectionFactory<T>(
     private int _connectionRefCount;
     private DbTransaction? _transaction;
     private int _transactionRefCount;
+    private bool _commit;
     private Guid _connectionId;
 
     //
@@ -296,59 +297,41 @@ public class ScopedConnectionFactory<T>(
     // A wrapper around a DbTransaction that supports stacked transactions
     // and ensures that the transaction is disposed correctly.
     //
-    // NOTE from MSDN:
-    // Dispose should rollback the transaction.
-    // However, the behavior of Dispose is provider specific, and should not replace calling Rollback.
-    //
     public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
     {
         public DbTransaction DangerousInstance => instance._transaction!;
         public int RefCount => instance._transactionRefCount;
-        private bool _wasCommitted;
 
         //
 
-        // Note that only outermost transaction is committed.
-        public async Task CommitAsync(CancellationToken cancellationToken = default)
+        // Note that only outermost transaction is marked as commit.
+        // The disposer takes care of the actual commit (or rollback).
+        // The reason we don't do an explicit commit here is because it leaves the internal
+        // transaction in an odd state, and it's unclear how a cmd following the commit (or rollback)
+        // behaves.
+        public void Commit()
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (instance._mutex.Lock())
             {
+                if (instance._transaction == null)
+                {
+                    throw new ScopedDbConnectionException("No transaction available to commit");
+                }
+
                 if (instance._transactionRefCount == 1)
                 {
-                    await instance._transaction!.CommitAsync(cancellationToken);
-                    _wasCommitted = true;
+                    instance._commit = true;
                 }
             }
         }
 
         //
 
-        // Note that only outermost transaction is rolled back.
-        public async Task RollbackAsync(CancellationToken cancellationToken = default)
+        // There is no explicit rollback support. This is by design to make reference counting easier.
+        // If you want to rollback, simply do not commit.
+        private void Rollback()
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                if (instance._transactionRefCount == 1)
-                {
-                    await instance._transaction!.RollbackAsync(cancellationToken);
-                }
-            }
-        }
-
-        //
-
-        public Task SaveAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return instance._transaction!.SaveAsync(savepointName, cancellationToken);
-        }
-
-        //
-
-        public Task ReleaseAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return instance._transaction!.ReleaseAsync(savepointName, cancellationToken);
+            // Do nothing
         }
 
         //
@@ -373,14 +356,25 @@ public class ScopedConnectionFactory<T>(
                         "No connection available to dispose transaction. This should never happen.");
                 }
 
+                if (instance._transaction == null)
+                {
+                    return;
+                }
+
                 if (--instance._transactionRefCount == 0)
                 {
-                    if (!_wasCommitted)
+                    if (instance._commit)
                     {
+                        await instance._transaction!.CommitAsync();
+                    }
+                    else
+                    {
+                        await instance._transaction!.RollbackAsync();
                         instance._cache.ClearCache();
                     }
                     await instance._transaction!.DisposeAsync();
                     instance._transaction = null!;
+                    instance._commit = false;
                 }
 
                 // Sanity
@@ -480,6 +474,7 @@ public class ScopedConnectionFactory<T>(
         {
             using (await instance._mutex.LockAsync(cancellationToken))
             {
+                command.Transaction = instance._transaction;
                 return await command.ExecuteReaderAsync(behavior, cancellationToken);
             }
         }
@@ -490,6 +485,7 @@ public class ScopedConnectionFactory<T>(
         {
             using (await instance._mutex.LockAsync(cancellationToken))
             {
+                command.Transaction = instance._transaction;
                 return await command.ExecuteScalarAsync(cancellationToken);
             }
         }
@@ -500,6 +496,7 @@ public class ScopedConnectionFactory<T>(
         {
             using (await instance._mutex.LockAsync(cancellationToken))
             {
+                command.Transaction = instance._transaction;
                 await command.PrepareAsync(cancellationToken);
             }
         }

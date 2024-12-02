@@ -48,7 +48,7 @@ public class TableKeyValue(
             affectedRows += await base.UpsertAsync(item);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return affectedRows;
     }

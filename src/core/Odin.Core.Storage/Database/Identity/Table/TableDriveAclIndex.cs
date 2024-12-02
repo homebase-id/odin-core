@@ -55,7 +55,7 @@ public class TableDriveAclIndex(
             await base.InsertAsync(item);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
     public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
@@ -71,6 +71,6 @@ public class TableDriveAclIndex(
             await base.DeleteAsync(identityKey, driveId, fileId, memberId);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 }

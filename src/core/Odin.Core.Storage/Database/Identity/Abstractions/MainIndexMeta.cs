@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await driveTagIndex.DeleteAllRowsAsync(identityKey, driveId, fileId);
             n = await driveMainIndex.DeleteAsync(identityKey, driveId, fileId);
 
-            await tx.CommitAsync();
+            tx.Commit();
             return n;
         }
 
@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
             //
 
-            await tx.CommitAsync();
+            tx.Commit();
 
             return n;
         }
@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
             //
 
-            await tx.CommitAsync();
+            tx.Commit();
 
             return n;
         }

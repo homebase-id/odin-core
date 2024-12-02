@@ -276,7 +276,7 @@ public class TenantConfigService
 
         await ConfigStorage.UpsertManyAsync(_tblKeyValue, keyValuePairs);
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)

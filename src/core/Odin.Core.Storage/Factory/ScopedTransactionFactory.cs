@@ -35,26 +35,18 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
             return cn.CreateCommand();
         }
 
-        public Task CommitAsync(CancellationToken cancellationToken = default)
+        // Note that only outermost transaction is marked as commit.
+        // The disposer takes care of the actual commit (or rollback)
+        public void Commit()
         {
-            return tx.CommitAsync(cancellationToken);
+            tx.Commit();
         }
 
-        public Task RollbackAsync(CancellationToken cancellationToken = default)
+        // There is no explicit rollback support. This is by design to make reference counting easier.
+        // If you want to rollback, simply do not commit.
+        private void Rollback()
         {
-            return tx.RollbackAsync(cancellationToken);
-        }
-
-        public Task SaveAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return tx.SaveAsync(savepointName, cancellationToken);
-        }
-
-        public Task ReleaseAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return tx.ReleaseAsync(savepointName, cancellationToken);
+            // Do nothing
         }
 
         public void Dispose()

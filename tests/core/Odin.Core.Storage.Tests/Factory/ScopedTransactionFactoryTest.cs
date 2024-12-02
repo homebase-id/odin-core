@@ -82,7 +82,7 @@ public class ScopedTransactionFactoryTest
         cmd.CommandText = "CREATE TABLE test (name TEXT);";
         await cmd.ExecuteNonQueryAsync();
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
     
     private async Task DropTestDatabaseAsync()
@@ -94,7 +94,7 @@ public class ScopedTransactionFactoryTest
         cmd.CommandText = "DROP TABLE IF EXISTS test;";
         await cmd.ExecuteNonQueryAsync();
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
   
     //
@@ -177,7 +177,12 @@ public class ScopedTransactionFactoryTest
             await using var cmd = tx.CreateCommand();
             cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
             await cmd.ExecuteNonQueryAsync();
-            await tx.CommitAsync();
+            tx.Commit();
+
+            await using var cmd2 = tx.CreateCommand();
+            cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd2.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(1));
         }
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -204,33 +209,11 @@ public class ScopedTransactionFactoryTest
             await using var cmd = tx.CreateCommand();
             cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
             await cmd.ExecuteNonQueryAsync();
-        }
 
-        await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
-        {
-            await using var cmd = tx.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM test;";
-            var result = await cmd.ExecuteScalarAsync();
-            Assert.That(result, Is.EqualTo(0));
-        }
-    }
-
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    public async Task ItShouldUpdateAndExplicitlyRollbackTransaction(DatabaseType databaseType)
-    {
-        RegisterServices(databaseType);
-        await CreateTestDatabaseAsync();
-
-        await using var scope = _services.BeginLifetimeScope();
-        var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
-
-        await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
-        {
-            await using var cmd = tx.CreateCommand();
-            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-            await cmd.ExecuteNonQueryAsync();
-            await tx.RollbackAsync();
+            await using var cmd2 = tx.CreateCommand();
+            cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd2.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(1));
         }
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -263,7 +246,7 @@ public class ScopedTransactionFactoryTest
             await using var cmd1 = tx.CreateCommand();
             cmd1.CommandText = "INSERT INTO test (name) VALUES ('test');";
             await cmd1.ExecuteNonQueryAsync();
-            await tx.CommitAsync();
+            tx.Commit();
         }
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -309,40 +292,6 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
-    public async Task ItShouldUpdateAndExplicitlyRollbackStackedTransactions(DatabaseType databaseType)
-    {
-        RegisterServices(databaseType);
-        await CreateTestDatabaseAsync();
-
-        await using var scope = _services.BeginLifetimeScope();
-        var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
-
-        await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
-        {
-            await using (var tx2 = await scopedTransactionFactory.BeginStackedTransactionAsync())
-            {
-                await using var cmd2 = tx2.CreateCommand();
-                cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
-                await cmd2.ExecuteNonQueryAsync();
-                await tx2.RollbackAsync();
-            }
-            await using var cmd1 = tx.CreateCommand();
-            cmd1.CommandText = "INSERT INTO test (name) VALUES ('test');";
-            await cmd1.ExecuteNonQueryAsync();
-            await tx.RollbackAsync();
-        }
-
-        await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
-        {
-            await using var cmd = tx.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM test;";
-            var result = await cmd.ExecuteScalarAsync();
-            Assert.That(result, Is.EqualTo(0));
-        }
-    }
-
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldCreateCmdWithParams(DatabaseType databaseType)
     {
         RegisterServices(databaseType);
@@ -361,7 +310,7 @@ public class ScopedTransactionFactoryTest
         cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
 
         await cmd1.ExecuteNonQueryAsync();
-        await tx.CommitAsync();
+        tx.Commit();
 
         await using var tx2 = await scopedTransactionFactory.BeginStackedTransactionAsync();
         await using var cmd2 = tx2.CreateCommand();
@@ -398,7 +347,7 @@ public class ScopedTransactionFactoryTest
 
             if (commit)
             {
-                await tx.CommitAsync();    
+                tx.Commit();
             }
         }
 
@@ -422,5 +371,39 @@ public class ScopedTransactionFactoryTest
     
     //
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
+    {
+        RegisterServices(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = _services.BeginLifetimeScope();
+        var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
+
+        await using (var tx1 = await scopedTransactionFactory.BeginStackedTransactionAsync())
+        {
+            await using (var tx2 = await scopedTransactionFactory.BeginStackedTransactionAsync())
+            {
+                await using var cmd2 = tx2.CreateCommand();
+                cmd2.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd2.ExecuteNonQueryAsync();
+                tx2.Commit();
+            }
+            await using var cmd = tx1.CreateCommand();
+            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using (var cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
+        await using (var cmd = cn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(0));
+        }
+    }
 }
 
