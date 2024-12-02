@@ -8,7 +8,7 @@ using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Login
 {
-    public class DecryptedRSAPasswordHeader
+    public class DecryptedGCMPasswordHeader
     {
         public string hpwd64 { get; set; }
         public string kek64 { get; set; }
@@ -170,7 +170,7 @@ namespace Odin.Core.Cryptography.Login
             try
             {
                 //Note: had to use an explicit class since the System.Text.Json serializer failed with dynamic
-                var o = OdinSystemSerializer.Deserialize<DecryptedRSAPasswordHeader>(originalResult);
+                var o = OdinSystemSerializer.Deserialize<DecryptedGCMPasswordHeader>(originalResult);
 
                 hpwd64 = o.hpwd64;
                 kek64 = o.kek64;

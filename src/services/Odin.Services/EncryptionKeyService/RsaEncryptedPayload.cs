@@ -42,7 +42,7 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Public key used to generate the shared secret for encrypting the EncryptedData
         /// </summary>
-        public string PublicKey { get; set; }
+        public string PublicKeyJwk { get; set; }
 
         /// <summary>
         /// Salt used for generating the shared secret for encrypted the EncryptedData

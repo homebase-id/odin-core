@@ -205,7 +205,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
-            var pkData = new RsaPublicKeyData()
+            var pkData = new EccPublicKeyData()
             {
                 publicKey = publicKey.PublicKey,
                 crc32c = publicKey.Crc32,
@@ -213,13 +213,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             };
 
             var keyHeader = KeyHeader.NewRandom16();
-            var encryptedRecoveryKey = new RsaEncryptedPayload()
+            var encryptedRecoveryKey = new EccEncryptedPayload()
             {
                 //Note: i exclude the key type here because the methods that receive
                 //this must decide the encryption they expect
-                Crc32 = pkData.crc32c,
-                RsaEncryptedKeyHeader = pkData.Encrypt(keyHeader.Combine().GetKey()),
-                KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
+                PublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
+                Salt = saltyReply.Nonce64.FromBase64(),
+                Iv = saltyReply.Nonce64.FromBase64(),
+                EncryptionPublicKeyCrc32 = pkData.crc32c,
+                EncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
             };
 
             var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()

@@ -225,12 +225,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext, IdentityDatabase db)
         {
-            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext);
-
-            if (!isValidPublicKey)
-            {
-                throw new OdinClientException("Invalid public key");
-            }
+            var decryptedBytes = await _publicPrivateKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey, odinContext);
 
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
             var masterKey = await _recoveryService.AssertValidKeyAsync(recoveryKey);
