@@ -190,7 +190,10 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             });
         }
 
-        backgroundService?.BackgroundService.InternalPulseBackgroundProcessor();
+        if (!_stoppingCts.IsCancellationRequested)
+        {
+            backgroundService?.BackgroundService.InternalPulseBackgroundProcessor();
+        }
     }
 
     //
