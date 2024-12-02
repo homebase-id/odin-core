@@ -19,51 +19,51 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.ReactionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerPerimeterReactionContentController(PeerIncomingReactionService incomingReactionService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public class PeerPerimeterReactionContentController(PeerIncomingReactionService incomingReactionService) : OdinControllerBase
     {
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent(SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await incomingReactionService.AddReaction(payload, WebOdinContext, db);
+            
+            await incomingReactionService.AddReaction(payload, WebOdinContext);
             return NoContent();
         }
 
         [HttpPost("list")]
         public async Task<GetReactionsPerimeterResponse> GetAllReactions(SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await incomingReactionService.GetReactions(payload, WebOdinContext, db);
+            
+            return await incomingReactionService.GetReactions(payload, WebOdinContext);
         }
 
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await incomingReactionService.DeleteReaction(payload, WebOdinContext, db);
+            
+            await incomingReactionService.DeleteReaction(payload, WebOdinContext);
             return NoContent();
         }
 
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await incomingReactionService.DeleteAllReactions(payload, WebOdinContext, db);
+            
+            await incomingReactionService.DeleteAllReactions(payload, WebOdinContext);
             return NoContent();
         }
 
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await incomingReactionService.GetReactionCountsByFile(payload, WebOdinContext, db);
+            
+            return await incomingReactionService.GetReactionCountsByFile(payload, WebOdinContext);
         }
 
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await incomingReactionService.GetReactionsByIdentityAndFile(payload, WebOdinContext, db);
+            
+            return await incomingReactionService.GetReactionsByIdentityAndFile(payload, WebOdinContext);
         }
     }
 }

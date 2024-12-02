@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Follow
     public class OwnerFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public OwnerFollowerController(FollowerService fs, TenantSystemStorage tenantSystemStorage) : base(fs, tenantSystemStorage)
+        public OwnerFollowerController(FollowerService fs) : base(fs)
         {
         }
         

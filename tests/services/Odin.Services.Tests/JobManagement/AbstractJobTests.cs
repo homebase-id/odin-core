@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.JobManagement;
 using Odin.Services.Tests.JobManagement.Jobs;
 

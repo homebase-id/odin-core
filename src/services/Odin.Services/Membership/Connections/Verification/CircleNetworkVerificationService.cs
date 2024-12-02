@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -10,6 +10,8 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections.Requests;
@@ -27,11 +29,12 @@ public class CircleNetworkVerificationService(
     IOdinHttpClientFactory odinHttpClientFactory,
     FileSystemResolver fileSystemResolver,
     ILogger<CircleNetworkVerificationService> logger)
-    : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver)
+    : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
-    public async Task<IcrVerificationResult> VerifyConnectionAsync(OdinId recipient, IOdinContext odinContext)
+    public async Task<IcrVerificationResult> VerifyConnectionAsync(OdinId recipient, CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
         // so this is a curious issue - 
         // when the odinContext.Caller and the recipient param are the same
@@ -56,7 +59,6 @@ public class CircleNetworkVerificationService(
             throw new OdinIdentityVerificationException("Cannot perform verification since caller is not connected");
         }
 
-
         if (!icr.IsConnected())
         {
             return new IcrVerificationResult
@@ -67,20 +69,29 @@ public class CircleNetworkVerificationService(
         }
 
         var expectedHash = icr!.VerificationHash;
-        if (expectedHash?.Length == 0)
+        if (expectedHash.IsNullOrEmpty())
         {
-            throw new OdinClientException("Missing verification hash", OdinClientErrorCode.MissingVerificationHash);
+            //try syncing 
+            logger.LogDebug("Missing expected verification hash.  attempting synchronization");
+            var (success, _) = await ForceSynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
+
+            if (success)
+            {
+                throw new OdinClientException("Missing expected verification hash; tried to sync but that failed",
+                    OdinClientErrorCode.MissingVerificationHash);
+            }
         }
 
         var result = new IcrVerificationResult();
         try
         {
-            var transitReadContext = OdinContextUpgrades.UseTransitRead(odinContext);
+            var transitReadContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.UseTransitRead);
             var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, transitReadContext, failIfNotConnected: false);
 
             if (null == clientAuthToken)
             {
-                // icr shows as connected but we cannot get to the ICR, this means that 
+                // icr shows as connected, however we cannot get to the ICR;
+                // this means that caller might not have the ICR key
                 return new IcrVerificationResult
                 {
                     IsValid = false,
@@ -88,65 +99,156 @@ public class CircleNetworkVerificationService(
                 };
             }
 
-            ApiResponse<VerifyConnectionResponse> response;
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () =>
+            var executionResult = await ExecuteRequestAsync(
+                async () => await VerifyPeerConnection(clientAuthToken),
+                cancellationToken);
+
+            // Only compare if we get back a good code, so we don't kill
+            // an ICR because the remote server is not responding
+            if (executionResult.Response.IsSuccessStatusCode)
+            {
+                var remoteHash = executionResult.Response.Content;
+                if (remoteHash == null)
                 {
-                    var client = clientAuthToken == null
-                        ? OdinHttpClientFactory.CreateClient<ICircleNetworkVerificationClient>(recipient)
-                        : OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
-                            clientAuthToken.ToAuthenticationToken());
-
-                    response = await client.VerifyConnection();
-
-                    // Only compare if we get back a good code, so we don't kill
-                    // an ICR because the remote server is not responding
-                    if (response.IsSuccessStatusCode)
+                    logger.LogDebug("VerifyConnectionAsync - returned content was null, compensating...");
+                    
+                    remoteHash = new VerifyConnectionResponse
                     {
-                        if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values) &&
-                            bool.Parse(values.Single()))
-                        {
-                            //the remote ICR is dead
-                            result.RemoteIdentityWasConnected = false;
-                            result.IsValid = false;
-                        }
-                        else
-                        {
-                            var vcr = response.Content;
-                            result.RemoteIdentityWasConnected = vcr.IsConnected;
-                            if (vcr.IsConnected)
-                            {
-                                result.IsValid = ByteArrayUtil.EquiByteArrayCompare(vcr.Hash, expectedHash);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // If we got back any other type of response, let's tell the caller
-                        throw new OdinSystemException("Cannot verify connection due to remote server error");
-                    }
-                });
+                        IsConnected = false,
+                        Hash = null
+                    };
+                }
+
+
+                result.RemoteIdentityWasConnected = remoteHash.IsConnected;
+
+                logger.LogDebug("Comparing verification-hash: remote identity ({remoteIdentity}) returned hash:[{remoteHash}] | " +
+                                "local identity has hash:[{localHash}]",
+                    recipient,
+                    remoteHash.Hash?.ToBase64(),
+                    expectedHash.ToBase64());
+
+                if (result.RemoteIdentityWasConnected.GetValueOrDefault())
+                {
+                    result.IsValid = ByteArrayUtil.EquiByteArrayCompare(remoteHash.Hash, expectedHash);
+                }
+            }
+            else
+            {
+                switch (executionResult.IssueType)
+                {
+                    case PeerRequestIssueType.Forbidden:
+                    case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
+                        result.RemoteIdentityWasConnected = false;
+                        result.IsValid = false;
+                        break;
+
+                    case PeerRequestIssueType.SocketError:
+                    case PeerRequestIssueType.HttpRequestFailed:
+                    case PeerRequestIssueType.OperationCancelled:
+
+                    case PeerRequestIssueType.ServiceUnavailable:
+                    case PeerRequestIssueType.InternalServerError:
+                        throw new OdinSystemException("Cannot verify connection.");
+
+                    case PeerRequestIssueType.Unhandled:
+                        throw new OdinSystemException("Cannot verify connection. Issue type unhandled.");
+                }
+
+                return result;
+            }
         }
         catch (OdinSecurityException ex)
         {
             //cannot get to ICR Key
             throw new OdinIdentityVerificationException("Cannot perform verification", ex);
         }
-        catch (TryRetryException e)
-        {
-            throw e.InnerException!;
-        }
 
         return result;
+
+        async Task<ApiResponse<VerifyConnectionResponse>> VerifyPeerConnection(ClientAccessToken clientAuthToken)
+        {
+            var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+                clientAuthToken.ToAuthenticationToken());
+
+            ApiResponse<VerifyConnectionResponse> response = await client.VerifyConnection();
+            return response;
+        }
+    }
+    
+    public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
+    {
+        var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
+
+        async Task ForceSync(IdentityConnectionRegistration identity)
+        {
+            try
+            {
+                var (success, issueType) = await ForceSynchronizeVerificationHashAsync(identity.OdinId, cancellationToken, odinContext);
+                if (!success)
+                {
+                    failedIdentities.Add(identity.OdinId, issueType);
+                }
+
+                logger.LogDebug("EnsureVerificationHash for {odinId}.  Issue: {success}", identity.OdinId, issueType);
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
+            }
+        }
+
+        odinContext.Caller.AssertHasMasterKey();
+
+        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+
+        //TODO CONNECTIONS
+        // await db.CreateCommitUnitOfWorkAsync(async () =>
+        {
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    if (identity.VerificationHash.IsNullOrEmpty())
+                    {
+                        await ForceSync(identity);
+                    }
+                    else
+                    {
+                        var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
+                        if (verifyResponse.IsValid)
+                        {
+                            logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
+                        }
+                        else
+                        {
+                            logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
+                            await ForceSync(identity);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
+                }
+            }
+
+            if (failedIdentities.Any())
+            {
+                logger.LogInformation("Failed synchronizing verification hashes for identities:[{list}]",
+                    string.Join(",", failedIdentities.Select(kvp => kvp.Key + ":" + kvp.Value)));
+            }
+        }
+        //);
     }
 
     /// <summary>
     /// Sends a new randomCode to a connected identity to synchronize verification codes
     /// </summary>
-    public async Task<bool> SynchronizeVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
+    public async Task<(bool Updated, PeerRequestIssueType IssueType)> ForceSynchronizeVerificationHashAsync(OdinId odinId,
+        CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -159,59 +261,72 @@ public class CircleNetworkVerificationService(
             var targetIdentity = icr.OdinId;
             var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
 
-            var success = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, odinContext);
-
-            if (success)
+            var result = await UpdateRemoteIdentityVerificationCodeAsync(targetIdentity, randomCode, cancellationToken, odinContext);
+            if (result.RemoteWasUpdated)
             {
-                return await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, odinContext);
+                var cat = icr.EncryptedClientAccessToken.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+                var success = await CircleNetworkService.UpdateVerificationHashAsync(targetIdentity, randomCode, cat.SharedSecret,
+                    odinContext);
+
+                if (success)
+                {
+                    return (true, PeerRequestIssueType.None);
+                }
             }
         }
 
-        return false;
+        return (false, PeerRequestIssueType.None);
     }
 
-    public async Task SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
+    public async Task<SyncRemoteVerificationHashResult> SynchronizeVerificationHashFromRemoteAsync(SharedSecretEncryptedPayload payload,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsConnected();
 
         var bytes = payload.Decrypt(odinContext.PermissionsContext.SharedSecretKey);
         var request = OdinSystemSerializer.Deserialize<UpdateVerificationHashRequest>(bytes.ToStringFromUtf8Bytes());
-        await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode, odinContext);
+        var wasUpdated = await CircleNetworkService.UpdateVerificationHashAsync(odinContext.GetCallerOdinIdOrFail(), request.RandomCode,
+            odinContext.PermissionsContext.SharedSecretKey, odinContext);
+
+        return new SyncRemoteVerificationHashResult()
+        {
+            RemoteWasUpdated = wasUpdated
+        };
     }
 
-    private async Task<bool> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode, IOdinContext odinContext)
+    private async Task<SyncRemoteVerificationHashResult> UpdateRemoteIdentityVerificationCodeAsync(OdinId recipient, Guid randomCode,
+        CancellationToken cancellationToken, IOdinContext odinContext)
     {
-        var request = new UpdateVerificationHashRequest()
-        {
-            RandomCode = randomCode
-        };
-
-        bool success = false;
-        try
+        async Task<ApiResponse<SyncRemoteVerificationHashResult>> UpdatePeer()
         {
             var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
 
-            ApiResponse<HttpContent> response;
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () =>
-                {
-                    var json = OdinSystemSerializer.Serialize(request);
-                    var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkVerificationClient>(recipient,
-                        clientAuthToken.ToAuthenticationToken());
+            var json = OdinSystemSerializer.Serialize(new UpdateVerificationHashRequest()
+            {
+                RandomCode = randomCode
+            });
 
-                    response = await client.UpdateRemoteVerificationHash(encryptedPayload);
-                    success = response.IsSuccessStatusCode;
-                });
+            var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
+            var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+                clientAuthToken.ToAuthenticationToken());
+
+            return await client.UpdateRemoteVerificationHash(encryptedPayload);
+        }
+
+        try
+        {
+            var executionResult = await ExecuteRequestAsync(async () => await UpdatePeer(), cancellationToken);
+
+            return executionResult.Response.Content;
         }
         catch (TryRetryException e)
         {
             throw e.InnerException!;
         }
-
-        return success;
     }
+}
+
+public class SyncRemoteVerificationHashResult
+{
+    public bool RemoteWasUpdated { get; init; }
 }

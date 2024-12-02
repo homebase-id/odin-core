@@ -15,13 +15,13 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
     {
         private readonly CircleNetworkService _cns;
         private readonly CircleMembershipService _circleMembershipService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleDefinitionControllerBase(CircleNetworkService cns, CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
+
+        public CircleDefinitionControllerBase(CircleNetworkService cns, CircleMembershipService circleMembershipService)
         {
             _cns = cns;
             _circleMembershipService = circleMembershipService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>

@@ -12,6 +12,7 @@ using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -36,7 +37,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     INotificationHandler<ConnectionBlockedNotification>,
     INotificationHandler<ConnectionDeletedNotification>
 {
-    private readonly byte[] _receivedIntroductionDataType = Guid.Parse("0b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
+    private const string ReceivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
+    private static readonly ThreeKeyValueStorage ReceivedIntroductionValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(ReceivedIntroductionContextKey));
+    private static readonly byte[] ReceivedIntroductionDataType = Guid.Parse("0b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
 
     private readonly OdinConfiguration _odinConfiguration;
 
@@ -44,11 +47,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private readonly ILogger<CircleNetworkIntroductionService> _logger;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-    private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly IMediator _mediator;
+    private readonly TableKeyThreeValue _tblKeyThreeValue;
     private readonly PushNotificationService _pushNotificationService;
-
-    private readonly ThreeKeyValueStorage _receivedIntroductionValueStorage;
 
     public CircleNetworkIntroductionService(
         OdinConfiguration odinConfiguration,
@@ -56,22 +57,20 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         CircleNetworkRequestService circleNetworkRequestService,
         ILogger<CircleNetworkIntroductionService> logger,
         IOdinHttpClientFactory odinHttpClientFactory,
-        TenantSystemStorage tenantSystemStorage,
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
-        PushNotificationService pushNotificationService) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        TableKeyThreeValue tblKeyThreeValue,
+        PushNotificationService pushNotificationService) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver,
+        odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         _circleNetworkRequestService = circleNetworkRequestService;
         _logger = logger;
         // _logger = logger;
         _odinHttpClientFactory = odinHttpClientFactory;
-        _tenantSystemStorage = tenantSystemStorage;
         _mediator = mediator;
+        _tblKeyThreeValue = tblKeyThreeValue;
         _pushNotificationService = pushNotificationService;
-
-        const string receivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
-        _receivedIntroductionValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(receivedIntroductionContextKey));
     }
 
 
@@ -137,7 +136,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 continue;
             }
-            
+
             var iid = new IdentityIntroduction()
             {
                 IntroducerOdinId = introducer,
@@ -154,7 +153,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             Introduction = introduction,
             OdinContext = odinContext
         };
-        var db = _tenantSystemStorage.IdentityDatabase;
+
         var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications);
         await _pushNotificationService.EnqueueNotification(introducer, new AppNotificationOptions()
             {
@@ -168,7 +167,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 //     Introduction = introduction,
                 // })
             },
-            newContext, db);
+            newContext);
 
         await _mediator.Publish(notification);
     }
@@ -287,7 +286,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 if (intro.SendAttemptCount <= maxSendAttempts)
                 {
-                    await this.TrySendConnectionRequestAsync(intro, newOdinContext);
+                    await this.TrySendConnectionRequestAsync(intro, cancellationToken, newOdinContext);
                 }
                 else
                 {
@@ -306,9 +305,9 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task<List<IdentityIntroduction>> GetReceivedIntroductionsAsync(IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-        var results = await _receivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(db, _receivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_tblKeyThreeValue, ReceivedIntroductionDataType);
         return results.ToList();
     }
 
@@ -379,7 +378,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 {
                     var json = OdinSystemSerializer.Serialize(introduction);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
+                    var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.MakeIntroduction(encryptedPayload);
@@ -396,8 +395,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private async Task<IdentityIntroduction> GetIntroductionInternalAsync(OdinId identity)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        var result = await _receivedIntroductionValueStorage.GetAsync<IdentityIntroduction>(db, identity);
+        var result = await ReceivedIntroductionValueStorage.GetAsync<IdentityIntroduction>(_tblKeyThreeValue, identity);
         return result;
     }
 
@@ -425,7 +423,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// <summary>
     /// Sends connection requests for pending introductions if one has not already been sent or received
     /// </summary>
-    private async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, IOdinContext odinContext)
+    private async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
         var recipient = intro.Identity;
         var introducer = intro.IntroducerOdinId;
@@ -458,35 +457,33 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         intro.LastProcessed = UnixTimeUtc.Now();
         await UpsertIntroductionAsync(intro);
 
-        await _circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, odinContext);
+        await _circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, cancellationToken, odinContext);
     }
 
     private async Task UpsertIntroductionAsync(IdentityIntroduction intro)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _receivedIntroductionValueStorage.UpsertAsync(db, intro.Identity,
+        await ReceivedIntroductionValueStorage.UpsertAsync(_tblKeyThreeValue, intro.Identity,
             dataTypeKey: intro.IntroducerOdinId.ToHashId().ToByteArray(),
-            _receivedIntroductionDataType, intro);
+            ReceivedIntroductionDataType, intro);
     }
 
     private async Task DeleteIntroductionsToAsync(OdinId identity)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         _logger.LogDebug("Deleting introduction sent to {identity}", identity);
-        await _receivedIntroductionValueStorage.DeleteAsync(db, identity);
+        await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, identity);
     }
 
     private async Task DeleteIntroductionsFromAsync(OdinId introducer)
     {
         _logger.LogDebug("Deleting introduction sent from {identity}", introducer);
 
-        var db = _tenantSystemStorage.IdentityDatabase;
+
         var introductionsFromIdentity = await
-            _receivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(db, introducer.ToHashId().ToByteArray());
+            ReceivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(_tblKeyThreeValue, introducer.ToHashId().ToByteArray());
 
         foreach (var introduction in introductionsFromIdentity)
         {
-            await _receivedIntroductionValueStorage.DeleteAsync(db, introduction.Identity);
+            await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, introduction.Identity);
         }
     }
 
@@ -494,12 +491,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     {
         _logger.LogDebug("Deleting all introductions");
 
-        var db = _tenantSystemStorage.IdentityDatabase;
+
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
-        var results = await _receivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(db, _receivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_tblKeyThreeValue, ReceivedIntroductionDataType);
         foreach (var intro in results)
         {
-            await _receivedIntroductionValueStorage.DeleteAsync(db, intro.Identity);
+            await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, intro.Identity);
         }
     }
 }

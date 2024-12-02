@@ -8,7 +8,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -38,7 +38,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly IcrKeyService _icrKeyService;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ILogger<PublicPrivateKeyService> _logger;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+        private readonly TableKeyValue _tblKeyValue;
 
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
@@ -46,16 +46,19 @@ namespace Odin.Services.EncryptionKeyService
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, IcrKeyService icrKeyService, IOdinHttpClientFactory odinHttpClientFactory,
-            ILogger<PublicPrivateKeyService> logger)
+        public PublicPrivateKeyService(
+            IcrKeyService icrKeyService,
+            IOdinHttpClientFactory odinHttpClientFactory,
+            ILogger<PublicPrivateKeyService> logger,
+            TableKeyValue tblKeyValue)
         {
-            _tenantSystemStorage = tenantSystemStorage;
             _icrKeyService = icrKeyService;
             _odinHttpClientFactory = odinHttpClientFactory;
             _logger = logger;
+            _tblKeyValue = tblKeyValue;
 
             const string keyCacheStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
-            _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(keyCacheStorageContextKey));
+            _storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(keyCacheStorageContextKey));
         }
 
         /// <summary>
@@ -63,9 +66,9 @@ namespace Odin.Services.EncryptionKeyService
         /// </summary>
         public async Task InvalidateRecipientEccPublicKeyAsync(PublicPrivateKeyType keyType, OdinId recipient)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             GuidId cacheKey = GetEccCacheKey(keyType, recipient.DomainName);
-            await _storage.DeleteAsync(db, cacheKey);
+            await _storage.DeleteAsync(_tblKeyValue, cacheKey);
         }
 
         /// <summary>
@@ -77,7 +80,7 @@ namespace Odin.Services.EncryptionKeyService
             return RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey);
         }
 
-        private async Task<EccPublicKeyData> ResolveRecipientEccPublicKeyAsync(IdentityDatabase db, PublicPrivateKeyType keyType, OdinId recipient,
+        private async Task<EccPublicKeyData> ResolveRecipientEccPublicKeyAsync( PublicPrivateKeyType keyType, OdinId recipient,
             bool failIfCannotRetrieve = true)
         {
             GuidId cacheKey = GetEccCacheKey(keyType, recipient.DomainName);
@@ -85,7 +88,7 @@ namespace Odin.Services.EncryptionKeyService
             await EccRecipientOnlinePublicKeyCacheLock.WaitAsync();
             try
             {
-                var cacheItem = await _storage.GetAsync<EccPublicKeyData>(db, cacheKey);
+                var cacheItem = await _storage.GetAsync<EccPublicKeyData>(_tblKeyValue, cacheKey);
                 if (cacheItem == null || cacheItem.IsExpired())
                 {
                     var svc = _odinHttpClientFactory.CreateClient<IPeerEncryptionKeyServiceHttpClient>(recipient);
@@ -103,7 +106,7 @@ namespace Odin.Services.EncryptionKeyService
                     
                     _logger.LogDebug("Updating ecc public key cache record for recipient: {r} with cacheKey: {k}", recipient, cacheKey);
                     _logger.LogDebug("Updated ecc public key: {k}", cacheItem);
-                    await _storage.UpsertAsync(db, cacheKey, cacheItem);
+                    await _storage.UpsertAsync(_tblKeyValue,cacheKey, cacheItem);
                 }
 
                 if (null == cacheItem && failIfCannotRetrieve)
@@ -126,8 +129,8 @@ namespace Odin.Services.EncryptionKeyService
 
         public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipientAsync(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            EccPublicKeyData recipientPublicKey = await ResolveRecipientEccPublicKeyAsync(db, keyType, recipient);
+            
+            EccPublicKeyData recipientPublicKey = await ResolveRecipientEccPublicKeyAsync(keyType, recipient);
 
             if (null == recipientPublicKey)
             {
@@ -262,8 +265,8 @@ namespace Odin.Services.EncryptionKeyService
 
         public async Task<NotificationEccKeys> GetEccNotificationsKeysAsync()
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var keys = await _storage.GetAsync<NotificationEccKeys>(db, _offlineNotificationsKeyStorageId);
+            
+            var keys = await _storage.GetAsync<NotificationEccKeys>(_tblKeyValue,_offlineNotificationsKeyStorageId);
             return keys;
         }
 
@@ -435,8 +438,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private async Task CreateNewRsaKeysAsync(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var existingKeys = await _storage.GetAsync<RsaFullKeyListData>(db, storageKey);
+            
+            var existingKeys = await _storage.GetAsync<RsaFullKeyListData>(_tblKeyValue,storageKey);
             if (null != existingKeys)
             {
                 _logger.LogInformation("Attempt to create new RSA keys with storage key {storageKey}.  Already exist; ignoring request", storageKey);
@@ -448,21 +451,21 @@ namespace Odin.Services.EncryptionKeyService
                 RsaKeyListManagement.DefaultMaxOnlineKeys,
                 RsaKeyListManagement.DefaultHoursOnlineKey);
 
-            await _storage.UpsertAsync(db, storageKey, rsaKeyList);
+            await _storage.UpsertAsync(_tblKeyValue,storageKey, rsaKeyList);
         }
 
         private async Task CreateNotificationEccKeysAsync()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
 
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var existingKey = await _storage.GetAsync<NotificationEccKeys>(db, storageKey);
+            
+            var existingKey = await _storage.GetAsync<NotificationEccKeys>(_tblKeyValue,storageKey);
             
             if(null == existingKey)
             {
                 VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
 
-                await _storage.UpsertAsync(db, storageKey, new NotificationEccKeys
+                await _storage.UpsertAsync(_tblKeyValue,storageKey, new NotificationEccKeys
                 {
                     PublicKey64 = vapidKeys.PublicKey,
                     PrivateKey64 = vapidKeys.PrivateKey
@@ -472,8 +475,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private async Task CreateNewEccKeysAsync(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            var existingKeys = await _storage.GetAsync<EccFullKeyListData>(db, storageKey);
+            
+            var existingKeys = await _storage.GetAsync<EccFullKeyListData>(_tblKeyValue,storageKey);
 
             if (null != existingKeys)
             {
@@ -487,7 +490,7 @@ namespace Odin.Services.EncryptionKeyService
                 EccKeyListManagement.DefaultMaxOnlineKeys,
                 EccKeyListManagement.DefaultHoursOnlineKey);
 
-            await _storage.UpsertAsync(db, storageKey, eccKeyList);
+            await _storage.UpsertAsync(_tblKeyValue,storageKey, eccKeyList);
         }
 
         private async Task<RsaFullKeyData> GetCurrentRsaKeyFromStorageAsync(Guid storageKey)
@@ -498,8 +501,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private async Task<RsaFullKeyListData> GetRsaKeyListFromStorageAsync(Guid storageKey)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            return await _storage.GetAsync<RsaFullKeyListData>(db, storageKey);
+            
+            return await _storage.GetAsync<RsaFullKeyListData>(_tblKeyValue,storageKey);
         }
 
         private async Task<EccFullKeyData> GetCurrentEccKeyFromStorageAsync(Guid storageKey)
@@ -515,8 +518,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private async Task<EccFullKeyListData> GetEccKeyListFromStorageAsync(Guid storageKey)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
-            return await _storage.GetAsync<EccFullKeyListData>(db, storageKey);
+            
+            return await _storage.GetAsync<EccFullKeyListData>(_tblKeyValue,storageKey);
         }
     }
 }

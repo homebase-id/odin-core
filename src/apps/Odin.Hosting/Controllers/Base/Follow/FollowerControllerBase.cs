@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Refit;
@@ -15,14 +14,14 @@ namespace Odin.Hosting.Controllers.Base.Follow
     public abstract class FollowerControllerBase : OdinControllerBase
     {
         private readonly FollowerService _followerService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
 
         /// <summary />
-        protected FollowerControllerBase(FollowerService fs, TenantSystemStorage tenantSystemStorage)
+        protected FollowerControllerBase(FollowerService fs)
         {
             _followerService = fs;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>
@@ -89,7 +88,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<IActionResult> Follow([Body] FollowRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var _);
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             await _followerService.FollowAsync(request, WebOdinContext);
             return NoContent();
         }
@@ -109,7 +108,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
             await _followerService.SynchronizeChannelFilesAsync(id, WebOdinContext);
         }
     }

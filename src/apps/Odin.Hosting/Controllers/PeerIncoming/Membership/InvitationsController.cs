@@ -22,13 +22,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     //how do you know it is the owner console tho?
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController(
-        CircleNetworkRequestService circleNetworkRequestService,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+        CircleNetworkRequestService circleNetworkRequestService) : OdinControllerBase
     {
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] EccEncryptedPayload payload)
         {
-            await circleNetworkRequestService.ReceiveConnectionRequestAsync(payload, WebOdinContext);
+            await circleNetworkRequestService.ReceiveConnectionRequestAsync(payload, HttpContext.RequestAborted, WebOdinContext);
             return Ok();
         }
 
@@ -36,12 +35,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
             if (!HttpContext.Request.Headers.TryGetValue(OdinHeaderNames.EstablishConnectionAuthToken, out var authenticationToken64))
             {
                 throw new OdinSecurityException("missing auth token");
             }
-            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext, db);
+            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext);
             return new JsonResult(new NoResultResponse(true));
         }
     }
