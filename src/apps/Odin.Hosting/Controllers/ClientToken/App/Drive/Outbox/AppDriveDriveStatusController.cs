@@ -14,8 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Drive.Outbox
     public class AppDriveDriveStatusController(
         StandardFileSystem fileSystem,
         PeerOutbox peerOutbox,
-        TransitInboxBoxStorage peerInbox,
-        TenantSystemStorage tenantSystemStorage) : DriveStatusControllerBase(fileSystem, peerOutbox, peerInbox, tenantSystemStorage)
+        TransitInboxBoxStorage peerInbox) : DriveStatusControllerBase(fileSystem, peerOutbox, peerInbox)
     {
     }
 }

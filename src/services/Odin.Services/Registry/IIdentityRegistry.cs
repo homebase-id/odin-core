@@ -9,6 +9,8 @@ namespace Odin.Services.Registry
 {
     public interface IIdentityRegistry
     {
+        public Task LoadRegistrations();
+
         /// <summary>
         /// Returns ID for *exact* domain, e.g. www.frodo.me 
         /// </summary>

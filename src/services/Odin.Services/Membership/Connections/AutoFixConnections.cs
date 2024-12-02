@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;

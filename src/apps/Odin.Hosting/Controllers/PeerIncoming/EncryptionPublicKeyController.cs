@@ -18,13 +18,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController(
         PublicPrivateKeyService publicPrivateKeyService,
-        TenantSystemStorage tenantSystemStorage,
         ILogger<EncryptionPublicKeyController> logger) : ControllerBase
     {
         [HttpGet("rsa_public_key")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             var key = await publicPrivateKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {

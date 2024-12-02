@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
@@ -17,22 +16,18 @@ namespace Odin.Services.Authorization.Acl
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
-        public async Task AssertCallerMatchesAclAsync(Guid driveId, AccessControlList acl, IdentityDatabase db, IOdinContext odinContext)
+        public async Task AssertCallerMatchesAclAsync(Guid driveId, AccessControlList acl, IOdinContext odinContext)
         {
-            ThrowWhenFalse(await CallerMatchesAclAsync(driveId, acl, db, odinContext));
+            ThrowWhenFalse(await CallerMatchesAclAsync(driveId, acl, odinContext));
         }
 
-        public async Task<bool> IdentityMatchesAclAsync(Guid driveId,
-            OdinId odinId,
-            AccessControlList acl,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+        public async Task<bool> IdentityMatchesAclAsync(Guid driveId, OdinId odinId, AccessControlList acl, IOdinContext odinContext)
         {
             var appliedAcl = acl;
 
             if (appliedAcl == null)
             {
-                appliedAcl = (await driveManager.GetDriveAsync(driveId, db)).DefaultReadAcl;
+                appliedAcl = (await driveManager.GetDriveAsync(driveId)).DefaultReadAcl;
 
                 //there must be an acl
                 if (appliedAcl == null)
@@ -78,7 +73,7 @@ namespace Odin.Services.Authorization.Acl
             return false;
         }
 
-        public async Task<bool> CallerMatchesAclAsync(Guid driveId, AccessControlList acl, IdentityDatabase db, IOdinContext odinContext)
+        public async Task<bool> CallerMatchesAclAsync(Guid driveId, AccessControlList acl, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
@@ -94,7 +89,7 @@ namespace Odin.Services.Authorization.Acl
             var appliedAcl = acl;
             if (appliedAcl == null)
             {
-                appliedAcl = (await driveManager.GetDriveAsync(driveId, db)).DefaultReadAcl;
+                appliedAcl = (await driveManager.GetDriveAsync(driveId)).DefaultReadAcl;
 
                 //there must be an acl
                 if (appliedAcl == null)

@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
         private readonly TransitInboxBoxStorage _transitInboxStorage;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly DriveManager _driveManager;
         private readonly ILoggerFactory _loggerFactory;
 
@@ -34,13 +34,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         /// <summary />
         public FeedDriveIncomingController(
             FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage,
-            TenantSystemStorage tenantSystemStorage, DriveManager driveManager, ILoggerFactory loggerFactory)
+             DriveManager driveManager, ILoggerFactory loggerFactory)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
             _transitInboxStorage = transitInboxStorage;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _driveManager = driveManager;
             _loggerFactory = loggerFactory;
         }
@@ -49,16 +49,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            var db = _tenantSystemStorage.IdentityDatabase;
-            return await perimeterService.AcceptUpdatedFileMetadataAsync(payload, WebOdinContext, db);
+            
+            return await perimeterService.AcceptUpdatedFileMetadataAsync(payload, WebOdinContext);
         }
 
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            var db = _tenantSystemStorage.IdentityDatabase;
-            return await perimeterService.DeleteAsync(payload, WebOdinContext, db);
+            
+            return await perimeterService.DeleteAsync(payload, WebOdinContext);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()

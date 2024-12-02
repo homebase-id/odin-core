@@ -15,8 +15,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
 {
     public abstract class PushNotificationControllerBase(
         PushNotificationService notificationService,
-        ILoggerFactory loggerFactory,
-        TenantSystemStorage tenantSystemStorage)
+        ILoggerFactory loggerFactory)
         : OdinControllerBase
     {
         private readonly ILogger<PushNotificationControllerBase> _logger =
@@ -43,8 +42,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid Push notification subscription request");
             }
 
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.AddDeviceAsync(subscription, WebOdinContext, db);
+            
+            await notificationService.AddDeviceAsync(subscription, WebOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -73,8 +72,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid Push notification subscription request: missing device platform");
             }
 
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.AddDeviceAsync(subscription, WebOdinContext, db);
+            
+            await notificationService.AddDeviceAsync(subscription, WebOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -84,8 +83,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var subscription = await notificationService.GetDeviceSubscriptionAsync(WebOdinContext, db);
+            
+            var subscription = await notificationService.GetDeviceSubscriptionAsync(WebOdinContext);
             if (null == subscription)
             {
                 return NotFound();
@@ -97,8 +96,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("list")]
         public async Task<IActionResult> GetAllSubscriptions()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            var allSubscriptions = await notificationService.GetAllSubscriptionsAsync(WebOdinContext, db);
+            
+            var allSubscriptions = await notificationService.GetAllSubscriptionsAsync(WebOdinContext);
             if (null == allSubscriptions)
             {
                 return NotFound();
@@ -110,24 +109,24 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("unsubscribe")]
         public async Task<IActionResult> RemoveDevice()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveDeviceAsync(WebOdinContext, db);
+            
+            await notificationService.RemoveDeviceAsync(WebOdinContext);
             return Ok();
         }
 
         [HttpDelete("subscription")]
         public async Task<IActionResult> RemoveDevice(Guid key)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveDeviceAsync(key, WebOdinContext, db);
+            
+            await notificationService.RemoveDeviceAsync(key, WebOdinContext);
             return Ok();
         }
 
         [HttpPost("unsubscribeAll")]
         public async Task<IActionResult> RemoveAllDevices()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.RemoveAllDevicesAsync(WebOdinContext, db);
+            
+            await notificationService.RemoveAllDevicesAsync(WebOdinContext);
             return Ok();
         }
 
@@ -135,8 +134,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> Push([FromBody] AppNotificationOptions options)
         {
             var caller = WebOdinContext.GetCallerOdinIdOrFail();
-            var db = tenantSystemStorage.IdentityDatabase;
-            await notificationService.EnqueueNotification(caller, options, WebOdinContext, db);
+            
+            await notificationService.EnqueueNotification(caller, options, WebOdinContext);
             return Ok();
         }
     }

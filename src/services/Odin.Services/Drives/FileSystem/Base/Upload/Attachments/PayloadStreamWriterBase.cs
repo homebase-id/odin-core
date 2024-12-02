@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -29,14 +28,14 @@ public abstract class PayloadStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task StartUpload(Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
-        await this.StartUpload(instructionSet, odinContext, db);
+        await this.StartUpload(instructionSet, odinContext);
     }
 
-    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
@@ -44,7 +43,7 @@ public abstract class PayloadStreamWriterBase
         InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile, odinContext);
 
         //bail earlier to save some bandwidth
-        if (!await FileSystem.Storage.FileExists(file, odinContext, db))
+        if (!await FileSystem.Storage.FileExists(file, odinContext))
         {
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
@@ -54,7 +53,7 @@ public abstract class PayloadStreamWriterBase
         this._package = new PayloadOnlyPackage(file, instructionSet!);
     }
 
-    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext, IdentityDatabase db)
+    public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -69,15 +68,14 @@ public abstract class PayloadStreamWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext, db);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext,
-        IdentityDatabase db)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -115,7 +113,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext, db);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -132,15 +130,15 @@ public abstract class PayloadStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext)
     {
-        var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext, db);
+        var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext);
 
-        await this.ValidateUploadCore(serverHeader, odinContext, db);
+        await this.ValidateUploadCore(serverHeader, odinContext);
 
         await this.ValidatePayloads(_package, serverHeader);
 
-        var latestVersionTag = await this.UpdatePayloads(_package, serverHeader, odinContext, db);
+        var latestVersionTag = await this.UpdatePayloads(_package, serverHeader, odinContext);
 
         if (_package.InstructionSet.Recipients?.Any() ?? false)
         {
@@ -167,15 +165,15 @@ public abstract class PayloadStreamWriterBase
     /// Performs the update of attachments on the file system
     /// </summary>
     /// <returns>The updated version tag on the metadata</returns>
-    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext, IdentityDatabase db);
+    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext);
 
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, IOdinContext odinContext, IdentityDatabase db)
+    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, IOdinContext odinContext)
     {
         // Validate the file exists by the Id
-        if (!await FileSystem.Storage.FileExists(_package.InternalFile, odinContext, db))
+        if (!await FileSystem.Storage.FileExists(_package.InternalFile, odinContext))
         {
             throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
         }

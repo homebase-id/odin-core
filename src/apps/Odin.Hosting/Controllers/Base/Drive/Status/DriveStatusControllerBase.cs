@@ -12,8 +12,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Status;
 public abstract class DriveStatusControllerBase(
     StandardFileSystem fileSystem,
     PeerOutbox peerOutbox,
-    TransitInboxBoxStorage peerInbox,
-    TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    TransitInboxBoxStorage peerInbox) : OdinControllerBase
 {
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus(Guid alias, Guid type)
@@ -24,12 +23,12 @@ public abstract class DriveStatusControllerBase(
             Type = type
         });
 
-        var db = tenantSystemStorage.IdentityDatabase;
+        
         var status = new DriveStatus()
         {
             Inbox = await peerInbox.GetStatusAsync(driveId),
-            Outbox = await peerOutbox.GetOutboxStatusAsync(driveId, db),
-            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext, db)
+            Outbox = await peerOutbox.GetOutboxStatusAsync(driveId),
+            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext)
         };
 
         return new JsonResult(status);

@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,9 @@ namespace Odin.Services.Tests.JobManagement.Jobs;
 
 public class SimpleJobWithDelayTestData
 {
-    public string SomeSerializedData { get; set; } = "uninitialized";    
+    public string SomeSerializedData { get; set; } = "uninitialized";
+    public string SomeOtherData { get; set; } = "";
+    public TimeSpan Delay { get; set; } = TimeSpan.FromMilliseconds(100);
 }
 
 public class SimpleJobWithDelayTest(ILogger<SimpleJobWithDelayTest> logger) : AbstractJob
@@ -19,9 +22,10 @@ public class SimpleJobWithDelayTest(ILogger<SimpleJobWithDelayTest> logger) : Ab
     
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Running SimpleJobWithDelayTest");
-        await Task.Delay(100, cancellationToken);
+        logger.LogInformation($"Running SimpleJobWithDelayTest:{JobData.SomeOtherData}");
+        await Task.Delay(JobData.Delay, cancellationToken);
         JobData.SomeSerializedData = "hurrah!";
+        logger.LogInformation($"Stopped SimpleJobWithDelayTest:{JobData.SomeOtherData}");
         return JobExecutionResult.Success();
     }
     

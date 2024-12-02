@@ -15,8 +15,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Drive.GroupReactions;
 public class OwnerDriveGroupReactionContentController : DriveGroupReactionControllerBase
 {
     /// <summary />
-    public OwnerDriveGroupReactionContentController(GroupReactionService groupReactionService, TenantSystemStorage tenantSystemStorage) : base(
-        groupReactionService, tenantSystemStorage)
+    public OwnerDriveGroupReactionContentController(GroupReactionService groupReactionService) : base(
+        groupReactionService)
     {
     }
 }

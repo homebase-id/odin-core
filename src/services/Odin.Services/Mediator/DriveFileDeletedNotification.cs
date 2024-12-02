@@ -1,7 +1,6 @@
 using System;
 using MediatR;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
@@ -24,7 +23,6 @@ public class DriveFileDeletedNotification : MediatorNotificationBase, IDriveNoti
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
     public ServerFileHeader PreviousServerFileHeader { get; set; }
 
-    public IdentityDatabase db { get; init; }
     public bool IgnoreFeedDistribution { get; set; }
     public bool IgnoreReactionPreviewCalculation { get; set; }
 }
