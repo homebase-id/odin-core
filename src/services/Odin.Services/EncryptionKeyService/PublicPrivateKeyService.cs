@@ -203,7 +203,7 @@ namespace Odin.Services.EncryptionKeyService
             }
 
             var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(key, publicKey, payload.Salt);
-            return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
+            return AesGcm.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
         public async Task<bool> IsValidEccPublicKeyAsync(PublicPrivateKeyType keyType, uint publicKeyCrc32C)

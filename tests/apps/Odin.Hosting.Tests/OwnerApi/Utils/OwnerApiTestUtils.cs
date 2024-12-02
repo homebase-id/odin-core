@@ -224,13 +224,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Salt = saltyReply.Nonce64.FromBase64(),
                 Iv = saltyReply.Nonce64.FromBase64(),
                 EncryptionPublicKeyCrc32 = hostPublicKey.crc32c,
-                EncryptedData = AesCbc.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64())
+                EncryptedData = AesGcm.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64())
             };
 
             var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()
             {
                 EncryptedRecoveryKey = encryptedRecoveryKey,
-                PasswordReply = saltyReply // WTH ? TODO SECURITY -> These are the secrets, right? We can't transfer them
+                PasswordReply = saltyReply // The sensitive parts here are GCM encrypted.
             };
 
             return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
