@@ -125,13 +125,15 @@ public class ScopedConnectionFactory<T>(
     private bool _commit;
     private Guid _connectionId;
 
+    private readonly CancellationTokenSource _zero = new (TimeSpan.Zero);
+
     //
 
     public async Task<ConnectionWrapper> CreateScopedConnectionAsync(
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        using (await _mutex.LockAsync())
+        using (await _mutex.LockAsync(_zero.Token))
         {
             if (++_connectionRefCount == 1)
             {
@@ -160,7 +162,7 @@ public class ScopedConnectionFactory<T>(
     {
         _logger.LogTrace("Beginning transaction");
 
-        using (await _mutex.LockAsync(cancellationToken))
+        using (await _mutex.LockAsync(_zero.Token))
         {
             if (_connection == null)
             {
@@ -255,7 +257,7 @@ public class ScopedConnectionFactory<T>(
         public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
-            using (await instance._mutex.LockAsync())
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 if (--instance._connectionRefCount == 0)
                 {
@@ -347,7 +349,7 @@ public class ScopedConnectionFactory<T>(
         public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
-            using (await instance._mutex.LockAsync())
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 // Sanity
                 if (instance._connection == null)
@@ -460,7 +462,7 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 command.Transaction = instance._transaction;
                 return await command.ExecuteNonQueryAsync(cancellationToken);
@@ -472,7 +474,7 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 command.Transaction = instance._transaction;
                 return await command.ExecuteReaderAsync(behavior, cancellationToken);
@@ -483,7 +485,7 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 command.Transaction = instance._transaction;
                 return await command.ExecuteScalarAsync(cancellationToken);
@@ -494,7 +496,7 @@ public class ScopedConnectionFactory<T>(
 
         public async Task PrepareAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (await instance._mutex.LockAsync(instance._zero.Token))
             {
                 command.Transaction = instance._transaction;
                 await command.PrepareAsync(cancellationToken);
