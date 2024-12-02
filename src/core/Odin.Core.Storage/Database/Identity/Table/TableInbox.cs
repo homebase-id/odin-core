@@ -90,7 +90,7 @@ public class TableInbox(
             }
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return result;
     }
@@ -284,7 +284,7 @@ public class TableInbox(
             await cmd.ExecuteNonQueryAsync();
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
 
@@ -349,7 +349,7 @@ public class TableInbox(
             await cmd.ExecuteNonQueryAsync();
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
 

@@ -51,7 +51,7 @@ public class TableDriveTagIndex(
             await base.InsertAsync(item);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
     public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
@@ -67,6 +67,6 @@ public class TableDriveTagIndex(
             await base.DeleteAsync(identityKey, driveId, fileId, tagId);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 }

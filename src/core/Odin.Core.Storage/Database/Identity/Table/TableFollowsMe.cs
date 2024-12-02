@@ -42,7 +42,7 @@ public class TableFollowsMe(
             recordsInserted += await base.InsertAsync(item);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return recordsInserted;
     }
@@ -85,7 +85,7 @@ public class TableFollowsMe(
             n += await base.DeleteAsync(identityKey, identity.DomainName, record.driveId);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return n;
     }
@@ -105,7 +105,7 @@ public class TableFollowsMe(
         }
         var n = await base.InsertAsync(record);
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return n;
     }

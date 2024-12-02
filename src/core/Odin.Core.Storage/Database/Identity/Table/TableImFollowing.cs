@@ -63,7 +63,7 @@ public class TableImFollowing(
             n += await DeleteAsync(identityKey, identity, record.driveId);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
 
         return n;
     }

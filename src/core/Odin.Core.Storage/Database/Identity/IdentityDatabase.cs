@@ -5,13 +5,15 @@ using Autofac;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
 
-public class IdentityDatabase(ILifetimeScope lifetimeScope)
+public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IIdentityDbConnectionFactory>(lifetimeScope)
 {
     //
-    // Put all database tables alphabetically here:
+    // Put all database tables alphabetically here.
+    // Don't forget to add the table to the lazy properties as well.
     //
     public static readonly ImmutableList<Type> TableTypes = [
         typeof(TableAppGrants),
@@ -33,49 +35,86 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope)
         typeof(TableOutbox)
     ];
 
+    private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
+
     //
-    // Table convenience properties (resolved, not injected)
-    // SEB:TODO make these Lazy<T>
-    public TableAppGrants AppGrants => lifetimeScope.Resolve<TableAppGrants>();
-    public TableAppNotifications AppNotifications => lifetimeScope.Resolve<TableAppNotifications>();
-    public TableCircle Circle => lifetimeScope.Resolve<TableCircle>();
-    public TableCircleMember CircleMember => lifetimeScope.Resolve<TableCircleMember>();
-    public TableConnections Connections => lifetimeScope.Resolve<TableConnections>();
-    public TableDriveAclIndex DriveAclIndex => lifetimeScope.Resolve<TableDriveAclIndex>();
-    public TableDriveMainIndex DriveMainIndex => lifetimeScope.Resolve<TableDriveMainIndex>();
-    public TableDriveReactions DriveReactions => lifetimeScope.Resolve<TableDriveReactions>();
-    public TableDriveTagIndex DriveTagIndex => lifetimeScope.Resolve<TableDriveTagIndex>();
-    public TableFollowsMe FollowsMe => lifetimeScope.Resolve<TableFollowsMe>();
-    public TableImFollowing ImFollowing => lifetimeScope.Resolve<TableImFollowing>();
-    public TableInbox Inbox => lifetimeScope.Resolve<TableInbox>();
-    public TableKeyThreeValue KeyThreeValue => lifetimeScope.Resolve<TableKeyThreeValue>();
-    public TableKeyTwoValue KeyTwoValue => lifetimeScope.Resolve<TableKeyTwoValue>();
-    public TableKeyUniqueThreeValue KeyUniqueThreeValue => lifetimeScope.Resolve<TableKeyUniqueThreeValue>();
-    public TableKeyValue KeyValue => lifetimeScope.Resolve<TableKeyValue>();
-    public TableOutbox Outbox => lifetimeScope.Resolve<TableOutbox>();
+    // Table convenience properties
+    //
+    private Lazy<TableAppGrants> _appGrants;
+    public TableAppGrants AppGrants => GetTable(ref _appGrants);
+    private Lazy<TableAppNotifications> _appNotifications;
+    public TableAppNotifications AppNotifications => GetTable(ref _appNotifications);
+    private Lazy<TableCircle> _circle;
+    public TableCircle Circle => GetTable(ref _circle);
+    private Lazy<TableCircleMember> _circleMember;
+    public TableCircleMember CircleMember => GetTable(ref _circleMember);
+    private Lazy<TableConnections> _connections;
+    public TableConnections Connections => GetTable(ref _connections);
+    private Lazy<TableDriveAclIndex> _driveAclIndex;
+    public TableDriveAclIndex DriveAclIndex => GetTable(ref _driveAclIndex);
+    private Lazy<TableDriveMainIndex> _driveMainIndex;
+    public TableDriveMainIndex DriveMainIndex => GetTable(ref _driveMainIndex);
+    private Lazy<TableDriveReactions> _driveReactions;
+    public TableDriveReactions DriveReactions => GetTable(ref _driveReactions);
+    private Lazy<TableDriveTagIndex> _driveTagIndex;
+    public TableDriveTagIndex DriveTagIndex => GetTable(ref _driveTagIndex);
+    private Lazy<TableFollowsMe> _followsMe;
+    public TableFollowsMe FollowsMe => GetTable(ref _followsMe);
+    private Lazy<TableImFollowing> _imFollowing;
+    public TableImFollowing ImFollowing => GetTable(ref _imFollowing);
+    private Lazy<TableInbox> _inbox;
+    public TableInbox Inbox => GetTable(ref _inbox);
+    private Lazy<TableKeyThreeValue> _keyThreeValue;
+    public TableKeyThreeValue KeyThreeValue => GetTable(ref _keyThreeValue);
+    private Lazy<TableKeyTwoValue> _keyTwoValue;
+    public TableKeyTwoValue KeyTwoValue => GetTable(ref _keyTwoValue);
+    private Lazy<TableKeyUniqueThreeValue> _keyUniqueThreeValue;
+    public TableKeyUniqueThreeValue KeyUniqueThreeValue => GetTable(ref _keyUniqueThreeValue);
+    private Lazy<TableKeyValue> _keyValue;
+    public TableKeyValue KeyValue => GetTable(ref _keyValue);
+    private Lazy<TableOutbox> _outbox;
+    public TableOutbox Outbox => GetTable(ref _outbox);
 
     //
     // Abstraction convenience properties (resolved, not injected)
-    // SEB:TODO make these Lazy<T>
-    public MainIndexMeta MainIndexMeta => lifetimeScope.Resolve<MainIndexMeta>();
+    //
+    private Lazy<MainIndexMeta> _mainIndexMeta;
+    public MainIndexMeta MainIndexMeta => GetTable(ref _mainIndexMeta);
+
+    //
+    // Connection
+    //
+    public override async Task<ScopedConnectionFactory<IIdentityDbConnectionFactory>.ConnectionWrapper> CreateScopedConnectionAsync()
+    {
+        var factory = _lifetimeScope.Resolve<ScopedIdentityConnectionFactory>();
+        var cn = await factory.CreateScopedConnectionAsync();
+        return cn;
+    }
+
+    //
+    // Transaction
+    //
+    public override async Task<ScopedTransactionFactory<IIdentityDbConnectionFactory>.ScopedTransaction> BeginStackedTransactionAsync()
+    {
+        var factory = _lifetimeScope.Resolve<ScopedIdentityTransactionFactory>();
+        var tx = await factory.BeginStackedTransactionAsync();
+        return tx;
+    }
 
     //
     // Migration
     //
 
     // SEB:NOTE this is temporary until we have a proper migration system
-    public async Task CreateDatabaseAsync(bool dropExistingTables)
+    public override async Task CreateDatabaseAsync(bool dropExistingTables = false)
     {
-        await using var scope = lifetimeScope.BeginLifetimeScope();
-        var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var tx = await cn.BeginStackedTransactionAsync();
+        await using var tx = await BeginStackedTransactionAsync();
         foreach (var tableType in TableTypes)
         {
-            var table = (ITableMigrator)scope.Resolve(tableType);
+            var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
             await table.EnsureTableExistsAsync(dropExistingTables);
         }
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
 }
