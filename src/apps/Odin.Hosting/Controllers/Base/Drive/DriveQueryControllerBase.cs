@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -10,23 +9,23 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveQueryControllerBase : OdinControllerBase
     {
-        protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request, IdentityDatabase db)
+        protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
         {
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions, WebOdinContext, db);
+            var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions, WebOdinContext);
             return batch;
         }
 
-        protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request, IdentityDatabase db)
+        protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions(), WebOdinContext, db);
+            var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions(), WebOdinContext);
             return QueryBatchResponse.FromResult(batch);
         }
 
-        protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, IdentityDatabase db)
+        protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
-            var collection = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request, WebOdinContext, db);
+            var collection = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request, WebOdinContext);
             return collection;
         }
     }

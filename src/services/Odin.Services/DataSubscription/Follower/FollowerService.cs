@@ -9,7 +9,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -31,7 +31,6 @@ namespace Odin.Services.DataSubscription.Follower
     /// <summary/>
     public class FollowerService
     {
-        private readonly TenantSystemStorage _tenantStorage;
         private readonly ILogger<FollowerService> _logger;
         private readonly DriveManager _driveManager;
         private readonly IOdinHttpClientFactory _httpClientFactory;
@@ -41,29 +40,32 @@ namespace Odin.Services.DataSubscription.Follower
         private readonly StandardFileSystem _standardFileSystem;
         private readonly PeerDriveQueryService _peerDriveQueryService;
         private readonly CircleNetworkService _circleNetworkService;
+        private readonly TableImFollowing _tableImFollowing;
+        private readonly TableFollowsMe _tableFollowsMe;
 
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
-
-        public FollowerService(TenantSystemStorage tenantStorage,
+        public FollowerService(
             ILogger<FollowerService> logger,
             DriveManager driveManager,
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
             StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
-            CircleNetworkService circleNetworkService)
+            CircleNetworkService circleNetworkService,
+            TableImFollowing tableImFollowing,
+            TableFollowsMe tableFollowsMe)
         {
-            _tenantStorage = tenantStorage;
             _logger = logger;
             _driveManager = driveManager;
             _httpClientFactory = httpClientFactory;
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
-
             _standardFileSystem = standardFileSystem;
             _peerDriveQueryService = peerDriveQueryService;
             _circleNetworkService = circleNetworkService;
+            _tableImFollowing = tableImFollowing;
+            _tableFollowsMe = tableFollowsMe;
         }
 
         /// <summary>
@@ -124,10 +126,10 @@ namespace Odin.Services.DataSubscription.Follower
             // TODO CONNECTIONS
             //cn.CreateCommitUnitOfWork(() => {
                 //delete all records and update according to the latest follow request.
-                await _tenantStorage.WhoIFollow.DeleteByIdentityAsync(identityToFollow);
+                await _tableImFollowing.DeleteByIdentityAsync(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    await _tenantStorage.WhoIFollow.InsertAsync(new ImFollowingRecord()
+                    await _tableImFollowing.InsertAsync(new ImFollowingRecord()
                         { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
@@ -142,7 +144,7 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        await _tenantStorage.WhoIFollow.InsertAsync(new ImFollowingRecord()
+                        await _tableImFollowing.InsertAsync(new ImFollowingRecord()
                             { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
@@ -170,7 +172,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            await _tenantStorage.WhoIFollow.DeleteByIdentityAsync(recipient);
+            await _tableImFollowing.DeleteByIdentityAsync(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollowerAsync(OdinId odinId, IOdinContext odinContext)
@@ -197,7 +199,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await _tenantStorage.Followers.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await _tableFollowsMe.GetAllFollowersAsync(DefaultMax(max), cursor);
 
             var result = new CursoredResult<string>()
             {
@@ -220,7 +222,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await _tenantStorage.Followers.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
+            var (dbResults, nextCursor) = await _tableFollowsMe.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>
             {
                 Cursor = nextCursor,
@@ -237,7 +239,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await _tenantStorage.Followers.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
+            var (dbResults, nextCursor) = await _tableFollowsMe.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -255,7 +257,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var (dbResults, nextCursor) = await _tenantStorage.WhoIFollow.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await _tableImFollowing.GetAllFollowersAsync(DefaultMax(max), cursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -266,17 +268,15 @@ namespace Odin.Services.DataSubscription.Follower
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollowAsync(Guid driveAlias, int max, string cursor, IOdinContext odinContext)
         {
-            var db = _tenantStorage.IdentityDatabase;
-
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var drive = await _driveManager.GetDriveAsync(driveAlias, db, true);
+            var drive = await _driveManager.GetDriveAsync(driveAlias, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await _tenantStorage.WhoIFollow.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
+            var (dbResults, nextCursor) = await _tableImFollowing.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -331,7 +331,7 @@ namespace Odin.Services.DataSubscription.Follower
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
 
-            var driveId = (await _driveManager.GetDriveIdByAliasAsync(feedDrive, _tenantStorage.IdentityDatabase, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAliasAsync(feedDrive, true)).GetValueOrDefault();
             var driveGrants = new List<DriveGrant>()
             {
                 new()
@@ -378,8 +378,6 @@ namespace Odin.Services.DataSubscription.Follower
 
         public async Task SynchronizeChannelFilesAsync(OdinId odinId, IOdinContext odinContext, SensitiveByteArray sharedSecret)
         {
-            var db = _tenantStorage.IdentityDatabase;
-
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var definition = await this.GetIdentityIFollowInternalAsync(odinId);
@@ -419,7 +417,7 @@ namespace Odin.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _peerDriveQueryService.GetBatchCollectionAsync(odinId, request, FileSystemType.Standard, odinContext, db);
+            var collection = await _peerDriveQueryService.GetBatchCollectionAsync(odinId, request, FileSystemType.Standard, odinContext);
 
             var patchedContext = sharedSecret == null
                 ? odinContext
@@ -455,8 +453,6 @@ namespace Odin.Services.DataSubscription.Follower
         private async Task TryWriteFeedFileAsync(OdinId odinId, IOdinContext odinContext, SharedSecretEncryptedFileHeader dsr,
             Guid feedDriveId)
         {
-            var db = _tenantStorage.IdentityDatabase;
-
             if (dsr.FileMetadata.GlobalTransitId == null)
             {
                 throw new OdinSystemException("File is missing a global transit id");
@@ -495,14 +491,14 @@ namespace Odin.Services.DataSubscription.Follower
 
 
             var existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
-                dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext, db);
+                dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
 
             if (null == existingFile)
             {
                 _logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
                     newFileMetadata.GlobalTransitId.GetValueOrDefault(),
                     newFileMetadata.AppData.UniqueId.GetValueOrDefault());
-                await _standardFileSystem.Storage.WriteNewFileToFeedDriveAsync(keyHeader, newFileMetadata, odinContext, db);
+                await _standardFileSystem.Storage.WriteNewFileToFeedDriveAsync(keyHeader, newFileMetadata, odinContext);
             }
             else
             {
@@ -516,7 +512,7 @@ namespace Odin.Services.DataSubscription.Follower
                     DriveId = feedDriveId
                 };
 
-                await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, db, bypassCallerCheck: true);
+                await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, bypassCallerCheck: true);
             }
         }
 
@@ -524,7 +520,7 @@ namespace Odin.Services.DataSubscription.Follower
             FollowerDefinition definition)
         {
             var channelDrives =
-                await _peerDriveQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext, _tenantStorage.IdentityDatabase);
+                await _peerDriveQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext);
 
             if (null == channelDrives)
             {
@@ -554,7 +550,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = await _tenantStorage.WhoIFollow.GetAsync(odinId);
+            var dbRecords = await _tableImFollowing.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
@@ -593,7 +589,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = await _tenantStorage.Followers.GetAsync(odinId);
+            var dbRecords = await _tableFollowsMe.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

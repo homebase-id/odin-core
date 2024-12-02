@@ -67,3 +67,6 @@ public class OdinContextCache
         this.Reset();
     }
 }
+
+public class SharedOdinContextCache<TRegisteredService>(int ttlSeconds = 60) : OdinContextCache(ttlSeconds);
+

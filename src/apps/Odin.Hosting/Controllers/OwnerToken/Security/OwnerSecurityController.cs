@@ -18,16 +18,16 @@ public class OwnerSecurityController : OdinControllerBase
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
     public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
-        OwnerAuthenticationService ownerAuthenticationService, TenantSystemStorage tenantSystemStorage)
+        OwnerAuthenticationService ownerAuthenticationService)
     {
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>
@@ -43,15 +43,15 @@ public class OwnerSecurityController : OdinControllerBase
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
         return await _recoveryService.GetKeyAsync(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _ss.ResetPasswordAsync(request, WebOdinContext, db);
+        
+        await _ss.ResetPasswordAsync(request, WebOdinContext);
         return new OkResult();
     }
 

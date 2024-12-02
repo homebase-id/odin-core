@@ -14,22 +14,21 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Route(PeerApiPathConstants.GroupReactionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerPerimeterGroupReactionController(
-        PeerIncomingGroupReactionInboxRouterService groupReactionInboxRouterService,
-        TenantSystemStorage tenantSystemStorage)
+        PeerIncomingGroupReactionInboxRouterService groupReactionInboxRouterService)
         : OdinControllerBase
     {
         [HttpPost("add")]
         public async Task<PeerResponseCode> AddReactionContent(RemoteReactionRequestRedux request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await groupReactionInboxRouterService.AddReaction(request, WebOdinContext, db);
+            
+            return await groupReactionInboxRouterService.AddReaction(request, WebOdinContext);
         }
 
         [HttpPost("delete")]
         public async Task<PeerResponseCode> DeleteReactionContent([FromBody] RemoteReactionRequestRedux request)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await groupReactionInboxRouterService.DeleteReaction(request, WebOdinContext, db);
+            
+            return await groupReactionInboxRouterService.DeleteReaction(request, WebOdinContext);
         }
     }
 }

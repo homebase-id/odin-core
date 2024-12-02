@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -27,7 +28,7 @@ public class PeerAppNotificationService : PeerServiceBase
 {
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+    private readonly TableKeyThreeValue _tableKeyThreeValue;
     private readonly PushNotificationService _pushNotificationService;
     private readonly ThreeKeyValueStorage _notificationSubscriptionStorage;
 
@@ -36,18 +37,18 @@ public class PeerAppNotificationService : PeerServiceBase
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
-        TenantSystemStorage tenantSystemStorage,
+        TableKeyThreeValue tableKeyThreeValue,
         OdinConfiguration config,
         PushNotificationService pushNotificationService,
         FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
-        _tenantSystemStorage = tenantSystemStorage;
+        _tableKeyThreeValue = tableKeyThreeValue;
         _pushNotificationService = pushNotificationService;
         _cache = new(config.Host.CacheSlidingExpirationSeconds);
 
         const string subscriptionContextKey = "e6981b6c-360f-477e-83e3-ed1f5be35209";
-        _notificationSubscriptionStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(subscriptionContextKey));
+        _notificationSubscriptionStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(subscriptionContextKey));
     }
 
     public async Task<PeerTransferResponse> EnqueuePushNotification(PushNotificationOutboxRecord record, IOdinContext odinContext)
@@ -69,8 +70,7 @@ public class PeerAppNotificationService : PeerServiceBase
         }
 
         var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _pushNotificationService.EnqueueNotification(record.SenderId, record.Options, newContext, db);
+        await _pushNotificationService.EnqueueNotification(record.SenderId, record.Options, newContext);
 
         return new PeerTransferResponse
         {
@@ -86,8 +86,7 @@ public class PeerAppNotificationService : PeerServiceBase
         OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _notificationSubscriptionStorage.UpsertAsync(db, request.ToKey(), request.Identity.ToHashId().ToByteArray(),
+        await _notificationSubscriptionStorage.UpsertAsync(_tableKeyThreeValue, request.ToKey(), request.Identity.ToHashId().ToByteArray(),
             _subscriptionsCategoryKey, request);
     }
 
@@ -100,18 +99,15 @@ public class PeerAppNotificationService : PeerServiceBase
         OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var db = _tenantSystemStorage.IdentityDatabase;
-        await _notificationSubscriptionStorage.DeleteAsync(db, request.ToKey());
+        await _notificationSubscriptionStorage.DeleteAsync(_tableKeyThreeValue, request.ToKey());
     }
 
     public async Task<List<PeerNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
 
-        var db = _tenantSystemStorage.IdentityDatabase;
-
         var list = await _notificationSubscriptionStorage.GetByCategoryAsync<PeerNotificationSubscription>(
-            db,
+            _tableKeyThreeValue,
             _subscriptionsCategoryKey);
         return list.ToList();
     }
@@ -129,11 +125,10 @@ public class PeerAppNotificationService : PeerServiceBase
     /// </summary>
     public async Task<AppNotificationTokenResponse> GetRemoteNotificationToken(GetRemoteTokenRequest request, IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
-        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try
@@ -244,9 +239,8 @@ public class PeerAppNotificationService : PeerServiceBase
 
     private async Task<List<PeerNotificationSubscription>> GetSubscriptionsByIdentityInternal(OdinId identity)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-
-        var list = await _notificationSubscriptionStorage.GetByKey2And3Async<PeerNotificationSubscription>(db,
+        var list = await _notificationSubscriptionStorage.GetByKey2And3Async<PeerNotificationSubscription>(
+            _tableKeyThreeValue,
             identity.ToHashId().ToByteArray(), _subscriptionsCategoryKey);
         return list.ToList();
     }

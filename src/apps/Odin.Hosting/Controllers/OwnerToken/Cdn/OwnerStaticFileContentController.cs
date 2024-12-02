@@ -14,14 +14,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
     public class OwnerStaticFileContentController : StaticFileContentPublishControllerBase
     {
         private readonly StaticFileContentService _staticFileContentService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         public OwnerStaticFileContentController(
-            StaticFileContentService staticFileContentService,
-            TenantSystemStorage tenantSystemStorage) : base(staticFileContentService)
+            StaticFileContentService staticFileContentService) : base(staticFileContentService)
         {
             _staticFileContentService = staticFileContentService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]

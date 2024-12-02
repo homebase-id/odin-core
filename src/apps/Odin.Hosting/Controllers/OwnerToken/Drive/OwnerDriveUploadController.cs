@@ -14,15 +14,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveUploadController(TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
+    public class OwnerDriveUploadController : DriveUploadControllerBase
     {
         /// <summary/>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await base.ReceiveFileStream(db);
+            
+            return await base.ReceiveFileStream();
         }
 
         /// <summary>
@@ -32,8 +32,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayload()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
-            return await base.ReceivePayloadStream(db);
+            
+            return await base.ReceivePayloadStream();
         }
     }
 }

@@ -9,7 +9,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -105,7 +104,6 @@ namespace Odin.Services.Peer
 
         protected async Task<(ClientAccessToken token, T client)> CreateHttpClientAsync<T>(
             OdinId odinId,
-            IdentityDatabase db,
             IOdinContext odinContext)
         {
             var token = await ResolveClientAccessTokenAsync(odinId, odinContext);
@@ -138,10 +136,9 @@ namespace Odin.Services.Peer
         /// Looks up a file by a global transit identifier
         /// </summary>
         protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext,
-            IdentityDatabase db,
             bool failIfNull = false)
         {
-            var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext, db);
+            var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext);
 
             if (failIfNull && fileId == null)
             {

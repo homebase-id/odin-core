@@ -13,14 +13,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     [Route(PeerApiPathConstants.ConnectionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class IntroductionsController(
-        CircleNetworkIntroductionService introductionService,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+        CircleNetworkIntroductionService introductionService) : OdinControllerBase
     {
 
         [HttpPost("make-introduction")]
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
         }
