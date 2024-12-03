@@ -2,7 +2,7 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
-using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 
@@ -12,7 +12,8 @@ namespace Odin.Hosting.Multitenant;
 internal class MultiTenantContainerMiddleware(
     RequestDelegate next,
     IMultiTenantContainerAccessor container,
-    IIdentityRegistry identityRegistry)
+    IIdentityRegistry identityRegistry,
+    ICorrelationContext correlationContext)
 {
     public async Task Invoke(HttpContext context)
     {
@@ -38,7 +39,7 @@ internal class MultiTenantContainerMiddleware(
         try
         {
             var tenantScope = container.Container().GetTenantScope(registration.PrimaryDomainName);
-            requestScope = tenantScope.BeginLifetimeScope("requestscope");
+            requestScope = tenantScope.BeginLifetimeScope($"Request:{correlationContext.Id}");
             context.RequestServices = new AutofacServiceProvider(requestScope);
             await next(context);
         }
