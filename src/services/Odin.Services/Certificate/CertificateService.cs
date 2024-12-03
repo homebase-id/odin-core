@@ -124,7 +124,6 @@ namespace Odin.Services.Certificate
         
         //
 
-        // SEB:TODO pass in cancellationToken here so we can cancel the operation
         private async Task<X509Certificate2> InternalCreateCertificate(string domain, string[] sans = null)
         {
             // Sanity
