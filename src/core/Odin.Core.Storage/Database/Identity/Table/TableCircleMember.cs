@@ -71,7 +71,7 @@ public class TableCircleMember(
             await base.UpsertAsync(circleMember);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public class TableCircleMember(
         foreach (var member in members)
             await base.DeleteAsync(identityKey, circleId, member);
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 
 
@@ -116,6 +116,6 @@ public class TableCircleMember(
                 await base.DeleteAsync(identityKey, circle.circleId, member);
         }
 
-        await tx.CommitAsync();
+        tx.Commit();
     }
 }

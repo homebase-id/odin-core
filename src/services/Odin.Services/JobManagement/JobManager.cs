@@ -128,7 +128,7 @@ public class JobManager(
     // You should only call this directly when testing the job.
     public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        await using var scope = lifetimeScope.BeginLifetimeScope();
+        await using var scope = lifetimeScope.BeginLifetimeScope($"RunJobNowAsync:{Guid.NewGuid()}");
         try
         {
             // Many jobs can run in parallel, so we execute each in its own scope to avoid conflicts and excessive locking.

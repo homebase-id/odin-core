@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
@@ -107,6 +108,7 @@ namespace Odin.Core.Storage.Factory;
 /// </remarks>
 
 public class ScopedConnectionFactory<T>(
+    ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
     CacheHelper cache) where T : IDbConnectionFactory
@@ -114,6 +116,7 @@ public class ScopedConnectionFactory<T>(
     // ReSharper disable once StaticMemberInGenericType
     private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
 
+    private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
@@ -122,6 +125,7 @@ public class ScopedConnectionFactory<T>(
     private int _connectionRefCount;
     private DbTransaction? _transaction;
     private int _transactionRefCount;
+    private bool _commit;
     private Guid _connectionId;
 
     //
@@ -132,13 +136,17 @@ public class ScopedConnectionFactory<T>(
     {
         using (await _mutex.LockAsync())
         {
-            if (++_connectionRefCount == 1)
+            if (_connectionRefCount == 0)
             {
                 _connection = await _connectionFactory.CreateAsync();
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"{filePath}:{lineNumber}";
-                _logger.LogTrace("Created connection {id}", _connectionId);
+
+                _logger.LogTrace("Created connection ScopedConnectionFactory:{id} on scope:{tag}",
+                    _connectionId, _lifetimeScope.Tag.ToString());
             }
+
+            _connectionRefCount++;
 
             // Sanity
             if (_connectionRefCount != 0 && _connection == null)
@@ -157,8 +165,6 @@ public class ScopedConnectionFactory<T>(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogTrace("Beginning transaction");
-
         using (await _mutex.LockAsync(cancellationToken))
         {
             if (_connection == null)
@@ -166,10 +172,11 @@ public class ScopedConnectionFactory<T>(
                 throw new ScopedDbConnectionException("No connection available to begin transaction");
             }
 
-            if (++_transactionRefCount == 1)
+            if (_transactionRefCount == 0)
             {
                 try
                 {
+                    _logger.LogTrace("Beginning transaction ScopedConnectionFactory:{id}", _connectionId);
                     _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
                 }
                 catch (Exception)
@@ -178,6 +185,8 @@ public class ScopedConnectionFactory<T>(
                     throw;
                 }
             }
+
+            _transactionRefCount++;
 
             // Sanity
             if (_transactionRefCount != 0 && _transaction == null)
@@ -200,6 +209,7 @@ public class ScopedConnectionFactory<T>(
             {
                 throw new ScopedDbConnectionException("No connection available to create command");
             }
+            _logger.LogTrace(" Creating command ScopedConnectionFactory:{id}", _connectionId);
             return new CommandWrapper(this, _connection.CreateCommand());
         }
     }
@@ -256,7 +266,7 @@ public class ScopedConnectionFactory<T>(
             GC.SuppressFinalize(this);
             using (await instance._mutex.LockAsync())
             {
-                if (--instance._connectionRefCount == 0)
+                if (instance._connectionRefCount == 1)
                 {
                     if (instance._transaction != null)
                     {
@@ -264,13 +274,17 @@ public class ScopedConnectionFactory<T>(
                             "Cannot dispose connection while a transaction is active");
                     }
 
+                    instance._logger.LogTrace("Disposed connection ScopedConnectionFactory:{id} on scope:{tag}",
+                        instance._connectionId, instance._lifetimeScope.Tag);
+
                     await instance._connection!.DisposeAsync();
                     instance._connection = null;
 
                     Diagnostics.TryRemove(instance._connectionId, out _);
-                    instance._logger.LogTrace("Disposed connection {id}", instance._connectionId);
                     instance._connectionId = Guid.Empty;
                 }
+
+                instance._connectionRefCount--;
 
                 // Sanity
                 if (instance._connectionRefCount < 0)
@@ -296,59 +310,42 @@ public class ScopedConnectionFactory<T>(
     // A wrapper around a DbTransaction that supports stacked transactions
     // and ensures that the transaction is disposed correctly.
     //
-    // NOTE from MSDN:
-    // Dispose should rollback the transaction.
-    // However, the behavior of Dispose is provider specific, and should not replace calling Rollback.
-    //
     public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
     {
         public DbTransaction DangerousInstance => instance._transaction!;
         public int RefCount => instance._transactionRefCount;
-        private bool _wasCommitted;
 
         //
 
-        // Note that only outermost transaction is committed.
-        public async Task CommitAsync(CancellationToken cancellationToken = default)
+        // Note that only outermost transaction is marked as commit.
+        // The disposer takes care of the actual commit (or rollback).
+        // The reason we don't do an explicit commit here is because it leaves the internal
+        // transaction in an odd state, and it's unclear how a cmd following the commit (or rollback)
+        // behaves.
+        public void Commit()
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            using (instance._mutex.Lock())
             {
+                if (instance._transaction == null)
+                {
+                    throw new ScopedDbConnectionException("No transaction available to commit");
+                }
+
                 if (instance._transactionRefCount == 1)
                 {
-                    await instance._transaction!.CommitAsync(cancellationToken);
-                    _wasCommitted = true;
+                    instance._commit = true;
                 }
             }
         }
 
         //
 
-        // Note that only outermost transaction is rolled back.
-        public async Task RollbackAsync(CancellationToken cancellationToken = default)
+        // There is no explicit rollback support. This is by design to make reference counting easier.
+        // If you want to rollback, simply do not commit.
+        // ReSharper disable once UnusedMember.Local
+        private void Rollback()
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
-            {
-                if (instance._transactionRefCount == 1)
-                {
-                    await instance._transaction!.RollbackAsync(cancellationToken);
-                }
-            }
-        }
-
-        //
-
-        public Task SaveAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return instance._transaction!.SaveAsync(savepointName, cancellationToken);
-        }
-
-        //
-
-        public Task ReleaseAsync(string savepointName, CancellationToken cancellationToken = default)
-        {
-            // NOTE: not supported by all providers
-            return instance._transaction!.ReleaseAsync(savepointName, cancellationToken);
+            // Do nothing
         }
 
         //
@@ -373,15 +370,30 @@ public class ScopedConnectionFactory<T>(
                         "No connection available to dispose transaction. This should never happen.");
                 }
 
-                if (--instance._transactionRefCount == 0)
+                if (instance._transaction == null)
                 {
-                    if (!_wasCommitted)
+                    return;
+                }
+
+                if (instance._transactionRefCount == 1)
+                {
+                    instance._logger.LogTrace("Disposing transaction ScopedDbConnection:{id}", instance._connectionId);
+
+                    if (instance._commit)
                     {
+                        await instance._transaction!.CommitAsync();
+                    }
+                    else
+                    {
+                        await instance._transaction!.RollbackAsync();
                         instance._cache.ClearCache();
                     }
                     await instance._transaction!.DisposeAsync();
                     instance._transaction = null!;
+                    instance._commit = false;
                 }
+
+                instance._transactionRefCount--;
 
                 // Sanity
                 if (instance._transactionRefCount < 0)
@@ -466,10 +478,19 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            try
             {
-                command.Transaction = instance._transaction;
-                return await command.ExecuteNonQueryAsync(cancellationToken);
+                instance._logger.LogTrace("  ExecuteNonQueryAsync ScopedDbConnection:{id}", instance._connectionId);
+                using (await instance._mutex.LockAsync(cancellationToken))
+                {
+                    command.Transaction = instance._transaction;
+                    return await command.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+            catch (Exception)
+            {
+                instance.LogDiagnostics();
+                throw;
             }
         }
 
@@ -478,9 +499,19 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            try
             {
-                return await command.ExecuteReaderAsync(behavior, cancellationToken);
+                instance._logger.LogTrace("  ExecuteReaderAsync ScopedDbConnection:{id}", instance._connectionId);
+                using (await instance._mutex.LockAsync(cancellationToken))
+                {
+                    command.Transaction = instance._transaction;
+                    return await command.ExecuteReaderAsync(behavior, cancellationToken);
+                }
+            }
+            catch (Exception)
+            {
+                instance.LogDiagnostics();
+                throw;
             }
         }
 
@@ -488,9 +519,19 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            try
             {
-                return await command.ExecuteScalarAsync(cancellationToken);
+                instance._logger.LogTrace("  ExecuteScalarAsync ScopedDbConnection:{id}", instance._connectionId);
+                using (await instance._mutex.LockAsync(cancellationToken))
+                {
+                    command.Transaction = instance._transaction;
+                    return await command.ExecuteScalarAsync(cancellationToken);
+                }
+            }
+            catch (Exception)
+            {
+                instance.LogDiagnostics();
+                throw;
             }
         }
 
@@ -498,9 +539,19 @@ public class ScopedConnectionFactory<T>(
 
         public async Task PrepareAsync(CancellationToken cancellationToken = default)
         {
-            using (await instance._mutex.LockAsync(cancellationToken))
+            try
             {
-                await command.PrepareAsync(cancellationToken);
+                instance._logger.LogTrace("  PrepareAsync ScopedDbConnection:{id}", instance._connectionId);
+                using (await instance._mutex.LockAsync(cancellationToken))
+                {
+                    command.Transaction = instance._transaction;
+                    await command.PrepareAsync(cancellationToken);
+                }
+            }
+            catch (Exception)
+            {
+                instance.LogDiagnostics();
+                throw;
             }
         }
 
@@ -517,6 +568,7 @@ public class ScopedConnectionFactory<T>(
         public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
+            instance._logger.LogTrace(" Disposing command ScopedDbConnection:{id}", instance._connectionId);
             await command.DisposeAsync();
         }
 
