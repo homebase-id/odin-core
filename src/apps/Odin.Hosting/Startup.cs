@@ -294,7 +294,6 @@ namespace Odin.Hosting
 
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
-            app.UseMiddleware<CertesAcmeMiddleware>();
 
             app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
             app.UseResponseCompression();

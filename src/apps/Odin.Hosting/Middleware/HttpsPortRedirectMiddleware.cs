@@ -42,6 +42,12 @@ public class HttpsPortRedirectMiddleware
             return _next(context);
         }
 
+        // Skip HTTPS redirection for ACME challenge requests
+        if (context.Request.Path.StartsWithSegments("/.well-known/acme-challenge"))
+        {
+            return _next(context);
+        }
+
         var host = context.Request.Host;
         if (_httpsPort != 443)
         {
