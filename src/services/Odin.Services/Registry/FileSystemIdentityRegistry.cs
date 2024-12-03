@@ -189,8 +189,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var storageConfig = GetStorageConfig(registration);
         storageConfig.CreateDirectories();
 
-        // Create database
-        var scope = GetOrCreateMultiTenantScope(registration);
+        // Create database on isolated scope
+        await using var scope = GetOrCreateMultiTenantScope(registration)
+            .BeginLifetimeScope($"AddRegistration:{registration.PrimaryDomainName}");
+
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         await identityDatabase.CreateDatabaseAsync(false);
 
@@ -496,7 +498,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
 
-        var scope = GetOrCreateMultiTenantScope(registration);
+        await using var scope = GetOrCreateMultiTenantScope(registration)
+            .BeginLifetimeScope($"CacheIdentity:{registration.PrimaryDomainName}:{Guid.NewGuid()}");
 
         var tenantContext = scope.Resolve<TenantContext>();
         var tc = CreateTenantContext(registration.PrimaryDomainName);
