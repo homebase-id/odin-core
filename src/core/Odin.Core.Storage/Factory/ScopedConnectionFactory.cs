@@ -140,10 +140,10 @@ public class ScopedConnectionFactory<T>(
             {
                 _connection = await _connectionFactory.CreateAsync();
                 _connectionId = Guid.NewGuid();
-                Diagnostics[_connectionId] = $"{filePath}:{lineNumber}";
+                Diagnostics[_connectionId] = $"scope:{_lifetimeScope.Tag} {filePath}:{lineNumber}";
 
                 _logger.LogTrace("Created connection ScopedConnectionFactory:{id} on scope:{tag}",
-                    _connectionId, _lifetimeScope.Tag.ToString());
+                    _connectionId, _lifetimeScope.Tag);
             }
 
             _connectionRefCount++;
