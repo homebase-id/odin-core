@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
@@ -107,6 +108,7 @@ namespace Odin.Core.Storage.Factory;
 /// </remarks>
 
 public class ScopedConnectionFactory<T>(
+    ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
     CacheHelper cache) where T : IDbConnectionFactory
@@ -114,6 +116,7 @@ public class ScopedConnectionFactory<T>(
     // ReSharper disable once StaticMemberInGenericType
     private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
 
+    private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
@@ -133,13 +136,17 @@ public class ScopedConnectionFactory<T>(
     {
         using (await _mutex.LockAsync())
         {
-            if (++_connectionRefCount == 1)
+            if (_connectionRefCount == 0)
             {
                 _connection = await _connectionFactory.CreateAsync();
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"{filePath}:{lineNumber}";
-                _logger.LogTrace("Created connection ScopedConnectionFactory:{id}", _connectionId);
+
+                _logger.LogTrace("Created connection ScopedConnectionFactory:{id} on scope:{tag}",
+                    _connectionId, _lifetimeScope.Tag.ToString());
             }
+
+            _connectionRefCount++;
 
             // Sanity
             if (_connectionRefCount != 0 && _connection == null)
@@ -165,7 +172,7 @@ public class ScopedConnectionFactory<T>(
                 throw new ScopedDbConnectionException("No connection available to begin transaction");
             }
 
-            if (++_transactionRefCount == 1)
+            if (_transactionRefCount == 0)
             {
                 try
                 {
@@ -178,6 +185,8 @@ public class ScopedConnectionFactory<T>(
                     throw;
                 }
             }
+
+            _transactionRefCount++;
 
             // Sanity
             if (_transactionRefCount != 0 && _transaction == null)
@@ -257,7 +266,7 @@ public class ScopedConnectionFactory<T>(
             GC.SuppressFinalize(this);
             using (await instance._mutex.LockAsync())
             {
-                if (--instance._connectionRefCount == 0)
+                if (instance._connectionRefCount == 1)
                 {
                     if (instance._transaction != null)
                     {
@@ -265,7 +274,8 @@ public class ScopedConnectionFactory<T>(
                             "Cannot dispose connection while a transaction is active");
                     }
 
-                    instance._logger.LogTrace("Disposed connection ScopedDbConnection:{id}", instance._connectionId);
+                    instance._logger.LogTrace("Disposed connection ScopedConnectionFactory:{id} on scope:{tag}",
+                        instance._connectionId, instance._lifetimeScope.Tag);
 
                     await instance._connection!.DisposeAsync();
                     instance._connection = null;
@@ -273,6 +283,8 @@ public class ScopedConnectionFactory<T>(
                     Diagnostics.TryRemove(instance._connectionId, out _);
                     instance._connectionId = Guid.Empty;
                 }
+
+                instance._connectionRefCount--;
 
                 // Sanity
                 if (instance._connectionRefCount < 0)
@@ -330,6 +342,7 @@ public class ScopedConnectionFactory<T>(
 
         // There is no explicit rollback support. This is by design to make reference counting easier.
         // If you want to rollback, simply do not commit.
+        // ReSharper disable once UnusedMember.Local
         private void Rollback()
         {
             // Do nothing
@@ -362,7 +375,7 @@ public class ScopedConnectionFactory<T>(
                     return;
                 }
 
-                if (--instance._transactionRefCount == 0)
+                if (instance._transactionRefCount == 1)
                 {
                     instance._logger.LogTrace("Disposing transaction ScopedDbConnection:{id}", instance._connectionId);
 
@@ -379,6 +392,8 @@ public class ScopedConnectionFactory<T>(
                     instance._transaction = null!;
                     instance._commit = false;
                 }
+
+                instance._transactionRefCount--;
 
                 // Sanity
                 if (instance._transactionRefCount < 0)
