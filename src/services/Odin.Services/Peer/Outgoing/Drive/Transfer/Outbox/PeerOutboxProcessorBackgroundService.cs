@@ -80,7 +80,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         private async Task ProcessItemThread(OutboxFileItem fileItem, CancellationToken cancellationToken)
         {
-            await using var childScope = lifetimeScope.BeginLifetimeScope();
+            await using var childScope = lifetimeScope.BeginLifetimeScope($"ProcessItemThread:{Guid.NewGuid()}");
             var peerOutbox = childScope.Resolve<PeerOutbox>();
 
             var originalCorrelationId = correlationContext.Id;

@@ -63,7 +63,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                 throw new InvalidOperationException($"Background service '{serviceIdentifier}' already exists.");
             }
 
-            var serviceScope = lifetimeScope.BeginLifetimeScope();
+            var serviceScope = lifetimeScope.BeginLifetimeScope($"{serviceIdentifier}:{Guid.NewGuid()}");
             var backgroundService = serviceScope.Resolve<T>();
             var scopedService = new ScopedAbstractBackgroundService(serviceScope, backgroundService);
             _backgroundServices.Add(serviceIdentifier, scopedService);           
