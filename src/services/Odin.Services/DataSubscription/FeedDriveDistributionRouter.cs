@@ -309,7 +309,8 @@ namespace Odin.Services.DataSubscription
                 else
                 {
                     // this should not happen
-                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient, file.FileId,
+                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient,
+                        file.FileId,
                         file.DriveId);
                 }
             }
@@ -374,10 +375,11 @@ namespace Odin.Services.DataSubscription
             {
                 return [];
             }
-            
+
             // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            
+            var connectedIdentities =
+                await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+
             // NOTE!
             // 
             // ChatGPT has refactored the original code below to run asynchronously.
@@ -390,7 +392,7 @@ namespace Odin.Services.DataSubscription
             //             db)
             //         .GetAwaiter().GetResult()).ToList();
             // return connectedFollowers;
-            
+
             //
             // ChatGPT from here:
             //
@@ -402,7 +404,8 @@ namespace Odin.Services.DataSubscription
             var permissionTasks = intersectedFollowers.Select(async follower => new
             {
                 OdinId = (OdinId)follower.DomainName,
-                HasPermission = await _driveAcl.IdentityHasPermissionAsync(
+                HasPermission = await _driveAcl.IdentityMatchesAclAsync(
+                    notification.ServerFileHeader.FileMetadata.File.DriveId,
                     (OdinId)follower.DomainName,
                     notification.ServerFileHeader.ServerMetadata.AccessControlList,
                     odinContext)

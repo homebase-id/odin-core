@@ -5,12 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Services.Authorization.Acl;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -107,7 +107,8 @@ public class DriveManager
                 AllowAnonymousReads = request.AllowAnonymousReads,
                 AllowSubscriptions = request.AllowSubscriptions,
                 OwnerOnly = request.OwnerOnly,
-                Attributes = request.Attributes
+                Attributes = request.Attributes,
+                DefaultReadAcl = request.DefaultReadAcl
             };
 
             storageKey.Wipe();
@@ -165,6 +166,18 @@ public class DriveManager
         }
     }
 
+    public async Task UpdateDefaultReadAclAsync(Guid driveId, AccessControlList readAcl, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var sdb = await DriveStorage.GetAsync<StorageDriveBase>(_tblKeyThreeValue, driveId);
+        sdb.DefaultReadAcl = readAcl;
+        await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, sdb.TargetDriveInfo.ToKey(), DriveDataType, sdb);
+
+        CacheDrive(ToStorageDrive(sdb));
+    }
+
+
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -216,7 +229,7 @@ public class DriveManager
         var driveId = await GetDriveIdByAliasAsync(targetDrive, failIfInvalid);
         return await GetDriveAsync(driveId.GetValueOrDefault(), failIfInvalid);
     }
-    
+
     public async Task<Guid?> GetDriveIdByAliasAsync(TargetDrive targetDrive, bool failIfInvalid = false)
     {
         var cachedDrive = _driveCache.SingleOrDefault(d => d.Value.TargetDriveInfo == targetDrive).Value;
@@ -283,7 +296,8 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions,
+        IOdinContext odinContext)
     {
         List<StorageDrive> allDrives;
 

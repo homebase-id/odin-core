@@ -8,7 +8,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
@@ -90,7 +89,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var versionTag = header.FileMetadata.VersionTag;
         var globalTransitId = header.FileMetadata.GlobalTransitId;
 
-        var authorized = await driveAcl.IdentityHasPermissionAsync(recipient,
+        var authorized = await driveAcl.IdentityMatchesAclAsync(file.DriveId, recipient,
             header.ServerMetadata.AccessControlList, odinContext);
 
         if (!authorized)
@@ -155,7 +154,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem, OdinId recipient,
+    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem,
+        OdinId recipient,
         CancellationToken cancellationToken)
     {
         var request = new UpdateFeedFileMetadataRequest()
@@ -183,7 +183,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         return httpResponse;
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient, FileSystemType fileSystemType,
+    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient,
+        FileSystemType fileSystemType,
         CancellationToken cancellationToken)
     {
         var request = new DeleteFeedFileMetadataRequest()
