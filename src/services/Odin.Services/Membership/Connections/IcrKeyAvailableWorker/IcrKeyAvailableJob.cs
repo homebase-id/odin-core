@@ -38,7 +38,7 @@ public class IcrKeyAvailableJob(
 
             // Create a new lifetime scope for the tenant so db connections are isolated
             await using var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!)
-                .BeginLifetimeScope($"IcrKeyAvailableJob:Run:{Data.Tenant}");
+                .BeginLifetimeScope($"IcrKeyAvailableJob:Run:{Data.Tenant}:{Guid.NewGuid()}");
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";

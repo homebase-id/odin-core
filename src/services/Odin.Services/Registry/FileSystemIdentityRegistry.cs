@@ -191,7 +191,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         // Create database on isolated scope
         await using var scope = GetOrCreateMultiTenantScope(registration)
-            .BeginLifetimeScope("create-db:" + registration.PrimaryDomainName);
+            .BeginLifetimeScope($"AddRegistration:{registration.PrimaryDomainName}");
 
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         await identityDatabase.CreateDatabaseAsync(false);
