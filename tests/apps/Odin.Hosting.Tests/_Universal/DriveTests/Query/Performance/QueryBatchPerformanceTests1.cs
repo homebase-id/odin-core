@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Nito.AsyncEx;
 using NUnit.Framework;
-using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
-using Odin.Hosting.Tests._Universal.Outbox.Performance;
 using Odin.Hosting.Tests.Performance;
-using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -22,26 +20,14 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
     {
         private WebScaffold _scaffold;
 
-        private static readonly object _lock = new();
+        private static readonly AsyncLock _lock = new();
 
-        // private readonly List<Guid> _filesSentByFrodo = new();
         private readonly List<KeyValuePair<string, Guid>> _filesSent = new();
 
-        private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
-        private readonly List<Guid> _filesReceivedBySam = new();
-        private readonly List<Guid> _readReceiptsSentBySam = new();
-
-        private const int ProcessInboxBatchSize = 10;
-        private const int NotificationBatchSize = 10;
-        private const int NotificationWaitTime = 30;
+        private const int ProcessInboxBatchSize = 100000;
 
         private const int ChatMessageFileType = 887;
-
-        private readonly ReadReceiptSocketHandler _frodoSocketHandler =
-            new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
-
-        private readonly ReadReceiptSocketHandler _samSocketHandler =
-            new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
+        private static Guid ChatMessageTag = Guid.Parse("5e698447-8f2e-46b6-b082-4bd1f7d96c64");
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -81,7 +67,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
         }
 
         [Test, Explicit]
-        public async Task QueryBatchPerformance_Scenario1()
+        public async Task QueryBatchPerformance_ScenarioNoTag()
         {
             /*
              * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
@@ -90,114 +76,109 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
              * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
              */
 
+            //
             // Setup
+            //
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
             await PrepareScenario(frodo, sam);
-            await SetupSockets(frodo, sam);
             await CreateConversation(frodo, sam);
 
-
+            //
             // Act
-            // Query 
-            await MeasureQueryBatch(frodo, sam, maxThreads: 5, iterations: 50);
+            //
 
+            var qbr = new QueryBatchRequest
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = SystemDriveConstants.ChatDrive,
+                    FileType = [ChatMessageFileType],
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    MaxRecords = Int32.MaxValue
+                }
+            };
 
-            Console.WriteLine("Parameters:");
-
-            Console.WriteLine("\tApp Notifications:");
-            Console.WriteLine($"\t\tBatch Size: {NotificationBatchSize}");
-            Console.WriteLine($"\t\tWait Time (ms): {NotificationWaitTime}");
-
-            Console.WriteLine("\tInbox:");
-            Console.WriteLine($"\t\tProcess Batch Size: {ProcessInboxBatchSize}");
+            await MeasureQueryBatch(frodo, qbr, maxThreads: 5, iterations: 50);
+            // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
             Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
-            Console.WriteLine($"\tReceived Files:{_filesReceivedBySam.Count}");
-            Console.WriteLine($"\tRead-receipts Sent: {_readReceiptsSentBySam.Count}");
-            Console.WriteLine($"\tRead-receipts received: {_readReceiptsReceivedByFrodo.Count}");
 
-            PerformanceCounter.WriteCounters();
-
-            // Wait long enough for all notifications to be flushed
-            await Task.Delay(TimeSpan.FromSeconds(10));
-
-            CollectionAssert.AreEquivalent(_filesSent.Where(kvp => kvp.Key == frodo.OdinId).Select(kvp => kvp.Value), _filesReceivedBySam);
-            CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
-                "mismatch in number of read-receipts send by sam to the files received");
-
-            CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
+            // PerformanceCounter.WriteCounters();
 
             await Shutdown(frodo, sam);
         }
 
-        private async Task SetupSockets(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)
+
+        [Test, Explicit]
+        public async Task QueryBatchPerformance_ScenarioWithTag()
         {
-            await _samSocketHandler.ConnectAsync(sam);
-            _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;
+            /*
+             * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
+             * As they chat, items are sent out of the outbox to the recipient
+             * As the recipient receives items, the recipient sends back a read-receipt; which also goes into the outbox
+             * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
+             */
 
-            await _frodoSocketHandler.ConnectAsync(frodo);
-            _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
-        }
-
-        private void FrodoSocketHandlerOnFileModified(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
-        {
-            //validate sam marked ita s ready
-            if (e.header.ServerMetadata.TransferHistory.Recipients.TryGetValue(TestIdentities.Samwise.OdinId, out var value))
-            {
-                if (value.IsReadByRecipient)
-                {
-                    _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-                }
-            }
-        }
-
-        private void SamSocketHandlerOnFileAdded(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
-        {
-            _filesReceivedBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-
+            //
+            // Setup
+            //
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-            var file = new ExternalFileIdentifier()
-            {
-                TargetDrive = e.targetDrive,
-                FileId = e.header.FileId
-            };
 
-            var response = sam.DriveRedux.SendReadReceipt([file]).GetAwaiter().GetResult();
-            if (response.IsSuccessStatusCode)
+            await PrepareScenario(frodo, sam);
+            await CreateConversation(frodo, sam);
+
+            //
+            // Act
+            //
+            var qbr = new QueryBatchRequest
             {
-                _readReceiptsSentBySam.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-            }
+                QueryParams = new()
+                {
+                    TargetDrive = SystemDriveConstants.ChatDrive,
+                    FileType = [ChatMessageFileType],
+                    TagsMatchAtLeastOne = [ChatMessageTag]
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    MaxRecords = Int32.MaxValue
+                }
+            };
+            await MeasureQueryBatch(frodo, qbr, maxThreads: 5, iterations: 50);
+            // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
+
+            Console.WriteLine("Test Metrics:");
+            Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
+            Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
+
+            // PerformanceCounter.WriteCounters();
+
+            await Shutdown(frodo, sam);
         }
 
 
         private async Task Shutdown(OwnerApiClientRedux sender, OwnerApiClientRedux recipient)
         {
             await this.DeleteScenario(sender, recipient);
-            await this._frodoSocketHandler.DisconnectAsync();
-            await this._samSocketHandler.DisconnectAsync();
         }
 
-        private async Task SendBarrage(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations)
+        private async Task BuildConversation(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations)
         {
-            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
+            async Task Func(int count)
             {
-                long[] timers = new long[count];
-                var sw = new Stopwatch();
-
                 for (int i = 0; i < count; i++)
                 {
-                    sw.Restart();
-
                     string message = "hi";
-                    // var bytes = message.ToUtf8ByteArray().Length;
                     var result = await SendChatMessage(message, sender, recipient, true);
                     if (result!.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued)
                     {
-                        lock (_lock)
+                        using (await _lock.LockAsync())
                         {
                             _filesSent.Add(new KeyValuePair<string, Guid>(
                                 sender.OdinId.DomainName,
@@ -205,15 +186,11 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                         }
                     }
 
-                    timers[i] = sw.ElapsedMilliseconds;
-                    // If you want to introduce a delay be sure to use: await Task.Delay(1);
                     await Task.Delay(300);
                 }
-
-                return (0, timers);
             }
 
-            await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
+            await RunThreads(maxThreads, iterations, Func);
         }
 
         private async Task WaitForEmptyOutboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
@@ -227,6 +204,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
 
         private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
         {
+            _ = sender.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, ProcessInboxBatchSize);
+            _ = recipient.DriveRedux.ProcessInbox(SystemDriveConstants.ChatDrive, ProcessInboxBatchSize);
+
             var senderWaitTime = await sender.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
             Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
@@ -246,7 +226,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     Content = message,
                     FileType = ChatMessageFileType,
                     GroupId = default,
-                    Tags = default
+                    Tags = [ChatMessageTag]
                 },
                 AccessControlList = AccessControlList.Connected
             };
@@ -270,13 +250,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             return uploadResponse.Content;
         }
 
-        public async Task<QueryBatchResponse> QueryBatch(OwnerApiClientRedux sender, QueryBatchRequest qbr)
-        {
-            // Assert: file that was sent has peer transfer status updated
-            var queryBatchResponse = await sender.DriveRedux.QueryBatch(qbr);
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-            return queryBatchResponse.Content;
-        }
 
         public async Task ValidateFileDelivered(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, ExternalFileIdentifier file)
         {
@@ -294,7 +267,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             // Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == targetVersionTag);
         }
 
-
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
             await senderOwnerClient.Connections.SendConnectionRequest(recipient.Identity.OdinId, []);
@@ -308,7 +280,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         }
 
-        private async Task MeasureQueryBatch(OwnerApiClientRedux frodo, OwnerApiClientRedux sam, int maxThreads, int iterations)
+        private async Task MeasureQueryBatch(OwnerApiClientRedux identity, QueryBatchRequest qbr, int maxThreads, int iterations)
         {
             async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
             {
@@ -319,33 +291,11 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                 {
                     sw.Restart();
 
-                    //
-                    var qbr = new QueryBatchRequest
-                    {
-                        QueryParams = new()
-                        {
-                            TargetDrive = null,
-                            FileType = [ChatMessageFileType],
-                            FileState = default,
-                            DataType = default,
-                            ArchivalStatus = default,
-                            Sender = default,
-                            GroupId = default,
-                            UserDate = default,
-                            ClientUniqueIdAtLeastOne = default,
-                            TagsMatchAtLeastOne = default,
-                            TagsMatchAll = default,
-                            GlobalTransitId = default
-                        },
-                        ResultOptionsRequest = new QueryBatchResultOptionsRequest()
-                        {
-                            MaxRecords = Int32.MaxValue
-                        }
-                    };
+                    var response = await identity.DriveRedux.QueryBatch(qbr);
 
-                    var result = await QueryBatch(frodo, qbr);
-
-                    // result.SearchResults.Count();
+                    Assert.IsTrue(response.IsSuccessStatusCode);
+                    // var results = response.Content.SearchResults;
+                    // response.SearchResults.Count();
 
                     timers[i] = sw.ElapsedMilliseconds;
                     // If you want to introduce a delay be sure to use: await Task.Delay(1);
@@ -360,9 +310,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
 
         private async Task CreateConversation(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)
         {
-            await SendBarrage(frodo, sam, maxThreads: 5, iterations: 50);
+            await BuildConversation(frodo, sam, maxThreads: 5, iterations: 100);
 
-            await SendBarrage(sam, frodo, maxThreads: 5, iterations: 50);
+            // await BuildConversation(sam, frodo, maxThreads: 5, iterations: 50);
 
             await WaitForEmptyOutboxes(frodo, sam, TimeSpan.FromSeconds(60));
 
@@ -372,6 +322,17 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
             await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipient.Identity.OdinId);
+        }
+
+        private static async Task RunThreads(int maxThreads, int iterations, Func<int, Task> functionToExecute)
+        {
+            Task[] tasks = new Task[maxThreads];
+            for (int i = 0; i < maxThreads; i++)
+            {
+                tasks[i] = Task.Run(async () => { await functionToExecute(iterations); });
+            }
+
+            await Task.WhenAll(tasks);
         }
     }
 }
