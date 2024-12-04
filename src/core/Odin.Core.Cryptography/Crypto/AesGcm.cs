@@ -23,17 +23,13 @@ namespace Odin.Core.Cryptography.Crypto
         /// </summary>
         /// <param name="data">The data to encrypt.</param>
         /// <param name="key">The encryption key.</param>
-        /// <param name="iv">The 16-byte IV to use.</param>
+        /// <param name="nonce">The 16-byte IV to use.</param>
         /// <returns>The encrypted ciphertext with the authentication tag appended.</returns>
-        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv)
+        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] nonce)
         {
             if (data == null) throw new ArgumentNullException(nameof(data), "Data cannot be null.");
             if (key == null) throw new ArgumentNullException(nameof(key), "Key cannot be null.");
-            if (iv == null || iv.Length < NonceSize) throw new ArgumentException("IV must be at least 12 bytes.", nameof(iv));
-
-            // Use the first 12 bytes of the IV
-            var nonce = new byte[NonceSize];
-            Buffer.BlockCopy(iv, 0, nonce, 0, NonceSize);
+            if (nonce == null || nonce.Length < NonceSize) throw new ArgumentException("Nonce must be at least 12 bytes.", nameof(nonce));
 
             var ciphertext = new byte[data.Length];
             var tag = new byte[TagSize];
