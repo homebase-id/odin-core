@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Nito.AsyncEx;
 using NUnit.Framework;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
 using Odin.Services.Authorization.Acl;
@@ -13,6 +15,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using static System.Data.Entity.Infrastructure.Design.Executor;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
 {
@@ -65,6 +68,88 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
         {
             _scaffold.AssertLogEvents();
         }
+
+        [Test, Explicit]
+        public async Task QueryBatchPerformanceRaw_ScenarioNoTag()
+        {
+            /*
+             * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
+             * As they chat, items are sent out of the outbox to the recipient
+             * As the recipient receives items, the recipient sends back a read-receipt; which also goes into the outbox
+             * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
+             */
+
+            //
+            // Setup
+            //
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+
+
+            await PrepareScenario(frodo, sam);
+            await CreateConversation(frodo, sam);
+
+            //
+            // Act
+            //
+
+            var qbr = new QueryBatchRequest
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = SystemDriveConstants.ChatDrive,
+                    FileType = [ChatMessageFileType],
+                },
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    MaxRecords = Int32.MaxValue
+                }
+            };
+
+            await MeasureRawQueryBatch(frodo, qbr, maxThreads: 1, iterations: 50);
+            // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
+
+            Console.WriteLine("Test Metrics:");
+            Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
+            Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
+
+            // PerformanceCounter.WriteCounters();
+
+            await Shutdown(frodo, sam);
+        }
+
+
+        private async Task MeasureRawQueryBatch(OwnerApiClientRedux identity, QueryBatchRequest qbr, int maxThreads, int iterations)
+        {
+            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
+            {
+                using var scope = _scaffold.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IdentityDatabase>();
+
+                long[] timers = new long[count];
+                var sw = new Stopwatch();
+
+                for (int i = 0; i < count; i++)
+                {
+                    sw.Restart();
+
+
+                    // var response = await identity.DriveRedux.QueryBatch(qbr);
+                    var _ = await db.MainIndexMeta.QueryBatchAsync(qbr.QueryParams.TargetDrive.Alias, 100, null, false);
+
+                    // var results = response.Content.SearchResults;
+                    // response.SearchResults.Count();
+
+                    timers[i] = sw.ElapsedMilliseconds;
+                }
+
+                return (0, timers);
+            }
+
+            await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
+        }
+
 
         [Test, Explicit]
         public async Task QueryBatchPerformance_ScenarioNoTag()
@@ -185,8 +270,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                                 result.GlobalTransitIdFileIdentifier.GlobalTransitId));
                         }
                     }
-
-                    await Task.Delay(300);
                 }
             }
 
@@ -199,7 +282,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             Console.WriteLine($"Sender Outbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
             var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.ChatDrive, timeout);
-            Console.WriteLine($"Sender Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
+            Console.WriteLine($"Recipient Outbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
         private async Task WaitForEmptyInboxes(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TimeSpan timeout)
@@ -211,7 +294,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             Console.WriteLine($"Sender Inbox Wait time: {senderWaitTime.TotalSeconds}sec");
 
             var recipientWaitTime = await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.ChatDrive, timeout);
-            Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
+            Console.WriteLine($"Recipient Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
         private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient,
@@ -298,8 +381,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     // response.SearchResults.Count();
 
                     timers[i] = sw.ElapsedMilliseconds;
-                    // If you want to introduce a delay be sure to use: await Task.Delay(1);
-                    await Task.Delay(300);
                 }
 
                 return (0, timers);
