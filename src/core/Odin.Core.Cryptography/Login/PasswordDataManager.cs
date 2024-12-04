@@ -114,7 +114,7 @@ namespace Odin.Core.Cryptography.Login
             }
             catch
             {
-                throw new Exception("Unable to AES GCM decrypt password header");
+                throw new Exception("Unable to AES GCM encrypt password header");
             }
 
             return encryptedGcm;

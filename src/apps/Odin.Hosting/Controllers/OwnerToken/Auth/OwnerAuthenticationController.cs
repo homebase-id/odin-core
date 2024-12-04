@@ -151,13 +151,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("publickey")]
-        public async Task<GetPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
         {
             var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
-            return new GetPublicKeyResponse()
+            return new GetEccPublicKeyResponse()
             {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c,
+                PublicKeyJwk = key.PublicKeyJwkBase64Url(),
+                CRC32c = key.crc32c,
                 Expiration = key.expiration.milliseconds
             };
         }
