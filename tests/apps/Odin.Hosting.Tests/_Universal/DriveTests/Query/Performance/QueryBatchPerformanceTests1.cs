@@ -86,7 +86,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
 
-
             await PrepareScenario(frodo, sam);
             await CreateConversation(frodo, sam);
 
@@ -103,12 +102,12 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                 },
                 ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                 {
-                    MaxRecords = Int32.MaxValue
+                    MaxRecords = 30
                 }
             };
 
-            await MeasureRawQueryBatch(frodo, qbr, maxThreads: 1, iterations: 50);
-            // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
+            // await MeasureRawQueryBatch(frodo, qbr, maxThreads: 1, iterations: 50);
+            await MeasureQueryBatch(frodo, qbr, maxThreads: 100, iterations: 1);
 
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
@@ -183,11 +182,11 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                 },
                 ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                 {
-                    MaxRecords = Int32.MaxValue
+                    MaxRecords = 30
                 }
             };
 
-            await MeasureQueryBatch(frodo, qbr, maxThreads: 5, iterations: 50);
+            await MeasureQueryBatch(frodo, qbr, maxThreads: 100, iterations: 1);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
             Console.WriteLine("Test Metrics:");
