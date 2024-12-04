@@ -27,9 +27,11 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Configuration;
+using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
@@ -43,6 +45,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     public class PeerIncomingDriveUploadController : OdinControllerBase
     {
         private readonly ILoggerFactory _loggerFactory;
+        private readonly PeerOutbox _peerOutbox;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
+        private readonly CircleNetworkService _circleNetworkService;
+        private readonly OdinConfiguration _odinConfiguration;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly DriveManager _driveManager;
 
@@ -54,8 +60,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         public PeerIncomingDriveUploadController(DriveManager driveManager,
-             IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
-            ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage)
+            IMediator mediator, 
+            FileSystemResolver fileSystemResolver,
+            PushNotificationService pushNotificationService,
+            ILoggerFactory loggerFactory, 
+            PeerOutbox peerOutbox,
+            IOdinHttpClientFactory odinHttpClientFactory,
+            CircleNetworkService circleNetworkService,
+            OdinConfiguration odinConfiguration,
+            TransitInboxBoxStorage transitInboxBoxStorage)
         {
             _driveManager = driveManager;
             
@@ -63,6 +76,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;
             _loggerFactory = loggerFactory;
+            _peerOutbox = peerOutbox;
+            _odinHttpClientFactory = odinHttpClientFactory;
+            _circleNetworkService = circleNetworkService;
+            _odinConfiguration = odinConfiguration;
             _transitInboxBoxStorage = transitInboxBoxStorage;
         }
 
@@ -96,6 +113,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
+
+            var drive = await _driveManager.GetDriveAsync(transferInstructionSet.TargetDrive);
+            if ((transferInstructionSet.AppNotificationOptions?.Recipients?.Any() ?? false) && !drive.AllowSubscriptions)
+            {
+                throw new OdinSecurityException("Attempt to distribute app notifications to drive which does not allow subscriptions");
+            }
+            
+            // await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
             //End Optimizations
 
             _incomingTransferService = GetPerimeterService(_fileSystem);
@@ -385,8 +410,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _driveManager,
                 fileSystem,
                 _mediator,
-                _fileSystemResolver,
                 _pushNotificationService,
+                _peerOutbox,
+                _odinHttpClientFactory,
+                _circleNetworkService,
+                _fileSystemResolver,
+                _odinConfiguration,
                 _transitInboxBoxStorage);
         }
     }

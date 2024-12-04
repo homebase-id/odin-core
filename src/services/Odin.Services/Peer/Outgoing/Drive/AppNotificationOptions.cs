@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Odin.Core.Identity;
 
 namespace Odin.Services.Peer.Outgoing.Drive;
 
@@ -21,23 +23,15 @@ public class AppNotificationOptions
     /// </summary>
     public bool Silent { get; set; }
 
+    /// <summary>
+    /// An app-specified field uses to filter what notification are allowed to be received from a peer identity
+    /// </summary>
+    public Guid PeerSubscriptionId { get; set; }
+
+    /// <summary>
+    /// If specified, the push notification should only be sent to this list of recipients (instead of any other list)
+    /// </summary>
+    public List<OdinId> Recipients { get; set; }
+
     public string UnEncryptedMessage { get; set; }
-
-    // /// <summary>
-    // /// Additional data added by parts of the system depending on TypeId
-    // /// </summary>
-    // public string UnEncryptedJson { get; set; }
-
-    // public AppNotificationOptions Redacted()
-    // {
-    //     return new AppNotificationOptions
-    //     {
-    //         AppId = this.AppId,
-    //         TypeId = this.TypeId,
-    //         TagId = this.TagId,
-    //         Silent = this.Silent,
-    //         UnEncryptedMessage = this.UnEncryptedJson,
-    //         UnEncryptedJson = null // never send this over push notifications
-    //     };
-    // }
 }

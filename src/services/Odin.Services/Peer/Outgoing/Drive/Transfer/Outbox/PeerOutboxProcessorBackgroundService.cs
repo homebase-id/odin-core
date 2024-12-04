@@ -55,6 +55,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
                     continue;
                 }
+
                 logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
@@ -230,22 +231,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.DeleteRemoteReaction:
                     return await DeleteRemoteReaction(fileItem, odinContext, cancellationToken);
 
+                case OutboxItemType.PeerPushNotification:
+                    return await SendPeerPushNotification(fileItem, odinContext, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> AddRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
-            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<AddRemoteReactionOutboxWorker>();
             var worker = new AddRemoteReactionOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
             return await worker.Send(odinContext, cancellationToken);
         }
-
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> DeleteRemoteReaction(OutboxFileItem fileItem, IOdinContext odinContext,
-            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<DeleteRemoteReactionOutboxWorker>();
@@ -254,7 +255,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendReadReceipt(OutboxFileItem fileItem, IOdinContext odinContext,
-            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendReadReceiptOutboxWorker>();
@@ -299,7 +299,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
         
-        
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPushNotification(
             ILifetimeScope childScope,
             OutboxFileItem fileItem,
@@ -313,6 +312,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 workLogger,
                 appRegistrationService,
                 pushNotificationService);
+
+            return await worker.Send(odinContext, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendPeerPushNotification(OutboxFileItem fileItem,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendPeerPushNotificationOutboxWorker>();
+            var worker = new SendPeerPushNotificationOutboxWorker(
+                fileItem,
+                workLogger,
+                odinConfiguration,
+                odinHttpClientFactory);
 
             return await worker.Send(odinContext, cancellationToken);
         }
@@ -339,7 +352,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendDeleteFileRequest(OutboxFileItem fileItem, IOdinContext odinContext,
-            
             CancellationToken cancellationToken)
         {
             var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();
