@@ -46,6 +46,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads,
+                    AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes
                 }).ToList();
