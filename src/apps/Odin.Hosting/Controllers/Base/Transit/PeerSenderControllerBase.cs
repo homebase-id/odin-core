@@ -155,6 +155,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
+                    UseAppNotification = transitInstructionSet.NotificationOptions != null,
+                    AppNotificationOptions = transitInstructionSet.NotificationOptions,
                 },
                 Manifest = transitInstructionSet.Manifest
             };
