@@ -1,6 +1,5 @@
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.AppNotifications.SystemNotifications;
@@ -14,6 +13,4 @@ public class ConnectionBlockedNotification : MediatorNotificationBase
     /// The identity that was blocked
     /// </summary>
     public OdinId OdinId { get; init; }
-    
-    public IdentityDatabase db { get; init; }
 }

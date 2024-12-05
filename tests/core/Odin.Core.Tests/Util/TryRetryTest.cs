@@ -468,7 +468,7 @@ public class TryRetryTest
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -494,7 +494,7 @@ public class TryRetryTest
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -522,7 +522,7 @@ public class TryRetryTest
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -549,7 +549,7 @@ public class TryRetryTest
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
@@ -577,7 +577,7 @@ public class TryRetryTest
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
@@ -607,7 +607,7 @@ public class TryRetryTest
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));

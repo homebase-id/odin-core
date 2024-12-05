@@ -11,7 +11,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections
     [AuthorizeValidOwnerToken]
     public class OwnerCircleNetworkRequestsController(
         CircleNetworkRequestService cn,
-        CircleNetworkIntroductionService introductionService,
-        TenantSystemStorage tenantSystemStorage)
-        : CircleNetworkRequestsControllerBase(cn, tenantSystemStorage, introductionService);
+        CircleNetworkIntroductionService introductionService)
+        : CircleNetworkRequestsControllerBase(cn, introductionService);
 }

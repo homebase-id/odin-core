@@ -27,13 +27,13 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class AppNotificationHandler(
         PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
-        ILogger<AppNotificationHandler> logger)
+        ILogger<AppNotificationHandler> logger,
+        SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         :
             INotificationHandler<IClientNotification>,
             INotificationHandler<IDriveNotification>,
             INotificationHandler<InboxItemReceivedNotification>
     {
-        private readonly DeviceSocketCollection _deviceSocketCollection = new();
 
         //
 
@@ -51,7 +51,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Key = webSocketKey,
                     Socket = webSocket,
                 };
-                _deviceSocketCollection.AddSocket(deviceSocket);
+                deviceSocketCollection.AddSocket(deviceSocket);
                 await AwaitCommands(deviceSocket, cancellationToken, odinContext);
             }
             catch (OperationCanceledException)
@@ -69,7 +69,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             finally
             {
-                _deviceSocketCollection.RemoveSocket(webSocketKey);
+                deviceSocketCollection.RemoveSocket(webSocketKey);
                 if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
                 {
                     try
@@ -175,7 +175,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = _deviceSocketCollection.GetAll().Values;
+            var sockets = deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
                 await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
@@ -186,7 +186,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var sockets = _deviceSocketCollection.GetAll().Values
+            var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
             foreach (var deviceSocket in sockets)
@@ -198,7 +198,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var o = new ClientDriveNotification
                     {
-                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId, notification.db)).TargetDriveInfo,
+                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null,
@@ -247,7 +247,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = _deviceSocketCollection.GetAll().Values
+            var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
 
             foreach (var deviceSocket in sockets)
@@ -285,7 +285,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             if (deviceSocket.DeviceOdinContext == null)
             {
-                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 logger.LogInformation("Invalid/Stale Device found; removing from list");
                 return;
             }

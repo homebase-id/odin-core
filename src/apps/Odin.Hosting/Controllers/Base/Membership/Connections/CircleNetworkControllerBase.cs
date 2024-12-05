@@ -46,10 +46,11 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
-            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, HttpContext.RequestAborted, WebOdinContext);
             return new JsonResult(result);
         }
 
+        
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {

@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -24,19 +23,19 @@ public class SendPushNotificationOutboxWorker(
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         await PerformanceCounter.MeasureExecutionTime("Notifications SendPushNotification",
             async () =>
             {
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await PushItem(newContext, db, cancellationToken);
+                await PushItem(newContext, cancellationToken);
             });
 
         return (true, UnixTimeUtc.ZeroTime);
     }
 
-    private async Task PushItem(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    private async Task PushItem(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         //HACK as I refactor stuff - I should rather deserialize this in the push notification service?
         var data = fileItem.State.Data?.ToStringFromUtf8Bytes();
@@ -83,7 +82,7 @@ public class SendPushNotificationOutboxWorker(
 
         try
         {
-            await pushNotificationService.PushAsync(pushContent, odinContext, db, cancellationToken);
+            await pushNotificationService.PushAsync(pushContent, odinContext, cancellationToken);
         }
         catch (Exception e)
         {

@@ -19,12 +19,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     public class ClientTokenDriveMetadataController : OdinControllerBase
     {
         private readonly DriveManager _driveManager;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public ClientTokenDriveMetadataController(DriveManager driveManager, TenantSystemStorage tenantSystemStorage)
+
+        public ClientTokenDriveMetadataController(DriveManager driveManager)
         {
             _driveManager = driveManager;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>
@@ -36,10 +36,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            var db = _tenantSystemStorage.IdentityDatabase;
+            
 
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, db);
+            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()

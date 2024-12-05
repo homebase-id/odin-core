@@ -2,7 +2,6 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections.Requests;
@@ -34,7 +33,6 @@ public class IntroductionsAcceptedNotification : MediatorNotificationBase, IClie
 
     public OdinId IntroducerOdinId { get; init; }
     public OdinId Recipient { get; init; }
-    public IdentityDatabase db { get; set; }
 
     public string GetClientData()
     {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Tests
 {

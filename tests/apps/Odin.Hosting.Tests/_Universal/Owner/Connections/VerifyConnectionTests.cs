@@ -113,7 +113,7 @@ public class VerifyConnectionTests
 
         await Disconnect();
     }
-
+    
     [Test]
     public async Task VerifyConnectionFailsWhenRecipientNotConnected()
     {

@@ -4,11 +4,11 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core;
+using Odin.Core.Cache;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -23,22 +23,25 @@ namespace Odin.Services.Authentication.YouAuth;
 
 public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
-    private readonly IMemoryCache _encryptedTokens = new MemoryCache(new MemoryCacheOptions());
     private readonly IAppRegistrationService _appRegistrationService;
-
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
-    private readonly Dictionary<string, bool> _tempConsent;
     private readonly CircleNetworkService _circleNetwork;
+    private readonly IGenericMemoryCache<YouAuthUnifiedService> _encryptedTokens;
+    private readonly SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> _tempConsent;
 
-    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
-        YouAuthDomainRegistrationService domainRegistrationService, CircleNetworkService circleNetwork)
+    public YouAuthUnifiedService(
+        IAppRegistrationService appRegistrationService,
+        YouAuthDomainRegistrationService domainRegistrationService,
+        CircleNetworkService circleNetwork,
+        IGenericMemoryCache<YouAuthUnifiedService> encryptedTokens,
+        SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> tempConsent)
     {
         _appRegistrationService = appRegistrationService;
 
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
-
-        _tempConsent = new Dictionary<string, bool>(StringComparer.InvariantCultureIgnoreCase);
+        _encryptedTokens = encryptedTokens;
+        _tempConsent = tempConsent;
     }
 
     //
@@ -54,15 +57,14 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
-        await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext, db);
+        await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
-            _tempConsent.Remove(clientIdOrDomain);
+            _tempConsent.Remove(clientIdOrDomain, out _);
             return false;
         }
 
@@ -88,7 +90,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     //
 
     public async Task StoreConsentAsync(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
-        IOdinContext odinContext, IdentityDatabase db)
+        IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {
@@ -132,8 +134,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string publicKey,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -205,9 +206,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ec = _encryptedTokens.Get<EncryptedTokenExchange>(exchangeSharedSecretDigest);
+        var found = _encryptedTokens.TryGet<EncryptedTokenExchange>(exchangeSharedSecretDigest, out var ec);
 
-        if (ec == null)
+        if (!found || ec == null)
         {
             return Task.FromResult<EncryptedTokenExchange?>(null);
         }
@@ -219,7 +220,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (!Guid.TryParse(clientIdOrDomain, out var appId))
         {
@@ -242,11 +243,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, IdentityDatabase db)
+    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {
-            if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext, db))
+            if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest, odinContext))
             {
                 throw new OdinSystemException("App must be registered before consent check is possible");
             }

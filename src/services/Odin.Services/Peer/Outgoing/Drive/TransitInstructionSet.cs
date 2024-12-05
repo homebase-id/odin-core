@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
@@ -32,5 +31,8 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public Guid? OverwriteGlobalTransitFileId { get; set; }
 
         public UploadManifest Manifest { get; set; }
+        
+        public AppNotificationOptions NotificationOptions { get; set; }
     }
+    
 }

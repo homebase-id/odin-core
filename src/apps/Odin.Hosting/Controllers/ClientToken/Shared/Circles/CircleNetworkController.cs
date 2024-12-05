@@ -17,12 +17,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
     public class CircleNetworkController : OdinControllerBase
     {
         private readonly CircleNetworkService _circleNetwork;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleNetworkController(CircleNetworkService cn, TenantSystemStorage tenantSystemStorage)
+
+        public CircleNetworkController(CircleNetworkService cn)
         {
             _circleNetwork = cn;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>

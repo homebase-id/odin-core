@@ -14,7 +14,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
     public abstract class CircleNetworkRequestsControllerBase(
         CircleNetworkRequestService circleNetworkRequestService,
-        TenantSystemStorage tenantSystemStorage,
         CircleNetworkIntroductionService introductionService)
         : OdinControllerBase
     {
@@ -149,7 +148,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
 
-            await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, WebOdinContext);
+            await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, HttpContext.RequestAborted, WebOdinContext);
             return true;
         }
 
@@ -159,7 +158,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertNotNull(group, nameof(group));
             OdinValidationUtils.AssertValidRecipientList(group.Recipients);
 
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             var result = await introductionService.SendIntroductions(group, WebOdinContext);
             return new JsonResult(result);
         }
@@ -167,7 +166,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/process-incoming-introductions")]
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             await introductionService.SendOutstandingConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
@@ -175,7 +174,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/auto-accept-eligible-introductions")]
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             await introductionService.AutoAcceptEligibleConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
@@ -184,7 +183,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("introductions/received")]
         public async Task<IActionResult> GetReceivedIntroductions()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             var list = await introductionService.GetReceivedIntroductionsAsync(WebOdinContext);
             return new JsonResult(list);
         }
@@ -192,7 +191,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpDelete("introductions")]
         public async Task<IActionResult> DeleteAllIntroductions()
         {
-            var db = tenantSystemStorage.IdentityDatabase;
+            
             await introductionService.DeleteIntroductionsAsync(WebOdinContext);
             return Ok();
         }

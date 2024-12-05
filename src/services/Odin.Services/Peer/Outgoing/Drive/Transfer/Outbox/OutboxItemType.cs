@@ -16,5 +16,7 @@ public enum OutboxItemType
     
     AddRemoteReaction = 2100,
     
-    DeleteRemoteReaction = 2200
+    DeleteRemoteReaction = 2200,
+    
+    PeerPushNotification = 2077,
 }

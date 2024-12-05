@@ -7,7 +7,6 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -25,7 +24,7 @@ public class AddRemoteReactionOutboxWorker(
     OdinConfiguration odinConfiguration
 ) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, IdentityDatabase db, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -48,7 +47,7 @@ public class AddRemoteReactionOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, db, e);
+                return await HandleOutboxProcessingException(odinContext, e);
             }
             catch (Exception exception)
             {
@@ -129,7 +128,7 @@ public class AddRemoteReactionOutboxWorker(
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(
         IOdinContext odinContext, 
-        IdentityDatabase db,
+        
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -138,8 +137,7 @@ public class AddRemoteReactionOutboxWorker(
 
     protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(
         OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        IdentityDatabase db)
+        IOdinContext odinContext)
     {
         return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }

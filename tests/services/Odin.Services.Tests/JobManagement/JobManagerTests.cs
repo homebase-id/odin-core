@@ -2,22 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
-using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Services.Background;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.Tests.JobManagement.Jobs;
@@ -41,12 +42,6 @@ public class JobManagerTests
     {
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
-        
-        _host = CreateHostedJobManager();
-        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
-
-        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>();
-        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>();
     }
 
     //
@@ -61,13 +56,17 @@ public class JobManagerTests
         {
             Directory.Delete(_tempPath, true);
         }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
     
     //
 
     #region Helpers
     
-    private IHost CreateHostedJobManager()
+    private async Task CreateHostedJobManagerAsync(DatabaseType databaseType)
     {
         var config = new OdinConfiguration
         {
@@ -81,7 +80,7 @@ public class JobManagerTests
             }
         };
 
-        var host = Host.CreateDefaultBuilder()
+        _host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(new AutofacServiceProviderFactory()) // Use Autofac as DI container
             .ConfigureServices((hostContext, services) =>
             {
@@ -94,8 +93,7 @@ public class JobManagerTests
                 services.AddSingleton<ICorrelationContext, CorrelationContext>();
                 services.AddSingleton<IStickyHostnameGenerator, StickyHostnameGenerator>();
                 services.AddSingleton<IStickyHostname, StickyHostname>();
-                services.AddSingleton<ServerSystemStorage>();
-            
+
                 //
                 //  Background services
                 //
@@ -107,15 +105,15 @@ public class JobManagerTests
 
                 services.AddTransient<JobCleanUpBackgroundService>();
                 services.AddTransient<JobRunnerBackgroundService>();
+                services.AddSingleton<
+                    IBackgroundServiceTrigger<JobRunnerBackgroundService>,
+                    BackgroundServiceTrigger<JobRunnerBackgroundService>>();
 
                 //
                 // Jobs
                 //
 
-                services.AddSingleton<IJobManager, JobManager>();
-                services.AddSingleton<
-                    IBackgroundServiceTrigger<JobRunnerBackgroundService>,
-                    BackgroundServiceTrigger<JobRunnerBackgroundService>>();
+                services.AddTransient<IJobManager, JobManager>();
 
                 services.AddTransient<SimpleJobTest>();
                 services.AddTransient<SimpleJobWithDelayTest>();
@@ -128,12 +126,30 @@ public class JobManagerTests
                 services.AddTransient<FailingJobTest>();
                 services.AddTransient<ChainedJobTest>();
                 services.AddTransient<ScopedJobTest>(); services.AddScoped<ScopedJobTestDependency>();
-
-
+            })
+            .ConfigureContainer<ContainerBuilder>((hostContext, builder) =>
+            {
+                builder.AddDatabaseCacheServices();
+                switch (databaseType)
+                {
+                    case DatabaseType.Sqlite:
+                        builder.AddSqliteSystemDatabaseServices(Path.Combine(config.Host.SystemDataRootPath!, "sys.db"));
+                        break;
+                    case DatabaseType.Postgres:
+                        builder.AddPgsqlSystemDatabaseServices(config.Database.ConnectionString);
+                        break;
+                    default:
+                        throw new OdinSystemException("Unsupported database type");
+                }
             })
             .Build();
 
-        return host;
+        var systemDatabase = _host.Services.GetRequiredService<SystemDatabase>();
+        await systemDatabase.CreateDatabaseAsync(true);
+
+        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
+        _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
+        _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
     
     //
@@ -165,9 +181,11 @@ public class JobManagerTests
     //
 
     [Test]
-    public async Task GetCountAsyncShouldReturnZero()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task GetCountAsyncShouldReturnZero(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
         // Act
@@ -182,9 +200,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldScheduleAJob()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldScheduleAJob(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
@@ -227,9 +247,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldDeleteAJob()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldDeleteAJob(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
@@ -262,9 +284,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldGetTheJob()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldGetTheJob(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
         var job = jobManager.NewJob<SimpleJobTest>();
@@ -285,9 +309,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRunTheJobDirectly()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunTheJobDirectly(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
         var job = jobManager.NewJob<SimpleJobTest>();
@@ -313,9 +339,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRunTheJobInTheBackground()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunTheJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         
@@ -343,21 +371,26 @@ public class JobManagerTests
 
 #if !NOISY_NEIGHBOUR
     [Test]
-    public async Task ItShouldRunManyParallelJobsInTheBackground()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunManyParallelJobsInTheBackground(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobList = new List<Guid>();
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        
-        for (var idx = 0; idx < 100; idx++)
+        var logger = _host!.Services.GetRequiredService<ILogger<JobManagerTests>>();
+
+        for (var idx = 0; idx < 200; idx++)
         {
             var job = jobManager.NewJob<SimpleJobWithDelayTest>();
+            job.JobData.Delay = TimeSpan.FromMilliseconds(100);
+            job.JobData.SomeOtherData = idx.ToString();
             var jobId = await jobManager.ScheduleJobAsync(job);
             jobList.Add(jobId);
         }
 
-        // NOTE: moving this to before the job scheduling seems to trigger a rather hefty lock convoy on the db level
-        // and the performance drops significantly. 
+        // NOTE: moving this to before the job scheduling seems to trigger a rather hefty lock convoy on the sqlite level
+        // and the performance drops significantly.
         await StartBackgroundServices();
 
         // Act
@@ -384,15 +417,16 @@ public class JobManagerTests
     //
 
     [Test]
-    [TestCase(true, 1)]
-    [TestCase(true, 3)]
-    [TestCase(true, 30)]
-    [TestCase(false, 1)]
-    [TestCase(false, 3)]
-    [TestCase(false, 30)]
-    public async Task ItShouldRunAndFailAndSucceedDirectly(bool failUsingException, int succeedAtRun)
+    [TestCase(DatabaseType.Sqlite, true, 1)]
+    [TestCase(DatabaseType.Sqlite, true, 3)]
+    [TestCase(DatabaseType.Sqlite, true, 30)]
+    [TestCase(DatabaseType.Sqlite, false, 1)]
+    [TestCase(DatabaseType.Sqlite, false, 3)]
+    [TestCase(DatabaseType.Sqlite, false, 30)]
+    public async Task ItShouldRunAndFailAndSucceedDirectly(DatabaseType databaseType, bool failUsingException, int succeedAtRun)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
@@ -439,17 +473,18 @@ public class JobManagerTests
     //
     
     [Test]
-    [TestCase(true, 1)]
-    [TestCase(true, 2)]
-    [TestCase(true, 3)]
-    [TestCase(true, 10)]
-    [TestCase(false, 1)]
-    [TestCase(false, 2)]
-    [TestCase(false, 3)]
-    [TestCase(false, 10)]
-    public async Task ItShouldRunAndFailAndSucceedInTheBackground(bool failUsingException, int succeedAtRun)
+    [TestCase(DatabaseType.Sqlite, true, 1)]
+    [TestCase(DatabaseType.Sqlite, true, 2)]
+    [TestCase(DatabaseType.Sqlite, true, 3)]
+    [TestCase(DatabaseType.Sqlite, true, 10)]
+    [TestCase(DatabaseType.Sqlite, false, 1)]
+    [TestCase(DatabaseType.Sqlite, false, 2)]
+    [TestCase(DatabaseType.Sqlite, false, 3)]
+    [TestCase(DatabaseType.Sqlite, false, 10)]
+    public async Task ItShouldRunAndFailAndSucceedInTheBackground(DatabaseType databaseType, bool failUsingException, int succeedAtRun)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
@@ -483,15 +518,16 @@ public class JobManagerTests
     //
 
     [Test]
-    [TestCase(true, 1)]
-    [TestCase(true, 3)]
-    [TestCase(true, 30)]
-    [TestCase(false, 1)]
-    [TestCase(false, 3)]
-    [TestCase(false, 30)]
-    public async Task ItShouldRunAndFailAndGiveUpDirectly(bool failUsingException, int maxAttempts)
+    [TestCase(DatabaseType.Sqlite, true, 1)]
+    [TestCase(DatabaseType.Sqlite, true, 3)]
+    [TestCase(DatabaseType.Sqlite, true, 30)]
+    [TestCase(DatabaseType.Sqlite, false, 1)]
+    [TestCase(DatabaseType.Sqlite, false, 3)]
+    [TestCase(DatabaseType.Sqlite, false, 30)]
+    public async Task ItShouldRunAndFailAndGiveUpDirectly(DatabaseType databaseType, bool failUsingException, int maxAttempts)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
@@ -541,15 +577,16 @@ public class JobManagerTests
     //
     
     [Test]
-    [TestCase(true, 1)]
-    [TestCase(true, 3)]
-    [TestCase(true, 10)]
-    [TestCase(false, 1)]
-    [TestCase(false, 3)]
-    [TestCase(false, 10)]
-    public async Task ItShouldRunAndFailAndGiveUpInTheBackground(bool failUsingException, int maxAttempts)
+    [TestCase(DatabaseType.Sqlite, true, 1)]
+    [TestCase(DatabaseType.Sqlite, true, 3)]
+    [TestCase(DatabaseType.Sqlite, true, 10)]
+    [TestCase(DatabaseType.Sqlite, false, 1)]
+    [TestCase(DatabaseType.Sqlite, false, 3)]
+    [TestCase(DatabaseType.Sqlite, false, 10)]
+    public async Task ItShouldRunAndFailAndGiveUpInTheBackground(DatabaseType databaseType, bool failUsingException, int maxAttempts)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
@@ -586,9 +623,11 @@ public class JobManagerTests
     //
 
     [Test]
-    public async Task ItShouldRunAndAbortDirectly()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunAndAbortDirectly(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job = jobManager.NewJob<AbortingJobTest>();
@@ -607,9 +646,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRunAndAbortInTheBackground()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunAndAbortInTheBackground(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
@@ -629,9 +670,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRescheduleDirectly()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRescheduleDirectly(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job = jobManager.NewJob<RescheduleJobTest>();
@@ -655,9 +698,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRescheduleInTheBackground()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRescheduleInTheBackground(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
@@ -682,11 +727,12 @@ public class JobManagerTests
     //
 
     [Test]
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task ItShouldRescheduleOnOperationCancelledDirectly(bool cancelUsingException)
+    [TestCase(DatabaseType.Sqlite, true)]
+    [TestCase(DatabaseType.Sqlite, false)]
+    public async Task ItShouldRescheduleOnOperationCancelledDirectly(DatabaseType databaseType, bool cancelUsingException)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
@@ -714,11 +760,12 @@ public class JobManagerTests
     //
     
     [Test]
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task ItShouldRescheduleOnOperationCancelledInTheBackground(bool cancelUsingException)
+    [TestCase(DatabaseType.Sqlite, true)]
+    [TestCase(DatabaseType.Sqlite, false)]
+    public async Task ItShouldRescheduleOnOperationCancelledInTheBackground(DatabaseType databaseType, bool cancelUsingException)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
 
@@ -747,9 +794,11 @@ public class JobManagerTests
     //
 
     [Test]
-    public async Task ItShouldScheduleUniqueJob()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldScheduleUniqueJob(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job1 = _host!.Services.GetRequiredService<JobWithHashTest>();
@@ -767,11 +816,12 @@ public class JobManagerTests
     //
 
     [Test]
-    [TestCase(0)]
-    [TestCase(100)]
-    public async Task ItShouldDeleteExpiredSuccessfulJobsDirectly(int deleteAfterMilliseconds)
+    [TestCase(DatabaseType.Sqlite, 0)]
+    [TestCase(DatabaseType.Sqlite, 100)]
+    public async Task ItShouldDeleteExpiredSuccessfulJobsDirectly(DatabaseType databaseType, int deleteAfterMilliseconds)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
@@ -825,11 +875,12 @@ public class JobManagerTests
 
 #if !NOISY_NEIGHBOUR    
     [Test]
-    [TestCase(0)]
-    [TestCase(100)]
-    public async Task ItShouldDeleteExpiredSuccessfulJobsInTheBackground(int deleteAfterMilliseconds)
+    [TestCase(DatabaseType.Sqlite, 0)]
+    [TestCase(DatabaseType.Sqlite, 100)]
+    public async Task ItShouldDeleteExpiredSuccessfulJobsInTheBackground(DatabaseType databaseType, int deleteAfterMilliseconds)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
 
@@ -899,11 +950,12 @@ public class JobManagerTests
     //
 
     [Test]
-    [TestCase(0)]
-    [TestCase(100)]
-    public async Task ItShouldDeleteExpiredUnsuccessfulJobsDirectly(int deleteAfterMilliseconds)
+    [TestCase(DatabaseType.Sqlite, 0)]
+    [TestCase(DatabaseType.Sqlite, 100)]
+    public async Task ItShouldDeleteExpiredUnsuccessfulJobsDirectly(DatabaseType databaseType, int deleteAfterMilliseconds)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
 
         var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
@@ -958,11 +1010,12 @@ public class JobManagerTests
 
 #if !NOISY_NEIGHBOUR
     [Test]
-    [TestCase(0)]
-    [TestCase(100)]
-    public async Task ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground(int deleteAfterMilliseconds)
+    [TestCase(DatabaseType.Sqlite, 0)]
+    [TestCase(DatabaseType.Sqlite, 100)]
+    public async Task ItShouldDeleteExpiredUnsuccessfulJobsInTheBackground(DatabaseType databaseType, int deleteAfterMilliseconds)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
         await StartBackgroundServices();
@@ -1030,9 +1083,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRunAChainedJobDirectly()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunAChainedJobDirectly(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         
         var chainedJob = jobManager.NewJob<ChainedJobTest>();
@@ -1057,9 +1112,11 @@ public class JobManagerTests
     //
     
     [Test]
-    public async Task ItShouldRunAChainedJobInTheBackground()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunAChainedJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         
@@ -1088,7 +1145,8 @@ public class JobManagerTests
     //
 
     [Test]
-    public async Task JobShouldHaveInternalChildDiScope()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task JobShouldHaveInternalChildDiScope(DatabaseType databaseType)
     {
         //
         // NOTE:
@@ -1102,6 +1160,9 @@ public class JobManagerTests
         //   this will cause the test to fail because the ScopedTestDependency will be resolved from the parent scope
         //   and not the child scope.
         //
+
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
 
         var scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
         scopedTestDependency.Value = "sanity";
@@ -1133,9 +1194,11 @@ public class JobManagerTests
 
 #if !NOISY_NEIGHBOUR
     [Test]
-    public async Task ItShouldGoToTownOnScheduledUniqueJobs()
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldGoToTownOnScheduledUniqueJobs(DatabaseType databaseType)
     {
         // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _host!.Services.GetRequiredService<IJobManager>();
         await StartBackgroundServices();
         var random = new Random();
@@ -1177,12 +1240,15 @@ public class JobManagerTests
 
     //
 
-    private static async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
+    private async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
+        var logger = _host!.Services.GetRequiredService<ILogger<JobManagerTests>>();
         var sw = Stopwatch.StartNew();
         while (true)
         {
+            logger.LogInformation($"> {jobId}");
             var job = await jobManager.GetJobAsync<T>(jobId) ?? throw new Exception("Test job not found");
+            logger.LogInformation($"< {jobId}");
             if (job.State == status)
             {
                 break;

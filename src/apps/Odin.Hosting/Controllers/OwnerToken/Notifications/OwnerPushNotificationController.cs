@@ -14,9 +14,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     [Route(OwnerApiPathConstants.PushNotificationsV1)]
     public class OwnerPushNotificationController(
         PushNotificationService notificationService,
-        TenantSystemStorage tenantSystemStorage,
         ILoggerFactory loggerFactory)
-        : PushNotificationControllerBase(notificationService, loggerFactory, tenantSystemStorage)
+        : PushNotificationControllerBase(notificationService, loggerFactory)
     {
     }
 }
