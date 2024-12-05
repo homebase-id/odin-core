@@ -82,6 +82,7 @@ public class AutoAcceptTests
         });
 
         Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
@@ -181,6 +182,7 @@ public class AutoAcceptTests
         Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
             "sam should reject since frodo does not have allow introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();

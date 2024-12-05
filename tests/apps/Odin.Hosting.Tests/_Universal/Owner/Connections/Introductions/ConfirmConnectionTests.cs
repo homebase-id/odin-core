@@ -56,6 +56,8 @@ public class ConfirmConnectionTests
             Recipients = [TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId]
         });
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Samwise.OdinId]);
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
