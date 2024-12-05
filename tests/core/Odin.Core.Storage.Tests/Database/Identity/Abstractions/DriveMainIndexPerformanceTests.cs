@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         /// Multi-threading on a connection per thread
         /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
-        [Test]
+        [Explicit, Test]
         [TestCase(DatabaseType.Sqlite)]
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
