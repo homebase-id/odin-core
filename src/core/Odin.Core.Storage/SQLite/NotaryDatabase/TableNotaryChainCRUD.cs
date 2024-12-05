@@ -384,9 +384,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             var item = new NotaryChainRecord();
             item.previousHash = rdr.IsDBNull(0) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.previousHash.Length > 64)
+            if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
-            if (item.previousHash.Length < 16)
+            if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
             item.identity = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
@@ -394,9 +394,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
             item.signedPreviousHash = rdr.IsDBNull(3) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
-            if (item.signedPreviousHash.Length > 200)
+            if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
-            if (item.signedPreviousHash.Length < 16)
+            if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
             item.algorithm = rdr.IsDBNull(4) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
@@ -404,15 +404,15 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.notarySignature = rdr.IsDBNull(6) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
-            if (item.notarySignature.Length > 200)
+            if (item.notarySignature?.Length > 200)
                 throw new Exception("Too much data in notarySignature...");
-            if (item.notarySignature.Length < 16)
+            if (item.notarySignature?.Length < 16)
                 throw new Exception("Too little data in notarySignature...");
             item.recordHash = rdr.IsDBNull(7) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
-            if (item.recordHash.Length > 64)
+            if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
-            if (item.recordHash.Length < 16)
+            if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
        }
@@ -454,9 +454,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
             item.previousHash = rdr.IsDBNull(0) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.previousHash.Length > 64)
+            if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
-            if (item.previousHash.Length < 16)
+            if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
 
             item.identity = rdr.IsDBNull(1) ? 
@@ -467,9 +467,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
             item.signedPreviousHash = rdr.IsDBNull(3) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
-            if (item.signedPreviousHash.Length > 200)
+            if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
-            if (item.signedPreviousHash.Length < 16)
+            if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
 
             item.algorithm = rdr.IsDBNull(4) ? 
@@ -480,9 +480,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
             item.recordHash = rdr.IsDBNull(6) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
-            if (item.recordHash.Length > 64)
+            if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
-            if (item.recordHash.Length < 16)
+            if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
        }

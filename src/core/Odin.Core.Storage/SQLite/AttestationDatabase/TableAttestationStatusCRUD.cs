@@ -274,9 +274,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var item = new AttestationStatusRecord();
             item.attestationId = rdr.IsDBNull(0) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.attestationId.Length > 64)
+            if (item.attestationId?.Length > 64)
                 throw new Exception("Too much data in attestationId...");
-            if (item.attestationId.Length < 16)
+            if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
             item.status = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];

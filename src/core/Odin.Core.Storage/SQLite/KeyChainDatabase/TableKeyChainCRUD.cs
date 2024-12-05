@@ -353,9 +353,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var item = new KeyChainRecord();
             item.previousHash = rdr.IsDBNull(0) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.previousHash.Length > 64)
+            if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
-            if (item.previousHash.Length < 16)
+            if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
             item.identity = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
@@ -363,9 +363,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
             item.signedPreviousHash = rdr.IsDBNull(3) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
-            if (item.signedPreviousHash.Length > 200)
+            if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
-            if (item.signedPreviousHash.Length < 16)
+            if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
             item.algorithm = rdr.IsDBNull(4) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
@@ -373,9 +373,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.recordHash = rdr.IsDBNull(6) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
-            if (item.recordHash.Length > 64)
+            if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
-            if (item.recordHash.Length < 16)
+            if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
        }
@@ -428,9 +428,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             item.previousHash = rdr.IsDBNull(0) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.previousHash.Length > 64)
+            if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
-            if (item.previousHash.Length < 16)
+            if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
 
             item.timestamp = rdr.IsDBNull(1) ? 
@@ -438,9 +438,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             item.signedPreviousHash = rdr.IsDBNull(2) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
-            if (item.signedPreviousHash.Length > 200)
+            if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
-            if (item.signedPreviousHash.Length < 16)
+            if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
 
             item.algorithm = rdr.IsDBNull(3) ? 
@@ -448,9 +448,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             item.recordHash = rdr.IsDBNull(4) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
-            if (item.recordHash.Length > 64)
+            if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
-            if (item.recordHash.Length < 16)
+            if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
        }

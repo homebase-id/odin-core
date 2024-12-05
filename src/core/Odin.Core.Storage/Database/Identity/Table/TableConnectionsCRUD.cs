@@ -411,9 +411,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.data = rdr.IsDBNull(5) ? 
                 null : (byte[])(rdr[5]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = rdr.IsDBNull(6) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
@@ -468,9 +468,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.data = rdr.IsDBNull(3) ? 
                 null : (byte[])(rdr[3]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
 
             item.created = rdr.IsDBNull(4) ? 

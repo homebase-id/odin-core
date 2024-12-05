@@ -582,9 +582,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.value = rdr.IsDBNull(10) ? 
                 null : (byte[])(rdr[10]);
-            if (item.value.Length > 65535)
+            if (item.value?.Length > 65535)
                 throw new Exception("Too much data in value...");
-            if (item.value.Length < 0)
+            if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = rdr.IsDBNull(11) ? 
                 null : new Guid((byte[])rdr[11]);
@@ -660,9 +660,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.value = rdr.IsDBNull(6) ? 
                 null : (byte[])(rdr[6]);
-            if (item.value.Length > 65535)
+            if (item.value?.Length > 65535)
                 throw new Exception("Too much data in value...");
-            if (item.value.Length < 0)
+            if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
 
             item.checkOutStamp = rdr.IsDBNull(7) ? 
@@ -750,9 +750,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.value = rdr.IsDBNull(5) ? 
                 null : (byte[])(rdr[5]);
-            if (item.value.Length > 65535)
+            if (item.value?.Length > 65535)
                 throw new Exception("Too much data in value...");
-            if (item.value.Length < 0)
+            if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
 
             item.checkOutStamp = rdr.IsDBNull(6) ? 

@@ -279,9 +279,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.data = rdr.IsDBNull(3) ? 
                 null : (byte[])(rdr[3]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
@@ -328,9 +328,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.data = rdr.IsDBNull(0) ? 
                 null : (byte[])(rdr[0]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
@@ -391,9 +391,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.data = rdr.IsDBNull(1) ? 
                 null : (byte[])(rdr[1]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
@@ -452,9 +452,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
             item.data = rdr.IsDBNull(1) ? 
                 null : (byte[])(rdr[1]);
-            if (item.data.Length > 65535)
+            if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
-            if (item.data.Length < 0)
+            if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
