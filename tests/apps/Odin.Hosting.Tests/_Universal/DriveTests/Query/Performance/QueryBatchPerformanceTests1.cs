@@ -69,86 +69,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             _scaffold.AssertLogEvents();
         }
 
-        [Test, Explicit]
-        public async Task QueryBatchPerformanceRaw_ScenarioNoTag()
-        {
-            /*
-             * Frodo and sam are chatting; they get into a heated debate and chat goes really fast
-             * As they chat, items are sent out of the outbox to the recipient
-             * As the recipient receives items, the recipient sends back a read-receipt; which also goes into the outbox
-             * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
-             */
-
-            //
-            // Setup
-            //
-            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-
-            await PrepareScenario(frodo, sam);
-            await CreateConversation(frodo, sam);
-
-            //
-            // Act
-            //
-
-            var qbr = new QueryBatchRequest
-            {
-                QueryParams = new()
-                {
-                    TargetDrive = SystemDriveConstants.ChatDrive,
-                    FileType = [ChatMessageFileType],
-                },
-                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
-                {
-                    MaxRecords = 30
-                }
-            };
-
-            // await MeasureRawQueryBatch(frodo, qbr, maxThreads: 1, iterations: 50);
-            await MeasureQueryBatch(frodo, qbr, maxThreads: 100, iterations: 1);
-
-            Console.WriteLine("Test Metrics:");
-            Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
-            Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
-
-            // PerformanceCounter.WriteCounters();
-
-            await Shutdown(frodo, sam);
-        }
-
-
-        private async Task MeasureRawQueryBatch(OwnerApiClientRedux identity, QueryBatchRequest qbr, int maxThreads, int iterations)
-        {
-            async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
-            {
-                using var scope = _scaffold.Services.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<IdentityDatabase>();
-
-                long[] timers = new long[count];
-                var sw = new Stopwatch();
-
-                for (int i = 0; i < count; i++)
-                {
-                    sw.Restart();
-
-
-                    // var response = await identity.DriveRedux.QueryBatch(qbr);
-                    var _ = await db.MainIndexMeta.QueryBatchAsync(qbr.QueryParams.TargetDrive.Alias, 100, null, false);
-
-                    // var results = response.Content.SearchResults;
-                    // response.SearchResults.Count();
-
-                    timers[i] = sw.ElapsedMilliseconds;
-                }
-
-                return (0, timers);
-            }
-
-            await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
-        }
-
 
         [Test, Explicit]
         public async Task QueryBatchPerformance_ScenarioNoTag()
@@ -186,7 +106,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                 }
             };
 
-            await MeasureQueryBatch(frodo, qbr, maxThreads: 100, iterations: 1);
+            await MeasureQueryBatch(frodo, qbr, maxThreads: 50, iterations: 100);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
             Console.WriteLine("Test Metrics:");

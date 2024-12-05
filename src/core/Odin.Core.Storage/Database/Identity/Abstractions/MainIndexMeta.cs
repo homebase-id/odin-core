@@ -338,11 +338,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 int i = 0;
                 while (await rdr.ReadAsync())
                 {
-                    rdr.GetBytes(0, 0, _fileId, 0, 16);
-                    result.Add(new Guid(_fileId));
+                    result.Add(new Guid((byte[])rdr[0]));
 
                     if (fileIdSort == false)
-                        _userDate = rdr.GetInt64(1);
+                        _userDate = (long) rdr[1];
 
                     i++;
                     if (i >= noOfItems)
@@ -584,9 +583,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 while (await rdr.ReadAsync())
                 {
-                    rdr.GetBytes(0, 0, fileId, 0, 16);
-                    result.Add(new Guid(fileId));
-                    ts = rdr.GetInt64(1);
+                    result.Add(new Guid((byte[])rdr[0]));
+                    ts = (long)rdr[1];
                     i++;
                     if (i >= noOfItems)
                         break;

@@ -382,86 +382,38 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new NotaryChainRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 64+1);
-                if (bytesRead > 64)
-                    throw new Exception("Too much data in previousHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in previousHash...");
-                item.previousHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.previousHash, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.identity = rdr.GetString(1);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(2));
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 200+1);
-                if (bytesRead > 200)
-                    throw new Exception("Too much data in signedPreviousHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in signedPreviousHash...");
-                item.signedPreviousHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.signedPreviousHash, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.algorithm = rdr.GetString(4);
-            }
-
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.publicKeyJwkBase64Url = rdr.GetString(5);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(6, 0, tmpbuf, 0, 200+1);
-                if (bytesRead > 200)
-                    throw new Exception("Too much data in notarySignature...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in notarySignature...");
-                item.notarySignature = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.notarySignature, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(7, 0, tmpbuf, 0, 64+1);
-                if (bytesRead > 64)
-                    throw new Exception("Too much data in recordHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in recordHash...");
-                item.recordHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.recordHash, 0, (int) bytesRead);
-            }
+            item.previousHash = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            if (item.previousHash.Length > 64)
+                throw new Exception("Too much data in previousHash...");
+            if (item.previousHash.Length < 16)
+                throw new Exception("Too little data in previousHash...");
+            item.identity = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.signedPreviousHash = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            if (item.signedPreviousHash.Length > 200)
+                throw new Exception("Too much data in signedPreviousHash...");
+            if (item.signedPreviousHash.Length < 16)
+                throw new Exception("Too little data in signedPreviousHash...");
+            item.algorithm = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.publicKeyJwkBase64Url = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.notarySignature = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            if (item.notarySignature.Length > 200)
+                throw new Exception("Too much data in notarySignature...");
+            if (item.notarySignature.Length < 16)
+                throw new Exception("Too little data in notarySignature...");
+            item.recordHash = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
+            if (item.recordHash.Length > 64)
+                throw new Exception("Too much data in recordHash...");
+            if (item.recordHash.Length < 16)
+                throw new Exception("Too little data in recordHash...");
             return item;
        }
 
@@ -500,72 +452,38 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             var item = new NotaryChainRecord();
             item.notarySignature = notarySignature;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 64+1);
-                if (bytesRead > 64)
-                    throw new Exception("Too much data in previousHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in previousHash...");
-                item.previousHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.previousHash, 0, (int) bytesRead);
-            }
+            item.previousHash = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            if (item.previousHash.Length > 64)
+                throw new Exception("Too much data in previousHash...");
+            if (item.previousHash.Length < 16)
+                throw new Exception("Too little data in previousHash...");
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.identity = rdr.GetString(1);
-            }
+            item.identity = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(2));
-            }
+            item.timestamp = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 200+1);
-                if (bytesRead > 200)
-                    throw new Exception("Too much data in signedPreviousHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in signedPreviousHash...");
-                item.signedPreviousHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.signedPreviousHash, 0, (int) bytesRead);
-            }
+            item.signedPreviousHash = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            if (item.signedPreviousHash.Length > 200)
+                throw new Exception("Too much data in signedPreviousHash...");
+            if (item.signedPreviousHash.Length < 16)
+                throw new Exception("Too little data in signedPreviousHash...");
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.algorithm = rdr.GetString(4);
-            }
+            item.algorithm = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.publicKeyJwkBase64Url = rdr.GetString(5);
-            }
+            item.publicKeyJwkBase64Url = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
 
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(6, 0, tmpbuf, 0, 64+1);
-                if (bytesRead > 64)
-                    throw new Exception("Too much data in recordHash...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in recordHash...");
-                item.recordHash = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.recordHash, 0, (int) bytesRead);
-            }
+            item.recordHash = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            if (item.recordHash.Length > 64)
+                throw new Exception("Too much data in recordHash...");
+            if (item.recordHash.Length < 16)
+                throw new Exception("Too little data in recordHash...");
             return item;
        }
 

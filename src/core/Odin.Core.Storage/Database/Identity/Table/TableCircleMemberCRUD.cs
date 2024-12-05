@@ -271,49 +271,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new CircleMemberRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in memberId...");
-                item.memberId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(3))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.memberId = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.data = rdr.IsDBNull(3) ? 
+                null : (byte[])(rdr[3]);
+            if (item.data.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
@@ -357,18 +326,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.circleId = circleId;
             item.memberId = memberId;
 
-            if (rdr.IsDBNull(0))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(0) ? 
+                null : (byte[])(rdr[0]);
+            if (item.data.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
@@ -423,28 +386,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.circleId = circleId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in memberId...");
-                item.memberId = new Guid(guid);
-            }
+            item.memberId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(1) ? 
+                null : (byte[])(rdr[1]);
+            if (item.data.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
@@ -497,28 +447,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.memberId = memberId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(guid);
-            }
+            item.circleId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(1) ? 
+                null : (byte[])(rdr[1]);
+            if (item.data.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
