@@ -33,6 +33,7 @@ public sealed class IcrKeyAvailableScheduler(
         // logger.LogDebug($"IcrKeyAvailableBackgroundService Last run: {_lastRunTime.seconds}");
         if (UnixTimeUtc.Now() < _lastScheduledTime.AddSeconds(MinWaitTimeBetweenRuns))
         {
+            logger.LogDebug("EnsureScheduledAsync - Skipping scheduling");
             return;
         }
         

@@ -473,7 +473,7 @@ public class CollaborationChannelTests
         await collabChannel.Connections.DisconnectFrom(member2.OdinId);
         await member1.Connections.DisconnectFrom(collabChannel.OdinId);
         await member2.Connections.DisconnectFrom(collabChannel.OdinId);
-        
+
         Assert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member1 failed to unfollow collab channel");
         Assert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member2 failed to unfollow collab channel");
     }
