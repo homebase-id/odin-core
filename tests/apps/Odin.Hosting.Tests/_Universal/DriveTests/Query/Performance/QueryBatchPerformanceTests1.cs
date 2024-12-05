@@ -366,6 +366,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
         {
             async Task<(long bytesWritten, long[] measurements)> Func(int threadNumber, int count)
             {
+                long bw = 0;
                 long[] timers = new long[count];
                 var sw = new Stopwatch();
 
@@ -374,6 +375,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     sw.Restart();
 
                     var response = await identity.DriveRedux.QueryBatch(qbr);
+                    bw += response.ContentHeaders.ContentLength ?? 0;
 
                     Assert.IsTrue(response.IsSuccessStatusCode);
                     // var results = response.Content.SearchResults;
@@ -382,7 +384,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     timers[i] = sw.ElapsedMilliseconds;
                 }
 
-                return (0, timers);
+                return (bw, timers);
             }
 
             await PerformanceFramework.ThreadedTestAsync(maxThreads, iterations, Func);
