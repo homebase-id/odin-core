@@ -150,15 +150,30 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("publickey")]
-        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
-            return new GetEccPublicKeyResponse()
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
+            return new GetPublicKeyResponse()
             {
-                PublicKeyJwk = key.PublicKeyJwkBase64Url(),
-                CRC32c = key.crc32c,
+                PublicKey = key.publicKey,
+                Crc32 = key.crc32c,
                 Expiration = key.expiration.milliseconds
             };
         }
+
+        [HttpGet("publickey_ecc")]
+        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        {
+            var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
+            var result = new GetEccPublicKeyResponse()
+            {
+                PublicKeyJwkBase64Url = key.PublicKeyJwkBase64Url(),
+                CRC32c = key.crc32c,
+                Expiration = key.expiration.milliseconds
+            };
+
+            return result;
+        }
+
     }
 }

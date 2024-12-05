@@ -100,7 +100,7 @@ namespace Odin.Services.EncryptionKeyService
                     }
 
                     var content = getPkResponse.Content;
-                    cacheItem = EccPublicKeyData.FromJwkPublicKey(content.PublicKeyJwk);
+                    cacheItem = EccPublicKeyData.FromJwkPublicKey(content.PublicKeyJwkBase64Url);
                     cacheItem.expiration = new UnixTimeUtc(content.Expiration);
                     cacheItem.crc32c = content.CRC32c;
                     

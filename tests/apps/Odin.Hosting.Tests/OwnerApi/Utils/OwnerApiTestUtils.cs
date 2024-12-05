@@ -61,6 +61,7 @@ using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
+using System.Text;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -201,16 +202,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var saltyReply = await CalculatePasswordReply(authClient, password, clientEccFullKey);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            var publicKeyResponse = await svc.GetPublicKey(PublicPrivateKeyType.OfflineKey);
+            var publicKeyResponse = await svc.GetPublicKeyEcc(PublicPrivateKeyType.OfflineKey);
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
-            var hostPublicKey = new EccPublicKeyData()
-            {
-                publicKey = publicKey.PublicKey,
-                crc32c = publicKey.Crc32,
-                expiration = new UnixTimeUtc(publicKey.Expiration)
-            };
+            var hostPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKeyResponse.Content.PublicKeyJwkBase64Url);
+            hostPublicKey.crc32c = publicKey.CRC32c;
+            hostPublicKey.expiration = new UnixTimeUtc(publicKey.Expiration);
 
             var keyHeader = KeyHeader.NewRandom16();
 
