@@ -141,7 +141,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             {
                 IntroducerOdinId = introducer,
                 Identity = identity,
-                Message = introduction.Message
+                Message = introduction.Message,
+                Received = UnixTimeUtc.Now()
             };
 
             await UpsertIntroductionAsync(iid);
