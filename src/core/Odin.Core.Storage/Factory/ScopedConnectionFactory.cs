@@ -480,11 +480,13 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                instance._logger.LogTrace("  ExecuteNonQueryAsync ScopedDbConnection:{id}", instance._connectionId);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
+                    instance._logger.LogTrace("  ExecuteNonQueryAsync ScopedDbConnection:{id}", instance._connectionId);
                     command.Transaction = instance._transaction;
-                    return await command.ExecuteNonQueryAsync(cancellationToken);
+                    var result = await command.ExecuteNonQueryAsync(cancellationToken);
+                    instance._logger.LogTrace("  ExecuteNonQueryAsync done:{id}", instance._connectionId);
+                    return result;
                 }
             }
             catch (Exception)
@@ -501,11 +503,13 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                instance._logger.LogTrace("  ExecuteReaderAsync ScopedDbConnection:{id}", instance._connectionId);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
+                    instance._logger.LogTrace("  ExecuteReaderAsync ScopedDbConnection:{id}", instance._connectionId);
                     command.Transaction = instance._transaction;
-                    return await command.ExecuteReaderAsync(behavior, cancellationToken);
+                    var result = await command.ExecuteReaderAsync(behavior, cancellationToken);
+                    instance._logger.LogTrace("  ExecuteReaderAsync done:{id}", instance._connectionId);
+                    return result;
                 }
             }
             catch (Exception)
@@ -521,11 +525,13 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                instance._logger.LogTrace("  ExecuteScalarAsync ScopedDbConnection:{id}", instance._connectionId);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
+                    instance._logger.LogTrace("  ExecuteScalarAsync ScopedDbConnection:{id}", instance._connectionId);
                     command.Transaction = instance._transaction;
-                    return await command.ExecuteScalarAsync(cancellationToken);
+                    var result = await command.ExecuteScalarAsync(cancellationToken);
+                    instance._logger.LogTrace("  ExecuteScalarAsync done:{id}", instance._connectionId);
+                    return result;
                 }
             }
             catch (Exception)
@@ -541,11 +547,12 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                instance._logger.LogTrace("  PrepareAsync ScopedDbConnection:{id}", instance._connectionId);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
+                    instance._logger.LogTrace("  PrepareAsync ScopedDbConnection:{id}", instance._connectionId);
                     command.Transaction = instance._transaction;
                     await command.PrepareAsync(cancellationToken);
+                    instance._logger.LogTrace("  PrepareAsync done:{id}", instance._connectionId);
                 }
             }
             catch (Exception)
