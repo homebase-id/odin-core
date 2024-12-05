@@ -147,7 +147,7 @@ namespace Odin.Services.EncryptionKeyService
             {
                 RemotePublicKeyJwk = senderEccFullKey.PublicKeyJwk(),  //reminder, this must be the sender's public key
                 Iv = iv,
-                EncryptedData = AesCbc.Encrypt(payload, transferSharedSecret, iv),
+                EncryptedData = AesGcm.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
                 EncryptionPublicKeyCrc32 = recipientPublicKey.crc32c
             };
@@ -155,36 +155,36 @@ namespace Odin.Services.EncryptionKeyService
 
         public async Task<EccEncryptedPayload> EccEncryptPayload(PublicPrivateKeyType keyType, byte[] payload)
         {
-            EccPublicKeyData publicEccKey = await this.GetPublicEccKeyAsync(keyType);
+            EccPublicKeyData recipientPublicEccKey = await this.GetPublicEccKeyAsync(keyType);
 
             //note: here we are throwing a way the full key intentionally
             SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            EccFullKeyData fullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
+            EccFullKeyData senderFullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
 
             var randomSalt = ByteArrayUtil.GetRndByteArray(16);
-            var ss = fullKey.GetEcdhSharedSecret(pwd, publicEccKey, randomSalt);
+            var ss = senderFullKey.GetEcdhSharedSecret(pwd, recipientPublicEccKey, randomSalt);
             var iv = ByteArrayUtil.GetRndByteArray(16);
 
             return new EccEncryptedPayload
             {
-                RemotePublicKeyJwk = fullKey.PublicKeyJwk(),
+                RemotePublicKeyJwk = senderFullKey.PublicKeyJwk(),
                 Iv = iv,
                 EncryptedData = AesGcm.Encrypt(payload, ss, iv),
                 Salt = randomSalt,
-                EncryptionPublicKeyCrc32 = publicEccKey.crc32c
+                EncryptionPublicKeyCrc32 = recipientPublicEccKey.crc32c
             };
         }
 
         public async Task<byte[]> EccDecryptPayload(PublicPrivateKeyType keyType, EccEncryptedPayload payload, IOdinContext odinContext)
         {
-            var publicKey = EccPublicKeyData.FromJwkPublicKey(payload.RemotePublicKeyJwk);
+            var remotePublicKey = EccPublicKeyData.FromJwkPublicKey(payload.RemotePublicKeyJwk);
 
             if (!await IsValidEccPublicKeyAsync(keyType, payload.EncryptionPublicKeyCrc32))
             {
                 throw new OdinClientException("Encrypted Payload Public Key does not match");
             }
 
-            var fullEccKey = await GetEccFullKeyAsync(keyType);
+            var recipientFullEccKey = await GetEccFullKeyAsync(keyType);
 
             SensitiveByteArray key;
             switch (keyType)
@@ -202,7 +202,7 @@ namespace Odin.Services.EncryptionKeyService
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
 
-            var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(key, publicKey, payload.Salt);
+            var transferSharedSecret = recipientFullEccKey.GetEcdhSharedSecret(key, remotePublicKey, payload.Salt);
             return AesGcm.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
