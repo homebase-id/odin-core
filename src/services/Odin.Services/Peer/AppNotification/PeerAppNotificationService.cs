@@ -1,11 +1,18 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
@@ -21,24 +28,89 @@ public class PeerAppNotificationService : PeerServiceBase
 {
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+    private readonly TableKeyThreeValue _tableKeyThreeValue;
+    private readonly PushNotificationService _pushNotificationService;
+    private readonly ThreeKeyValueStorage _notificationSubscriptionStorage;
 
-    /// <summary>
-    /// Handles incoming reactions and queries from followers
-    /// </summary>
+    private readonly byte[] _subscriptionsCategoryKey = Guid.Parse("3265f455-7fac-4569-8637-500119b4ae9d").ToByteArray();
+
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
-        TenantSystemStorage tenantSystemStorage,
+        TableKeyThreeValue tableKeyThreeValue,
         OdinConfiguration config,
-        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+        PushNotificationService pushNotificationService,
+        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
-        _tenantSystemStorage = tenantSystemStorage;
+        _tableKeyThreeValue = tableKeyThreeValue;
+        _pushNotificationService = pushNotificationService;
+        _cache = new(config.Host.CacheSlidingExpirationSeconds);
 
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
+        const string subscriptionContextKey = "e6981b6c-360f-477e-83e3-ed1f5be35209";
+        _notificationSubscriptionStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(subscriptionContextKey));
     }
 
+    public async Task<PeerTransferResponse> EnqueuePushNotification(PushNotificationOutboxRecord record, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsAuthenticated();
+
+        var caller = odinContext.GetCallerOdinIdOrFail();
+
+        var isConnected = (await CircleNetworkService.GetIcrAsync(caller, odinContext, true)).IsConnected();
+        if (!isConnected)
+        {
+            throw new OdinSecurityException("Caller not connected");
+        }
+
+        var subscriptions = await GetSubscriptionsByIdentityInternal(caller);
+        if (subscriptions.All(sub => sub.SubscriptionId != record.Options.PeerSubscriptionId))
+        {
+            throw new OdinSecurityException("Invalid subscription Id");
+        }
+
+        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+        await _pushNotificationService.EnqueueNotification(record.SenderId, record.Options, newContext);
+
+        return new PeerTransferResponse
+        {
+            Code = PeerResponseCode.AcceptedIntoInbox
+        };
+    }
+
+    /// <summary>
+    /// Allows a peer to send this identity push notifications
+    /// </summary>
+    public async Task SubscribePeerAsync(PeerNotificationSubscription request, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        await _notificationSubscriptionStorage.UpsertAsync(_tableKeyThreeValue, request.ToKey(), request.Identity.ToHashId().ToByteArray(),
+            _subscriptionsCategoryKey, request);
+    }
+
+
+    /// <summary>
+    /// Revokes a peer identity from sending this identity push notifications
+    /// </summary>
+    public async Task UnsubscribePeerAsync(PeerNotificationSubscription request, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(request.SubscriptionId, nameof(request.SubscriptionId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        await _notificationSubscriptionStorage.DeleteAsync(_tableKeyThreeValue, request.ToKey());
+    }
+
+    public async Task<List<PeerNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+
+        var list = await _notificationSubscriptionStorage.GetByCategoryAsync<PeerNotificationSubscription>(
+            _tableKeyThreeValue,
+            _subscriptionsCategoryKey);
+        return list.ToList();
+    }
 
     public async Task<SharedSecretEncryptedPayload> CreateNotificationToken(IOdinContext odinContext)
     {
@@ -49,15 +121,14 @@ public class PeerAppNotificationService : PeerServiceBase
     }
 
     /// <summary>
-    /// Calls to a remote identity to get an <see cref="ClientAccessToken"/> 
+    /// Calls to a remote identity to get an <see cref="ClientAccessToken"/>
     /// </summary>
     public async Task<AppNotificationTokenResponse> GetRemoteNotificationToken(GetRemoteTokenRequest request, IOdinContext odinContext)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Identity, nameof(request.Identity));
 
-        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, db, odinContext);
+        var (targetIdentityCat, client) = await CreateHttpClientAsync<IPeerAppNotificationHttpClient>(request.Identity, odinContext);
 
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try
@@ -81,7 +152,7 @@ public class PeerAppNotificationService : PeerServiceBase
         var clientAccessToken = ClientAccessToken.FromPortableBytes(portableBytes);
         return new AppNotificationTokenResponse
         {
-            AuthenticationToken64= clientAccessToken.ToAuthenticationToken().ToPortableBytes64(),
+            AuthenticationToken64 = clientAccessToken.ToAuthenticationToken().ToPortableBytes64(),
             SharedSecret = clientAccessToken.SharedSecret.GetKey()
         };
     }
@@ -99,7 +170,8 @@ public class PeerAppNotificationService : PeerServiceBase
 
             var accessReg = peerIcrClient.AccessRegistration;
             var odinContext =
-                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg, currentOdinContext);
+                await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg,
+                    currentOdinContext);
             return odinContext;
         }
 
@@ -162,5 +234,14 @@ public class PeerAppNotificationService : PeerServiceBase
         {
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
+    }
+
+
+    private async Task<List<PeerNotificationSubscription>> GetSubscriptionsByIdentityInternal(OdinId identity)
+    {
+        var list = await _notificationSubscriptionStorage.GetByKey2And3Async<PeerNotificationSubscription>(
+            _tableKeyThreeValue,
+            identity.ToHashId().ToByteArray(), _subscriptionsCategoryKey);
+        return list.ToList();
     }
 }

@@ -6,10 +6,9 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
-using Odin.Services.Base;
 
 namespace Odin.Services.JobManagement;
 
@@ -33,12 +32,11 @@ public class JobManager(
     ILogger<JobManager> logger,
     ICorrelationContext correlationContext,
     ILifetimeScope lifetimeScope,
-    ServerSystemStorage serverSystemStorage,
+    TableJobs tableJobs,
     IBackgroundServiceTrigger<JobRunnerBackgroundService> backgroundServiceTrigger)
     : IJobManager
 {
-    private readonly TableJobs _tblJobs = serverSystemStorage.Jobs;
-    
+
     //
 
     public T NewJob<T>() where T : AbstractJob
@@ -74,12 +72,12 @@ public class JobManager(
             jobHash = job.CreateJobHash(),
             lastError = null,
         };
-        
+
         if (record.jobHash == null)
         {
             logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
                 job.Name, jobId, schedule.RunAt.ToString("O"));
-            await _tblJobs.InsertAsync(record);
+            await tableJobs.InsertAsync(record);
         }
         else
         {
@@ -95,11 +93,11 @@ public class JobManager(
             var attempt = 0;
             while (inserted == 0 && attempt < 5)
             {
-                inserted = await _tblJobs.TryInsertAsync(record);
+                inserted = await tableJobs.TryInsertAsync(record);
                 if (inserted == 0)
                 {
                     // Job already exists, lets look it up using the jobHash
-                    var existingRecord = await _tblJobs.GetJobByHashAsync(record.jobHash);
+                    var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
                     if (existingRecord != null)
                     {
                         logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
@@ -130,10 +128,12 @@ public class JobManager(
     // You should only call this directly when testing the job.
     public async Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        using var childScope = lifetimeScope.BeginLifetimeScope();
+        await using var scope = lifetimeScope.BeginLifetimeScope($"RunJobNowAsync:{Guid.NewGuid()}");
         try
         {
-            using var job = await GetJobAsync<AbstractJob>(jobId, childScope);
+            // Many jobs can run in parallel, so we execute each in its own scope to avoid conflicts and excessive locking.
+            var jobManager = (JobManager)scope.Resolve<IJobManager>();
+            using var job = await jobManager.GetJobAsync<AbstractJob>(jobId);
 
             if (job?.Record == null)
             {
@@ -141,7 +141,7 @@ public class JobManager(
             }
 
             correlationContext.Id = job.Record.correlationId;
-            await ExecuteAsync(job, cancellationToken);
+            await jobManager.ExecuteAsync(job, cancellationToken);
         }
         catch (Exception e)
         {
@@ -279,7 +279,7 @@ public class JobManager(
                     record.name, record.id, record.runCount, record.lastError);
                 if (record.onFailureDeleteAfter == 0)
                 {
-                    logger.LogDebug("JobManager deleting failed job '{name}' id:{jobId}", record.name, record.id);
+                    logger.LogDebug("JobManager deleting unsuccessful job '{name}' id:{jobId}", record.name, record.id);
                     await DeleteAsync(record);
                 }
                 else
@@ -302,23 +302,16 @@ public class JobManager(
     
     //
 
-    public Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
+    public async Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
     {
-        return GetJobAsync<T>(jobId, lifetimeScope);
-    }
-
-    //
-
-    private async Task<T?> GetJobAsync<T>(Guid jobId, ILifetimeScope scope) where T : AbstractJob
-    {
-        var record = await _tblJobs.GetAsync(jobId);
+        var record = await tableJobs.GetAsync(jobId);
     
         if (record == null!)
         {
             return null;
         }
 
-        var job = AbstractJob.CreateInstance<T>(scope, record);
+        var job = AbstractJob.CreateInstance<T>(lifetimeScope, record);
     
         return job;
     }
@@ -327,38 +320,38 @@ public class JobManager(
     
     public async Task<long> CountJobsAsync()
     {
-        var result = await _tblJobs.GetCountAsync();
+        var result = await tableJobs.GetCountAsync();
         return result;
     }
-    
+
     //
     
     public async Task<bool> JobExistsAsync(Guid jobId)
     {
-        var result = await _tblJobs.JobIdExistsAsync(jobId);
+        var result = await tableJobs.JobIdExistsAsync(jobId);
         return result;
     }
-    
+
     //
 
     public async Task<bool> DeleteJobAsync(Guid jobId)
     {
-        var result = await _tblJobs.DeleteAsync(jobId);
+        var result = await tableJobs.DeleteAsync(jobId);
         return result > 0;
     }
-    
+
     //
 
     public async Task DeleteExpiredJobsAsync()
     {
-        await _tblJobs.DeleteExpiredJobsAsync();
+        await tableJobs.DeleteExpiredJobsAsync();
     }
 
     //
 
     private async Task<int> UpdateAsync(JobsRecord record)
     {
-        var updated = await _tblJobs.UpdateAsync(record);
+        var updated = await tableJobs.UpdateAsync(record);
         backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
@@ -367,7 +360,7 @@ public class JobManager(
 
     private async Task<int> UpsertAsync(JobsRecord record)
     {
-        var updated = await _tblJobs.UpsertAsync(record);
+        var updated = await tableJobs.UpsertAsync(record);
         backgroundServiceTrigger.PulseBackgroundProcessor();
         return updated;
     }
@@ -376,7 +369,7 @@ public class JobManager(
     
     private async Task<int> DeleteAsync(JobsRecord record)
     {
-        var deleted = await _tblJobs.DeleteAsync(record.id);
+        var deleted = await tableJobs.DeleteAsync(record.id);
         backgroundServiceTrigger.PulseBackgroundProcessor();
         return deleted;
     } 

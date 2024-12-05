@@ -16,7 +16,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Refit;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Core.X509;
@@ -40,35 +40,34 @@ namespace Odin.Services.AppNotifications.Push;
 public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
-    TenantSystemStorage storage,
     PublicPrivateKeyService keyService,
     NotificationListService notificationListService,
     IHttpClientFactory httpClientFactory,
     ICertificateCache certificateCache,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
-    IMediator mediator)
+    IMediator mediator,
+    TableKeyTwoValue twoKeyValue)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
-    private readonly TwoKeyValueStorage _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
-    private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
+    private static readonly TwoKeyValueStorage DeviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
+    private static readonly byte[] DeviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
-        IdentityDatabase db)
+    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
         //validate the calling app on the recipient server have access to send notifications
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        return await EnqueueNotificationInternalAsync(senderId, options, odinContext, db);
+        return await EnqueueNotificationInternalAsync(senderId, options, odinContext);
     }
 
 
-    public async Task AddDeviceAsync(PushNotificationSubscription subscription, IOdinContext odinContext, IdentityDatabase db)
+    public async Task AddDeviceAsync(PushNotificationSubscription subscription, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -77,41 +76,41 @@ public class PushNotificationService(
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        await _deviceSubscriptionStorage.UpsertAsync(db, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+        await DeviceSubscriptionStorage.UpsertAsync(twoKeyValue, subscription.AccessRegistrationId, DeviceStorageDataType, subscription);
     }
 
-    public async Task<PushNotificationSubscription> GetDeviceSubscriptionAsync(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PushNotificationSubscription> GetDeviceSubscriptionAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        return await _deviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(db, GetDeviceKey(odinContext));
+        return await DeviceSubscriptionStorage.GetAsync<PushNotificationSubscription>(twoKeyValue, GetDeviceKey(odinContext));
     }
 
-    public async Task RemoveDeviceAsync(IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveDeviceAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        await RemoveDeviceAsync(GetDeviceKey(odinContext), odinContext, db);
+        await RemoveDeviceAsync(GetDeviceKey(odinContext), odinContext);
     }
 
-    public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        await _deviceSubscriptionStorage.DeleteAsync(db, deviceKey);
+        await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
-    public async Task RemoveAllDevicesAsync(IOdinContext odinContext, IdentityDatabase db)
+    public async Task RemoveAllDevicesAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var subscriptions = await GetAllSubscriptionsAsync(odinContext, db);
+        var subscriptions = await GetAllSubscriptionsAsync(odinContext);
         foreach (var sub in subscriptions)
         {
-            await _deviceSubscriptionStorage.DeleteAsync(db, sub.AccessRegistrationId);
+            await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, sub.AccessRegistrationId);
         }
     }
 
-    public async Task<List<PushNotificationSubscription>> GetAllSubscriptionsAsync(IOdinContext odinContext, IdentityDatabase db)
+    public async Task<List<PushNotificationSubscription>> GetAllSubscriptionsAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        var subscriptions = await _deviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(db, _deviceStorageDataType);
+        var subscriptions = await DeviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(twoKeyValue, DeviceStorageDataType);
         return subscriptions?.ToList() ?? new List<PushNotificationSubscription>();
     }
 
@@ -124,8 +123,7 @@ public class PushNotificationService(
                 TagId = notification.Recipient.ToHashId(),
                 Silent = false
             },
-            notification.OdinContext,
-            notification.db);
+            notification.OdinContext);
     }
 
     public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
@@ -137,18 +135,17 @@ public class PushNotificationService(
                 TagId = notification.Sender.ToHashId(),
                 Silent = false
             },
-            notification.OdinContext,
-            notification.db);
+            notification.OdinContext);
     }
 
-    public async Task PushAsync(PushNotificationContent content, IOdinContext odinContext, IdentityDatabase db,
+    public async Task PushAsync(PushNotificationContent content, IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting push notification");
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var subscriptions = await GetAllSubscriptionsAsync(odinContext, db);
+        var subscriptions = await GetAllSubscriptionsAsync(odinContext);
         var keys = await keyService.GetEccNotificationsKeysAsync();
 
         var tasks = new List<Task>();
@@ -156,13 +153,13 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPushAsync(subscription, keys, content, odinContext, db, cancellationToken));
+                tasks.Add(WebPushAsync(subscription, keys, content, odinContext, cancellationToken));
             }
             else
             {
                 foreach (var payload in content.Payloads)
                 {
-                    tasks.Add(DevicePushAsync(subscription, payload, odinContext, db));
+                    tasks.Add(DevicePushAsync(subscription, payload, odinContext));
                 }
             }
         }
@@ -172,7 +169,7 @@ public class PushNotificationService(
 
     private async Task WebPushAsync(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content,
         IOdinContext odinContext,
-        IdentityDatabase db, CancellationToken cancellationToken)
+         CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
 
@@ -190,7 +187,7 @@ public class PushNotificationService(
         {
             if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
+                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
                 logger.LogInformation(
                     "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
@@ -200,7 +197,7 @@ public class PushNotificationService(
 
             if (exception.Message.StartsWith("Received unexpected response code: 403", true, CultureInfo.InvariantCulture))
             {
-                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
+                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
                 logger.LogInformation(
                     "Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
                     exception.Message, subscription.AccessRegistrationId);
@@ -225,8 +222,7 @@ public class PushNotificationService(
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
-    private async Task DevicePushAsync(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext,
-        IdentityDatabase db)
+    private async Task DevicePushAsync(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
     {
         logger.LogDebug("Attempting DevicePush Notification");
 
@@ -290,7 +286,7 @@ public class PushNotificationService(
                     if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
                     {
                         logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext, db);
+                        await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
                     }
                     else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                     {
@@ -330,8 +326,7 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext,
-        IdentityDatabase db)
+    private async Task<bool> EnqueueNotificationInternalAsync(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
         var timestamp = UnixTimeUtc.Now().milliseconds;
 
@@ -374,7 +369,6 @@ public class PushNotificationService(
         await mediator.Publish(new PushNotificationEnqueuedNotification()
         {
             OdinContext = odinContext,
-            db = db,
         });
         return true;
     }

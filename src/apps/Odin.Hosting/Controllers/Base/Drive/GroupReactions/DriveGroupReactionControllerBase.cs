@@ -14,13 +14,13 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
 {
     private const string SwaggerSection = "Group Reactions";
     private readonly GroupReactionService _groupReactionService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
-    public DriveGroupReactionControllerBase(GroupReactionService groupReactionService, TenantSystemStorage tenantSystemStorage)
+    public DriveGroupReactionControllerBase(GroupReactionService groupReactionService)
     {
         _groupReactionService = groupReactionService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>
@@ -30,9 +30,9 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpPost]
     public async Task<AddReactionResult> AddReactionContent([FromBody] AddReactionRequestRedux request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
-        return await _groupReactionService.AddReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
+        return await _groupReactionService.AddReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -43,9 +43,9 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpDelete]
     public async Task<DeleteReactionResult> DeleteReactionContent([FromBody] DeleteReactionRequestRedux request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
-        return await _groupReactionService.DeleteReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext, db,
+        return await _groupReactionService.DeleteReactionAsync(request.File, request.Reaction, request.TransitOptions, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -54,8 +54,8 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpGet]
     public async Task<GetReactionsResponse> GetAllReactions([FromQuery] GetReactionsRequestRedux request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        return await _groupReactionService.GetReactionsAsync(request.File, request.Cursor, request.MaxRecords, WebOdinContext, db,
+        
+        return await _groupReactionService.GetReactionsAsync(request.File, request.Cursor, request.MaxRecords, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -66,10 +66,10 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpGet("by-identity")]
     public async Task<List<string>> GetReactionsByIdentity([FromQuery] GetReactionsByIdentityRequestRedux request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
+        
 
         OdinValidationUtils.AssertIsValidOdinId(request.Identity, out var identity);
-        return await _groupReactionService.GetReactionsByIdentityAndFileAsync(identity, request.File, WebOdinContext, db,
+        return await _groupReactionService.GetReactionsByIdentityAndFileAsync(identity, request.File, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
@@ -80,8 +80,8 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpGet("summary")]
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromQuery] GetReactionsRequestRedux request)
     {
-        var db = _tenantSystemStorage.IdentityDatabase;
-        return await _groupReactionService.GetReactionCountsByFileAsync(request.File, WebOdinContext, db,
+        
+        return await _groupReactionService.GetReactionCountsByFileAsync(request.File, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 }

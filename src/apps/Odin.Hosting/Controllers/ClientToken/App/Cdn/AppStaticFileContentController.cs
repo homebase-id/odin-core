@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Cdn
     [AuthorizeValidAppToken]
     public class AppStaticFileContentController : StaticFileContentPublishControllerBase
     {
-        public AppStaticFileContentController(StaticFileContentService staticFileContentService, TenantSystemStorage tenantSystemStorage) : base(staticFileContentService)
+        public AppStaticFileContentController(StaticFileContentService staticFileContentService) : base(staticFileContentService)
         {
         }
     }

@@ -16,12 +16,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
     public class YouAuthDomainRegistrationController : OdinControllerBase
     {
         private readonly YouAuthDomainRegistrationService _registrationService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public YouAuthDomainRegistrationController(YouAuthDomainRegistrationService registrationService, TenantSystemStorage tenantSystemStorage)
+
+        public YouAuthDomainRegistrationController(YouAuthDomainRegistrationService registrationService)
         {
             _registrationService = registrationService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>

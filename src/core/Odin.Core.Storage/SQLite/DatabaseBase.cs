@@ -67,13 +67,6 @@ namespace Odin.Core.Storage.SQLite
 #endif
         }
 
-        public static void AssertGuidNotEmpty(Guid? g, string message = "Guid is not allowed to be empty")
-        {
-            if (g == Guid.Empty)
-                throw new OdinSystemException(message);
-        }
-
-
         public virtual void ClearCache()
         {
         }

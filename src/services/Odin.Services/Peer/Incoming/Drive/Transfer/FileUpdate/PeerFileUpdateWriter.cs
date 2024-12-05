@@ -7,7 +7,6 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Apps;
@@ -30,16 +29,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+            IOdinContext odinContext)
         {
             var fileSystemType = instructionSet.FileSystemType;
             var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
-            var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext, db);
+            var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext);
 
             // Validations
-            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext, db);
-            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext, db);
+            var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
+            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext);
             
             if (!isCollaborationChannel)
             {
@@ -79,20 +77,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatchAsync(tempFile, targetFile, manifest, odinContext, db);
+                await fs.Storage.UpdateBatchAsync(tempFile, targetFile, manifest, odinContext);
             });
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
             InternalDriveFileId tempFile,
             IDriveFileSystem fs,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+            IOdinContext odinContext)
         {
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, db);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
 
                 if (bytes == null)
                 {
@@ -125,8 +122,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             FileSystemType fileSystemType,
             FileMetadata metadata,
-            IOdinContext odinContext,
-            IdentityDatabase db)
+            IOdinContext odinContext)
         {
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -135,13 +131,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(tempFile.DriveId, db);
+            var drive = await driveManager.GetDriveAsync(tempFile.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
-                targetAcl = await ResetAclForComment(metadata, odinContext, db);
+                targetAcl = await ResetAclForComment(metadata, odinContext);
             }
             else
             {
@@ -162,12 +158,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
             IDriveFileSystem fs,
-            IOdinContext odinContext, IdentityDatabase db)
+            IOdinContext odinContext)
         {
             var targetDriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
 
             SharedSecretEncryptedFileHeader header =
-                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext, db);
+                await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext);
 
             if (header == null)
             {
@@ -184,11 +180,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return (targetFile, header);
         }
 
-        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext, IdentityDatabase db)
+        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)
         {
             AccessControlList targetAcl;
 
-            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext, db);
+            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext);
 
             if (null == referencedFs || !fileId.HasValue)
             {
@@ -201,7 +197,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //
 
             var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
-                metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true, db: db);
+                metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true);
 
             if (null == referencedFile)
             {

@@ -3,10 +3,9 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
@@ -24,10 +23,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     IMediator mediator,
-    FileSystemResolver fileSystemResolver)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration odinConfiguration)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
-    public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Payload, nameof(request.Payload));
@@ -36,11 +36,11 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    public async Task<PeerResponseCode> DeleteReaction(RemoteReactionRequestRedux request, IOdinContext odinContext, IdentityDatabase db)
+    public async Task<PeerResponseCode> DeleteReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Payload, nameof(request.Payload));
@@ -49,12 +49,12 @@ public class PeerIncomingGroupReactionInboxRouterService(
 
         odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
 
-        await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext, db);
+        await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
     }
 
-    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request, IOdinContext odinContext,
-        IdentityDatabase db)
+    private async Task RouteReactionActionToInboxAsync(TransferInstructionType instruction, RemoteReactionRequestRedux request,
+        IOdinContext odinContext)
     {
         var file = request.File;
 
@@ -84,7 +84,6 @@ public class PeerIncomingGroupReactionInboxRouterService(
             TransferFileType = TransferFileType.Normal,
             FileSystemType = item.FileSystemType,
             OdinContext = odinContext,
-            db = db
         });
     }
 }

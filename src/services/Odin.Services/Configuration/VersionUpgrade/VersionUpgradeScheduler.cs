@@ -59,11 +59,29 @@ public sealed class VersionUpgradeScheduler(
     public async Task<bool> RequiresUpgradeAsync()
     {
         var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
+        var failure = await configService.GetVersionFailureInfoAsync();
+
+        bool upgradeRequired;
+        var versionTooLow = currentVersion < ReleaseVersionInfo.DataVersionNumber;
+        if (failure == null)
+        {
+            upgradeRequired = versionTooLow;
+        }
+        else
+        {
+            upgradeRequired = versionTooLow && failure.BuildVersion != ReleaseVersionInfo.BuildVersion;
+        }
+
+        if (upgradeRequired)
+        {
+            logger.LogDebug("Upgrade is required.  Current Version: {cv}, release version: {rv} " +
+                            "(previously failed build version: {failure})",
+                currentVersion,
+                ReleaseVersionInfo.DataVersionNumber,
+                failure?.BuildVersion ?? "none");
+        }
         
-        logger.LogInformation("Checking Requires Upgrade.  current Version: {cv}, release version: {rv}",
-            currentVersion, ReleaseVersionInfo.DataVersionNumber);
-        
-        return currentVersion != ReleaseVersionInfo.DataVersionNumber;
+        return upgradeRequired;
     }
 
     public static void SetRequiresUpgradeResponse(HttpContext context)

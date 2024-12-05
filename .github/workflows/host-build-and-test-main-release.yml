@@ -25,7 +25,12 @@ jobs:
 
       - name: Build
         run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="NOISY_NEIGHBOUR" ./odin-core.sln
+        # run: dotnet build --no-restore --configuration Debug --warnaserror --property:DefineConstants="NOISY_NEIGHBOUR" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
+        # run: dotnet test --no-build --configuration Debug --verbosity normal ./odin-core.sln
+        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+        
 

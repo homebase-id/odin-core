@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
+using Odin.Core.Storage.Database;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Email;
@@ -31,6 +32,7 @@ namespace Odin.Services.Configuration
         public TransitSection Transit { get; init; }
 
         public PushNotificationSection PushNotification { get; init; }
+        public DatabaseSection Database { get; init; }
 
         public OdinConfiguration()
         {
@@ -56,6 +58,7 @@ namespace Odin.Services.Configuration
 
             CertificateRenewal = new CertificateRenewalSection(config);
             PushNotification = new PushNotificationSection(config);
+            Database = new DatabaseSection(config);
         }
 
         //
@@ -425,6 +428,28 @@ namespace Odin.Services.Configuration
             public PushNotificationSection(IConfiguration config)
             {
                 BaseUrl = config.GetOrDefault("PushNotification:BaseUrl", "https://push.homebase.id");
+            }
+        }
+        
+        //
+
+        public class DatabaseSection
+        {
+            public DatabaseType Type { get; init; }
+            public string ConnectionString { get; init; } = "";
+
+            public DatabaseSection()
+            {
+                // Mockable support
+            }
+
+            public DatabaseSection(IConfiguration config)
+            {
+                Type = config.GetOrDefault("Database:Type", DatabaseType.Sqlite);
+                if (Type != DatabaseType.Sqlite) // Sqlite doesn't require a connection string
+                {
+                    ConnectionString = config.Required<string>("Database:ConnectionString");        
+                }
             }
         }
     }

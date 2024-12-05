@@ -2,7 +2,6 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
 
@@ -13,7 +12,6 @@ public class NewFollowerNotification : MediatorNotificationBase, IClientNotifica
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.NewFollower;
     public Guid NotificationTypeId { get; } = Guid.Parse("2cc468af-109b-4216-8119-542401e32f4d");
     public OdinId Sender { get; init; }
-    public IdentityDatabase db { get; init; }
 
     public string GetClientData()
     {

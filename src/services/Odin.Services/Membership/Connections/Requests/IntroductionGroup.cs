@@ -42,4 +42,5 @@ public class IdentityIntroduction
     public UnixTimeUtc LastProcessed { get; set; }
     
     public int SendAttemptCount { get; set; }
+    public UnixTimeUtc Received { get; init; }
 }

@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage;
 
@@ -26,12 +26,13 @@ public class SingleKeyValueStorage
     /// <summary>
     /// Gets T by key.  
     /// </summary>
+    /// <param name="tblKeyValue"></param>
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public async Task<T> GetAsync<T>(IdentityDatabase db, Guid key) where T : class
+    public async Task<T> GetAsync<T>(TableKeyValue tblKeyValue, Guid key) where T : class
     {
-        var item = await db.tblKeyValue.GetAsync(MakeStorageKey(key));
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
 
         if (null == item)
         {
@@ -46,27 +47,26 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public async Task UpsertManyAsync<T>(IdentityDatabase db, List<(Guid key, T value)> keyValuePairs)
+    public async Task UpsertManyAsync<T>(TableKeyValue tblKeyValue, List<(Guid key, T value)> keyValuePairs)
     {
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
         {
             key = MakeStorageKey(pair.key),
-            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray(),
-            identityId = db._identityId
+            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray()
         }).ToList();
 
-        await db.tblKeyValue.UpsertManyAsync(keyValueRecords);
+        await tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
-    public async Task UpsertAsync<T>(IdentityDatabase db, Guid key, T value)
+    public async Task UpsertAsync<T>(TableKeyValue tblKeyValue, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        await db.tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public async Task DeleteAsync(IdentityDatabase db, Guid key)
+    public async Task DeleteAsync(TableKeyValue tblKeyValue, Guid key)
     {
-        await db.tblKeyValue.DeleteAsync(MakeStorageKey(key));
+        await tblKeyValue.DeleteAsync(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)
