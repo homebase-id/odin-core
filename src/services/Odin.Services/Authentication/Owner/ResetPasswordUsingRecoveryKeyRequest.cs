@@ -6,7 +6,7 @@ namespace Odin.Services.Authentication.Owner;
 
 public class ResetPasswordUsingRecoveryKeyRequest
 {
-    public RsaEncryptedPayload EncryptedRecoveryKey { get; set; }
+    public EccEncryptedPayload EncryptedRecoveryKey { get; set; }
     public PasswordReply PasswordReply { get; set; }
 }
 

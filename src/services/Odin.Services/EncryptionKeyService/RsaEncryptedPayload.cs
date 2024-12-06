@@ -29,6 +29,8 @@ namespace Odin.Services.EncryptionKeyService
     
     public class EccEncryptedPayload
     {
+        // PROBABLY MERGE IV & SALT
+
         /// <summary>
         /// Initialization Vector for EncryptedData
         /// </summary>
@@ -40,9 +42,9 @@ namespace Odin.Services.EncryptionKeyService
         public byte[] EncryptedData { get; set; }
 
         /// <summary>
-        /// Public key used to generate the shared secret for encrypting the EncryptedData
+        /// Remote public key used to generate the shared secret for encrypting the EncryptedData
         /// </summary>
-        public string PublicKey { get; set; }
+        public string RemotePublicKeyJwk { get; set; }
 
         /// <summary>
         /// Salt used for generating the shared secret for encrypted the EncryptedData
@@ -50,7 +52,7 @@ namespace Odin.Services.EncryptionKeyService
         public byte[] Salt { get; set; }
 
         /// <summary>
-        /// The crc of the public key used to encrypt this payload
+        /// The crc of the host's public key used to encrypt this payload
         /// </summary>
         public uint EncryptionPublicKeyCrc32 { get; set; }
     }
