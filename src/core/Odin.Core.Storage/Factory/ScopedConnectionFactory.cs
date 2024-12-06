@@ -141,7 +141,7 @@ public class ScopedConnectionFactory<T>(
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
 
-                LogTrace("Created connection ScopedConnectionFactory");
+                LogTrace("Created connection");
             }
 
             _connectionRefCount++;
@@ -294,7 +294,7 @@ public class ScopedConnectionFactory<T>(
             {
                 if (_disposed)
                 {
-                    instance.LogError("Connection already disposed ScopedConnectionFactory");
+                    instance.LogError("Connection already disposed");
                     return;
                 }
 
@@ -307,7 +307,7 @@ public class ScopedConnectionFactory<T>(
                         throw new ScopedDbConnectionException(message);
                     }
 
-                    instance.LogTrace("Disposing connection ScopedConnectionFactory");
+                    instance.LogTrace("Disposing connection");
 
                     await instance._connection!.DisposeAsync();
                     instance._connection = null;
@@ -315,7 +315,7 @@ public class ScopedConnectionFactory<T>(
 
                     Diagnostics.TryRemove(instance._connectionId, out _);
 
-                    instance.LogTrace("Disposed connection ScopedConnectionFactory");
+                    instance.LogTrace("Disposed connection");
                 }
 
                 // Sanity
