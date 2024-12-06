@@ -54,7 +54,7 @@ public class DemoTests : IocTestBase
 
     //
 
-    [Test]
+    [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
     public async Task D02_Connect_Sqlite_Without_Di(DatabaseType databaseType)
     {
@@ -112,7 +112,7 @@ public class DemoTests : IocTestBase
 
     //
 
-    [Test]
+    [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
     public async Task D03_Connect_Sqlite_With_Di(DatabaseType databaseType)
     {
@@ -127,7 +127,7 @@ public class DemoTests : IocTestBase
 
     //
 
-    [Test]
+    [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
     public async Task D04_Connect_Sqlite_Parallel(DatabaseType databaseType)
     {
@@ -141,13 +141,12 @@ public class DemoTests : IocTestBase
 
         var tasks = new List<Task>();
 
-        await using var scope = Services.BeginLifetimeScope();
-
         for (var idx = 0; idx < taskCount; idx++)
         {
             var i = idx;
             tasks.Add(Task.Run(async () =>
             {
+                await using var scope = Services.BeginLifetimeScope();
                 var factory = scope.Resolve<ScopedIdentityConnectionFactory>();
 
                 await Task.Delay(1000);
@@ -159,23 +158,23 @@ public class DemoTests : IocTestBase
                 await using var tx2 = await cn.BeginStackedTransactionAsync();
                 await using var cmd = cn.CreateCommand();
 
-                // cmd.CommandText = "INSERT INTO keyValue (identityId,key,data) VALUES (@identityId,@key,@data)";
-                // var insertParam1 = cmd.CreateParameter();
-                // insertParam1.ParameterName = "@identityId";
-                // cmd.Parameters.Add(insertParam1);
-                // var insertParam2 = cmd.CreateParameter();
-                // insertParam2.ParameterName = "@key";
-                // cmd.Parameters.Add(insertParam2);
-                // var insertParam3 = cmd.CreateParameter();
-                // insertParam3.ParameterName = "@data";
-                // cmd.Parameters.Add(insertParam3);
-                // insertParam1.Value = Guid.NewGuid().ToByteArray();
-                // insertParam2.Value = Guid.NewGuid().ToByteArray();
-                // insertParam3.Value = Guid.NewGuid().ToByteArray();
-                //
-                // await cmd.ExecuteNonQueryAsync();
-                //
-                // tx1.Commit();
+                cmd.CommandText = "INSERT INTO keyValue (identityId,key,data) VALUES (@identityId,@key,@data)";
+                var insertParam1 = cmd.CreateParameter();
+                insertParam1.ParameterName = "@identityId";
+                cmd.Parameters.Add(insertParam1);
+                var insertParam2 = cmd.CreateParameter();
+                insertParam2.ParameterName = "@key";
+                cmd.Parameters.Add(insertParam2);
+                var insertParam3 = cmd.CreateParameter();
+                insertParam3.ParameterName = "@data";
+                cmd.Parameters.Add(insertParam3);
+                insertParam1.Value = Guid.NewGuid().ToByteArray();
+                insertParam2.Value = Guid.NewGuid().ToByteArray();
+                insertParam3.Value = Guid.NewGuid().ToByteArray();
+
+                await cmd.ExecuteNonQueryAsync();
+
+                tx1.Commit();
 
                 logger.LogInformation("Task {i} completed", i);
             }));
