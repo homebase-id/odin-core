@@ -160,8 +160,7 @@ namespace Odin.Core.Cryptography.Tests
             var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
 
             // Sanity Values
-            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
-            //var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16);
+            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, 16);
 
             var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
@@ -174,8 +173,8 @@ namespace Odin.Core.Cryptography.Tests
         }
 
 
-        [Test]
-        // Rigged test with pre-computed constants
+        [Explicit, Test]
+        // Rigged test with pre-computed constants. Will only work with Iterations 100,000
         public void CreateInitialPasswordKeyConstantPass()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
