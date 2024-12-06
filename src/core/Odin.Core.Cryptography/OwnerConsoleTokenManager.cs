@@ -40,9 +40,9 @@ namespace Odin.Core.Cryptography
         /// <param name="sharedSecret"></param>
         /// <returns></returns>
         public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
-            RsaFullKeyListData listRsa)
+            EccFullKeyListData listEcc)
         {
-            var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordRSAReply(reply, listRsa);
+            var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordEccReply(reply, listEcc);
 
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
 

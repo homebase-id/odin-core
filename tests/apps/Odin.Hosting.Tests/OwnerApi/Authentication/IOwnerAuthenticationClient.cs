@@ -47,5 +47,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         
         [Get(RootPath + "/publickey")]
         Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(PublicPrivateKeyType keyType);
+
+        [Get(RootPath + "/publickey_ecc")]
+        Task<ApiResponse<GetEccPublicKeyResponse>> GetPublicKeyEcc(PublicPrivateKeyType keyType);
     }
 }

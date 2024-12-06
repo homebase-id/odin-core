@@ -8,14 +8,14 @@ namespace Odin.Core.Cryptography.Data
     /// </summary>
     public sealed class NonceData
     {
-        public static NonceData NewRandomNonce(RsaPublicKeyData keyData)
+        public static NonceData NewRandomNonce(EccPublicKeyData keyData)
         {
             var np = new NonceData()
             {
                 Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                PublicPem = keyData.publicPem(),
+                PublicJwk = keyData.PublicKeyJwk(),
                 CRC = keyData.crc32c
             };
 
@@ -34,7 +34,7 @@ namespace Odin.Core.Cryptography.Data
         /// </summary>
         /// <param name="saltPassword64"></param>
         /// <param name="saltKek64"></param>
-        public NonceData(string saltPassword64, string saltKek64, string pem, UInt32 crc)
+        public NonceData(string saltPassword64, string saltKek64, string jwk, UInt32 crc)
         {
             // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
             // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
@@ -42,7 +42,7 @@ namespace Odin.Core.Cryptography.Data
             Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE));
             SaltPassword64 = saltPassword64;
             SaltKek64 = saltKek64;
-            PublicPem = pem;
+            PublicJwk = jwk;
             CRC = crc;
         }
 
@@ -50,7 +50,7 @@ namespace Odin.Core.Cryptography.Data
         public string SaltPassword64 { get; set; }
         public string SaltKek64 { get; set; }
         public string Nonce64 { get; set; }
-        public string PublicPem { get; set; }
+        public string PublicJwk { get; set; }
         public UInt32 CRC { get; set; }
     }
 }

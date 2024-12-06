@@ -32,17 +32,17 @@ namespace Odin.Core.Cryptography.Tests
         {
             string password = "EnSøienØ";
 
-            // The server always has a list of login RSA keys (usually with 24 hours duration per key)
-            var listRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
+            // The server always has a list of login Ecc keys (usually with 24 hours duration per key)
+            var listEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2, EccKeyListManagement.DefaultHoursOfflineKey);
 
             // The user now enters his / her password.
 
             // As soon as the user clicks login, the client calls the server to get a nonce package.
-            // The reply will include the RSA key that the client should use.
+            // The reply will include the Ecc key that the client should use.
 
-            // The server receives the nonce request and first finds its current RSA key. 
-            // If there are no RSA keys then this call to GetCurrentKey will automatically create one.
-            var currentKey = RsaKeyListManagement.GetCurrentKey(listRsa);
+            // The server receives the nonce request and first finds its current Ecc key. 
+            // If there are no Ecc keys then this call to GetCurrentKey will automatically create one.
+            var currentKey = EccKeyListManagement.GetCurrentKey(listEcc);
 
             // (If the list was updated, the server needs to save it), i.e. the out var _ shouldn't be ignored
 
@@ -57,7 +57,10 @@ namespace Odin.Core.Cryptography.Tests
             // Pre-requisites, using the salt values from a fresh generated random Nonce:
 
             // The client calulates the data to send to the server
-            PasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            // This is a temporary Ecc on the client
+            var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+
+            PasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce, clientEcc);
             // The client sends the reply to the server
 
             // The server receives the reply
@@ -70,7 +73,7 @@ namespace Odin.Core.Cryptography.Tests
             var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // The server now parses the received reply and creates the tokens needed for the client/server.
-            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listRsa);
+            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listEcc);
 
             var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, halfCookie);
 

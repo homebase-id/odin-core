@@ -10,7 +10,8 @@ namespace Odin.Core.Cryptography.Login
         public string NonceHashedPassword64 { get; set; }
         
         public UInt32 crc { get; set; }
-        public string RsaEncrypted { get; set; }
+        public string GcmEncrypted64 { get; set; }
+        public string PublicKeyJwk { get; set; }
 
         /// <summary>
         /// The token given during the provisioning process used to

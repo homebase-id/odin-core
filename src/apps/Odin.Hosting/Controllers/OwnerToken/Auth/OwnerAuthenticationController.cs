@@ -160,5 +160,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
                 Expiration = key.expiration.milliseconds
             };
         }
+
+        [HttpGet("publickey_ecc")]
+        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        {
+            var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
+            var result = new GetEccPublicKeyResponse()
+            {
+                PublicKeyJwkBase64Url = key.PublicKeyJwkBase64Url(),
+                CRC32c = key.crc32c,
+                Expiration = key.expiration.milliseconds
+            };
+
+            return result;
+        }
+
     }
 }
