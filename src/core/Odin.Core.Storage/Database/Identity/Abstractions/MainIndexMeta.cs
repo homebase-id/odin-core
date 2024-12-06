@@ -332,17 +332,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
                 var result = new List<Guid>();
-                var _fileId = new byte[16];
+                byte[] _fileId = null;
                 long _userDate = 0;
 
                 int i = 0;
                 while (await rdr.ReadAsync())
                 {
-                    rdr.GetBytes(0, 0, _fileId, 0, 16);
+                    _fileId = (byte[])rdr[0];
                     result.Add(new Guid(_fileId));
 
                     if (fileIdSort == false)
-                        _userDate = rdr.GetInt64(1);
+                        _userDate = (long) rdr[1];
 
                     i++;
                     if (i >= noOfItems)
@@ -351,6 +351,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 if (i > 0)
                 {
+                    if (_fileId == null) throw new Exception("impossible");
                     cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
                     if (fileIdSort == false)
                         cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
@@ -577,16 +578,16 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
                 var result = new List<Guid>();
-                var fileId = new byte[16];
+                byte[] _fileId = null;
 
                 int i = 0;
                 long ts = 0;
 
                 while (await rdr.ReadAsync())
                 {
-                    rdr.GetBytes(0, 0, fileId, 0, 16);
-                    result.Add(new Guid(fileId));
-                    ts = rdr.GetInt64(1);
+                    _fileId = (byte[])rdr[0];
+                    result.Add(new Guid(_fileId));
+                    ts = (long)rdr[1];
                     i++;
                     if (i >= noOfItems)
                         break;

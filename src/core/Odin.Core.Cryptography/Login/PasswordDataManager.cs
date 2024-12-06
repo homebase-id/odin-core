@@ -23,7 +23,7 @@ namespace Odin.Core.Cryptography.Login
         /// You should only call if the identity's PasswordKey data struct is null
         /// On creation the DeK will be set and encrypted with the KeK
         /// </summary>
-        /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
+        /// <param name="passwordKeK">pbkdf2(SaltKek, password, CryptographyConstants.ITERATIONS, 16)</param>
         /// <returns></returns>
         private static PasswordData CreateInitialPasswordKey(NonceData nonce, string hashedPassword64, string kek64, SensitiveByteArray masterKey)
         {

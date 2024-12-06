@@ -399,71 +399,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new ConnectionsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.identity = new OdinId(rdr.GetString(1));
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.displayName = rdr.GetString(2);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.status = rdr.GetInt32(3);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.accessIsRevoked = rdr.GetInt32(4);
-            }
-
-            if (rdr.IsDBNull(5))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(5, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
-            }
-
-            if (rdr.IsDBNull(7))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.identity = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
+            item.displayName = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.status = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.accessIsRevoked = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.data = rdr.IsDBNull(5) ? 
+                null : (byte[])(rdr[5]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.created = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
+            item.modified = rdr.IsDBNull(7) ? 
+                null : new UnixTimeUtcUnique((long)rdr[7]);
             return item;
        }
 
@@ -502,53 +457,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.identity = identity;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.displayName = rdr.GetString(0);
-            }
+            item.displayName = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.status = rdr.GetInt32(1);
-            }
+            item.status = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.accessIsRevoked = rdr.GetInt32(2);
-            }
+            item.accessIsRevoked = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(3) ? 
+                null : (byte[])(rdr[3]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
-            }
+            item.created = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
-            }
+            item.modified = rdr.IsDBNull(5) ? 
+                null : new UnixTimeUtcUnique((long)rdr[5]);
             return item;
        }
 

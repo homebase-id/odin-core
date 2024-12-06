@@ -15,19 +15,19 @@ namespace Odin.Hosting.Tests.Performance
         public static void PerformanceLog(int maxThreads, int maxIterations, long wallMilliseconds, long[] timerMsArray)
         {
             Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} Host [{Dns.GetHostName()}]");
-            Console.WriteLine($"Threads   : {maxThreads}");
-            Console.WriteLine($"Iterations: {maxIterations:N0}");
-            Console.WriteLine($"Wall Time : {wallMilliseconds:N0}ms");
-            Console.WriteLine($"Minimum   : {timerMsArray[0]:N0}ms");
-            Console.WriteLine($"Maximum   : {timerMsArray[maxThreads * maxIterations - 1]:N0}ms");
-            Console.WriteLine($"Average   : {timerMsArray.Sum() / (maxThreads * maxIterations):N0}ms");
-            Console.WriteLine($"Median    : {timerMsArray[(maxThreads * maxIterations) / 2]:N0}ms");
+            Console.WriteLine($"Threads   : \t{maxThreads}");
+            Console.WriteLine($"Iterations: \t{maxIterations:N0}");
+            Console.WriteLine($"Wall Time : \t{wallMilliseconds:N0}\tms");
+            Console.WriteLine($"Minimum   : \t{timerMsArray[0]:N0}\tms");
+            Console.WriteLine($"Maximum   : \t{timerMsArray[maxThreads * maxIterations - 1]:N0}\tms");
+            Console.WriteLine($"Average   : \t{timerMsArray.Sum() / (maxThreads * maxIterations):N0}\tms");
+            Console.WriteLine($"Median    : \t{timerMsArray[(maxThreads * maxIterations) / 2]:N0}\tms");
             Console.WriteLine(
-                $"Capacity  : {(1000 * maxIterations * maxThreads) / Math.Max(1, wallMilliseconds):N0} / second");
+                $"Capacity  : \t{(1000 * maxIterations * maxThreads) / Math.Max(1, wallMilliseconds):N0}\t/ second");
 
-            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions:N0}, Decryptions {RsaKeyManagement.noDecryptions:N0}");
-            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated:N0}, Keys Expired {RsaKeyManagement.noKeysExpired:N0}");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened:N0}, Closed {RsaKeyManagement.noDBClosed:N0}");
+            // Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions:N0}, Decryptions {RsaKeyManagement.noDecryptions:N0}");
+            // Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated:N0}, Keys Expired {RsaKeyManagement.noKeysExpired:N0}");
+            // Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened:N0}, Closed {RsaKeyManagement.noDBClosed:N0}");
         }
 
 
@@ -127,7 +127,7 @@ namespace Odin.Hosting.Tests.Performance
 
             PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
             if (fileByteLength > 0)
-                Console.WriteLine($"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
+                Console.WriteLine($"Bandwidth : \t{1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0}\tbytes / second");
         }
     }
 }

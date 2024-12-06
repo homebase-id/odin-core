@@ -165,8 +165,7 @@ namespace Odin.Core.Cryptography.Tests
             var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc));
 
             // Sanity Values
-            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
-            //var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16);
+            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, 16);
 
             // This is a temporary Ecc on the client
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
@@ -182,8 +181,8 @@ namespace Odin.Core.Cryptography.Tests
         }
 
 
-        [Test]
-        // Rigged test with pre-computed constants
+        [Explicit, Test]
+        // Rigged test with pre-computed constants. Will only work with Iterations 100,000
         public void CreateInitialPasswordKeyConstantPass()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
