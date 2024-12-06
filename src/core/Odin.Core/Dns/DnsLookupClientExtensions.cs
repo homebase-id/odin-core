@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -56,7 +57,7 @@ public static class DnsLookupClientExtensions
         foreach (var nameServer in nameServers)
         {
             logger?.LogTrace("DNS query {domain} {type} @{address}", domain, queryType, nameServer);
-            var query = client.QueryServerAsync(new[] { nameServer }, dnsQuestion, queryOptions, linkedCts.Token);
+            var query = client.QueryServerAsync([nameServer], dnsQuestion, queryOptions, linkedCts.Token);
             queries.Add(query);
         }
 
@@ -65,14 +66,23 @@ public static class DnsLookupClientExtensions
             var completedQuery = await Task.WhenAny(queries);
             queries.Remove(completedQuery);
 
-            var response = await completedQuery;
-            if (response.HasError)
+            IDnsQueryResponse? response;
+            try
             {
-                logger?.LogTrace("DNS error {domain} @{address} {error}", domain, response.NameServer, response.ErrorMessage);
-                if (response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+                response = await completedQuery;
+                if (response.HasError)
                 {
-                    continue;
+                    logger?.LogDebug("DNS response error {domain} @{address} {error}", domain, response.NameServer, response.ErrorMessage);
+                    if (response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+                    {
+                        continue;
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                logger?.LogDebug("DNS exception {domain} {error}", domain, e.Message);
+                continue;
             }
 
             if (logger?.IsEnabled(LogLevel.Trace) == true)
@@ -87,7 +97,7 @@ public static class DnsLookupClientExtensions
                 }
             }
 
-            cts.Cancel();
+            await cts.CancelAsync();
             return response;
         }
 

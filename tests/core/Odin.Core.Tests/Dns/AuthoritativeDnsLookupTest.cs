@@ -58,6 +58,7 @@ public class AuthoritativeDnsLookupTest
     [TestCase("ertertakujsdjhaskdjashdaskjdhxcmvnuj.id", "id", "b.dns.id", "b.dns.id", 1)]
     [TestCase("not a domain", "", "", "", 0)]
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "", "", "", 0)]
+    [TestCase("ack.ack.demo.rocks", "demo.rocks", "ns1.demo.rocks", "ns2.demo.rocks", 0)]
     public async Task ItShouldLookupAuthoritativeStuff(
         string domain,
         string expectedAuthorityDomain,
@@ -76,6 +77,8 @@ public class AuthoritativeDnsLookupTest
         Assert.That(result.NameServers, Is.Empty.Or.Contain(expectedOtherNameServer));
         LogEvents.AssertEvents(logStore.GetLogEvents());
     }
+
+
 
     //
 
