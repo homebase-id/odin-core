@@ -109,10 +109,7 @@ public class IcrKeyAvailableBackgroundService(
                 await circleNetworkIntroductionService.AutoAcceptEligibleConnectionRequestsAsync(odinContext, cancellationToken);
             }
 
-            if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnectionRequests))
-            {
-                await circleNetworkIntroductionService.SendOutstandingConnectionRequestsAsync(odinContext, cancellationToken);
-            }
+            
 
             if (odinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
             {
