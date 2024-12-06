@@ -266,10 +266,13 @@ public class ScopedConnectionFactory<T>(
             GC.SuppressFinalize(this);
             using (await instance._mutex.LockAsync())
             {
+                // SEB:TODO log + throw if already disposed
+
                 if (instance._connectionRefCount == 1)
                 {
                     if (instance._transaction != null)
                     {
+                        // SEB:TODO log
                         throw new ScopedDbConnectionException(
                             "Cannot dispose connection while a transaction is active");
                     }
@@ -389,7 +392,7 @@ public class ScopedConnectionFactory<T>(
                         instance._cache.ClearCache();
                     }
                     await instance._transaction!.DisposeAsync();
-                    instance._transaction = null!;
+                    instance._transaction = null!; // SEB:TODO move up
                     instance._commit = false;
                 }
 
