@@ -27,7 +27,7 @@ public class DriveQuery(
     TableDriveReactions tblDriveReactions
 ) : IDriveDatabaseManager
 {
-    public async Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCoreAsync(
+    public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,
         FileSystemType fileSystemType,
@@ -59,11 +59,11 @@ public class DriveQuery(
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
-        return (cursor.uniqueTime, results.AsEnumerable(), moreRows);
+        return (cursor.uniqueTime, results, moreRows);
     }
 
 
-    public async Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCoreAsync(
+    public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetBatchCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,
         FileSystemType fileSystemType,
@@ -95,7 +95,7 @@ public class DriveQuery(
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
                 archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
-            return (cursor, results.Select(r => r), moreRows);
+            return (cursor, results, moreRows);
         }
 
         // if the caller was explicit in how they want results...
@@ -295,24 +295,7 @@ public class DriveQuery(
             return null;
         }
 
-        var header = new ServerFileHeader
-        {
-            EncryptedKeyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader),
-            FileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(record.hdrFileMetaData),
-            ServerMetadata = OdinSystemSerializer.Deserialize<ServerMetadata>(record.hdrServerData)
-        };
-
-        //Now overwrite with column specific values
-        header.FileMetadata.VersionTag = record.hdrVersionTag;
-        header.FileMetadata.AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(record.hdrAppData);
-        header.FileMetadata.ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
-            ? null
-            : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
-        header.ServerMetadata.TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
-            ? null
-            : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
-
-        return header;
+        return ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
     /// <summary>
@@ -423,7 +406,7 @@ public class DriveQuery(
         return (count, size);
     }
 
-    public async Task<Guid?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
         var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
         if (null == record)
@@ -433,13 +416,13 @@ public class DriveQuery(
 
         if (record.fileSystemType == (int)fileSystemType)
         {
-            return record.fileId;
+            return record;
         }
 
         return null;
     }
 
-    public async Task<Guid?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
     {
         var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
 
@@ -450,14 +433,14 @@ public class DriveQuery(
 
         if (record.fileSystemType == (int)fileSystemType)
         {
-            return record.fileId;
+            return record;
         }
 
         return null;
     }
 
 
-    private async Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
+    private async Task<(QueryBatchCursor cursor, List<DriveMainIndexRecord> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
         StorageDrive drive,
         IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
@@ -489,7 +472,7 @@ public class DriveQuery(
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
-        return (cursor, results.Select(r => r), hasMoreRows);
+        return (cursor, results, hasMoreRows);
     }
 }
 
