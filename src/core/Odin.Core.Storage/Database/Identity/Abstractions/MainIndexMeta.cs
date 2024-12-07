@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -23,9 +24,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var tx = await cn.BeginStackedTransactionAsync();
 
             var n = 0;
-            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveId, fileId);
-            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveId, fileId);
-            n = await driveMainIndex.DeleteAsync(identityKey, driveId, fileId);
+            await driveAclIndex.DeleteAllRowsAsync(driveId, fileId);
+            await driveTagIndex.DeleteAllRowsAsync(driveId, fileId);
+            n = await driveMainIndex.DeleteAsync(driveId, fileId);
 
             tx.Commit();
             return n;
@@ -51,9 +52,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord);
 
-            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveAclIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
@@ -77,9 +78,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var n = 0;
             n = await driveMainIndex.UpdateAsync(driveMainIndexRecord);
 
-            await driveAclIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveAclIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-            await driveTagIndex.DeleteAllRowsAsync(identityKey, driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+            await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
             // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
@@ -206,7 +207,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
-        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
+        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
             bool newestFirstOrder,
@@ -306,11 +307,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
 
-            string selectOutputFields;
-            if (fileIdSort)
+            string selectOutputFields = "fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            /*if (fileIdSort)
                 selectOutputFields = "driveMainIndex.fileId";
             else
-                selectOutputFields = "driveMainIndex.fileId, userDate";
+                selectOutputFields = "driveMainIndex.fileId, userDate";*/
 
             string order;
             if (fileIdSort)
@@ -331,18 +332,20 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             cmd.CommandText = stm;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
-                var result = new List<Guid>();
+                var result = new List<DriveMainIndexRecord>();
                 byte[] _fileId = null;
                 long _userDate = 0;
 
                 int i = 0;
                 while (await rdr.ReadAsync())
                 {
-                    _fileId = (byte[])rdr[0];
-                    result.Add(new Guid(_fileId));
+                    var r = driveMainIndex.ReadAllColumns(rdr, driveId);
+                    _fileId = r.fileId.ToByteArray();
+
+                    result.Add(r); // XXX
 
                     if (fileIdSort == false)
-                        _userDate = (long) rdr[1];
+                        _userDate = r.userDate.milliseconds;
 
                     i++;
                     if (i >= noOfItems)
@@ -350,7 +353,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0)
-                {
+                { 
                     if (_fileId == null) throw new Exception("impossible");
                     cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
                     if (fileIdSort == false)
@@ -380,7 +383,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public async Task<(List<Guid>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAutoAsync(Guid driveId,
+        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAutoAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -432,7 +435,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    refCursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
+                    refCursor.nextBoundaryCursor = result[0].fileId.ToByteArray(); // Set to the newest cursor
 
                 if (result.Count < noOfItems)
                 {
@@ -523,7 +526,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public async Task<(List<Guid>, bool moreRows, UnixTimeUtcUnique cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+        public async Task<(List<DriveMainIndexRecord>, bool moreRows, UnixTimeUtcUnique cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
             UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -568,7 +571,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
-            string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            string selectOutputFields = "fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -577,7 +582,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
-                var result = new List<Guid>();
+                var result = new List<DriveMainIndexRecord>();
                 byte[] _fileId = null;
 
                 int i = 0;
@@ -585,9 +590,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 while (await rdr.ReadAsync())
                 {
-                    _fileId = (byte[])rdr[0];
-                    result.Add(new Guid(_fileId));
-                    ts = (long)rdr[1];
+                    var r = driveMainIndex.ReadAllColumns(rdr, driveId);
+                    _fileId = r.fileId.ToByteArray();
+                    result.Add(r);
+                    ts = (long) r.modified?.uniqueTime; // XXX
                     i++;
                     if (i >= noOfItems)
                         break;

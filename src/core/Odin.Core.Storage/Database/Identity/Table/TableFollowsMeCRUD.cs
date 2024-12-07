@@ -110,7 +110,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(FollowsMeRecord item)
+        protected virtual async Task<int> InsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -150,7 +150,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
+        protected virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -190,7 +190,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(FollowsMeRecord item)
+        protected virtual async Task<int> UpsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -239,7 +239,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(FollowsMeRecord item)
+        protected virtual async Task<int> UpdateAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -279,7 +279,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -306,7 +306,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,identity,driveId,created,modified
-        public FollowsMeRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected FollowsMeRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<FollowsMeRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -328,7 +328,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,string identity,Guid driveId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -358,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,string identity,Guid driveId)
+        protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -382,7 +382,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<FollowsMeRecord> GetAsync(Guid identityId,string identity,Guid driveId)
+        protected virtual async Task<FollowsMeRecord> GetAsync(Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -424,7 +424,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,string identity)
+        protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -450,7 +450,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
+        protected virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");

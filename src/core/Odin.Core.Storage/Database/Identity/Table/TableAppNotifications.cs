@@ -18,13 +18,13 @@ public class TableAppNotifications(
         return await base.GetAsync(identityKey, notificationId);
     }
 
-    public override async Task<int> InsertAsync(AppNotificationsRecord item)
+    public new async Task<int> InsertAsync(AppNotificationsRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpdateAsync(AppNotificationsRecord item)
+    public new async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);
