@@ -56,7 +56,7 @@ public static class DnsLookupClientExtensions
         var queries = new List<Task<IDnsQueryResponse>>();
         foreach (var nameServer in nameServers)
         {
-            logger?.LogTrace("DNS query {domain} {type} @{address}", domain, queryType, nameServer);
+            logger?.LogDebug("DNS query {domain} {type} @{address}", domain, queryType, nameServer);
             var query = client.QueryServerAsync([nameServer], dnsQuestion, queryOptions, linkedCts.Token);
             queries.Add(query);
         }
@@ -89,11 +89,11 @@ public static class DnsLookupClientExtensions
             {
                 if (response.Authorities.Count > 0)
                 {
-                    logger.LogTrace("DNS authorities @{address} {response}", response.NameServer, response.Authorities);
+                    logger.LogDebug("DNS authorities @{address} {response}", response.NameServer, response.Authorities);
                 }
                 if (response.Answers.Count > 0)
                 {
-                    logger.LogTrace("DNS answers @{address} {response}", response.NameServer, response.Answers);
+                    logger.LogDebug("DNS answers @{address} {response}", response.NameServer, response.Answers);
                 }
             }
 
