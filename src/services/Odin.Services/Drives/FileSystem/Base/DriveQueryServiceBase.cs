@@ -217,7 +217,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     ExcludePreviewThumbnail = false
                 };
 
-                var (_, fileIdList, _) = await _driveQuery.GetBatchCoreAsync(
+                var (_, records, _) = await _driveQuery.GetBatchCoreAsync(
                     drive,
                     odinContext,
                     GetFileSystemType(),
@@ -227,7 +227,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 d.Results.Add(new DumpResult()
                 {
                     Name = query.Name,
-                    FileIdList = fileIdList.ToList()
+                    RecordList = records
                 });
             }
 
@@ -296,8 +296,16 @@ namespace Odin.Services.Drives.FileSystem.Base
                     FileId = record.fileId
                 };
 
+                var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
+                if (null == serverFileHeader)
+                {
+                    _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk", file.FileId,
+                        file.DriveId);
+                    continue;
+                }
+
                 // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file, odinContext);
+                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
                 if (!hasPermissionToFile)
                 {
                     _logger.LogError($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
@@ -305,20 +313,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    // Replaced var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext);
-
-                    // TODD -> There are some checks in the function above ... IDK if you need to 
-                    // This is probably the replacement:
-
-                    var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
-
-                    if (null == serverFileHeader)
-                    {
-                        _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk", file.FileId,
-                            file.DriveId);
-                        continue;
-                    }
-
                     if (serverFileHeader.FileMetadata.FileState == FileState.Deleted)
                     {
                         _logger.LogDebug("Creating Client File Header for deleted file (File {file} on drive {drive})", file.FileId,
@@ -449,7 +443,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
     public class DumpResult
     {
-        public List<DriveMainIndexRecord> FileIdList { get; set; }
+        public List<DriveMainIndexRecord> RecordList { get; set; }
         public string Name { get; set; }
     }
 }
