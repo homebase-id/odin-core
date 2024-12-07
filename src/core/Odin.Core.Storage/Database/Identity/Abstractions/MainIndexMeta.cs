@@ -105,7 +105,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(identityKey.ToByteArray())}'");
             listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
-            listWhere.Add($"(fileSystemType == {fileSystemType})");
+            listWhere.Add($"(fileSystemType = {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
 
             //
@@ -307,7 +307,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
 
-            string selectOutputFields = "fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             /*if (fileIdSort)
                 selectOutputFields = "driveMainIndex.fileId";
             else
@@ -571,7 +571,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
-            string selectOutputFields = "fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
             // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
