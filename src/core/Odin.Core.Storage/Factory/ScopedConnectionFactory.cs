@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 
@@ -534,6 +535,8 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
+                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteNonQueryAsync);
+
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
                     instance.LogTrace("  ExecuteNonQueryAsync start");
@@ -557,6 +560,8 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
+                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteReaderAsync);
+
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
                     instance.LogTrace("  ExecuteReaderAsync start");
@@ -579,6 +584,7 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
+                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteScalar);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
                     instance.LogTrace("  ExecuteScalarAsync start");

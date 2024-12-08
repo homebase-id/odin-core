@@ -48,7 +48,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Got {_performanceIterations} non existing items from keyValue DB", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -83,7 +83,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Got {_performanceIterations} existing items from keyValue DB", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -135,7 +135,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -192,7 +192,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -246,7 +246,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -317,7 +317,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             TestBenchmark.StopWatchStatus($"Added {MAXTHREADS * MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -373,7 +373,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             TestBenchmark.StopWatchStatus($"Added {MAXTHREADS * MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -471,7 +471,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {SimplePerformanceCounter.noDBOpened}, Closed {SimplePerformanceCounter.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }

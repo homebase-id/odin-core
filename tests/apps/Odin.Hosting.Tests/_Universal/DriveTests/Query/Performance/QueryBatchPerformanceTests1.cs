@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Nito.AsyncEx;
 using NUnit.Framework;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
@@ -106,8 +107,12 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                 }
             };
 
+            SimplePerformanceCounter.Reset();
+
             await MeasureQueryBatch(frodo, qbr, maxThreads: 1, iterations: 5000);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
+
+            Console.WriteLine(SimplePerformanceCounter.Dump());
 
             Console.WriteLine("Test Metrics:");
             Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
