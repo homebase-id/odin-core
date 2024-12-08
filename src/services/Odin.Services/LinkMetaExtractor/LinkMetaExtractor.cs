@@ -131,23 +131,29 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                logger.LogDebug("Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                logger.LogDebug("Forbidden to fetch information from {Url}. Status code: {StatusCode}", url,
+                    response.StatusCode);
                 return null;
             }
+
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", contentLength.Value, maxContentLength,url);
+                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                    contentLength.Value, maxContentLength, url);
                 return null;
             }
+
             // Read the content with a limited buffer
             var content = await response.Content.ReadAsStringAsync();
             if (content.Length > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", content.Length, maxContentLength,url);
+                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                    content.Length, maxContentLength, url);
                 return null;
             }
+
             // Decode the HTML content
             var decodedHtml = WebUtility.HtmlDecode(content);
             return decodedHtml;
@@ -160,8 +166,14 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         }
         catch (HttpRequestException e)
         {
-            logger.LogInformation("Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url, e.Message, e.StatusCode);
+            logger.LogInformation("Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url,
+                e.Message, e.StatusCode);
             throw new OdinClientException("Failed to fetch information from the URL");
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation("Something went seriously wrong that you are here {Url}. Error: {Error}", url, e.Message);
+            return null;
         }
     }
     private static LinkMeta ProcessMetaData(string htmlContent, string url)
