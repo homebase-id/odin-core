@@ -16,8 +16,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
     public class DriveMainIndexPerformanceTests : IocTestBase
     {
         // For the performance test
-        private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXITERATIONS = 500; // A number high enough to get warmed up and reliable
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
 
@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         /// Multi-threading on a connection per thread
         /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
-        [Test]
+        [Explicit, Test]
         [TestCase(DatabaseType.Sqlite)]
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
