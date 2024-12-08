@@ -52,12 +52,12 @@ namespace Odin.Core.Storage.SQLite
                 InitSqliteJournalModeWal(cn);
             }
 
-            Interlocked.Increment(ref SimplePerformanceCounter.noDBOpened);
+            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBOpened);
         }
 
         ~DatabaseBase()
         {
-            Interlocked.Increment(ref SimplePerformanceCounter.noDBClosed);
+            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBClosed);
 
 #if DEBUG
             if (!_wasDisposed)

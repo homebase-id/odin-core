@@ -8,6 +8,48 @@ using Org.BouncyCastle.Security;
 
 namespace Odin.Core.Cryptography.Crypto
 {
+    // We have different databases, one per database
+    public static class SimpleDatabasePerformanceCounter
+    {
+        // Only increase with Interlocked.Increment(ref counter);
+        public static int noDBOpened;
+        public static int noDBClosed;
+
+        public static int noDBExecuteNonQueryAsync;
+        public static int noDBExecuteReaderAsync;
+        public static int noDBExecuteScalar;
+
+        static SimpleDatabasePerformanceCounter()
+        {
+            Reset();
+        }
+
+
+        public static void Reset()
+        {
+            Interlocked.Exchange(ref noDBOpened, 0);
+            Interlocked.Exchange(ref noDBClosed, 0);
+
+            Interlocked.Exchange(ref noDBExecuteNonQueryAsync, 0);
+            Interlocked.Exchange(ref noDBExecuteReaderAsync, 0);
+            Interlocked.Exchange(ref noDBExecuteScalar, 0);
+        }
+
+        public static string Dump()
+        {
+            string s;
+
+            s = $"DB Opened               \t{noDBOpened}{Environment.NewLine}";
+            s += $"DB Closed               \t{noDBClosed}{Environment.NewLine}";
+            s += $"DB ExecuteNonQueryAsync \t{noDBExecuteNonQueryAsync}{Environment.NewLine}";
+            s += $"DB ExecuteReaderAsync   \t{noDBExecuteReaderAsync}{Environment.NewLine}";
+            s += $"DB ExecuteScalar        \t{noDBExecuteScalar}{Environment.NewLine}";
+
+            return s;
+        }
+    }
+
+
     public static class SimplePerformanceCounter
     {
         // Only increase with Interlocked.Increment(ref counter);
@@ -18,13 +60,6 @@ namespace Odin.Core.Cryptography.Crypto
         public static int noRsaEncryptions;
         public static int noRsaDecryptions;
 
-        public static int noDBOpened;
-        public static int noDBClosed;
-
-        public static int noDBExecuteNonQueryAsync;
-        public static int noDBExecuteReaderAsync;
-        public static int noDBExecuteScalar;
-        
         static SimplePerformanceCounter()
         {
             Reset();
@@ -38,16 +73,9 @@ namespace Odin.Core.Cryptography.Crypto
             Interlocked.Exchange(ref noRsaKeysCreatedTest, 0);
             Interlocked.Exchange(ref noRsaEncryptions, 0);
             Interlocked.Exchange(ref noRsaDecryptions, 0);
-
-            Interlocked.Exchange(ref noDBOpened, 0);
-            Interlocked.Exchange(ref noDBClosed, 0);
-
-            Interlocked.Exchange(ref noDBExecuteNonQueryAsync, 0);
-            Interlocked.Exchange(ref noDBExecuteReaderAsync, 0);
-            Interlocked.Exchange(ref noDBExecuteScalar, 0);
         }
 
-        public static string DumpRSA()
+        public static string Dump()
         {
             string s;
 
@@ -58,25 +86,6 @@ namespace Odin.Core.Cryptography.Crypto
             s += $"RSA Decryptions         \t{SimplePerformanceCounter.noRsaDecryptions}{Environment.NewLine}";
 
             return s;
-        }
-
-        public static string DumpDB()
-        {
-            string s;
-
-            s =  $"DB Opened               \t{SimplePerformanceCounter.noDBOpened}{Environment.NewLine}";
-            s += $"DB Closed               \t{SimplePerformanceCounter.noDBClosed}{Environment.NewLine}";
-            s += $"DB ExecuteNonQueryAsync \t{SimplePerformanceCounter.noDBExecuteNonQueryAsync}{Environment.NewLine}";
-            s += $"DB ExecuteReaderAsync   \t{SimplePerformanceCounter.noDBExecuteReaderAsync}{Environment.NewLine}";
-            s += $"DB ExecuteScalar        \t{SimplePerformanceCounter.noDBExecuteScalar}{Environment.NewLine}";
-
-            return s;
-        }
-
-
-        public static string Dump()
-        {
-            return DumpDB() + DumpRSA();
         }
     }
 

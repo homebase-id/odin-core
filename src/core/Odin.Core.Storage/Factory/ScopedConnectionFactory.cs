@@ -535,7 +535,7 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteNonQueryAsync);
+                Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBExecuteNonQueryAsync);
 
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
@@ -560,7 +560,7 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteReaderAsync);
+                Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBExecuteReaderAsync);
 
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
@@ -584,7 +584,7 @@ public class ScopedConnectionFactory<T>(
         {
             try
             {
-                Interlocked.Increment(ref SimplePerformanceCounter.noDBExecuteScalar);
+                Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBExecuteScalar);
                 using (await instance._mutex.LockAsync(cancellationToken))
                 {
                     instance.LogTrace("  ExecuteScalarAsync start");

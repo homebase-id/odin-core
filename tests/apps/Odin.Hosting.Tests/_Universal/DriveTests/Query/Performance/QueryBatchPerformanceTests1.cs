@@ -112,6 +112,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             await MeasureQueryBatch(frodo, qbr, maxThreads: 1, iterations: 5000);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
+            Console.WriteLine(SimpleDatabasePerformanceCounter.Dump());
             Console.WriteLine(SimplePerformanceCounter.Dump());
 
             Console.WriteLine("Test Metrics:");
