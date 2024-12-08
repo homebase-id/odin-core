@@ -365,7 +365,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -500,7 +500,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -635,7 +635,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -779,7 +779,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -914,7 +914,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -962,7 +962,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        public virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
@@ -982,7 +982,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
-        public DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1048,7 +1048,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -1073,7 +1073,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
+        protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1160,7 +1160,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
+        protected virtual async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
@@ -1194,7 +1194,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
+        protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1281,7 +1281,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
+        protected virtual async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
@@ -1315,7 +1315,126 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId)
+        {
+            var result = new List<DriveMainIndexRecord>();
+            byte[] tmpbuf = new byte[65536+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveMainIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+
+            item.fileId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+
+            item.globalTransitId = rdr.IsDBNull(1) ? 
+                null : new Guid((byte[])rdr[1]);
+
+            item.fileState = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+
+            item.requiredSecurityGroup = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+
+            item.fileSystemType = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+
+            item.userDate = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+
+            item.fileType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+
+            item.dataType = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+
+            item.archivalStatus = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+
+            item.historyStatus = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+
+            item.senderId = rdr.IsDBNull(10) ? 
+                null : (string)rdr[10];
+
+            item.groupId = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
+
+            item.uniqueId = rdr.IsDBNull(12) ? 
+                null : new Guid((byte[])rdr[12]);
+
+            item.byteCount = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(14) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+
+            item.hdrVersionTag = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+
+            item.hdrAppData = rdr.IsDBNull(16) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+
+            item.hdrReactionSummary = rdr.IsDBNull(17) ? 
+                null : (string)rdr[17];
+
+            item.hdrServerData = rdr.IsDBNull(18) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
+
+            item.hdrTransferHistory = rdr.IsDBNull(19) ? 
+                null : (string)rdr[19];
+
+            item.hdrFileMetaData = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+
+            item.hdrTmpDriveAlias = rdr.IsDBNull(21) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+
+            item.hdrTmpDriveType = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+
+            item.created = rdr.IsDBNull(23) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[23]);
+
+            item.modified = rdr.IsDBNull(24) ? 
+                null : new UnixTimeUtcUnique((long)rdr[24]);
+            return item;
+       }
+
+        protected virtual async Task<DriveMainIndexRecord> GetFullRecordAsync(Guid identityId,Guid driveId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get2Command = cn.CreateCommand();
+            {
+                get2Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@driveId";
+                get2Command.Parameters.Add(get2Param2);
+
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = driveId.ToByteArray();
+                {
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader2(rdr, identityId,driveId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1402,34 +1521,34 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get2Command = cn.CreateCommand();
+            await using var get3Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get3Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
-                var get2Param1 = get2Command.CreateParameter();
-                get2Param1.ParameterName = "@identityId";
-                get2Command.Parameters.Add(get2Param1);
-                var get2Param2 = get2Command.CreateParameter();
-                get2Param2.ParameterName = "@driveId";
-                get2Command.Parameters.Add(get2Param2);
-                var get2Param3 = get2Command.CreateParameter();
-                get2Param3.ParameterName = "@fileId";
-                get2Command.Parameters.Add(get2Param3);
+                var get3Param1 = get3Command.CreateParameter();
+                get3Param1.ParameterName = "@identityId";
+                get3Command.Parameters.Add(get3Param1);
+                var get3Param2 = get3Command.CreateParameter();
+                get3Param2.ParameterName = "@driveId";
+                get3Command.Parameters.Add(get3Param2);
+                var get3Param3 = get3Command.CreateParameter();
+                get3Param3.ParameterName = "@fileId";
+                get3Command.Parameters.Add(get3Param3);
 
-                get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = driveId.ToByteArray();
-                get2Param3.Value = fileId.ToByteArray();
+                get3Param1.Value = identityId.ToByteArray();
+                get3Param2.Value = driveId.ToByteArray();
+                get3Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader2(rdr, identityId,driveId,fileId);
+                        var r = ReadRecordFromReader3(rdr, identityId,driveId,fileId);
                         return r;
                     } // using
                 } //

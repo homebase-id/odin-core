@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Time;
 using Org.BouncyCastle.Crypto;
@@ -77,7 +78,7 @@ namespace Odin.Core.Cryptography.Data
             cipher.Init(true, publicKeyRestored);
             var cipherData = cipher.DoFinal(data);
 
-            RsaKeyManagement.noEncryptions++;
+            Interlocked.Increment(ref SimplePerformanceCounter.noRsaEncryptions);
 
             return cipherData;
         }
@@ -178,7 +179,7 @@ namespace Odin.Core.Cryptography.Data
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
 
-            RsaKeyManagement.noKeysCreated++;
+            Interlocked.Increment(ref SimplePerformanceCounter.noRsaKeysCreated);
         }
 
         /// <summary>
@@ -194,7 +195,7 @@ namespace Odin.Core.Cryptography.Data
             //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
             //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             //publicKey = pk.GetDerEncoded();
-            RsaKeyManagement.noKeysCreatedTest++;
+            Interlocked.Increment(ref SimplePerformanceCounter.noRsaKeysCreatedTest);
         }
 
 
@@ -247,7 +248,7 @@ namespace Odin.Core.Cryptography.Data
 
             var clearData = cipher.DoFinal(cipherData);
 
-            RsaKeyManagement.noDecryptions++;
+            Interlocked.Increment(ref SimplePerformanceCounter.noRsaDecryptions);
 
             return clearData;
         }

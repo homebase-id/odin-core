@@ -14,13 +14,19 @@ public class TableAppGrants(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public override async Task<int> InsertAsync(AppGrantsRecord item)
+    public new async Task<int> TryInsertAsync(AppGrantsRecord item)
+    {
+        item.identityId = identityKey;
+        return await base.TryInsertAsync(item);
+    }
+
+    public new async Task<int> InsertAsync(AppGrantsRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(AppGrantsRecord item)
+    public new async Task<int> UpsertAsync(AppGrantsRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);

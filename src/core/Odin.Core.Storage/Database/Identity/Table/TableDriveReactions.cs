@@ -26,7 +26,7 @@ public class TableDriveReactions(
         return await base.DeleteAllReactionsAsync(identityKey, driveId, identity, postId);
     }
 
-    public override async Task<int> InsertAsync(DriveReactionsRecord item)
+    public new async Task<int> InsertAsync(DriveReactionsRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
@@ -51,12 +52,12 @@ namespace Odin.Core.Storage.SQLite
                 InitSqliteJournalModeWal(cn);
             }
 
-            RsaKeyManagement.noDBOpened++;
+            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBOpened);
         }
 
         ~DatabaseBase()
         {
-            RsaKeyManagement.noDBClosed++;
+            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBClosed);
 
 #if DEBUG
             if (!_wasDisposed)

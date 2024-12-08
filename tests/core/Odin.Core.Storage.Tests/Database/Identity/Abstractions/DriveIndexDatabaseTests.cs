@@ -108,12 +108,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 5); // Check we got everything, we are done because result.Count < 100
             Debug.Assert(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
 
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId.ToByteArray(), refCursor.stopAtBoundary) == 0);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
@@ -304,7 +304,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // How you'd read the entire DB in chunks in a for loop
             int c = 0;
             bool moreRows = false;
-            List<Guid> result;
+            List<DriveMainIndexRecord> result;
             for (int i = 1; i < 100; i++)
             {
                 (result, moreRows, cursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
@@ -388,9 +388,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
         }
 
 
@@ -430,9 +430,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(new UnixTimeUtc(2000) == cursor.userDateStopAtBoundary);
             Debug.Assert(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
         }
 
         /// <summary>
@@ -468,9 +468,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
 
         }
 
@@ -509,9 +509,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(new UnixTimeUtc(-1000) == cursor.userDateStopAtBoundary);
             Debug.Assert(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f4, result[1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f4, result[1].fileId) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
 
         }
 
@@ -801,11 +801,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[2], f3) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[3], f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
@@ -830,8 +830,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.pagingCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
@@ -852,8 +852,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             //
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f6) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.pagingCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
@@ -862,7 +862,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Now we get two more items, only one should be left (f9)
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f9) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f9) == 0);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(refCursor.nextBoundaryCursor == null);
@@ -1084,13 +1084,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
@@ -1166,15 +1166,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
@@ -1209,11 +1209,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             cursor = null;
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
 
         }
 
@@ -1251,7 +1251,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
 
             //
@@ -1264,7 +1264,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
 
         }
@@ -1307,7 +1307,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
 
             //
@@ -1320,7 +1320,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
 
         }
@@ -1364,9 +1364,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[2], f6) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f6) == 0);
 
             //
             // ====== Now do the same, oldest first
@@ -1378,8 +1378,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f2) == 0);
 
         }
 
@@ -1591,7 +1591,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f2);
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             // Debug.Assert(ByteArrayUtil.muidcmp(cursor, f2.ToByteArray()) == 0);
             Debug.Assert(moreRows == false);
 
@@ -2147,7 +2147,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
             Debug.Assert(moreRows == false);
@@ -2180,11 +2180,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f2);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
@@ -2246,7 +2246,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(data.globalTransitId == null);
 
@@ -2352,7 +2352,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
@@ -2384,11 +2384,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f2);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
@@ -2450,7 +2450,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             Debug.Assert(data.uniqueId == null);
 
@@ -2596,8 +2596,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 400);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[399], fileId[fileId.Count - 400]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[399].fileId, fileId[fileId.Count - 400]) == 0);
             Debug.Assert(moreRows == true);
 
             var md = await tblDriveMainIndex.GetAsync(driveId, fileId[0]);
@@ -2648,7 +2648,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Now check that we can find the one modified item with our cursor timestamp
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[420]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[420]) == 0);
             Debug.Assert(moreRows == false);
 
             md = await tblDriveMainIndex.GetAsync(driveId, fileId[420]);
@@ -2674,7 +2674,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             if (true)
             {
-                Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 1]) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
             }
             else
             {
@@ -2686,7 +2686,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(moreRows == true);
             if (true)
             {
-                Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 2]) == 0);
+                Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 2]) == 0);
             }
             else
             {
