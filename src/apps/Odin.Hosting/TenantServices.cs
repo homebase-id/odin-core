@@ -309,7 +309,7 @@ public static class TenantServices
         cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
-        cb.RegisterType<DidFingerService>().As<IDidFingerService>().InstancePerLifetimeScope();
+        cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
 
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
