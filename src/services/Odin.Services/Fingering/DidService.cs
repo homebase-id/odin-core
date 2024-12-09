@@ -15,6 +15,7 @@ public interface IDidService
     public Task<DidWebResponse?> GetDidWebAsync();
 }
 
+// Example validator: https://didlint.ownyourdata.eu/?did=did%3Aweb%3Afrodobaggins.me
 public class DidService(
     OdinContext context,
     StaticFileContentService staticFileContentService)
@@ -46,7 +47,23 @@ public class DidService(
         {
             Id = $"did:web:{domain}",
             Controller = $"did:web:{domain}",
-            VerificationMethod = [] // SEB:TODO
+            VerificationMethod =
+            [
+                new DidWebVerificationMethod
+                {
+                    Id = $"did:web:{domain}#placeholder",
+                    Type = "JsonWebKey2020",
+                    Controller = $"did:web:{domain}",
+                    PublicKeyJwk = new DidWebVerificationMethod.TPublicKeyJwk
+                    {
+                        Kty = "EC",
+                        Crv = "P-256",
+                        X = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                        Y = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+                    }
+                }
+            ],
+            Authentication = [$"did:web:{domain}#placeholder"]
         };
 
         if (profile.Name != null)
@@ -112,11 +129,53 @@ public class DidWebResponse
 
     [JsonPropertyName("verificationMethod")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<object>? VerificationMethod { get; set; }
+    public List<DidWebVerificationMethod>? VerificationMethod { get; set; }
+
+    [JsonPropertyName("authentication")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Authentication { get; set; }
 
     [JsonPropertyName("service")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<DidWebService> Service { get; set; } = [];
+}
+
+public class DidWebVerificationMethod
+{
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Id { get; set; }
+
+    [JsonPropertyName("type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Type { get; set; }
+
+    [JsonPropertyName("controller")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Controller { get; set; }
+
+    [JsonPropertyName("publicKeyJwk")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TPublicKeyJwk? PublicKeyJwk { get; set; }
+
+    public class TPublicKeyJwk
+    {
+        [JsonPropertyName("kty")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Kty { get; set; }
+
+        [JsonPropertyName("crv")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Crv { get; set; }
+
+        [JsonPropertyName("x")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? X { get; set; }
+
+        [JsonPropertyName("y")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Y { get; set; }
+    }
 }
 
 public class DidWebService

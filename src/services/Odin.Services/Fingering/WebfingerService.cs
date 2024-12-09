@@ -15,6 +15,7 @@ public interface IWebfingerService
     public Task<WebFingerResponse?> GetWebFingerAsync();
 }
 
+// Example validator: https://webfinger.net/lookup/?resource=%40frodobaggins.me
 public class WebfingerService(
     OdinContext context,
     StaticFileContentService staticFileContentService)
