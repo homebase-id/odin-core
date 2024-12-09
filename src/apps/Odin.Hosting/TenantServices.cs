@@ -53,9 +53,9 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
+using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
@@ -307,6 +307,9 @@ public static class TenantServices
         cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
+
+        cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
+        cb.RegisterType<DidFingerService>().As<IDidFingerService>().InstancePerLifetimeScope();
 
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
