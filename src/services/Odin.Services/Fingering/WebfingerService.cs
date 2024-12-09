@@ -95,7 +95,7 @@ public class WebfingerService(
                 result.Links.Add(new WebFingerLink
                 {
                     Rel = "email",
-                    Type = "text/html",
+                    Type = "text/plain",
                     Href = $"mailto:{email.Email}",
                 });
             }
