@@ -53,6 +53,7 @@ public abstract class IocTestBase
             .SingleInstance();
 
         builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:

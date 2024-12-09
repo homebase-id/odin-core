@@ -8,48 +8,6 @@ using Org.BouncyCastle.Security;
 
 namespace Odin.Core.Cryptography.Crypto
 {
-    // We have different databases, one per database
-    public static class SimpleDatabasePerformanceCounter
-    {
-        // Only increase with Interlocked.Increment(ref counter);
-        public static int noDBOpened;
-        public static int noDBClosed;
-
-        public static int noDBExecuteNonQueryAsync;
-        public static int noDBExecuteReaderAsync;
-        public static int noDBExecuteScalar;
-
-        static SimpleDatabasePerformanceCounter()
-        {
-            Reset();
-        }
-
-
-        public static void Reset()
-        {
-            Interlocked.Exchange(ref noDBOpened, 0);
-            Interlocked.Exchange(ref noDBClosed, 0);
-
-            Interlocked.Exchange(ref noDBExecuteNonQueryAsync, 0);
-            Interlocked.Exchange(ref noDBExecuteReaderAsync, 0);
-            Interlocked.Exchange(ref noDBExecuteScalar, 0);
-        }
-
-        public static string Dump()
-        {
-            string s;
-
-            s = $"DB Opened               \t{noDBOpened}{Environment.NewLine}";
-            s += $"DB Closed               \t{noDBClosed}{Environment.NewLine}";
-            s += $"DB ExecuteNonQueryAsync \t{noDBExecuteNonQueryAsync}{Environment.NewLine}";
-            s += $"DB ExecuteReaderAsync   \t{noDBExecuteReaderAsync}{Environment.NewLine}";
-            s += $"DB ExecuteScalar        \t{noDBExecuteScalar}{Environment.NewLine}";
-
-            return s;
-        }
-    }
-
-
     public static class SimplePerformanceCounter
     {
         // Only increase with Interlocked.Increment(ref counter);

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
 
 
 /*
@@ -52,12 +53,10 @@ namespace Odin.Core.Storage.SQLite
                 InitSqliteJournalModeWal(cn);
             }
 
-            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBOpened);
         }
 
         ~DatabaseBase()
         {
-            Interlocked.Increment(ref SimpleDatabasePerformanceCounter.noDBClosed);
 
 #if DEBUG
             if (!_wasDisposed)

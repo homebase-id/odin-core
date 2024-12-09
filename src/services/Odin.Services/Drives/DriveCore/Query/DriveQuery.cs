@@ -406,7 +406,7 @@ public class DriveQuery(
         return (count, size);
     }
 
-    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
         var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
         if (null == record)
@@ -422,7 +422,7 @@ public class DriveQuery(
         return null;
     }
 
-    public async Task<DriveMainIndexRecord?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
     {
         var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
 
