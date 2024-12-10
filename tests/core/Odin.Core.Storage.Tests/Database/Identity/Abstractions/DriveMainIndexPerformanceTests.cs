@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
+using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 {
@@ -330,11 +333,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         /// Multi-threading on a connection per thread
         /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
-        [Explicit, Test]
+        [Test]
         [TestCase(DatabaseType.Sqlite)]
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
-            await RegisterServicesAsync(databaseType);
+            await RegisterServicesAsync(databaseType, LogEventLevel.Verbose);
+
+            // var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
 
             Task[] tasks = new Task[MAXTHREADS];
             var driveId = Guid.NewGuid();
