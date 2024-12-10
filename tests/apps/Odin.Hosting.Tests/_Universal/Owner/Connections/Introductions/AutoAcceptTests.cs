@@ -51,13 +51,15 @@ public class AutoAcceptTests
 
     public static IEnumerable AppAllowed()
     {
-        yield return new object[] { new AppPermissionsKeysOnly(new TestPermissionKeyList(PermissionKeys.All.ToArray())), HttpStatusCode.OK };
+        yield return new object[]
+            { new AppPermissionsKeysOnly(new TestPermissionKeyList(PermissionKeys.All.ToArray())), HttpStatusCode.OK };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         // Note: for your sanity, remember this is a background process that is
         // automatically accepting introductions that are eligible
@@ -72,7 +74,7 @@ public class AutoAcceptTests
 
         await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
-        
+
         await Prepare();
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
@@ -88,8 +90,11 @@ public class AutoAcceptTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+       
+        await samOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await merryOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         // Assert: Sam should have a connection request from Merry and visa/versa
-
         await callerContext.Initialize(samOwnerClient);
         var samClient = new UniversalCircleNetworkRequestsApiClient(sam, callerContext.GetFactory());
         var samProcessResponse = await samClient.ProcessIncomingIntroductions();
@@ -100,7 +105,7 @@ public class AutoAcceptTests
         // Assert.IsNotNull(outgoingRequestToSam);
         // Assert.IsTrue(outgoingRequestToSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         // Assert.IsTrue(outgoingRequestToSam.IntroducerOdinId == frodo);
-        
+
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(merry);
         var outgoingRequestToMerry = outgoingRequestToMerryResponse.Content;
         Assert.IsNotNull(outgoingRequestToMerry);
@@ -123,7 +128,9 @@ public class AutoAcceptTests
         Assert.IsTrue(getSamConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
-        Assert.IsTrue(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+        Assert.IsTrue(
+            getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
             cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -143,7 +150,8 @@ public class AutoAcceptTests
         Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
         Assert.IsTrue(
-            getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+            getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
             cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -184,6 +192,9 @@ public class AutoAcceptTests
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
+        await samOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await merryOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);

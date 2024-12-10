@@ -46,7 +46,8 @@ public class CircleNetworkIntroductionService(
             odinConfiguration),
         INotificationHandler<ConnectionFinalizedNotification>,
         INotificationHandler<ConnectionBlockedNotification>,
-        INotificationHandler<ConnectionDeletedNotification>
+        INotificationHandler<ConnectionDeletedNotification>,
+        INotificationHandler<ConnectionRequestReceived>
 {
     private const string ReceivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
 
@@ -208,14 +209,14 @@ public class CircleNetworkIntroductionService(
     public async Task AutoAcceptEligibleConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var incomingConnectionRequests = await circleNetworkRequestService.GetPendingRequestsAsync(PageOptions.All, odinContext);
-        logger.LogInformation("Running AutoAccept for incomingConnectionRequests ({count} requests)",
+        logger.LogDebug("Running AutoAccept for incomingConnectionRequests ({count} requests)",
             incomingConnectionRequests.Results.Count);
 
         foreach (var request in incomingConnectionRequests.Results)
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                logger.LogInformation("AutoAcceptEligibleConnectionRequests - Cancellation requested; breaking from loop");
+                logger.LogDebug("AutoAcceptEligibleConnectionRequests - Cancellation requested; breaking from loop");
 
                 break;
             }
@@ -334,6 +335,11 @@ public class CircleNetworkIntroductionService(
             await DeleteIntroductionsFromAsync(notification.OdinId);
         }
         //);
+    }
+
+    public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+    {
+        await this.AutoAcceptEligibleConnectionRequestsAsync(notification.OdinContext, cancellationToken);
     }
 
     /// <summary>
