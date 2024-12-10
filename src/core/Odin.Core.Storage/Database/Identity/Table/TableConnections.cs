@@ -19,19 +19,19 @@ public class TableConnections(
         return await base.GetAsync(identityKey, identity);
     }
 
-    public override async Task<int> InsertAsync(ConnectionsRecord item)
+    public new async Task<int> InsertAsync(ConnectionsRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(ConnectionsRecord item)
+    public new async Task<int> UpsertAsync(ConnectionsRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
-    public override async Task<int> UpdateAsync(ConnectionsRecord item)
+    public new async Task<int> UpdateAsync(ConnectionsRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);

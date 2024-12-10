@@ -11,6 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -353,6 +354,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
+        /*
         public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
@@ -361,6 +363,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (null == header)
             {
                 _logger.LogDebug($"Permission check called on non-existing file {file}");
+                return false;
+            }
+
+            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
+        }
+        */
+
+        public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
+        {
+            if (null == header)
+            {
+                _logger.LogDebug($"Permission check called on null header");
                 return false;
             }
 

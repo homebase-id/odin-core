@@ -22,12 +22,33 @@ public class SendPeerPushNotificationOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext,CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-        await NotifyPeerOfPushNotification(newContext, cancellationToken);
+        try
+        {
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+            await NotifyPeerOfPushNotification(newContext, cancellationToken);
 
-        return (true, UnixTimeUtc.ZeroTime);
+            return (true, UnixTimeUtc.ZeroTime);
+        }
+        catch (OdinOutboxProcessingException e)
+        {
+            try
+            {
+                return await HandleOutboxProcessingException(odinContext, e);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Error while handling the outbox processing exception " +
+                                           "for file: {file} and recipient: {recipient} with version: " +
+                                           "{version} and status: {status}",
+                    e.File,
+                    e.Recipient,
+                    e.TransferStatus,
+                    e.VersionTag);
+                throw;
+            }
+        }
     }
 
     private async Task NotifyPeerOfPushNotification(IOdinContext odinContext, CancellationToken cancellationToken)

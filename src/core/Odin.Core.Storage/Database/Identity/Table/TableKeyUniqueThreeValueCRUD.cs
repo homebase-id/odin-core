@@ -118,7 +118,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
+        protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -155,7 +155,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(KeyUniqueThreeValueRecord item)
+        protected virtual async Task<int> TryInsertAsync(KeyUniqueThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -192,7 +192,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(KeyUniqueThreeValueRecord item)
+        protected virtual async Task<int> UpsertAsync(KeyUniqueThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -229,7 +229,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(KeyUniqueThreeValueRecord item)
+        protected virtual async Task<int> UpdateAsync(KeyUniqueThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -294,7 +294,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,key1,key2,key3,data
-        public KeyUniqueThreeValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyUniqueThreeValueRecord>();
             byte[] tmpbuf = new byte[1048576+1];
@@ -303,72 +303,36 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyUniqueThreeValueRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 48+1);
-                if (bytesRead > 48)
-                    throw new Exception("Too much data in key1...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in key1...");
-                item.key1 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key1, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, tmpbuf, 0, 256+1);
-                if (bytesRead > 256)
-                    throw new Exception("Too much data in key2...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in key2...");
-                item.key2 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key2, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 256+1);
-                if (bytesRead > 256)
-                    throw new Exception("Too much data in key3...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in key3...");
-                item.key3 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key3, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(4))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(4, 0, tmpbuf, 0, 1048576+1);
-                if (bytesRead > 1048576)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.key1 = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key1?.Length > 48)
+                throw new Exception("Too much data in key1...");
+            if (item.key1?.Length < 16)
+                throw new Exception("Too little data in key1...");
+            item.key2 = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            if (item.key2?.Length > 256)
+                throw new Exception("Too much data in key2...");
+            if (item.key2?.Length < 0)
+                throw new Exception("Too little data in key2...");
+            item.key3 = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            if (item.key3?.Length > 256)
+                throw new Exception("Too much data in key3...");
+            if (item.key3?.Length < 0)
+                throw new Exception("Too little data in key3...");
+            item.data = rdr.IsDBNull(4) ? 
+                null : (byte[])(rdr[4]);
+            if (item.data?.Length > 1048576)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -394,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<List<byte[]>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
+        protected virtual async Task<List<byte[]>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
         {
             if (key2 == null) throw new Exception("Cannot be null");
             if (key2?.Length < 0) throw new Exception("Too short");
@@ -451,7 +415,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<List<byte[]>> GetByKeyThreeAsync(Guid identityId,byte[] key3)
+        protected virtual async Task<List<byte[]>> GetByKeyThreeAsync(Guid identityId,byte[] key3)
         {
             if (key3 == null) throw new Exception("Cannot be null");
             if (key3?.Length < 0) throw new Exception("Too short");
@@ -508,7 +472,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new Exception("Cannot be null");
             if (key2?.Length < 0) throw new Exception("Too short");
@@ -527,35 +491,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.key2 = key2;
             item.key3 = key3;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 48+1);
-                if (bytesRead > 48)
-                    throw new Exception("Too much data in key1...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in key1...");
-                item.key1 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key1, 0, (int) bytesRead);
-            }
+            item.key1 = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            if (item.key1?.Length > 48)
+                throw new Exception("Too much data in key1...");
+            if (item.key1?.Length < 16)
+                throw new Exception("Too little data in key1...");
 
-            if (rdr.IsDBNull(1))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 1048576+1);
-                if (bytesRead > 1048576)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(1) ? 
+                null : (byte[])(rdr[1]);
+            if (item.data?.Length > 1048576)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<List<KeyUniqueThreeValueRecord>> GetByKeyTwoThreeAsync(Guid identityId,byte[] key2,byte[] key3)
+        protected virtual async Task<List<KeyUniqueThreeValueRecord>> GetByKeyTwoThreeAsync(Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new Exception("Cannot be null");
             if (key2?.Length < 0) throw new Exception("Too short");
@@ -602,7 +554,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,byte[] key1)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -617,48 +569,30 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key1 = key1;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 256+1);
-                if (bytesRead > 256)
-                    throw new Exception("Too much data in key2...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in key2...");
-                item.key2 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key2, 0, (int) bytesRead);
-            }
+            item.key2 = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            if (item.key2?.Length > 256)
+                throw new Exception("Too much data in key2...");
+            if (item.key2?.Length < 0)
+                throw new Exception("Too little data in key2...");
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 256+1);
-                if (bytesRead > 256)
-                    throw new Exception("Too much data in key3...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in key3...");
-                item.key3 = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key3, 0, (int) bytesRead);
-            }
+            item.key3 = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key3?.Length > 256)
+                throw new Exception("Too much data in key3...");
+            if (item.key3?.Length < 0)
+                throw new Exception("Too little data in key3...");
 
-            if (rdr.IsDBNull(2))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, tmpbuf, 0, 1048576+1);
-                if (bytesRead > 1048576)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(2) ? 
+                null : (byte[])(rdr[2]);
+            if (item.data?.Length > 1048576)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<KeyUniqueThreeValueRecord> GetAsync(Guid identityId,byte[] key1)
+        protected virtual async Task<KeyUniqueThreeValueRecord> GetAsync(Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");

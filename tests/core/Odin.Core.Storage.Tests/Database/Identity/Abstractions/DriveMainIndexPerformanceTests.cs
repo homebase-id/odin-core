@@ -3,21 +3,23 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
+using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 {
     public class DriveMainIndexPerformanceTests : IocTestBase
     {
         // For the performance test
-        private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXITERATIONS = 500; // A number high enough to get warmed up and reliable
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
 
@@ -45,10 +47,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Got {_performanceIterations} non existing items from keyValue DB", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -80,10 +83,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Got {_performanceIterations} existing items from keyValue DB", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -132,10 +136,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -189,10 +194,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -243,10 +249,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -315,9 +322,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Console.WriteLine($"Iterations: {MAXITERATIONS}");
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
+            var counters = Services.Resolve<DatabaseCounters>();
+
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             TestBenchmark.StopWatchStatus($"Added {MAXTHREADS * MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -328,7 +337,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         [TestCase(DatabaseType.Sqlite)]
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
-            await RegisterServicesAsync(databaseType);
+            await RegisterServicesAsync(databaseType, LogEventLevel.Verbose);
+
+            // var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
 
             Task[] tasks = new Task[MAXTHREADS];
             var driveId = Guid.NewGuid();
@@ -371,9 +382,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Console.WriteLine($"Iterations: {MAXITERATIONS}");
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
+            var counters = Services.Resolve<DatabaseCounters>();
+
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             TestBenchmark.StopWatchStatus($"Added {MAXTHREADS * MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
@@ -468,10 +481,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+            var counters = scope.Resolve<DatabaseCounters>();
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            Console.WriteLine($"DB Opened {counters.NoDbOpened} , Closed  {counters.NoDbClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }

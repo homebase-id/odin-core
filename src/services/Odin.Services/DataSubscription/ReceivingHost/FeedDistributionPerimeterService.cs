@@ -213,7 +213,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         foreach (var result in dump.Results)
                         {
                             Log.Information("Results for {name}", result.Name);
-                            foreach (var f in result.FileIdList)
+                            foreach (var f in result.RecordList)
                             {
                                 Log.Information("FileId:{fileId}", f);
                             }

@@ -98,7 +98,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(CircleRecord item)
+        protected virtual async Task<int> InsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -132,7 +132,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(CircleRecord item)
+        protected virtual async Task<int> TryInsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -166,7 +166,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(CircleRecord item)
+        protected virtual async Task<int> UpsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(CircleRecord item)
+        protected virtual async Task<int> UpdateAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -235,7 +235,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -261,7 +261,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,circleName,circleId,data
-        public CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -270,50 +270,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new CircleRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.circleName = rdr.GetString(1);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(3))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65000+1);
-                if (bytesRead > 65000)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleName = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.circleId = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.data = rdr.IsDBNull(3) ? 
+                null : (byte[])(rdr[3]);
+            if (item.data?.Length > 65000)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -336,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
+        protected CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -348,29 +320,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.circleId = circleId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.circleName = rdr.GetString(0);
-            }
+            item.circleName = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 65000+1);
-                if (bytesRead > 65000)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(1) ? 
+                null : (byte[])(rdr[1]);
+            if (item.data?.Length > 65000)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
+        protected virtual async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
@@ -405,7 +367,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
+        protected virtual async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
