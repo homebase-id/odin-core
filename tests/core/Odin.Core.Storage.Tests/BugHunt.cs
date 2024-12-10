@@ -73,13 +73,15 @@ public class DemoTests : IocTestBase
 
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);
         var cacheHelper = new CacheHelper("whatever");
+        var counters = new DatabaseCounters();
         var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString);
 
         var factory = new ScopedIdentityConnectionFactory(
             lifetimeScopeMock.Object,
             logger,
             sqliteIdentityDbConnectionFactory,
-            cacheHelper
+            cacheHelper,
+            counters
         );
 
         ScopedIdentityConnectionFactory.ConnectionWrapper? cn = null;

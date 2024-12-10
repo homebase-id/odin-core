@@ -256,8 +256,11 @@ namespace Odin.Hosting
            
             builder.AddSystemBackgroundServices();
 
-            // System database services
+            // Global database services
             builder.AddDatabaseCacheServices();
+            builder.AddDatabaseCounterServices();
+
+            // System database services
             switch (_config.Database.Type)
             {
                 case DatabaseType.Sqlite:

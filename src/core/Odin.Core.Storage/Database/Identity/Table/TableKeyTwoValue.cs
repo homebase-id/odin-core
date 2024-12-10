@@ -27,19 +27,19 @@ public class TableKeyTwoValue(
         return await base.DeleteAsync(identityKey, key1);
     }
 
-    public override async Task<int> InsertAsync(KeyTwoValueRecord item)
+    public new async Task<int> InsertAsync(KeyTwoValueRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(KeyTwoValueRecord item)
+    public new async Task<int> UpsertAsync(KeyTwoValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
-    public override async Task<int> UpdateAsync(KeyTwoValueRecord item)
+    public new async Task<int> UpdateAsync(KeyTwoValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);

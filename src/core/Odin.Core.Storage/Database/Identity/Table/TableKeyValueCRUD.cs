@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -119,7 +119,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> TryInsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -148,7 +148,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> UpsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -177,7 +177,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(KeyValueRecord item)
+        protected virtual async Task<int> UpdateAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -207,7 +207,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,key,data
-        public KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
             byte[] tmpbuf = new byte[1048576+1];
@@ -258,7 +258,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -284,7 +284,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
+        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -308,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
+        protected virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");

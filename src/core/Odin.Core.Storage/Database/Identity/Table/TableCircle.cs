@@ -17,7 +17,7 @@ public class TableCircle(
         return await base.GetAsync(identityKey, circleId);
     }
 
-    public override async Task<int> InsertAsync(CircleRecord item)
+    public new async Task<int> InsertAsync(CircleRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

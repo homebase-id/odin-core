@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests;
 
@@ -34,6 +35,7 @@ public abstract class IocTestBase
     {
         Services?.Dispose();
         Directory.Delete(TempFolder, true);
+        LogEvents.DumpErrorEvents(LogEventMemoryStore.GetLogEvents());
         LogEvents.AssertEvents(LogEventMemoryStore.GetLogEvents());
 
         GC.Collect();
@@ -41,18 +43,19 @@ public abstract class IocTestBase
         GC.Collect();
     }
 
-    protected async Task RegisterServicesAsync(DatabaseType databaseType)
+    protected async Task RegisterServicesAsync(DatabaseType databaseType, LogEventLevel logEventLevel = LogEventLevel.Debug)
     {
         var builder = new ContainerBuilder();
 
         builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(LogEventMemoryStore))
+            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(LogEventMemoryStore, logEventLevel))
             .SingleInstance();
         builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore))
+            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, logEventLevel))
             .SingleInstance();
 
         builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:

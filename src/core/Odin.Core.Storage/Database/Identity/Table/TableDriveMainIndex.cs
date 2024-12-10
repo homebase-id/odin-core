@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -31,7 +32,7 @@ public class TableDriveMainIndex(
         return await base.GetAsync(identityKey, driveId, fileId);
     }
 
-    public override async Task<int> InsertAsync(DriveMainIndexRecord item)
+    public new async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
@@ -42,16 +43,21 @@ public class TableDriveMainIndex(
         return await base.DeleteAsync(identityKey, driveId, fileId);
     }
 
-    public override async Task<int> UpdateAsync(DriveMainIndexRecord item)
+    public new async Task<int> UpdateAsync(DriveMainIndexRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(DriveMainIndexRecord item)
+    public new async Task<int> UpsertAsync(DriveMainIndexRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
+    }
+
+    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId) 
+    {
+        return base.ReadRecordFromReader2(rdr, identityKey.Id, driveId);
     }
 
     // REMOVED TransferHistory and ReactionUpdate by hand

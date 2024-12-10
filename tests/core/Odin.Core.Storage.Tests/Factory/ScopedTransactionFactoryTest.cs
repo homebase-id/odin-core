@@ -58,6 +58,7 @@ public class ScopedTransactionFactoryTest
         builder.Populate(services);
 
         builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:

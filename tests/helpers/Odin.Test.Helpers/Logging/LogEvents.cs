@@ -31,4 +31,10 @@ public static class LogEvents
         }
     }
 
+    public static void DumpErrorEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
+    {
+        DumpEvents(logEvents[LogEventLevel.Error]);
+        DumpEvents(logEvents[LogEventLevel.Fatal]);
+    }
+
 }

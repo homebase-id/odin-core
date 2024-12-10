@@ -32,13 +32,13 @@ public class TableKeyThreeValue(
         return await base.GetByKeyTwoThreeAsync(identityKey, key2, key3);
     }
 
-    public override async Task<int> UpsertAsync(KeyThreeValueRecord item)
+    public new async Task<int> UpsertAsync(KeyThreeValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
     }
 
-    public override async Task<int> InsertAsync(KeyThreeValueRecord item)
+    public new async Task<int> InsertAsync(KeyThreeValueRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
@@ -49,7 +49,7 @@ public class TableKeyThreeValue(
         return await base.DeleteAsync(identityKey, key1);
     }
 
-    public override async Task<int> UpdateAsync(KeyThreeValueRecord item)
+    public new async Task<int> UpdateAsync(KeyThreeValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);

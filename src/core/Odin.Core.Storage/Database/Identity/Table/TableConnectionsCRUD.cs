@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> InsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> TryInsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> UpsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -308,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(ConnectionsRecord item)
+        protected virtual async Task<int> UpdateAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -360,7 +360,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified
-        public ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -422,7 +422,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -445,7 +445,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
+        protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -481,7 +481,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
+        protected virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
         {
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
             if (hit)
@@ -516,7 +516,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId, string inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -567,7 +567,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId,Int32 status, string inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId,Int32 status, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -622,7 +622,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -677,7 +677,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

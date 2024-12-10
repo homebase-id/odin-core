@@ -9,6 +9,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
 using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Factory;
@@ -111,7 +112,8 @@ public class ScopedConnectionFactory<T>(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
-    CacheHelper cache) where T : IDbConnectionFactory
+    CacheHelper cache,
+    DatabaseCounters counters) where T : IDbConnectionFactory
 {
     // ReSharper disable once StaticMemberInGenericType
     private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
@@ -119,6 +121,7 @@ public class ScopedConnectionFactory<T>(
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
+    private readonly DatabaseCounters _counters = counters;
     private readonly AsyncLock _mutex = new();
     private DbConnection? _connection;
     private int _connectionRefCount;
@@ -137,6 +140,7 @@ public class ScopedConnectionFactory<T>(
         {
             if (_connectionRefCount == 0)
             {
+                _counters.IncrementNoDbOpened();
                 _connection = await _connectionFactory.CreateAsync();
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
@@ -308,6 +312,7 @@ public class ScopedConnectionFactory<T>(
                     }
 
                     instance.LogTrace("Disposing connection");
+                    instance._counters.IncrementNoDbClosed();
 
                     await instance._connection!.DisposeAsync();
                     instance._connection = null;
@@ -532,6 +537,8 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
+            instance._counters.IncrementNoDbExecuteNonQueryAsync();
+
             try
             {
                 using (await instance._mutex.LockAsync(cancellationToken))
@@ -555,6 +562,8 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
+            instance._counters.IncrementNoDbExecuteReaderAsync();
+
             try
             {
                 using (await instance._mutex.LockAsync(cancellationToken))
@@ -577,6 +586,8 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
+            instance._counters.IncrementNoDbExecuteScalarAsync();
+
             try
             {
                 using (await instance._mutex.LockAsync(cancellationToken))

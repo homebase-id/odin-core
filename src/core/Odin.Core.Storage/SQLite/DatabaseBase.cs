@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
 
 
 /*
@@ -51,12 +53,10 @@ namespace Odin.Core.Storage.SQLite
                 InitSqliteJournalModeWal(cn);
             }
 
-            RsaKeyManagement.noDBOpened++;
         }
 
         ~DatabaseBase()
         {
-            RsaKeyManagement.noDBClosed++;
 
 #if DEBUG
             if (!_wasDisposed)

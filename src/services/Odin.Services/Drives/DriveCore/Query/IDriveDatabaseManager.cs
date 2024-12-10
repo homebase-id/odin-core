@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -18,7 +19,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCoreAsync(
+        Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
             StorageDrive drive,
             IOdinContext odinContext,
             FileSystemType fileSystemType,
@@ -31,7 +32,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCoreAsync(
+        Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetBatchCoreAsync(
             StorageDrive drive,
             IOdinContext odinContext,
             FileSystemType fileSystemType,
@@ -72,9 +73,9 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive);
 
-        Task<Guid?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType);
+        Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType);
 
-        Task<Guid?> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType);
+        Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType);
 
         Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType);
         

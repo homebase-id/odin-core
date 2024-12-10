@@ -24,7 +24,7 @@ public class TableDriveTagIndex(
         return await base.GetAsync(identityKey, driveId, fileId);
     }
 
-    public override async Task<int> InsertAsync(DriveTagIndexRecord item)
+    public new async Task<int> InsertAsync(DriveTagIndexRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

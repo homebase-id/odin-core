@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(InboxRecord item)
+        protected virtual async Task<int> InsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -209,7 +209,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(InboxRecord item)
+        protected virtual async Task<int> TryInsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(InboxRecord item)
+        protected virtual async Task<int> UpsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -334,7 +334,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(InboxRecord item)
+        protected virtual async Task<int> UpdateAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -392,7 +392,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -423,7 +423,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
-        public InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -457,7 +457,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid fileId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -478,7 +478,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
+        protected InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -517,7 +517,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<InboxRecord> GetAsync(Guid identityId,Guid fileId)
+        protected virtual async Task<InboxRecord> GetAsync(Guid identityId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();

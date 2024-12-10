@@ -142,7 +142,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -248,7 +248,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -310,7 +310,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -363,7 +363,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -393,7 +393,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified
-        public AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -425,7 +425,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -448,7 +448,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
+        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -484,7 +484,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<AppNotificationsRecord> GetAsync(Guid identityId,Guid notificationId)
+        protected virtual async Task<AppNotificationsRecord> GetAsync(Guid identityId,Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
@@ -519,7 +519,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
