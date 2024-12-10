@@ -93,8 +93,10 @@ namespace Odin.Hosting
             if (odinConfig.Logging.LogFilePath != "")
             {
                 loggerConfig.WriteTo.LogLevelModifier(s => s.Async(
-                    sink => sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
-                        outputTemplate: logOutputTemplate)));
+                    sink => sink.RollingFile(
+                        Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
+                        outputTemplate: logOutputTemplate,
+                        fileSizeLimitBytes: 16L * 1024 * 1024 * 1024)));
             }
 
             if (services != null)
