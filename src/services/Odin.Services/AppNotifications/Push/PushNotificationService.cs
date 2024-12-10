@@ -343,7 +343,7 @@ public class PushNotificationService(
 
         var item = new OutboxFileItem()
         {
-            Priority = 0, //super high priority to ensure these are sent quickly,
+            Priority = 100, //super high priority to ensure these are sent quickly,
             Type = OutboxItemType.PushNotification,
             File = new InternalDriveFileId()
             {

@@ -1,20 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Data;
-using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
-using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -28,7 +24,6 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
-using Refit;
 
 namespace Odin.Services.Membership.Connections.Requests;
 
@@ -60,12 +55,6 @@ public class CircleNetworkIntroductionService(
 
     private static readonly byte[] ReceivedIntroductionDataType = Guid.Parse("0b844f10-9580-4cef-82e6-45b21eb40f62").ToByteArray();
 
-    private readonly OdinConfiguration _odinConfiguration = odinConfiguration;
-
-    private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
-
-    // _logger = logger;
-
 
     /// <summary>
     /// Introduces a group of identities to each other
@@ -77,9 +66,9 @@ public class CircleNetworkIntroductionService(
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
 
-        
+
         var driveId = (await driveManager.GetDriveAsync(SystemDriveConstants.TransientTempDrive)).Id;
-        
+
         async Task<bool> EnqueueOutboxItem(OdinId recipient, Introduction introduction)
         {
             try
@@ -92,7 +81,7 @@ public class CircleNetworkIntroductionService(
                 var item = new OutboxFileItem
                 {
                     Recipient = recipient,
-                    Priority = 0, //super high priority to ensure these are sent quickly,
+                    Priority = 50, //super high priority to ensure these are sent quickly,
                     Type = OutboxItemType.SendIntroduction,
                     AttemptCount = 0,
                     File = new InternalDriveFileId()
@@ -167,6 +156,8 @@ public class CircleNetworkIntroductionService(
         introduction.Timestamp = UnixTimeUtc.Now();
         var introducer = odinContext.GetCallerOdinIdOrFail();
 
+        var driveId = await driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive);
+
         //Store the introductions by the identity to which you're being introduces
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
@@ -187,7 +178,7 @@ public class CircleNetworkIntroductionService(
                 Received = UnixTimeUtc.Now()
             };
 
-            await UpsertIntroductionAsync(iid);
+            await UpsertIntroductionAsync(iid, driveId.GetValueOrDefault());
         }
 
         var notification = new IntroductionsReceivedNotification()
@@ -197,7 +188,6 @@ public class CircleNetworkIntroductionService(
             OdinContext = odinContext
         };
 
-        var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications);
         await pushNotificationService.EnqueueNotification(introducer, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.OwnerAppId,
@@ -210,7 +200,7 @@ public class CircleNetworkIntroductionService(
                 //     Introduction = introduction,
                 // })
             },
-            newContext);
+            OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications));
 
         await mediator.Publish(notification);
     }
@@ -291,8 +281,6 @@ public class CircleNetworkIntroductionService(
     /// </summary>
     public async Task SendOutstandingConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        const int maxSendAttempts = 30;
-
         //upgrading for use in a bg process
         var newOdinContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership);
 
@@ -309,40 +297,7 @@ public class CircleNetworkIntroductionService(
                 break;
             }
 
-            var recipient = intro.Identity;
-
-            var hasOutstandingRequest = await circleNetworkRequestService.HasPendingOrSentRequest(recipient, newOdinContext);
-            if (hasOutstandingRequest)
-            {
-                logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
-                continue;
-            }
-
-            var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, newOdinContext);
-            if (alreadyConnected)
-            {
-                logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
-                continue;
-            }
-
-            try
-            {
-                if (intro.SendAttemptCount <= maxSendAttempts)
-                {
-                    await this.TrySendConnectionRequestAsync(intro, cancellationToken, newOdinContext);
-                }
-                else
-                {
-                    logger.LogDebug("Not sending introduction to {intro} (introduced by {introducer}); it has reached " +
-                                    "maxSendAttempts of {max}", intro.Identity, intro.IntroducerOdinId, maxSendAttempts);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogInformation(ex,
-                    "Failed sending Introduced-connection-request to {identity}. This was attempt #:{attemptNumber} of {maxSendAttempts}.  Continuing to next introduction.",
-                    intro.Identity, intro.SendAttemptCount, maxSendAttempts);
-            }
+            await this.TrySendConnectionRequestAsync(intro, cancellationToken, newOdinContext);
         }
     }
 
@@ -381,24 +336,43 @@ public class CircleNetworkIntroductionService(
         //);
     }
 
-
-    private SignatureData Sign(byte[] data, IOdinContext odinContext)
+    /// <summary>
+    /// Sends connection requests for pending introductions if one has not already been sent or received
+    /// </summary>
+    public async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
+        IOdinContext odinContext)
     {
-        var password = Guid.NewGuid().ToByteArray().ToSensitiveByteArray();
+        var recipient = intro.Identity;
+        var introducer = intro.IntroducerOdinId;
 
-        OdinId signer = odinContext.GetCallerOdinIdOrFail();
+        var hasOutstandingRequest = await circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);
+        if (hasOutstandingRequest)
+        {
+            logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
+            return;
+        }
 
-        var eccKey = new EccFullKeyData(password, EccKeySize.P384, 1);
-        var signature = SignatureData.NewSignature(data, signer, password, eccKey);
-        return signature;
+        var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, odinContext);
+        if (alreadyConnected)
+        {
+            logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
+            return;
+        }
+
+        var id = Guid.NewGuid();
+        var requestHeader = new ConnectionRequestHeader()
+        {
+            Id = id,
+            Recipient = recipient,
+            Message = intro.Message,
+            IntroducerOdinId = introducer,
+            ContactData = new ContactRequestData(),
+            CircleIds = [],
+            ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
+        };
+
+        await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, cancellationToken, odinContext);
     }
-
-    private bool VerifySignature(SignatureData signature, byte[] data)
-    {
-        bool isValid = SignatureData.Verify(signature, data);
-        return isValid;
-    }
-    
 
     private async Task<IdentityIntroduction> GetIntroductionInternalAsync(OdinId identity)
     {
@@ -427,51 +401,44 @@ public class CircleNetworkIntroductionService(
         }
     }
 
-    /// <summary>
-    /// Sends connection requests for pending introductions if one has not already been sent or received
-    /// </summary>
-    private async Task TrySendConnectionRequestAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
-        IOdinContext odinContext)
+    private async Task UpsertIntroductionAsync(IdentityIntroduction iid, Guid driveId)
     {
-        var recipient = intro.Identity;
-        var introducer = intro.IntroducerOdinId;
+        var recipient = iid.Identity;
 
-        const int minDaysSinceLastSend = 3; //TODO: config
-        if (intro.LastProcessed != UnixTimeUtc.ZeroTime && intro.LastProcessed.AddDays(minDaysSinceLastSend) < UnixTimeUtc.Now())
+        try
         {
-            logger.LogDebug(
-                "Ignoring introduction to {recipient} from {introducer} since we last processed this less than {days} days ago",
+            await ReceivedIntroductionValueStorage.UpsertAsync(tblKeyThreeValue,
                 recipient,
-                introducer,
-                minDaysSinceLastSend);
+                dataTypeKey: iid.IntroducerOdinId.ToHashId().ToByteArray(),
+                ReceivedIntroductionDataType, iid);
 
-            return;
+            var item = new OutboxFileItem
+            {
+                Recipient = recipient,
+                Priority = 55, //super high priority to ensure these are sent quickly,
+                Type = OutboxItemType.ConnectIntroducee,
+                AttemptCount = 0,
+                File = new InternalDriveFileId()
+                {
+                    DriveId = driveId,
+                    FileId = recipient.ToHashId()
+                },
+                DependencyFileId = default,
+                State = new OutboxItemState
+                {
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    EncryptedClientAuthToken = default,
+                    Data = OdinSystemSerializer.Serialize(iid).ToUtf8ByteArray()
+                },
+            };
+
+            await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
-
-        var id = Guid.NewGuid();
-        var requestHeader = new ConnectionRequestHeader()
+        catch (Exception e)
         {
-            Id = id,
-            Recipient = recipient,
-            Message = intro.Message,
-            IntroducerOdinId = introducer,
-            ContactData = new ContactRequestData(),
-            CircleIds = [],
-            ConnectionRequestOrigin = ConnectionRequestOrigin.Introduction
-        };
-
-        intro.SendAttemptCount++;
-        intro.LastProcessed = UnixTimeUtc.Now();
-        await UpsertIntroductionAsync(intro);
-
-        await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, cancellationToken, odinContext);
-    }
-
-    private async Task UpsertIntroductionAsync(IdentityIntroduction intro)
-    {
-        await ReceivedIntroductionValueStorage.UpsertAsync(tblKeyThreeValue, intro.Identity,
-            dataTypeKey: intro.IntroducerOdinId.ToHashId().ToByteArray(),
-            ReceivedIntroductionDataType, intro);
+            logger.LogError(e, "Failed to enqueue ConnectIntroducee for recipient: [{recipient}]", recipient);
+        }
     }
 
     private async Task DeleteIntroductionsToAsync(OdinId identity)

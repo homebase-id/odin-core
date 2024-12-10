@@ -20,5 +20,7 @@ public enum OutboxItemType
 
     PeerPushNotification = 2077,
 
-    SendIntroduction = 2088
+    SendIntroduction = 2088,
+
+    ConnectIntroducee = 3088
 }

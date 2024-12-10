@@ -17,6 +17,7 @@ using Odin.Services.Background.Services;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Introductions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
@@ -36,7 +37,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessorBackgroundService> logger,
         ILoggerFactory loggerFactory,
-        TenantContext tenantContext
+        TenantContext tenantContext,
+        CircleNetworkIntroductionService introductionService
     ) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -238,6 +240,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.SendIntroduction:
                     return await SendIntroduction(fileItem, odinContext, cancellationToken);
 
+                case OutboxItemType.ConnectIntroducee:
+                    return await ConnectIntroducee(fileItem, odinContext, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -378,6 +383,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 workLogger,
                 odinConfiguration,
                 odinHttpClientFactory);
+
+            return await worker.Send(odinContext, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ConnectIntroducee(OutboxFileItem fileItem,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<ConnectIntroduceeOutboxWorker>();
+            var worker = new ConnectIntroduceeOutboxWorker(
+                fileItem,
+                workLogger,
+                odinConfiguration,
+                introductionService);
 
             return await worker.Send(odinContext, cancellationToken);
         }

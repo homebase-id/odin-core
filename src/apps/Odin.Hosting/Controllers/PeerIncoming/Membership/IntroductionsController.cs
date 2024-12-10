@@ -19,7 +19,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("make-introduction")]
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)
         {
-            
             await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
         }

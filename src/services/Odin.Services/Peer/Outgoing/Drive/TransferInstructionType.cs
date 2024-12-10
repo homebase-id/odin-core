@@ -11,6 +11,5 @@ public enum TransferInstructionType
     UpdateFile,
     ReadReceipt,
     AddReaction,
-    DeleteReaction,
-    HandleIntroduction
+    DeleteReaction
 }

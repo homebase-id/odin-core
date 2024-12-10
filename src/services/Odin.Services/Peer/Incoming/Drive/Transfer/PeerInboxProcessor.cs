@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
 using Microsoft.Extensions.Logging;
@@ -9,7 +8,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
@@ -18,7 +16,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -34,8 +31,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         ILogger<PeerInboxProcessor> logger,
         PublicPrivateKeyService keyService,
         DriveManager driveManager,
-        ReactionContentService reactionContentService,
-        CircleNetworkIntroductionService circleNetworkIntroductionService)
+        ReactionContentService reactionContentService)
     {
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
@@ -142,12 +138,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 else if (inboxItem.InstructionType is TransferInstructionType.AddReaction or TransferInstructionType.DeleteReaction)
                 {
                     await HandleReaction(inboxItem, fs, odinContext);
-                    await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
-                }
-                else if (inboxItem.InstructionType is TransferInstructionType.HandleIntroduction)
-                {
-                    //
-                    await HandleIntroduction(inboxItem, fs, odinContext);
                     await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
                 }
                 else
@@ -330,14 +320,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
             }
         }
-
-        private async Task HandleIntroduction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext)
-        {
-            // SendOutstandingConnectionRequestsAsync
-            // OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadConnectionRequests);
-            // await circleNetworkIntroductionService.SendOutstandingConnectionRequestsAsync(odinContext, CancellationToken.None);
-        }
-
 
         private T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
         {
