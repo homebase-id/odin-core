@@ -37,9 +37,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessorBackgroundService> logger,
         ILoggerFactory loggerFactory,
-        TenantContext tenantContext,
-        CircleNetworkIntroductionService introductionService
-    ) : AbstractBackgroundService(logger)
+        TenantContext tenantContext) : AbstractBackgroundService(logger)
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -241,7 +239,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     return await SendIntroduction(fileItem, odinContext, cancellationToken);
 
                 case OutboxItemType.ConnectIntroducee:
-                    return await ConnectIntroducee(fileItem, odinContext, cancellationToken);
+                    return await ConnectIntroducee(childScope, fileItem, odinContext, cancellationToken);
 
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -387,10 +385,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await worker.Send(odinContext, cancellationToken);
         }
 
-        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ConnectIntroducee(OutboxFileItem fileItem,
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ConnectIntroducee(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
             IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            var introductionService = childScope.Resolve<CircleNetworkIntroductionService>();
             var workLogger = loggerFactory.CreateLogger<ConnectIntroduceeOutboxWorker>();
             var worker = new ConnectIntroduceeOutboxWorker(
                 fileItem,
