@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.Fingering;
@@ -18,7 +19,8 @@ public interface IDidService
 // Example validator: https://didlint.ownyourdata.eu/?did=did%3Aweb%3Afrodobaggins.me
 public class DidService(
     OdinContext context,
-    StaticFileContentService staticFileContentService)
+    StaticFileContentService staticFileContentService,
+    PublicPrivateKeyService publicKeyService)
     : IDidService
 {
     public async Task<DidWebResponse?> GetDidWebAsync()
@@ -43,6 +45,9 @@ public class DidService(
             }
         }
 
+        var signingPublicKey = await publicKeyService.GetSigningPublicKeyAsync();
+        var jwk = signingPublicKey.PublicKeyJwk();
+
         var result = new DidWebResponse
         {
             Id = $"did:web:{domain}",
@@ -51,19 +56,13 @@ public class DidService(
             [
                 new DidWebVerificationMethod
                 {
-                    Id = $"did:web:{domain}#placeholder",
+                    Id = $"did:web:{domain}#key-authentication",
                     Type = "JsonWebKey2020",
                     Controller = $"did:web:{domain}",
-                    PublicKeyJwk = new DidWebVerificationMethod.TPublicKeyJwk
-                    {
-                        Kty = "EC",
-                        Crv = "P-256",
-                        X = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                        Y = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-                    }
+                    PublicKeyJwk = OdinSystemSerializer.DeserializeOrThrow<DidWebVerificationMethod.TPublicKeyJwk>(jwk)
                 }
             ],
-            Authentication = [$"did:web:{domain}#placeholder"]
+            Authentication = [$"did:web:{domain}#key-authentication"]
         };
 
         if (profile.Name != null)
