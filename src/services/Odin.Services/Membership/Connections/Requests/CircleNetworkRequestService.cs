@@ -284,7 +284,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await UpsertPendingConnectionRequestAsync(request);
 
-            await _mediator.Publish(new ConnectionRequestReceived()
+            await _mediator.Publish(new ConnectionRequestReceivedNotification()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,

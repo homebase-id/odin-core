@@ -47,7 +47,7 @@ public class CircleNetworkIntroductionService(
         INotificationHandler<ConnectionFinalizedNotification>,
         INotificationHandler<ConnectionBlockedNotification>,
         INotificationHandler<ConnectionDeletedNotification>,
-        INotificationHandler<ConnectionRequestReceived>
+        INotificationHandler<ConnectionRequestReceivedNotification>
 {
     private const string ReceivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
 
@@ -179,7 +179,11 @@ public class CircleNetworkIntroductionService(
                 Received = UnixTimeUtc.Now()
             };
 
-            await UpsertIntroductionAsync(iid, driveId.GetValueOrDefault());
+            if (!await AutoAcceptNewIntroductionAsync(identity, odinContext))
+            {
+                //only store and enqueue the introduction if needed
+                await UpsertIntroductionAsync(iid, driveId.GetValueOrDefault());
+            }
         }
 
         var notification = new IntroductionsReceivedNotification()
@@ -212,70 +216,124 @@ public class CircleNetworkIntroductionService(
         logger.LogDebug("Running AutoAccept for incomingConnectionRequests ({count} requests)",
             incomingConnectionRequests.Results.Count);
 
-        foreach (var request in incomingConnectionRequests.Results)
+        foreach (PendingConnectionRequestHeader request in incomingConnectionRequests.Results)
         {
             if (cancellationToken.IsCancellationRequested)
             {
                 logger.LogDebug("AutoAcceptEligibleConnectionRequests - Cancellation requested; breaking from loop");
-
                 break;
             }
 
-            var sender = request.SenderOdinId;
-
-            try
-            {
-                var introduction = await this.GetIntroductionInternalAsync(sender);
-                if (null != introduction)
-                {
-                    logger.LogDebug("Auto-accept connection request from {sender} due to received introduction", sender);
-                    await AutoAcceptAsync(sender, odinContext);
-                    return;
-                }
-
-                var existingSentRequest = await circleNetworkRequestService.GetSentRequest(sender, odinContext);
-                if (null != existingSentRequest)
-                {
-                    logger.LogDebug("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
-                    await AutoAcceptAsync(sender, odinContext);
-                    return;
-                }
-
-                if (await CircleNetworkService.IsConnectedAsync(sender, odinContext))
-                {
-                    logger.LogDebug("Auto-accept connection request from {sender} since there is already an ICR", sender);
-                    await AutoAcceptAsync(sender, odinContext);
-                    return;
-                }
-
-                var incomingRequest = await circleNetworkRequestService.GetPendingRequestAsync(sender, odinContext);
-                if (incomingRequest?.IntroducerOdinId != null)
-                {
-                    var introducerIcr = await CircleNetworkService.GetIcrAsync(incomingRequest.IntroducerOdinId.Value, odinContext);
-
-                    if (introducerIcr.IsConnected() &&
-                        introducerIcr.AccessGrant.CircleGrants.Values.Any(v =>
-                            v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
-                    {
-                        logger.LogDebug(
-                            "Auto-accept connection request from {sender} since sender was introduced by " +
-                            "[{introducer}]; who is connected and has {permission}",
-                            sender,
-                            introducerIcr.OdinId,
-                            nameof(PermissionKeys.AllowIntroductions));
-                        await AutoAcceptAsync(sender, odinContext);
-                        return;
-                    }
-                }
-
-                logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
-            }
-            catch (Exception ex)
-            {
-                logger.LogInformation(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
-            }
+            await AutoAcceptEligibleConnectionRequestAsync(request.SenderOdinId, odinContext);
         }
     }
+
+    private async Task<bool> AutoAcceptNewIntroductionAsync(OdinId sender, IOdinContext odinContext)
+    {
+        try
+        {
+            var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadConnectionRequests);
+
+            var existingSentRequest = await circleNetworkRequestService.GetSentRequest(sender, newContext);
+            if (null != existingSentRequest)
+            {
+                logger.LogDebug("Auto-accepted connection request from {sender} due to an existing outgoing request", sender);
+                await AutoAcceptAsync(sender, odinContext);
+                return true;
+            }
+
+            if (await CircleNetworkService.IsConnectedAsync(sender, odinContext))
+            {
+                logger.LogDebug("Auto-accepted connection request from {sender} since there is already an ICR", sender);
+                await AutoAcceptAsync(sender, odinContext);
+                return true;
+            }
+
+            var incomingRequest = await circleNetworkRequestService.GetPendingRequestAsync(sender, odinContext);
+            if (incomingRequest?.IntroducerOdinId != null)
+            {
+                var introducerIcr = await CircleNetworkService.GetIcrAsync(incomingRequest.IntroducerOdinId.Value, odinContext);
+
+                if (introducerIcr.IsConnected() &&
+                    introducerIcr.AccessGrant.CircleGrants.Values.Any(v =>
+                        v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
+                {
+                    logger.LogDebug(
+                        "Auto-accepted connection request from {sender} since sender was introduced by " +
+                        "[{introducer}]; who is connected and has {permission}",
+                        sender,
+                        introducerIcr.OdinId,
+                        nameof(PermissionKeys.AllowIntroductions));
+                    await AutoAcceptAsync(sender, odinContext);
+                    return true;
+                }
+            }
+
+            logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
+        }
+
+        return false;
+    }
+
+    private async Task AutoAcceptEligibleConnectionRequestAsync(OdinId sender, IOdinContext odinContext)
+    {
+        try
+        {
+            var introduction = await this.GetIntroductionInternalAsync(sender);
+            if (null != introduction)
+            {
+                logger.LogDebug("Auto-accept connection request from {sender} due to received introduction", sender);
+                await AutoAcceptAsync(sender, odinContext);
+                return;
+            }
+
+            var existingSentRequest = await circleNetworkRequestService.GetSentRequest(sender, odinContext);
+            if (null != existingSentRequest)
+            {
+                logger.LogDebug("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
+                await AutoAcceptAsync(sender, odinContext);
+                return;
+            }
+
+            if (await CircleNetworkService.IsConnectedAsync(sender, odinContext))
+            {
+                logger.LogDebug("Auto-accept connection request from {sender} since there is already an ICR", sender);
+                await AutoAcceptAsync(sender, odinContext);
+                return;
+            }
+
+            var incomingRequest = await circleNetworkRequestService.GetPendingRequestAsync(sender, odinContext);
+            if (incomingRequest?.IntroducerOdinId != null)
+            {
+                var introducerIcr = await CircleNetworkService.GetIcrAsync(incomingRequest.IntroducerOdinId.Value, odinContext);
+
+                if (introducerIcr.IsConnected() &&
+                    introducerIcr.AccessGrant.CircleGrants.Values.Any(v =>
+                        v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
+                {
+                    logger.LogDebug(
+                        "Auto-accept connection request from {sender} since sender was introduced by " +
+                        "[{introducer}]; who is connected and has {permission}",
+                        sender,
+                        introducerIcr.OdinId,
+                        nameof(PermissionKeys.AllowIntroductions));
+                    await AutoAcceptAsync(sender, odinContext);
+                    return;
+                }
+            }
+
+            logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
+        }
+        catch (Exception ex)
+        {
+            logger.LogInformation(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
+        }
+    }
+
 
     /// <summary>
     /// Sends connection requests for introductions
@@ -337,9 +395,9 @@ public class CircleNetworkIntroductionService(
         //);
     }
 
-    public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
     {
-        await this.AutoAcceptEligibleConnectionRequestsAsync(notification.OdinContext, cancellationToken);
+        await AutoAcceptEligibleConnectionRequestAsync(notification.Sender, notification.OdinContext);
     }
 
     /// <summary>
@@ -403,7 +461,7 @@ public class CircleNetworkIntroductionService(
         }
         catch (Exception ex)
         {
-            logger.LogInformation(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
+            logger.LogError(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
         }
     }
 
