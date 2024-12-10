@@ -237,7 +237,6 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionBlockedNotification>>()
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
-            .As<INotificationHandler<IntroductionsReceivedNotification>>()
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
