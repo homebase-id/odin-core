@@ -174,7 +174,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/auto-accept-eligible-introductions")]
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
-            
             await introductionService.AutoAcceptEligibleConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -67,6 +68,9 @@ public class CircleGrantTests
             Recipients = [sam, merry]
         });
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
+        
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
@@ -121,6 +125,7 @@ public class CircleGrantTests
             Message = "test message from frodo",
             Recipients = [sam, merry]
         });
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);

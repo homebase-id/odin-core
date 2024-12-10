@@ -284,7 +284,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await UpsertPendingConnectionRequestAsync(request);
 
-            await _mediator.Publish(new ConnectionRequestReceived()
+            await _mediator.Publish(new ConnectionRequestReceivedNotification()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
@@ -724,7 +724,6 @@ namespace Odin.Services.Membership.Connections.Requests
             var recipient = (OdinId)header.Recipient;
 
             _logger.LogDebug("Sending Identity-owner-connection request to {recipient}", recipient);
-
             var incomingRequest = await this.GetPendingRequestAsync(recipient, odinContext);
             if (incomingRequest != null)
             {

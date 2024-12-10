@@ -745,7 +745,7 @@ namespace Odin.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                    if (await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext))
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
                     {
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -825,7 +825,7 @@ namespace Odin.Services.Membership.Connections
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext);
+                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
 
                 await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
                 await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
@@ -921,18 +921,6 @@ namespace Odin.Services.Membership.Connections
                 {
                     logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
                 }
-
-                if (odinContext.Caller.HasMasterKey)
-                {
-                    try
-                    {
-                        await UpgradeKeyStoreKeyEncryptionIfNeededAsync(identity, odinContext);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogInformation(e, "Failed while upgrading KSK for {identity}", identity.OdinId);
-                    }
-                }
             }
         }
 
@@ -958,6 +946,16 @@ namespace Odin.Services.Membership.Connections
         public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
+        }
+
+        public async Task UpgradeKeyStoreKeyEncryptionIfNeededAsync(IOdinContext odinContext)
+        {
+            //TODO: use _db.CreateCommitUnitOfWork()
+            var members = await this.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+            foreach (var icr in members.Results)
+            {
+                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+            }
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
@@ -1232,7 +1230,7 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity,
+        private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())

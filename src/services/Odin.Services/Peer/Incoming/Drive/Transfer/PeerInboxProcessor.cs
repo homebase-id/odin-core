@@ -140,15 +140,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await HandleReaction(inboxItem, fs, odinContext);
                     await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
                 }
-
-                else if (inboxItem.InstructionType == TransferInstructionType.None)
-                {
-                    throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
-                }
                 else
                 {
                     await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
-                    throw new OdinClientException("Invalid transfer type", OdinClientErrorCode.InvalidTransferType);
+                    throw new OdinClientException("Invalid transfer type or not specified", OdinClientErrorCode.InvalidTransferType);
                 }
 
                 logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}",
@@ -262,7 +257,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
                 handleFileMs);
         }
-        
+
         private async Task ProcessFeedItemViaTransit(TransferInboxItem inboxItem, IOdinContext odinContext, PeerFileWriter writer,
             InternalDriveFileId tempFile, IDriveFileSystem fs)
         {
@@ -291,7 +286,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var updateInstructionSet =
                 OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
-            var decryptedKeyHeader = await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
+            var decryptedKeyHeader =
+                await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
             await writer.UpdateFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
         }
 
@@ -378,7 +374,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return pendingCount;
         }
 
-        private async Task<KeyHeader> DecryptedKeyHeaderAsync(OdinId sender, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
+        private async Task<KeyHeader> DecryptedKeyHeaderAsync(OdinId sender, EncryptedKeyHeader encryptedKeyHeader,
+            IOdinContext odinContext)
         {
             var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
