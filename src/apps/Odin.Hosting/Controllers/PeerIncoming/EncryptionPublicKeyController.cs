@@ -49,7 +49,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
 
             var result = new GetEccPublicKeyResponse()
             {
-                PublicKeyJwk = key.PublicKeyJwk(),
+                PublicKeyJwkBase64Url = key.PublicKeyJwk(),
                 Expiration = key.expiration.milliseconds,
                 CRC32c = key.crc32c
             };

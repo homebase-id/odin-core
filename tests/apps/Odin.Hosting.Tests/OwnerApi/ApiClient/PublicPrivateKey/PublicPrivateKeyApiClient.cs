@@ -39,7 +39,7 @@ public class PublicPrivateKeyApiClient
         }
     }
     
-    public async Task<GetPublicKeyResponse> GetEccOnlinePublicKey()
+    public async Task<GetEccPublicKeyResponse> GetEccOnlinePublicKey()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {

@@ -183,7 +183,8 @@ public class CircleNetworkIntroductionService(
             {
                 IntroducerOdinId = introducer,
                 Identity = identity,
-                Message = introduction.Message
+                Message = introduction.Message,
+                Received = UnixTimeUtc.Now()
             };
 
             await UpsertIntroductionAsync(iid);

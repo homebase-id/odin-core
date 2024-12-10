@@ -714,142 +714,44 @@ namespace Odin.Core.Storage.Database.System.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new JobsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in id...");
-                item.id = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.name = rdr.GetString(1);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.state = rdr.GetInt32(2);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.priority = rdr.GetInt32(3);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.nextRun = new UnixTimeUtc(rdr.GetInt64(4));
-            }
-
-            if (rdr.IsDBNull(5))
-                item.lastRun = null;
-            else
-            {
-                item.lastRun = new UnixTimeUtc(rdr.GetInt64(5));
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.runCount = rdr.GetInt32(6);
-            }
-
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.maxAttempts = rdr.GetInt32(7);
-            }
-
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.retryDelay = rdr.GetInt64(8);
-            }
-
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.onSuccessDeleteAfter = rdr.GetInt64(9);
-            }
-
-            if (rdr.IsDBNull(10))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.onFailureDeleteAfter = rdr.GetInt64(10);
-            }
-
-            if (rdr.IsDBNull(11))
-                item.expiresAt = null;
-            else
-            {
-                item.expiresAt = new UnixTimeUtc(rdr.GetInt64(11));
-            }
-
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.correlationId = rdr.GetString(12);
-            }
-
-            if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.jobType = rdr.GetString(13);
-            }
-
-            if (rdr.IsDBNull(14))
-                item.jobData = null;
-            else
-            {
-                item.jobData = rdr.GetString(14);
-            }
-
-            if (rdr.IsDBNull(15))
-                item.jobHash = null;
-            else
-            {
-                item.jobHash = rdr.GetString(15);
-            }
-
-            if (rdr.IsDBNull(16))
-                item.lastError = null;
-            else
-            {
-                item.lastError = rdr.GetString(16);
-            }
-
-            if (rdr.IsDBNull(17))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(17));
-            }
-
-            if (rdr.IsDBNull(18))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(18));
-            }
+            item.id = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.name = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.state = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.priority = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.nextRun = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.lastRun = rdr.IsDBNull(5) ? 
+                null : new UnixTimeUtc((long)rdr[5]);
+            item.runCount = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.maxAttempts = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.retryDelay = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onSuccessDeleteAfter = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.onFailureDeleteAfter = rdr.IsDBNull(10) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
+            item.expiresAt = rdr.IsDBNull(11) ? 
+                null : new UnixTimeUtc((long)rdr[11]);
+            item.correlationId = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobType = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobData = rdr.IsDBNull(14) ? 
+                null : (string)rdr[14];
+            item.jobHash = rdr.IsDBNull(15) ? 
+                null : (string)rdr[15];
+            item.lastError = rdr.IsDBNull(16) ? 
+                null : (string)rdr[16];
+            item.created = rdr.IsDBNull(17) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[17]);
+            item.modified = rdr.IsDBNull(18) ? 
+                null : new UnixTimeUtcUnique((long)rdr[18]);
             return item;
        }
 
@@ -881,131 +783,59 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new JobsRecord();
             item.id = id;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.name = rdr.GetString(0);
-            }
+            item.name = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.state = rdr.GetInt32(1);
-            }
+            item.state = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.priority = rdr.GetInt32(2);
-            }
+            item.priority = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.nextRun = new UnixTimeUtc(rdr.GetInt64(3));
-            }
+            item.nextRun = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
 
-            if (rdr.IsDBNull(4))
-                item.lastRun = null;
-            else
-            {
-                item.lastRun = new UnixTimeUtc(rdr.GetInt64(4));
-            }
+            item.lastRun = rdr.IsDBNull(4) ? 
+                null : new UnixTimeUtc((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.runCount = rdr.GetInt32(5);
-            }
+            item.runCount = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
 
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.maxAttempts = rdr.GetInt32(6);
-            }
+            item.maxAttempts = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
 
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.retryDelay = rdr.GetInt64(7);
-            }
+            item.retryDelay = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[7];
 
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.onSuccessDeleteAfter = rdr.GetInt64(8);
-            }
+            item.onSuccessDeleteAfter = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
 
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.onFailureDeleteAfter = rdr.GetInt64(9);
-            }
+            item.onFailureDeleteAfter = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
 
-            if (rdr.IsDBNull(10))
-                item.expiresAt = null;
-            else
-            {
-                item.expiresAt = new UnixTimeUtc(rdr.GetInt64(10));
-            }
+            item.expiresAt = rdr.IsDBNull(10) ? 
+                null : new UnixTimeUtc((long)rdr[10]);
 
-            if (rdr.IsDBNull(11))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.correlationId = rdr.GetString(11);
-            }
+            item.correlationId = rdr.IsDBNull(11) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[11];
 
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.jobType = rdr.GetString(12);
-            }
+            item.jobType = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
 
-            if (rdr.IsDBNull(13))
-                item.jobData = null;
-            else
-            {
-                item.jobData = rdr.GetString(13);
-            }
+            item.jobData = rdr.IsDBNull(13) ? 
+                null : (string)rdr[13];
 
-            if (rdr.IsDBNull(14))
-                item.jobHash = null;
-            else
-            {
-                item.jobHash = rdr.GetString(14);
-            }
+            item.jobHash = rdr.IsDBNull(14) ? 
+                null : (string)rdr[14];
 
-            if (rdr.IsDBNull(15))
-                item.lastError = null;
-            else
-            {
-                item.lastError = rdr.GetString(15);
-            }
+            item.lastError = rdr.IsDBNull(15) ? 
+                null : (string)rdr[15];
 
-            if (rdr.IsDBNull(16))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(16));
-            }
+            item.created = rdr.IsDBNull(16) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[16]);
 
-            if (rdr.IsDBNull(17))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(17));
-            }
+            item.modified = rdr.IsDBNull(17) ? 
+                null : new UnixTimeUtcUnique((long)rdr[17]);
             return item;
        }
 

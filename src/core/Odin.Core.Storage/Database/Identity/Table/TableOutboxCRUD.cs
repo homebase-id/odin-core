@@ -206,7 +206,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(OutboxRecord item)
+        protected virtual async Task<int> InsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -281,7 +281,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(OutboxRecord item)
+        protected virtual async Task<int> TryInsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -356,7 +356,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(OutboxRecord item)
+        protected virtual async Task<int> UpsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -440,7 +440,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(OutboxRecord item)
+        protected virtual async Task<int> UpdateAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -515,7 +515,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -551,7 +551,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
-        public OutboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected OutboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<OutboxRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -560,129 +560,42 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new OutboxRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.rowid = rdr.GetInt32(0);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in driveId...");
-                item.driveId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.recipient = rdr.GetString(4);
-            }
-
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.type = rdr.GetInt32(5);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.priority = rdr.GetInt32(6);
-            }
-
-            if (rdr.IsDBNull(7))
-                item.dependencyFileId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(7, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in dependencyFileId...");
-                item.dependencyFileId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.checkOutCount = rdr.GetInt32(8);
-            }
-
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(9));
-            }
-
-            if (rdr.IsDBNull(10))
-                item.value = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(10, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in value...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in value...");
-                item.value = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.value, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(11))
-                item.checkOutStamp = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in checkOutStamp...");
-                item.checkOutStamp = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(12));
-            }
-
-            if (rdr.IsDBNull(13))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(13));
-            }
+            item.rowid = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
+            item.identityId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.driveId = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.fileId = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.recipient = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.type = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.priority = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dependencyFileId = rdr.IsDBNull(7) ? 
+                null : new Guid((byte[])rdr[7]);
+            item.checkOutCount = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.nextRunTime = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.value = rdr.IsDBNull(10) ? 
+                null : (byte[])(rdr[10]);
+            if (item.value?.Length > 65535)
+                throw new Exception("Too much data in value...");
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
+            item.checkOutStamp = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
+            item.created = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[12]);
+            item.modified = rdr.IsDBNull(13) ? 
+                null : new UnixTimeUtcUnique((long)rdr[13]);
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -714,7 +627,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -727,91 +640,43 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.fileId = fileId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.recipient = rdr.GetString(0);
-            }
+            item.recipient = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.type = rdr.GetInt32(1);
-            }
+            item.type = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.priority = rdr.GetInt32(2);
-            }
+            item.priority = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                item.dependencyFileId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in dependencyFileId...");
-                item.dependencyFileId = new Guid(guid);
-            }
+            item.dependencyFileId = rdr.IsDBNull(3) ? 
+                null : new Guid((byte[])rdr[3]);
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.checkOutCount = rdr.GetInt32(4);
-            }
+            item.checkOutCount = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(5));
-            }
+            item.nextRunTime = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
 
-            if (rdr.IsDBNull(6))
-                item.value = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(6, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in value...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in value...");
-                item.value = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.value, 0, (int) bytesRead);
-            }
+            item.value = rdr.IsDBNull(6) ? 
+                null : (byte[])(rdr[6]);
+            if (item.value?.Length > 65535)
+                throw new Exception("Too much data in value...");
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
 
-            if (rdr.IsDBNull(7))
-                item.checkOutStamp = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(7, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in checkOutStamp...");
-                item.checkOutStamp = new Guid(guid);
-            }
+            item.checkOutStamp = rdr.IsDBNull(7) ? 
+                null : new Guid((byte[])rdr[7]);
 
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(8));
-            }
+            item.created = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[8]);
 
-            if (rdr.IsDBNull(9))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(9));
-            }
+            item.modified = rdr.IsDBNull(9) ? 
+                null : new UnixTimeUtcUnique((long)rdr[9]);
             return item;
        }
 
-        public virtual async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
@@ -851,7 +716,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -868,84 +733,40 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
             item.recipient = recipient;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.type = rdr.GetInt32(0);
-            }
+            item.type = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.priority = rdr.GetInt32(1);
-            }
+            item.priority = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                item.dependencyFileId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in dependencyFileId...");
-                item.dependencyFileId = new Guid(guid);
-            }
+            item.dependencyFileId = rdr.IsDBNull(2) ? 
+                null : new Guid((byte[])rdr[2]);
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.checkOutCount = rdr.GetInt32(3);
-            }
+            item.checkOutCount = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(4));
-            }
+            item.nextRunTime = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                item.value = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(5, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in value...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in value...");
-                item.value = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.value, 0, (int) bytesRead);
-            }
+            item.value = rdr.IsDBNull(5) ? 
+                null : (byte[])(rdr[5]);
+            if (item.value?.Length > 65535)
+                throw new Exception("Too much data in value...");
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
 
-            if (rdr.IsDBNull(6))
-                item.checkOutStamp = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(6, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in checkOutStamp...");
-                item.checkOutStamp = new Guid(guid);
-            }
+            item.checkOutStamp = rdr.IsDBNull(6) ? 
+                null : new Guid((byte[])rdr[6]);
 
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));
-            }
+            item.created = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[7]);
 
-            if (rdr.IsDBNull(8))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
-            }
+            item.modified = rdr.IsDBNull(8) ? 
+                null : new UnixTimeUtcUnique((long)rdr[8]);
             return item;
        }
 
-        public virtual async Task<OutboxRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected virtual async Task<OutboxRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");

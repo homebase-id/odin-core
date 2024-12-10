@@ -27,7 +27,7 @@ public class TableOutbox(
         return await base.GetAsync(identityKey, driveId, fileId, recipient);
     }
 
-    public override async Task<int> InsertAsync(OutboxRecord item)
+    public new async Task<int> InsertAsync(OutboxRecord item)
     {
         item.identityId = identityKey;
         item.checkOutCount = 0;
@@ -41,7 +41,7 @@ public class TableOutbox(
     }
 
 
-    public override async Task<int> UpsertAsync(OutboxRecord item)
+    public new async Task<int> UpsertAsync(OutboxRecord item)
     {
         if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
             throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");

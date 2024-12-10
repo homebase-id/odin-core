@@ -130,6 +130,7 @@ public class JobManagerTests
             .ConfigureContainer<ContainerBuilder>((hostContext, builder) =>
             {
                 builder.AddDatabaseCacheServices();
+                builder.AddDatabaseCounterServices();
                 switch (databaseType)
                 {
                     case DatabaseType.Sqlite:

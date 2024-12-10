@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -119,7 +119,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> TryInsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -148,7 +148,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(KeyValueRecord item)
+        protected virtual async Task<int> UpsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -177,7 +177,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(KeyValueRecord item)
+        protected virtual async Task<int> UpdateAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -207,7 +207,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,key,data
-        public KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
             byte[] tmpbuf = new byte[1048576+1];
@@ -241,46 +241,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyValueRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, tmpbuf, 0, 48+1);
-                if (bytesRead > 48)
-                    throw new Exception("Too much data in key...");
-                if (bytesRead < 16)
-                    throw new Exception("Too little data in key...");
-                item.key = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.key, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(2))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, tmpbuf, 0, 1048576+1);
-                if (bytesRead > 1048576)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.key = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key?.Length > 48)
+                throw new Exception("Too much data in key...");
+            if (item.key?.Length < 16)
+                throw new Exception("Too little data in key...");
+            item.data = rdr.IsDBNull(2) ? 
+                null : (byte[])(rdr[2]);
+            if (item.data?.Length > 1048576)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -306,7 +284,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
+        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -321,22 +299,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key = key;
 
-            if (rdr.IsDBNull(0))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
-                if (bytesRead > 1048576)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(0) ? 
+                null : (byte[])(rdr[0]);
+            if (item.data?.Length > 1048576)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
+        protected virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");

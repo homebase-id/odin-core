@@ -48,7 +48,7 @@ public class TableFollowsMe(
     }
 
 
-    public override async Task<int> InsertAsync(FollowsMeRecord item)
+    public new async Task<int> InsertAsync(FollowsMeRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

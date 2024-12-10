@@ -8,7 +8,7 @@ using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Login
 {
-    public class DecryptedRSAPasswordHeader
+    public class DecryptedGCMPasswordHeader
     {
         public string hpwd64 { get; set; }
         public string kek64 { get; set; }
@@ -23,7 +23,7 @@ namespace Odin.Core.Cryptography.Login
         /// You should only call if the identity's PasswordKey data struct is null
         /// On creation the DeK will be set and encrypted with the KeK
         /// </summary>
-        /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
+        /// <param name="passwordKeK">pbkdf2(SaltKek, password, CryptographyConstants.ITERATIONS, 16)</param>
         /// <returns></returns>
         private static PasswordData CreateInitialPasswordKey(NonceData nonce, string hashedPassword64, string kek64, SensitiveByteArray masterKey)
         {
@@ -83,10 +83,10 @@ namespace Odin.Core.Cryptography.Login
         /// Nonce package, then call here to setup everything needed (HasedPassword, Kek, DeK)
         /// </summary>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa,
+        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, EccFullKeyListData listEcc,
             SensitiveByteArray masterKey = null)
         {
-            var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
+            var (hpwd64, kek64, sharedsecret) = ParsePasswordEccReply(reply, listEcc);
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
@@ -96,30 +96,70 @@ namespace Odin.Core.Cryptography.Login
             return passwordKey;
         }
 
-
-        // From the PasswordReply package received from the client, try to decrypt the RSA
-        // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(PasswordReply reply, RsaFullKeyListData listRsa)
+        /// <summary>
+        /// Derives the shared-secret from the ECC keys and the nonce and then GCM encrypts the data with the SS and the nonce
+        /// and returns the result as a base64 encoded string.
+        /// </summary>
+        /// <param name="clientEcc"></param>
+        /// <param name="hostPublicEcc"></param>
+        /// <returns>base64 encoded encrypted string</returns>
+        private static string DeriveSsAndGcmEncrypt(EccFullKeyData clientEcc, EccPublicKeyData hostPublicEcc, byte[] dataToEncrypt, byte[] nonce)
         {
-            // The nonce matches, now let's decrypt the RSA encoded header and set the data
-            //
-            var key = RsaKeyListManagement.FindKey(listRsa, reply.crc);
-
-            if (key == null)
-                throw new Exception("no matching RSA key");
-
-            byte[] decryptedRSA;
+            string encryptedGcm;
 
             try
             {
-                decryptedRSA = key.Decrypt(RsaKeyListManagement.zeroSensitiveKey, Convert.FromBase64String(reply.RsaEncrypted));
+                using var ss = clientEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicEcc, nonce);
+                encryptedGcm = AesGcm.Encrypt(dataToEncrypt, ss, nonce).ToBase64();
             }
             catch
             {
-                throw new Exception("Unable to RSA decrypt password header");
+                throw new Exception("Unable to AES GCM encrypt password header");
             }
 
-            string originalResult = Encoding.Default.GetString(decryptedRSA);
+            return encryptedGcm;
+        }
+
+
+        /// <summary>
+        /// Derives the shared-secret from the ECC keys and the nonce and then GCM decrypts the ciper with the SS and the nonce.
+        /// </summary>
+        /// <param name="hostEcc"></param>
+        /// <param name="clientPublicEcc"></param>
+        /// <param name="gcmEncrypted64"></param>
+        /// <returns></returns>
+        private static byte[] DeriveSsAndGcmDecrypt(EccFullKeyData hostEcc, EccPublicKeyData clientPublicEcc, byte[] dataToDecrypt, byte[] nonce)
+        {
+            byte[] decryptedGcm;
+
+            try
+            {
+                using var ss = hostEcc.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, clientPublicEcc, nonce);
+                decryptedGcm = AesGcm.Decrypt(dataToDecrypt, ss, nonce);
+            }
+            catch
+            {
+                throw new Exception("Unable to AES GCM decrypt password header");
+            }
+
+            return decryptedGcm;
+        }
+
+
+        // From the PasswordReply package received from the client, try to decrypt the ECC
+        // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
+        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordEccReply(PasswordReply reply, EccFullKeyListData listHostEcc)
+        {
+            // The nonce matches, now let's decrypt the RSA encoded header and set the data
+            //
+            var hostEccFullKey = EccKeyListManagement.FindKey(listHostEcc, reply.crc);
+
+            if (hostEccFullKey == null)
+                throw new Exception("no matching ECC key");
+
+            var decryptedGcm = DeriveSsAndGcmDecrypt(hostEccFullKey, EccPublicKeyData.FromJwkPublicKey(reply.PublicKeyJwk), reply.GcmEncrypted64.FromBase64(), reply.Nonce64.FromBase64());
+
+            string originalResult = decryptedGcm.ToStringFromUtf8Bytes();
 
             // I guess / hope if it fails it throws an exception :-))
             //
@@ -130,7 +170,7 @@ namespace Odin.Core.Cryptography.Login
             try
             {
                 //Note: had to use an explicit class since the System.Text.Json serializer failed with dynamic
-                var o = OdinSystemSerializer.Deserialize<DecryptedRSAPasswordHeader>(originalResult);
+                var o = OdinSystemSerializer.Deserialize<DecryptedGCMPasswordHeader>(originalResult);
 
                 hpwd64 = o.hpwd64;
                 kek64 = o.kek64;
@@ -138,7 +178,7 @@ namespace Odin.Core.Cryptography.Login
             }
             catch
             {
-                throw new Exception("Unable to parse the decrypted RSA password header");
+                throw new Exception("Unable to parse the decrypted GCM password header");
             }
 
             if ((Convert.FromBase64String(hpwd64).Length != 16) ||
@@ -153,9 +193,9 @@ namespace Odin.Core.Cryptography.Login
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
         public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
-            PasswordReply reply, RsaFullKeyListData listRsa)
+            PasswordReply reply, EccFullKeyListData listEcc)
         {
-            var (hpwd64, kek64, sharedsecret64) = ParsePasswordRSAReply(reply, listRsa);
+            var (hpwd64, kek64, sharedsecret64) = ParsePasswordEccReply(reply, listEcc);
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
         }
 
@@ -196,7 +236,7 @@ namespace Odin.Core.Cryptography.Login
             throw new NotImplementedException();
         }
 
-        public static PasswordReply CalculatePasswordReply(string password, NonceData nonce)
+        public static PasswordReply CalculatePasswordReply(string password, NonceData nonce, EccFullKeyData clientEccKey)
         {
             var pr = new PasswordReply();
 
@@ -205,9 +245,11 @@ namespace Odin.Core.Cryptography.Login
             string hashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+
             string keK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+
             pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(hashedPassword64,
                 Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE));
@@ -225,7 +267,13 @@ namespace Odin.Core.Cryptography.Login
             };
             var str = OdinSystemSerializer.Serialize(data);
 
-            (pr.crc, pr.RsaEncrypted) = RsaKeyManagement.PasswordCalculateReplyHelper(nonce.PublicPem, str);
+            // (pr.crc, pr.RsaEncrypted) = RsaKeyManagement.PasswordCalculateReplyHelper(nonce.PublicJwk, str);
+
+            var hostEccPublicKey = EccFullKeyData.FromJwkPublicKey(nonce.PublicJwk);
+
+            pr.crc = nonce.CRC;
+            pr.GcmEncrypted64 = DeriveSsAndGcmEncrypt(clientEccKey, hostEccPublicKey, str.ToUtf8ByteArray(), nonce.Nonce64.FromBase64());
+            pr.PublicKeyJwk = clientEccKey.PublicKeyJwk();
 
             // If the login is successful then the client will get the cookie
             // and will have to use this sharedsecret on all requests. So store securely in 

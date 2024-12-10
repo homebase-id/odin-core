@@ -21,7 +21,7 @@ public class TableInbox(
         return await base.GetAsync(identityKey, fileId);
     }
 
-    public override async Task<int> InsertAsync(InboxRecord item)
+    public new async Task<int> InsertAsync(InboxRecord item)
     {
         item.identityId = identityKey;
 
@@ -31,7 +31,7 @@ public class TableInbox(
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(InboxRecord item)
+    public new async Task<int> UpsertAsync(InboxRecord item)
     {
         item.identityId = identityKey;
 

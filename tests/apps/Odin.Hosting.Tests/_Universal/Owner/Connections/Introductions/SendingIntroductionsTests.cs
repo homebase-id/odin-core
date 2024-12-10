@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Services.Drives;
+using Odin.Core.Time;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -99,7 +100,7 @@ public class SendingIntroductionsTests
         await Cleanup();
     }
 
-    
+
     [Test]
     public async Task WillIgnoreIntroductionIfAlreadyConnected()
     {
@@ -228,12 +229,14 @@ public class SendingIntroductionsTests
         var samsIntroductionToMerry = samReceivedIntroductionsResponse.Content.Single();
         Assert.IsTrue(samsIntroductionToMerry.Identity == merry);
         Assert.IsTrue(samsIntroductionToMerry.IntroducerOdinId == frodo);
+        Assert.IsTrue(samsIntroductionToMerry.Received > 0);
 
         var merryReceivedIntroductionsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsTrue(merryReceivedIntroductionsResponse.IsSuccessStatusCode);
         var merrysIntroductionToSam = merryReceivedIntroductionsResponse.Content.Single();
         Assert.IsTrue(merrysIntroductionToSam.Identity == sam);
         Assert.IsTrue(merrysIntroductionToSam.IntroducerOdinId == frodo);
+        Assert.IsTrue(merrysIntroductionToSam.Received > 0);
 
         await Cleanup();
     }
