@@ -19,7 +19,7 @@ public class TableKeyValue(
         return await base.GetAsync(identityKey, key);
     }
 
-    public override async Task<int> InsertAsync(KeyValueRecord item)
+    public new async Task<int> InsertAsync(KeyValueRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
@@ -30,7 +30,7 @@ public class TableKeyValue(
         return await base.DeleteAsync(identityKey, key);
     }
 
-    public override async Task<int> UpsertAsync(KeyValueRecord item)
+    public new async Task<int> UpsertAsync(KeyValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
@@ -53,7 +53,7 @@ public class TableKeyValue(
         return affectedRows;
     }
 
-    public override async Task<int> UpdateAsync(KeyValueRecord item)
+    public new async Task<int> UpdateAsync(KeyValueRecord item)
     {
         item.identityId = identityKey;
         return await base.UpdateAsync(item);

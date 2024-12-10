@@ -27,7 +27,7 @@ public class IdentityDatabaseTests : IocTestBase
 
         await db.KeyValue.InsertAsync(r1);
 
-        var r2 = await db.KeyValue.GetAsync(IdentityId, r1.key);
+        var r2 = await db.KeyValue.GetAsync(r1.key);
 
         Assert.AreEqual(r1.key, r2.key);
         Assert.AreEqual(r1.data, r2.data);
@@ -55,7 +55,7 @@ public class IdentityDatabaseTests : IocTestBase
 
         {
             await using var cn = await db.CreateScopedConnectionAsync();
-            var r2 = await db.KeyValue.GetAsync(IdentityId, r1.key);
+            var r2 = await db.KeyValue.GetAsync(r1.key);
             Assert.AreEqual(r1.key, r2.key);
             Assert.AreEqual(r1.data, r2.data);
         }
@@ -82,7 +82,7 @@ public class IdentityDatabaseTests : IocTestBase
 
         {
             await using var cn = await db.CreateScopedConnectionAsync();
-            var r2 = await db.KeyValue.GetAsync(IdentityId, r1.key);
+            var r2 = await db.KeyValue.GetAsync(r1.key);
             Assert.IsNull(r2);
         }
     }

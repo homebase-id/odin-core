@@ -39,10 +39,10 @@ public class DatabaseConnectionTests : IocTestBase
             throw new RollbackException("rollback triggered");
         });
 
-        var r = await tblKeyValue.GetAsync(identityKey, k1);
+        var r = await tblKeyValue.GetAsync(k1);
         Assert.IsNotNull(r);
 
-        r = await tblKeyValue.GetAsync(identityKey, k2);
+        r = await tblKeyValue.GetAsync(k2);
         Assert.IsNull(r);
     }
 
@@ -145,7 +145,7 @@ public class DatabaseConnectionTests : IocTestBase
 
             var r = await tblKeyValue.GetAsync(k1);
             await tblKeyValue.InsertAsync(new KeyValueRecord() { identityId = identityKey, key = k1, data = v1 });
-            r = await tblKeyValue.GetAsync(identityKey, k1);
+            r = await tblKeyValue.GetAsync(k1);
             timers[i] = sw.ElapsedMilliseconds;
         }
 

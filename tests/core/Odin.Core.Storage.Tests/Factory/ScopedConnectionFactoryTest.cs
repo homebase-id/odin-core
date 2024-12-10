@@ -60,6 +60,7 @@ public class ScopedConnectionFactoryTest
         builder.Populate(services);
 
         builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:
